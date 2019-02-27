@@ -1,0 +1,28 @@
+{
+  "name": "funlib",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {},
+  "devDependencies": {
+    "live-server": "^1.2.1",
+    "rollup": "^1.1.2",
+    "standard": "^12.0.1"
+  },
+  "scripts": {
+    "dist": "rollup -c",
+    "debug": "live-server --port=3443 --entry-file=test.html",
+    "test": "npm run dist && node ./dist/test.js",
+    "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.js",
+    "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmonad/funlib.git"
+  },
+  "author": "Kevin Jahns <kevin.jahns@protonmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dmonad/funlib/issues"
+  },
+  "homepage": "https://github.com/dmonad/funlib#readme"
+}
