@@ -42,7 +42,7 @@ const runGenTest = (tc, gen) => {
     const average = count / tc.repititions
     const expectedAverage = 100 / 2
     t.info(`Average is: ${average}. Expected average is ${expectedAverage}.`)
-    t.assert(Math.abs(average - expectedAverage) <= 1, 'Expected average is at most 1 off.')
+    t.assert(Math.abs(average - expectedAverage) <= 2, 'Expected average is at most 1 off.')
   })
 
   t.group('int32 - generates integer with 32 bits', () => {
@@ -106,8 +106,8 @@ const runGenTest = (tc, gen) => {
  * @param {t.TestCase} tc
  */
 export const testGeneratorXoroshiro128plus = tc => runGenTest(tc, new Xoroshiro128plus(tc.seed))
-// export const testGeneratorXorshift32 = tc => runGenTest(tc, new Xorshift32(tc.seed))
-// export const testGeneratorMt19937 = tc => runGenTest(tc, new Mt19937(tc.seed))
+export const testGeneratorXorshift32 = tc => runGenTest(tc, new Xorshift32(tc.seed))
+export const testGeneratorMt19937 = tc => runGenTest(tc, new Mt19937(tc.seed))
 
 /**
  * @param {prng.PRNG} gen

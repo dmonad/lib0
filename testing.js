@@ -128,6 +128,12 @@ export const compareStrings = (a, b, m = 'Strings match') => {
  */
 export const campareObjects = (a, b, m = 'Objects match') => object.equalFlat(a, b) || fail(m)
 
+/**
+ * @param {any} a
+ * @param {any} b
+ * @param {string} path
+ * @throws {TestError}
+ */
 const compareValues = (a, b, path) => {
   if (a !== b) {
     fail(`Values ${a} and ${b} don't match (${path})`)
@@ -136,7 +142,7 @@ const compareValues = (a, b, path) => {
 
 const _compare = (a, b, path, message) => {
   if (a == null || b == null) {
-    compareValues(a, b)
+    compareValues(a, b, path)
   }
   if (a.constructor !== b.constructor) {
     fail(`Constructors don't match ${path}`)
@@ -146,7 +152,7 @@ const _compare = (a, b, path, message) => {
       if (object.length(a) !== object.length(b)) {
         fail(`Objects have a different number of attributes ${path}`)
       }
-      object.forEach(a, (value, key) => _compare(value, b[key], `${path}.${key}`, message))
+      object.forEach(a, (value, key) => _compare(value, b[key], `${path}["${key}"]`, message))
       break
     case Array:
       if (a.length !== b.length) {
@@ -159,7 +165,7 @@ const _compare = (a, b, path, message) => {
   }
 }
 
-export const compare = (a, b, message = '') => _compare(a, b, 'object', message)
+export const compare = (a, b, message = 'Values match (deep comparison)') => _compare(a, b, 'obj', message)
 
 export const assert = (condition, message = '') => condition
   ? log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message)
@@ -212,7 +218,7 @@ class TestError extends Error {}
  * @throws {TestError}
  */
 export const fail = reason => {
-  log.print(log.RED, log.BOLD, 'X', log.UNBOLD, reason)
+  log.print(log.RED, log.BOLD, 'X ', log.UNBOLD, reason)
   throw new TestError('Test Failed')
 }
 

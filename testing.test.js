@@ -10,7 +10,7 @@ export const testComparing = () => {
 
 export const testFailing = () => {
   t.fails(() => {
-    t.fail('m?')
+    t.fail('This fail is expected')
   })
 }
 
