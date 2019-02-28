@@ -1,10 +1,5 @@
 
 import * as log from './logging.js'
-import { isBrowser } from './environment.js'
-
-if (isBrowser) {
-  log.createVConsole(document.body)
-}
 
 export const testLogging = () => {
   log.print(log.BLUE, 'blue ')

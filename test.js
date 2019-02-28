@@ -7,5 +7,11 @@ import * as diff from './diff.test.js'
 import * as testing from './testing.test.js'
 import * as indexeddb from './indexeddb.test.js'
 import * as prng from './prng.test.js'
+import * as log from './logging.js'
+import { isBrowser } from './environment.js'
+
+if (isBrowser) {
+  log.createVConsole(document.body)
+}
 
 runTests({ logging, string, encoding, diff, testing, indexeddb, prng })

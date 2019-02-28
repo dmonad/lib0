@@ -28,6 +28,7 @@ export class TestCase {
 }
 
 const perf = typeof performance === 'undefined'
+  // @ts-ignore
   ? require('perf_hooks').performance
   : performance // eslint-disable-line no-undef
 
@@ -85,23 +86,36 @@ export const group = (description, f) => {
   }
 }
 
-export const compareArrays = (as, bs) => {
+/**
+ * @template T
+ * @param {Array<T>} as
+ * @param {Array<T>} bs
+ * @param {string} [m]
+ * @return {boolean}
+ */
+export const compareArrays = (as, bs, m = 'Arrays match') => {
   if (as.length !== bs.length) {
-    return false
+    fail(m)
   }
   for (let i = 0; i < as.length; i++) {
     if (as[i] !== bs[i]) {
-      return false
+      fail(m)
     }
   }
   return true
 }
 
-export const compareStrings = (a, b) => {
+/**
+ * @param {string} a
+ * @param {string} b
+ * @param {string} [m]
+ * @throws {TestError} Throws if tests fails
+ */
+export const compareStrings = (a, b, m = 'Strings match') => {
   if (a !== b) {
     const diff = simpleDiff(a, b)
     log.print(log.GREY, a.slice(0, diff.pos), log.RED, a.slice(diff.pos, diff.remove), log.GREEN, diff.insert, log.GREY, a.slice(diff.pos + diff.remove))
-    fail('Strings don\'t match')
+    fail(m)
   }
 }
 
@@ -109,9 +123,10 @@ export const compareStrings = (a, b) => {
  * @template K,V
  * @param {Object<K,V>} a
  * @param {Object<K,V>} b
- * @return {boolean}
+ * @param {string} [m]
+ * @throws {TestError} Throws if test fails
  */
-export const campareObjects = (a, b) => object.equalFlat(a, b) || fail('Objects don\'t match')
+export const campareObjects = (a, b, m = 'Objects match') => object.equalFlat(a, b) || fail(m)
 
 const compareValues = (a, b, path) => {
   if (a !== b) {
@@ -192,12 +207,21 @@ export const runTests = async tests => {
 
 class TestError extends Error {}
 
+/**
+ * @param {string} reason
+ * @throws {TestError}
+ */
 export const fail = reason => {
-  throw new TestError(reason)
+  log.print(log.RED, log.BOLD, 'X', log.UNBOLD, reason)
+  throw new TestError('Test Failed')
 }
 
 class SkipError extends Error {}
 
+/**
+ * @param {boolean} cond If true, this tests will be skipped
+ * @throws {SkipError}
+ */
 export const skip = (cond = true) => {
   if (cond) {
     throw new SkipError('skipping..')
