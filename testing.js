@@ -203,14 +203,19 @@ export const fails = (f, message) => {
 export const runTests = async tests => {
   const numberOfTests = object.map(tests, mod => object.map(mod, f => f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
   let successfulTests = 0
-  let i = 0
+  let testnumber = 0
   const start = perf.now()
   for (const modName in tests) {
     const mod = tests[modName]
     for (const fname in mod) {
       const f = mod[fname]
       if (f) {
-        const success = await run(modName, fname, f, i++, numberOfTests)
+        const repeatEachTest = 1
+        let success = true
+        for (let i = 0; success && i < repeatEachTest; i++) {
+          success = await run(modName, fname, f, testnumber, numberOfTests)
+        }
+        testnumber++
         if (success) {
           successfulTests++
         }
