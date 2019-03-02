@@ -9,6 +9,8 @@ import { Mt19937 } from './prng/Mt19937.js'
 import * as dom from './dom.js'
 import { isBrowser } from './environment.js'
 
+const genTestData = 5000
+
 /**
  * @param {t.TestCase} tc
  * @param {prng.PRNG} gen
@@ -20,7 +22,7 @@ const runGenTest = (tc, gen) => {
     let b
     let i
 
-    for (i = 0; i < tc.repititions; i++) {
+    for (i = 0; i < genTestData; i++) {
       b = prng.bool(gen)
       if (b) {
         head++
@@ -29,17 +31,17 @@ const runGenTest = (tc, gen) => {
       }
     }
     t.info(`Generated ${head} heads and ${tail} tails.`)
-    t.assert(tail >= Math.floor(tc.repititions * 0.48), 'Generated enough tails.')
-    t.assert(head >= Math.floor(tc.repititions * 0.48), 'Generated enough heads.')
+    t.assert(tail >= Math.floor(genTestData * 0.48), 'Generated enough tails.')
+    t.assert(head >= Math.floor(genTestData * 0.48), 'Generated enough heads.')
   })
   t.group('int31 - integers average correctly', () => {
     let count = 0
     let i
 
-    for (i = 0; i < tc.repititions; i++) {
+    for (i = 0; i < genTestData; i++) {
       count += prng.int31(gen, 0, 100)
     }
-    const average = count / tc.repititions
+    const average = count / genTestData
     const expectedAverage = 100 / 2
     t.info(`Average is: ${average}. Expected average is ${expectedAverage}.`)
     t.assert(Math.abs(average - expectedAverage) <= 2, 'Expected average is at most 1 off.')
@@ -49,7 +51,7 @@ const runGenTest = (tc, gen) => {
     let num = 0
     let i
     let newNum
-    for (i = 0; i < tc.repititions; i++) {
+    for (i = 0; i < genTestData; i++) {
       newNum = prng.int32(gen, 0, BITS32)
       if (newNum > num) {
         num = newNum
@@ -63,7 +65,7 @@ const runGenTest = (tc, gen) => {
     let num = 0
     let i
     let newNum
-    for (i = 0; i < tc.repititions; i++) {
+    for (i = 0; i < genTestData; i++) {
       newNum = prng.int31(gen, 0, BITS31)
       if (newNum > num) {
         num = newNum
@@ -77,7 +79,7 @@ const runGenTest = (tc, gen) => {
     let num = 0
     let i
     let newNum
-    for (i = 0; i < tc.repititions; i++) {
+    for (i = 0; i < genTestData; i++) {
       newNum = prng.real53(gen) * MAX_SAFE_INTEGER
       if (newNum > num) {
         num = newNum
@@ -93,7 +95,7 @@ const runGenTest = (tc, gen) => {
     for (let i = chars.length - 1; i >= 0; i--) {
       charSet.add(chars[i])
     }
-    for (let i = 0; i < tc.repititions; i++) {
+    for (let i = 0; i < genTestData; i++) {
       const char = prng.char(gen)
       charSet.delete(char)
     }
@@ -114,14 +116,14 @@ export const testGeneratorMt19937 = tc => runGenTest(tc, new Mt19937(tc.seed))
  * @param {t.TestCase} tc
  */
 const printDistribution = (gen, tc) => {
-  const DIAMETER = tc.repititions / 50
+  const DIAMETER = genTestData / 50
   const canvas = dom.canvas(DIAMETER * 3, DIAMETER)
   const ctx = canvas.getContext('2d')
   if (ctx == null) {
     return t.skip()
   }
   ctx.fillStyle = 'blue'
-  for (let i = 0; i < tc.repititions; i++) {
+  for (let i = 0; i < genTestData; i++) {
     const x = prng.int31(gen, 0, DIAMETER * 3)
     const y = prng.int31(gen, 0, DIAMETER)
     ctx.fillRect(x, y, 1, 2)

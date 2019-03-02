@@ -9,6 +9,8 @@ import * as string from './string.js'
 import * as math from './math.js'
 import * as random from './random.js'
 import * as prng from './prng.js'
+import * as statistics from './statistics.js'
+import * as array from './array.js'
 
 const seed = random.uint32()
 
@@ -20,7 +22,6 @@ export class TestCase {
     this.prng = prng.create(seed)
     this.moduleName = moduleName
     this.testName = testName
-    this.repititions = 5000
   }
   get seed () {
     return seed
@@ -32,39 +33,54 @@ const perf = typeof performance === 'undefined'
   ? require('perf_hooks').performance
   : performance // eslint-disable-line no-undef
 
+const repititionTime = 50
+
+const repeatTestRegex = /^(repeat|repeating)\s/
+
 export const run = async (moduleName, name, f, i, numberOfTests) => {
   const t = new TestCase(moduleName, name)
   const uncamelized = string.fromCamelCase(name.slice(4), ' ')
+  const repeat = repeatTestRegex.test(uncamelized)
   log.groupCollapsed(log.GREY, `[${i + 1}/${numberOfTests}] `, log.PURPLE, `${moduleName}: `, log.BLUE, uncamelized)
   perf.mark(`${name}-start`)
   let err = null
+  const times = []
   const start = perf.now()
-  try {
-    const p = f(t)
-    if (p != null && p.constructor === Promise) {
-      await p
+  let lastTime = start
+  do {
+    try {
+      const p = f(t)
+      if (p != null && p.constructor === Promise) {
+        await p
+      }
+    } catch (_err) {
+      err = _err
     }
-  } catch (_err) {
-    err = _err
-  }
-  const end = perf.now()
+    const currTime = perf.now()
+    times.push(currTime - lastTime)
+    lastTime = currTime
+  } while (repeat && err === null && (lastTime - start) < repititionTime)
   perf.mark(`${name}-end`)
   if (err !== null && err.constructor !== SkipError) {
     log.printError(err)
   }
   log.groupEnd()
   perf.measure(name, `${name}-start`, `${name}-end`)
-  const duration = end - start
+  const duration = lastTime - start
   let success = true
+  times.sort()
+  const timeInfo = repeat
+      ? ` - ${times.length} repititions in ${duration.toFixed(2)}ms (best: ${times[0].toFixed(2)}ms, worst: ${array.last(times).toFixed(2)}ms, median: ${statistics.median(times).toFixed(2)}ms, average: ${statistics.average(times).toFixed(2)}ms)`
+      : ` in ${duration.toFixed(2)}ms`
   if (err !== null) {
     if (err.constructor === SkipError) {
       log.print(log.GREY, log.BOLD, 'Skipped: ', log.UNBOLD, uncamelized)
     } else {
       success = false
-      log.print(log.RED, log.BOLD, 'Failure: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, ` in ${duration}ms`)
+      log.print(log.RED, log.BOLD, 'Failure: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo)
     }
   } else {
-    log.print(log.GREEN, log.BOLD, 'Success: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, ` in ${duration}ms`)
+    log.print(log.GREEN, log.BOLD, 'Success: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo)
   }
   return success
 }
@@ -188,6 +204,7 @@ export const runTests = async tests => {
   const numberOfTests = object.map(tests, mod => object.map(mod, f => f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
   let successfulTests = 0
   let i = 0
+  const start = perf.now()
   for (const modName in tests) {
     const mod = tests[modName]
     for (const fname in mod) {
@@ -200,10 +217,10 @@ export const runTests = async tests => {
       }
     }
   }
-
+  const end = perf.now()
   log.print('')
   if (successfulTests === numberOfTests) {
-    log.print(log.GREEN, log.BOLD, 'All tests successful!')
+    log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${(end - start).toFixed(2)}ms`)
     log.printImgBase64(nyanCatImage, 50)
   } else {
     const failedTests = numberOfTests - successfulTests

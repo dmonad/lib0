@@ -85,17 +85,11 @@ export const testVarUintEncoding = tc => {
   test('varUint 3 bytes', writeVarUint, readVarUint, 1 << 17 | 1 << 9 | 3)
   test('varUint 4 bytes', writeVarUint, readVarUint, 1 << 25 | 1 << 17 | 1 << 9 | 3)
   test('varUint of 2839012934', writeVarUint, readVarUint, 2839012934)
+}
 
-  t.describe(`Running ${tc.repititions} random tests on varUint`)
-  let allUtf8ByteLength = 0
-  let allBinaryByteLength = 0
-  for (let i = 0; i < tc.repititions; i++) {
-    const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
-    const { utf8ByteLength, binaryByteLength } = test(`varUint of ${n}`, writeVarUint, readVarUint, n, false)
-    allUtf8ByteLength += utf8ByteLength
-    allBinaryByteLength += binaryByteLength
-  }
-  t.describe(`compression of ${math.round((allBinaryByteLength / allUtf8ByteLength) * 100)}%`)
+export const testRepeatVarUintEncoding = tc => {
+  const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
+  test(`varUint of ${n}`, writeVarUint, readVarUint, n, false)
 }
 
 export const testStringEncoding = tc => {
@@ -107,8 +101,7 @@ export const testStringEncoding = tc => {
   testVarString('쾟')
   testVarString('龟') // surrogate length 3
   testVarString('😝') // surrogate length 4
-  t.describe(`Running ${tc.repititions} random tests on varString`)
-  for (let i = 0; i < tc.repititions; i++) {
-    testVarString(prng.utf16String(tc.prng))
-  }
 }
+
+export const testRepeatStringEncoding = tc =>
+  testVarString(prng.utf16String(tc.prng))

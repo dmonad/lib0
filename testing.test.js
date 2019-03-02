@@ -1,4 +1,5 @@
 import * as t from './testing.js'
+import * as math from './math.js'
 
 export const testComparing = () => {
   t.compare({}, {})
@@ -17,4 +18,13 @@ export const testFailing = () => {
 export const testSkipping = () => {
   t.skip()
   t.fail('should have skipped')
+}
+
+export const testRepeatRepitition = () => {
+  const arr = []
+  const n = 100
+  for (let i = 1; i <= n; i++) {
+    arr.push(i)
+  }
+  t.assert(arr.reduce(math.add, 0) === (n+1)*n/2, 'We can count the smart way')
 }

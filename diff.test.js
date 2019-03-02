@@ -16,13 +16,12 @@ export const testDiffing = tc => {
   runDiffTest('abc', 'xyz', { pos: 0, remove: 3, insert: 'xyz' })
   runDiffTest('axz', 'au', { pos: 1, remove: 2, insert: 'u' })
   runDiffTest('ax', 'axy', { pos: 2, remove: 0, insert: 'y' })
+}
 
-  t.describe(`Running ${tc.repititions} random tests`)
-  for (let i = 0; i < tc.repititions; i++) {
-    const a = prng.word(tc.prng)
-    const b = prng.word(tc.prng)
-    const change = simpleDiff(a, b)
-    const recomposed = `${a.slice(0, change.pos)}${change.insert}${a.slice(change.pos + change.remove)}`
-    t.compareStrings(recomposed, b)
-  }
+export const testRepeatDiffing = tc => {
+  const a = prng.word(tc.prng)
+  const b = prng.word(tc.prng)
+  const change = simpleDiff(a, b)
+  const recomposed = `${a.slice(0, change.pos)}${change.insert}${a.slice(change.pos + change.remove)}`
+  t.compareStrings(recomposed, b)
 }
