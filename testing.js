@@ -35,19 +35,30 @@ const perf = typeof performance === 'undefined'
   : performance // eslint-disable-line no-undef
 
 const repititionTime = Number(env.getParam('--repitition-time', '50'))
+const testFilter = env.getParam('--filter', null)
+const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : new RegExp('.*')
 
 const repeatTestRegex = /^(repeat|repeating)\s/
 
 export const run = async (moduleName, name, f, i, numberOfTests) => {
-  const t = new TestCase(moduleName, name)
   const uncamelized = string.fromCamelCase(name.slice(4), ' ')
+  let filtered = !testFilterRegExp.test(`[${i + 1}/${numberOfTests}] ${moduleName}: ${uncamelized}`)
+  if (filtered) {
+    return true
+  }
+  const t = new TestCase(moduleName, name)
   const repeat = repeatTestRegex.test(uncamelized)
-  log.groupCollapsed(log.GREY, `[${i + 1}/${numberOfTests}] `, log.PURPLE, `${moduleName}: `, log.BLUE, uncamelized)
-  perf.mark(`${name}-start`)
-  let err = null
+  const groupArgs = [log.GREY, `[${i + 1}/${numberOfTests}] `, log.PURPLE, `${moduleName}: `, log.BLUE, uncamelized]
+  if (testFilter === null) {
+    log.groupCollapsed(...groupArgs)
+  } else {
+    log.group(...groupArgs)
+  }
   const times = []
   const start = perf.now()
   let lastTime = start
+  let err = null
+  perf.mark(`${name}-start`)
   do {
     try {
       const p = f(t)
@@ -65,12 +76,12 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   if (err !== null && err.constructor !== SkipError) {
     log.printError(err)
   }
-  log.groupEnd()
   perf.measure(name, `${name}-start`, `${name}-end`)
+  log.groupEnd()
   const duration = lastTime - start
   let success = true
   times.sort()
-  const timeInfo = repeat
+  const timeInfo = (repeat && err === null)
       ? ` - ${times.length} repititions in ${duration.toFixed(2)}ms (best: ${times[0].toFixed(2)}ms, worst: ${array.last(times).toFixed(2)}ms, median: ${statistics.median(times).toFixed(2)}ms, average: ${statistics.average(times).toFixed(2)}ms)`
       : ` in ${duration.toFixed(2)}ms`
   if (err !== null) {

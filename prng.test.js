@@ -31,8 +31,8 @@ const runGenTest = (tc, gen) => {
       }
     }
     t.info(`Generated ${head} heads and ${tail} tails.`)
-    t.assert(tail >= Math.floor(genTestData * 0.48), 'Generated enough tails.')
-    t.assert(head >= Math.floor(genTestData * 0.48), 'Generated enough heads.')
+    t.assert(tail >= Math.floor(genTestData * 0.45), 'Generated enough tails.')
+    t.assert(head >= Math.floor(genTestData * 0.45), 'Generated enough heads.')
   })
   t.group('int31 - integers average correctly', () => {
     let count = 0

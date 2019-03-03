@@ -2,6 +2,7 @@
 import * as map from './map.js'
 import * as string from './string.js'
 
+// @ts-ignore
 export const isNode = typeof process !== 'undefined' && /node|io\.js/.test(process.release.name)
 export const isBrowser = typeof window !== undefined && !isNode
 
