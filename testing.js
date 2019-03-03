@@ -11,6 +11,7 @@ import * as random from './random.js'
 import * as prng from './prng.js'
 import * as statistics from './statistics.js'
 import * as array from './array.js'
+import * as env from './environment.js'
 
 const seed = random.uint32()
 
@@ -33,7 +34,7 @@ const perf = typeof performance === 'undefined'
   ? require('perf_hooks').performance
   : performance // eslint-disable-line no-undef
 
-const repititionTime = 50
+const repititionTime = Number(env.getParam('--repitition-time', '50'))
 
 const repeatTestRegex = /^(repeat|repeating)\s/
 
