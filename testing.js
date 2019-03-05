@@ -14,19 +14,28 @@ import * as array from './array.js'
 import * as env from './environment.js'
 import * as json from './json.js'
 
-const seed = random.uint32()
+const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed')) : null
 
 export class TestCase {
   constructor (moduleName, testName) {
     /**
      * @type {prng.PRNG}
      */
-    this.prng = prng.create(seed)
     this.moduleName = moduleName
     this.testName = testName
+    this._seed = null
+    this._prng = null
+  }
+  renewSeed () {
+    this._seed = envSeed === null ? random.uint32() : envSeed
   }
   get seed () {
-    return seed
+    this.renewSeed()
+    return this._seed
+  }
+  get prng () {
+    this._prng = prng.create(this.seed)
+    return this._prng
   }
 }
 
@@ -47,7 +56,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   if (filtered) {
     return true
   }
-  const t = new TestCase(moduleName, name)
+  const tc = new TestCase(moduleName, name)
   const repeat = repeatTestRegex.test(uncamelized)
   const groupArgs = [log.GREY, `[${i + 1}/${numberOfTests}] `, log.PURPLE, `${moduleName}: `, log.BLUE, uncamelized]
   if (testFilter === null) {
@@ -62,7 +71,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   perf.mark(`${name}-start`)
   do {
     try {
-      const p = f(t)
+      const p = f(tc)
       if (p != null && p.constructor === Promise) {
         await p
       }
@@ -72,7 +81,12 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     const currTime = perf.now()
     times.push(currTime - lastTime)
     lastTime = currTime
-  } while (repeat && err === null && (lastTime - start) < repititionTime)
+    if (repeat) {
+      tc.renewSeed()
+    } else {
+      break
+    }
+  } while (err === null && (lastTime - start) < repititionTime)
   perf.mark(`${name}-end`)
   if (err !== null && err.constructor !== SkipError) {
     log.printError(err)
@@ -82,18 +96,20 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   const duration = lastTime - start
   let success = true
   times.sort()
+  const againSeed = tc._seed === null ? '' : `&seed=${tc._seed}`
+  const againMessage = env.isBrowser ? `     - ${window.location.protocol}//${window.location.host}?filter=\\[${i + 1}/${againSeed}` : ''
   const timeInfo = (repeat && err === null)
-      ? ` - ${times.length} repititions in ${duration.toFixed(2)}ms (best: ${times[0].toFixed(2)}ms, worst: ${array.last(times).toFixed(2)}ms, median: ${statistics.median(times).toFixed(2)}ms, average: ${statistics.average(times).toFixed(2)}ms)`
-      : ` in ${duration.toFixed(2)}ms`
+    ? ` - ${times.length} repititions in ${duration.toFixed(2)}ms (best: ${times[0].toFixed(2)}ms, worst: ${array.last(times).toFixed(2)}ms, median: ${statistics.median(times).toFixed(2)}ms, average: ${statistics.average(times).toFixed(2)}ms)`
+    : ` in ${duration.toFixed(2)}ms`
   if (err !== null) {
     if (err.constructor === SkipError) {
       log.print(log.GREY, log.BOLD, 'Skipped: ', log.UNBOLD, uncamelized)
     } else {
       success = false
-      log.print(log.RED, log.BOLD, 'Failure: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo)
+      log.print(log.RED, log.BOLD, 'Failure: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo, againMessage)
     }
   } else {
-    log.print(log.GREEN, log.BOLD, 'Success: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo)
+    log.print(log.GREEN, log.BOLD, 'Success: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo, againMessage)
   }
   return success
 }
@@ -200,9 +216,9 @@ const _compare = (a, b, path, message, customCompare) => {
 
 export const compare = (a, b, message = 'Values match (deep comparison)', customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
-export const assert = (condition, message = '') => condition
-  ? log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message)
-  : fail(`Failed condition: ${message}`)
+export const assert = (condition, message = null) => condition
+  ? (message !== null && log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message))
+  : fail(message ? `Failed condition: ${message}` : 'Assertion failed')
 
 export const fails = (f, message) => {
   let err = null

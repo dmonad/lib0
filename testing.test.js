@@ -26,5 +26,5 @@ export const testRepeatRepitition = () => {
   for (let i = 1; i <= n; i++) {
     arr.push(i)
   }
-  t.assert(arr.reduce(math.add, 0) === (n+1)*n/2, 'We can count the smart way')
+  t.assert(arr.reduce(math.add, 0) === (n + 1) * n / 2)
 }
