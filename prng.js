@@ -5,7 +5,7 @@
 import * as binary from './binary.js'
 import { fromCharCode, fromCodePoint } from './string.js'
 import * as math from './math.js'
-import { Xoroshiro128plus as DefaultPRNG } from './prng/Xoroshiro128plus.js'
+import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
 
 /**
  * Description of the function
@@ -19,6 +19,8 @@ import { Xoroshiro128plus as DefaultPRNG } from './prng/Xoroshiro128plus.js'
  * @typedef {Object} PRNG
  * @property {generatorNext} next Generate new number
  */
+
+export const DefaultPRNG = Xoroshiro128plus
 
 /**
  * Create a Xoroshiro128plus Pseudo-Random-Number-Generator.

@@ -12,6 +12,7 @@ import * as prng from './prng.js'
 import * as statistics from './statistics.js'
 import * as array from './array.js'
 import * as env from './environment.js'
+import * as json from './json.js'
 
 const seed = random.uint32()
 
@@ -162,15 +163,16 @@ export const campareObjects = (a, b, m = 'Objects match') => object.equalFlat(a,
  * @param {string} path
  * @throws {TestError}
  */
-const compareValues = (a, b, path) => {
+const compareValues = (constructor, a, b, path) => {
   if (a !== b) {
-    fail(`Values ${a} and ${b} don't match (${path})`)
+    fail(`Values ${json.stringify(a)} and ${json.stringify(b)} don't match (${path})`)
   }
+  return true
 }
 
-const _compare = (a, b, path, message) => {
+const _compare = (a, b, path, message, customCompare) => {
   if (a == null || b == null) {
-    compareValues(a, b, path)
+    return compareValues(null, a, b, path)
   }
   if (a.constructor !== b.constructor) {
     fail(`Constructors don't match ${path}`)
@@ -180,20 +182,23 @@ const _compare = (a, b, path, message) => {
       if (object.length(a) !== object.length(b)) {
         fail(`Objects have a different number of attributes ${path}`)
       }
-      object.forEach(a, (value, key) => _compare(value, b[key], `${path}["${key}"]`, message))
+      object.forEach(a, (value, key) => _compare(value, b[key], `${path}["${key}"]`, message, customCompare))
       break
     case Array:
       if (a.length !== b.length) {
         fail(`Arrays have a different number of attributes ${path}`)
       }
-      a.forEach((value, i) => _compare(value, b[i], `${path}[${i}]`, message))
+      a.forEach((value, i) => _compare(value, b[i], `${path}[${i}]`, message, customCompare))
       break
     default:
-      compareValues(a, b, path)
+      if (!customCompare(a.constructor, a, b, path, compareValues)) {
+        fail(`Values ${json.stringify(a)} and ${json.stringify(b)} don't match (${path})`)
+      }
   }
+  return true
 }
 
-export const compare = (a, b, message = 'Values match (deep comparison)') => _compare(a, b, 'obj', message)
+export const compare = (a, b, message = 'Values match (deep comparison)', customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
 export const assert = (condition, message = '') => condition
   ? log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message)
