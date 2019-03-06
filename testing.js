@@ -26,15 +26,20 @@ export class TestCase {
     this._seed = null
     this._prng = null
   }
-  renewSeed () {
-    this._seed = envSeed === null ? random.uint32() : envSeed
+  resetSeed () {
+    this._seed = null
+    this._prng = null
   }
   get seed () {
-    this.renewSeed()
+    if (this._seed === null) {
+      this._seed = envSeed === null ? random.uint32() : envSeed
+    }
     return this._seed
   }
   get prng () {
-    this._prng = prng.create(this.seed)
+    if (this._prng === null) {
+      this._prng = prng.create(this.seed)
+    }
     return this._prng
   }
 }
@@ -81,8 +86,8 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     const currTime = perf.now()
     times.push(currTime - lastTime)
     lastTime = currTime
-    if (repeat) {
-      tc.renewSeed()
+    if (repeat && err === null && (lastTime - start) < repititionTime) {
+      tc.resetSeed()
     } else {
       break
     }
