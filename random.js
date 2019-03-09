@@ -1,22 +1,27 @@
+/* global crypto */
+
 /**
  * @module random
  */
+import * as env from './environment.js'
 
-/* global crypto */
-
-export const uint32 = () => {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues != null) {
-    // browser
-    let arr = new Uint32Array(1)
-    crypto.getRandomValues(arr)
-    return arr[0]
-    // @ts-ignore
-  } else if (typeof crypto !== 'undefined' && crypto.randomBytes != null) {
-    // node
-    // @ts-ignore
-    let buf = crypto.randomBytes(4)
-    return new Uint32Array(buf.buffer)[0]
-  } else {
-    return Math.ceil(Math.random() * 0xFFFFFFFF)
-  }
+/* istanbul ignore next */
+const uint32BrowserCrypto = () => {
+  const arr = new Uint32Array(1)
+  crypto.getRandomValues(arr)
+  return arr[0]
 }
+
+/* istanbul ignore next */
+const uint32NoCrypto = () => Math.ceil((Math.random() * 0xFFFFFFFF) >>> 0)
+
+const uint32NodeCrypto = crypto => () => {
+  // @ts-ignore
+  const buf = crypto.randomBytes(4)
+  return new Uint32Array(buf.buffer)[0]
+}
+
+/* istanbul ignore next */
+export const uint32 = env.isBrowser
+  ? (typeof crypto === 'undefined' ? uint32NoCrypto : uint32BrowserCrypto)
+  : uint32NodeCrypto(require('crypto'))

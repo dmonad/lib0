@@ -1,3 +1,4 @@
+import * as time from './time.js'
 
 export const create = f => new Promise(f)
 /**
@@ -10,14 +11,14 @@ export const reject = reason => Promise.reject(reason)
 export const resolve = res => Promise.resolve(res)
 
 export const until = (timeout, check) => create((resolve, reject) => {
+  const startTime = time.getUnixTime()
   const hasTimeout = timeout > 0
   const untilInterval = () => {
     if (check()) {
       clearInterval(intervalHandle)
       resolve()
     } else if (hasTimeout) {
-      timeout -= 10
-      if (timeout < 0) {
+      if (time.getUnixTime() - startTime > timeout) {
         clearInterval(intervalHandle)
         reject(new Error('Timeout'))
       }

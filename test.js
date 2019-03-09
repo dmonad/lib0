@@ -10,14 +10,29 @@ import * as prng from './prng.test.js'
 import * as log from './logging.js'
 import * as statistics from './statistics.test.js'
 import * as binary from './binary.test.js'
+import * as random from './random.test.js'
+import * as promise from './promise.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
+/* istanbul ignore if */
 if (isBrowser) {
   log.createVConsole(document.body)
 }
 
-runTests({ logging, string, encoding, diff, testing, indexeddb, prng, statistics, binary }).then(success => {
+runTests({
+  logging,
+  string,
+  encoding,
+  diff,
+  testing,
+  indexeddb,
+  prng,
+  statistics,
+  binary,
+  random,
+  promise
+}).then(success => {
   if (isNode) {
     process.exit(success ? 0 : 1)
   }
