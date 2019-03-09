@@ -3,6 +3,13 @@ import * as idb from './indexeddb.js'
 import * as environment from './environment.js'
 import * as promise from './promise.js'
 
+if (environment.isNode) {
+  // @ts-ignore
+  global.indexedDB = require('fake-indexeddb')
+  // @ts-ignore
+  global.IDBKeyRange = require('fake-indexeddb/lib/FDBKeyRange')
+}
+
 const initTestDB = db => idb.createStores(db, [['test']])
 const testDBName = 'idb-test'
 
@@ -14,7 +21,6 @@ const createTransaction = db => db.transaction(['test'], 'readwrite')
 const getStore = t => idb.getStore(t, 'test')
 
 export const testIdbIteration = async () => {
-  t.skip(!environment.isBrowser)
   t.describe('create, then iterate some keys')
   await idb.deleteDB(testDBName)
   const db = await idb.openDB(testDBName, initTestDB)
@@ -37,7 +43,6 @@ export const testIdbIteration = async () => {
 }
 
 export const testIdbIterationNoAwait = () => {
-  t.skip(!environment.isBrowser)
   t.describe('create, then iterate some keys')
   return idb.deleteDB(testDBName)
     .then(() => idb.openDB(testDBName, initTestDB))

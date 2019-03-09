@@ -38,7 +38,9 @@ export const openDB = (name, initDB) => globals.createPromise((resolve, reject) 
   request.onsuccess = event => {
     const db = event.target.result
     db.onversionchange = () => { db.close() }
-    addEventListener('unload', () => db.close())
+    if (typeof addEventListener !== 'undefined') {
+      addEventListener('unload', () => db.close())
+    }
     resolve(db)
   }
 })

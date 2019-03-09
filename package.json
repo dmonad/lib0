@@ -4,6 +4,7 @@
   "description": "",
   "dependencies": {},
   "devDependencies": {
+    "fake-indexeddb": "^2.0.5",
     "live-server": "^1.2.1",
     "nyc": "^13.3.0",
     "rollup": "^1.1.2",
