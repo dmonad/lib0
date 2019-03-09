@@ -21,10 +21,7 @@ export const testBitsx = tc => {
 
 export const testRepeatBase64Encoding = tc => {
   const gen = tc.prng
-  const barr = binary.createUint8ArrayFromLen(100000)
-  for (let i = 0; i < barr.length; i++) {
-    barr[i] = prng.int32(gen, 0, binary.BITS8)
-  }
+  const barr = prng.uint8Array(gen, 100000)
   const encoded = binary.toBase64(barr)
   t.assert(encoded.constructor === String)
   const decoded = binary.fromBase64(encoded)

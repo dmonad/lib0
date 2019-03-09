@@ -2,7 +2,7 @@
 import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
 import * as prng from './prng.js'
 import { MAX_SAFE_INTEGER } from './number.js'
-import { BIT32, BITS31, BITS32 } from './binary.js'
+import * as binary from './binary.js'
 import * as t from './testing.js'
 import { Xorshift32 } from './prng/Xorshift32.js'
 import { Mt19937 } from './prng/Mt19937.js'
@@ -48,17 +48,81 @@ const runGenTest = (tc, gen) => {
   })
 
   t.group('int32 - generates integer with 32 bits', () => {
+    let largest = 0
+    let smallest = 0
+    let i
+    let newNum
+    for (i = 0; i < genTestData; i++) {
+      newNum = prng.int32(gen, binary.BITS32, binary.BITS31)
+      if (newNum > largest) {
+        largest = newNum
+      }
+      if (newNum < smallest) {
+        smallest = newNum
+      }
+    }
+    t.assert(smallest < -1000, 'Smallest number is negative')
+    t.assert(largest > 1000, 'Largest number is positive')
+    t.info(`Largest number generated is ${largest} (0x${largest.toString(16)})`)
+    t.info(`Smallest number generated is ${smallest} (0x${smallest.toString(16)})`)
+    t.assert((smallest & binary.BIT32) !== 0, 'Largest number is 32 bits long') // largest.. assuming we convert int to uint
+  })
+
+  t.group('uint32 - generates unsigned integer with 32 bits', () => {
     let num = 0
     let i
     let newNum
     for (i = 0; i < genTestData; i++) {
-      newNum = prng.int32(gen, 0, BITS32)
+      newNum = prng.uint32(gen, 0, binary.BITS32)
       if (newNum > num) {
         num = newNum
       }
     }
-    t.info(`Largest number generated is ${num} (0b${num.toString(2)})`)
-    t.assert((num & BIT32) !== 0, 'Largest number is 32 bits long.')
+    t.info(`Largest number generated is ${num} (0x${num.toString(16)})`)
+    t.assert((num & binary.BIT32) !== 0, 'Largest number is 32 bits long.')
+  })
+
+  t.group('int53 - generates integer exceeding 32 bits', () => {
+    let largest = 0
+    let smallest = 0
+    let i
+    let newNum
+    for (i = 0; i < genTestData; i++) {
+      newNum = prng.int53(gen, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+      if (newNum > largest) {
+        largest = newNum
+      }
+      if (newNum < smallest) {
+        smallest = newNum
+      }
+    }
+    t.assert(smallest < -1000, 'Smallest number is negative')
+    t.assert(largest > 1000, 'Largest number is positive')
+    t.info(`Largest number generated is ${largest}`)
+    t.info(`Smallest number generated is ${smallest}`)
+    t.assert(largest > (binary.BITS32 >>> 0), 'Largest number exceeds BITS32')
+    t.assert(smallest < binary.BITS32, 'Smallest Number is smaller than BITS32 (negative)')
+  })
+
+  t.group('uint53 - generates integer exceeding 32 bits', () => {
+    let largest = 0
+    let smallest = 0
+    let i
+    let newNum
+    for (i = 0; i < genTestData; i++) {
+      newNum = prng.uint53(gen, 0, Number.MAX_SAFE_INTEGER)
+      if (newNum > largest) {
+        largest = newNum
+      }
+      if (newNum < smallest) {
+        smallest = newNum
+      }
+    }
+    t.assert(smallest >= 0, 'Smallest number is not negative')
+    t.assert(largest > 1000, 'Largest number is positive')
+    t.info(`Largest number generated is ${largest}`)
+    t.info(`Smallest number generated is ${smallest}`)
+    t.assert(largest > (binary.BITS32 >>> 0), 'Largest number exceeds BITS32')
   })
 
   t.group('int31 - generates integer with 31 bits', () => {
@@ -66,13 +130,13 @@ const runGenTest = (tc, gen) => {
     let i
     let newNum
     for (i = 0; i < genTestData; i++) {
-      newNum = prng.int31(gen, 0, BITS31)
+      newNum = prng.int31(gen, 0, binary.BITS31)
       if (newNum > num) {
         num = newNum
       }
     }
-    t.info(`Largest number generated is ${num} (0b${num.toString(2)})`)
-    // t.assert(num > (BIT31 >>> 0), 'Largest number is 31 bits long.')
+    t.info(`Largest number generated is ${num} (0x${num.toString(16)})`)
+    t.assert((num & binary.BIT31) !== 0, 'Largest number is 31 bits long.')
   })
 
   t.group('real - has 53 bit resolution', () => {

@@ -43,7 +43,7 @@ export const hasContent = decoder => decoder.pos !== decoder.arr.length
  * @return {Decoder} A clone of `decoder`
  */
 export const clone = (decoder, newPos = decoder.pos) => {
-  let _decoder = createDecoder(decoder.arr.buffer)
+  const _decoder = createDecoder(decoder.arr.buffer)
   _decoder.pos = newPos
   return _decoder
 }
@@ -96,6 +96,21 @@ export const skip8 = decoder => decoder.pos++
 export const readUint8 = decoder => decoder.arr[decoder.pos++]
 
 /**
+ * Read 2 bytes as unsigned integer.
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {number} An unsigned integer.
+ */
+export const readUint16 = decoder => {
+  const uint =
+    decoder.arr[decoder.pos] +
+    (decoder.arr[decoder.pos + 1] << 8)
+  decoder.pos += 2
+  return uint
+}
+
+/**
  * Read 4 bytes as unsigned integer.
  *
  * @function
@@ -103,7 +118,7 @@ export const readUint8 = decoder => decoder.arr[decoder.pos++]
  * @return {number} An unsigned integer.
  */
 export const readUint32 = decoder => {
-  let uint =
+  const uint =
     decoder.arr[decoder.pos] +
     (decoder.arr[decoder.pos + 1] << 8) +
     (decoder.arr[decoder.pos + 2] << 16) +
@@ -156,8 +171,8 @@ export const readVarUint = decoder => {
  * @return {number}
  */
 export const peekVarUint = decoder => {
-  let pos = decoder.pos
-  let s = readVarUint(decoder)
+  const pos = decoder.pos
+  const s = readVarUint(decoder)
   decoder.pos = pos
   return s
 }
@@ -198,8 +213,8 @@ export const readVarString = decoder => {
  * @return {string}
  */
 export const peekVarString = decoder => {
-  let pos = decoder.pos
-  let s = readVarString(decoder)
+  const pos = decoder.pos
+  const s = readVarString(decoder)
   decoder.pos = pos
   return s
 }

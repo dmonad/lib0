@@ -3,6 +3,7 @@ import * as decoding from './decoding.js'
 import * as prng from './prng.js'
 import * as t from './testing.js'
 import * as string from './string.js'
+import * as binary from './binary.js'
 
 /**
  * Check if binary encoding is compatible with golang binary encoding - binary.PutVarUint.
@@ -64,9 +65,6 @@ function test (testname, write, read, val, doLog = true) {
   }
 }
 
-const writeVarUint = (encoder, val) => encoding.writeVarUint(encoder, val)
-const readVarUint = decoder => decoding.readVarUint(decoder)
-
 const testVarString = (s) => {
   let encoder = encoding.createEncoder()
   encoding.writeVarString(encoder, s)
@@ -79,16 +77,16 @@ const testVarString = (s) => {
  * @param {t.TestCase} tc
  */
 export const testVarUintEncoding = tc => {
-  test('varUint 1 byte', writeVarUint, readVarUint, 42)
-  test('varUint 2 bytes', writeVarUint, readVarUint, 1 << 9 | 3)
-  test('varUint 3 bytes', writeVarUint, readVarUint, 1 << 17 | 1 << 9 | 3)
-  test('varUint 4 bytes', writeVarUint, readVarUint, 1 << 25 | 1 << 17 | 1 << 9 | 3)
-  test('varUint of 2839012934', writeVarUint, readVarUint, 2839012934)
+  test('varUint 1 byte', encoding.writeVarUint, decoding.readVarUint, 42)
+  test('varUint 2 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 9 | 3)
+  test('varUint 3 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 17 | 1 << 9 | 3)
+  test('varUint 4 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 25 | 1 << 17 | 1 << 9 | 3)
+  test('varUint of 2839012934', encoding.writeVarUint, decoding.readVarUint, 2839012934)
 }
 
 export const testRepeatVarUintEncoding = tc => {
   const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
-  test(`varUint of ${n}`, writeVarUint, readVarUint, n, false)
+  test(`varUint of ${n}`, encoding.writeVarUint, decoding.readVarUint, n, false)
 }
 
 export const testStringEncoding = tc => {
@@ -104,3 +102,44 @@ export const testStringEncoding = tc => {
 
 export const testRepeatStringEncoding = tc =>
   testVarString(prng.utf16String(tc.prng))
+
+const defLen = 1000
+const loops = 10000
+
+/**
+ * @type {Array<any>}
+ */
+const encodingPairs = [
+  { read: decoder => decoding.readArrayBuffer(decoder, defLen), write: encoding.writeArrayBuffer, gen: gen => prng.arrayBuffer(gen, defLen) },
+  { read: decoding.readPayload, write: encoding.writePayload, gen: gen => prng.arrayBuffer(gen, prng.int31(gen, 0, defLen)) },
+  { read: decoding.readUint8, write: encoding.writeUint8, gen: gen => prng.int53(gen, 0, binary.BITS8) },
+  { read: decoding.readUint16, write: encoding.writeUint16, gen: gen => prng.int53(gen, 0, binary.BITS16) },
+  { read: d => decoding.readUint32(d) >>> 0, write: encoding.writeUint32, gen: gen => prng.int53(gen, binary.BITS32, binary.BITS31) >>> 0 },
+  { read: decoding.readVarString, write: encoding.writeVarString, gen: gen => prng.utf16String(gen, prng.int31(gen, 0, defLen)) },
+  { read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS31) }
+]
+
+export const testRepeatRandomWrites = tc => {
+  t.describe(`Writing ${loops} random values`, `defLen=${defLen}`)
+  const gen = tc.prng
+  const ops = []
+  const encoder = encoding.createEncoder()
+  for (let i = 0; i < 10000; i++) {
+    const pair = prng.oneOf(gen, encodingPairs)
+    const val = pair.gen(gen)
+    pair.write(encoder, val)
+    ops.push({
+      read: pair.read,
+      val
+    })
+  }
+  const tailData = prng.arrayBuffer(gen, prng.int31(gen, 0, defLen))
+  encoding.writeArrayBuffer(encoder, tailData)
+  const decoder = decoding.createDecoder(encoding.toBuffer(encoder))
+  for (let i = 0; i < ops.length; i++) {
+    const o = ops[i]
+    const val = o.read(decoder)
+    t.compare(val, o.val)
+  }
+  t.compare(tailData, decoding.readTail(decoder))
+}

@@ -50,6 +50,11 @@ export const bool = gen => (gen.next() >= 0.5)
  */
 export const int53 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) + min)
 
+export const uint53 = (gen, min, max) => {
+  const n = int53(gen, min, max)
+  return (n < 0 ? (-1) : 1) * n
+}
+
 /**
  * Generates a random integer with 32 bit resolution.
  *
@@ -58,7 +63,9 @@ export const int53 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) 
  * @param {Number} max The upper bound of the allowed return values (inclusive).
  * @return {Number} A random integer on [min, max]
  */
-export const int32 = (gen, min, max) => (math.floor(((gen.next() * (max + 1 - min)))) + min) >>> 0
+export const int32 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) + min)
+
+export const uint32 = (gen, min, max) => int32(gen, min, max) >>> 0
 
 /**
  * Optimized version of prng.int32. It has the same precision as prng.int32, but should be preferred when
@@ -149,3 +156,23 @@ export const utf16String = (gen, maxlen = 20) => {
  * @template T
  */
 export const oneOf = (gen, array) => array[int31(gen, 0, array.length - 1)]
+
+/**
+ * @param {PRNG} gen
+ * @param {number} len
+ * @return {Uint8Array}
+ */
+export const uint8Array = (gen, len) => {
+  const buf = binary.createUint8ArrayFromLen(len)
+  for (let i = 0; i < buf.length; i++) {
+    buf[i] = int32(gen, 0, binary.BITS8)
+  }
+  return buf
+}
+
+/**
+ * @param {PRNG} gen
+ * @param {number} len
+ * @return {ArrayBuffer}
+ */
+export const arrayBuffer = (gen, len) => uint8Array(gen, len).buffer

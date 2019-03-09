@@ -120,7 +120,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   return success
 }
 
-export const describe = (description = '', info = '') => log.print(log.BLUE, description, log.GREY, info)
+export const describe = (description = '', info = '') => log.print(log.BLUE, description, ' ', log.GREY, info)
 
 export const info = info => describe('', info)
 
@@ -192,35 +192,57 @@ const compareValues = (constructor, a, b, path) => {
   return true
 }
 
+const _failMessage = (message, reason, path) => fail(
+  message === null
+    ? `${reason} ${path}`
+    : `${message} (${reason}) ${path}`
+)
+
 const _compare = (a, b, path, message, customCompare) => {
   if (a == null || b == null) {
     return compareValues(null, a, b, path)
   }
   if (a.constructor !== b.constructor) {
-    fail(`Constructors don't match ${path}`)
+    _failMessage(message, 'Constructors don\'t match', path)
   }
+  let success = true
   switch (a.constructor) {
+    case ArrayBuffer: {
+      a = new Uint8Array(a)
+      b = new Uint8Array(b)
+    }
+    // eslint-disable-next-line no-fallthrough
+    case Uint8Array: {
+      if (a.byteLength !== b.byteLength) {
+        _failMessage(message, 'ArrayBuffer lengths match', path)
+      }
+      for (let i = 0; success && i < a.length; i++) {
+        success = success && a[i] === b[i]
+      }
+      break
+    }
     case Object:
       if (object.length(a) !== object.length(b)) {
-        fail(`Objects have a different number of attributes ${path}`)
+        _failMessage(message, 'Objects have a different number of attributes', path)
       }
       object.forEach(a, (value, key) => _compare(value, b[key], `${path}["${key}"]`, message, customCompare))
       break
     case Array:
       if (a.length !== b.length) {
-        fail(`Arrays have a different number of attributes ${path}`)
+        _failMessage(message, 'Arrays have a different number of attributes', path)
       }
       a.forEach((value, i) => _compare(value, b[i], `${path}[${i}]`, message, customCompare))
       break
     default:
       if (!customCompare(a.constructor, a, b, path, compareValues)) {
-        fail(`Values ${json.stringify(a)} and ${json.stringify(b)} don't match (${path})`)
+        _failMessage(message, `Values ${json.stringify(a)} and ${json.stringify(b)} don't match`, path)
       }
   }
+  assert(success, message)
   return true
 }
 
-export const compare = (a, b, message = 'Values match (deep comparison)', customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
+export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
 export const assert = (condition, message = null) => condition
   ? (message !== null && log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message))
