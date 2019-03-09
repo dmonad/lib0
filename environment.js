@@ -4,7 +4,7 @@ import * as string from './string.js'
 
 // @ts-ignore
 export const isNode = typeof process !== 'undefined' && /node|io\.js/.test(process.release.name)
-export const isBrowser = typeof window !== undefined && !isNode
+export const isBrowser = typeof window !== 'undefined' && !isNode
 
 /**
  * @type {Map<string,string>}
@@ -40,6 +40,7 @@ const computeParamsNode = () => {
 const computeParamsBrowser = () => {
   if (params === undefined) {
     params = map.create()
+    // eslint-disable-next-line no-undef
     ;(location.search || '?').slice(1).split('&').forEach(kv => {
       if (kv.length !== 0) {
         const [key, value] = kv.split('=')
