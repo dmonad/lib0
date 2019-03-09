@@ -12,7 +12,7 @@ const bits8 = 0b11111111
 export class Encoder {
   constructor () {
     this.cpos = 0
-    this.cbuf = globals.createUint8ArrayFromLen(1000)
+    this.cbuf = globals.createUint8ArrayFromLen(100)
     this.bufs = []
   }
 }
