@@ -27,6 +27,7 @@ const computeParamsNode = () => {
       } else {
         if (currParamName !== null) {
           params.set(currParamName, parg)
+          currParamName = null
         } else {
           args.push(parg)
         }

@@ -1,8 +1,9 @@
 import * as statistics from './statistics.js'
 import * as t from './testing.js'
+import * as math from './math.js'
 
 export const testMedian = () => {
-  t.assert(statistics.median([]) === null, 'median([]) = null')
+  t.assert(math.isNaN(statistics.median([])), 'median([]) = NaN')
   t.assert(statistics.median([1]) === 1, 'median([x]) = x')
   t.assert(statistics.median([1, 2, 3]) === 2, 'median([a,b,c]) = b')
   t.assert(statistics.median([1, 2, 3, 4]) === (2 + 3) / 2, 'median([a,b,c,d]) = (b+c)/2')

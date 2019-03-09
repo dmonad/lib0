@@ -29,3 +29,5 @@ export const min = (a, b) => a < b ? a : b
  * @return {number} The bigger element of a and b
  */
 export const max = (a, b) => a > b ? a : b
+
+export const isNaN = Number.isNaN
