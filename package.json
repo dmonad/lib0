@@ -5,17 +5,19 @@
   "dependencies": {},
   "devDependencies": {
     "live-server": "^1.2.1",
+    "nyc": "^13.3.0",
     "rollup": "^1.1.2",
     "standard": "^12.0.1"
   },
   "scripts": {
     "dist": "rollup -c",
     "debug": "live-server --port=3443 --entry-file=test.html",
-    "test": "npm run dist && npm run lint && node ./dist/test.js --repitition-time 1000",
+    "test": "npm run dist && npm run lint && nyc --check-coverage --lines 100 node ./dist/test.js --repitition-time 500",
     "test-extensive": "npm run test -- --repitition-time 30000",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.js",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.js",
-    "lint": "standard"
+    "lint": "standard",
+    "preversion": "npm run test"
   },
   "repository": {
     "type": "git",

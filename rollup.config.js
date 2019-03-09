@@ -9,11 +9,4 @@ export default [{
     format: 'cjs',
     sourcemap: true
   }
-}, {
-  input: './test.js',
-  output: {
-    dir: './dist',
-    format: 'iife',
-    sourcemap: true
-  }
 }]

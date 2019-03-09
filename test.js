@@ -9,12 +9,16 @@ import * as indexeddb from './indexeddb.test.js'
 import * as prng from './prng.test.js'
 import * as log from './logging.js'
 import * as statistics from './statistics.test.js'
-import { isBrowser } from './environment.js'
+import * as binary from './binary.test.js'
+
+import { isBrowser, isNode } from './environment.js'
 
 if (isBrowser) {
   log.createVConsole(document.body)
 }
 
-runTests({ logging, string, encoding, diff, testing, indexeddb, prng, statistics }).then(success => {
-  process.exit(success ? 0 : 1)
+runTests({ logging, string, encoding, diff, testing, indexeddb, prng, statistics, binary }).then(success => {
+  if (isNode) {
+    process.exit(success ? 0 : 1)
+  }
 })

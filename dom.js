@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import * as pair from './pair.js'
 import * as map from './map.js'
 

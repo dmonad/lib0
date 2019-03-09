@@ -100,7 +100,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   log.groupEnd()
   const duration = lastTime - start
   let success = true
-  times.sort()
+  times.sort((a, b) => a < b ? -1 : (a === b) ? 0 : 1)
   const againMessage = env.isBrowser
     ? `     - ${window.location.protocol}//${window.location.host}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
     : `\nrepeat: npm run test -- --filter "\\[${i + 1}/" ${tc._seed === null ? '' : `--seed ${tc._seed}`}`
