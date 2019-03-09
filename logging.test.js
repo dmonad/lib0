@@ -12,4 +12,7 @@ export const testLogging = () => {
   log.print({ 'my-object': 'isLogged' })
   log.print(log.GREEN, 'green ', { 'my-object': 'isLogged' })
   log.print(log.GREEN, 'green ', { 'my-object': 'isLogged' }, 'unformatted')
+  log.print(log.BLUE, log.BOLD, 'number', 1)
+  log.print(log.BLUE, log.BOLD, 'number', 1, {}, 's', 2)
+  log.print({}, 'dtrn')
 }

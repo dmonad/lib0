@@ -18,6 +18,7 @@ export const PURPLE = symbol.create()
 export const ORANGE = symbol.create()
 export const UNCOLOR = symbol.create()
 
+/* istanbul ignore next */
 class Style {
   constructor (text, attrs) {
     this.text = text
@@ -25,6 +26,7 @@ class Style {
   }
 }
 
+/* istanbul ignore next */
 export const style = (text, attrs) => new Style(text, attrs)
 
 /**
@@ -54,6 +56,7 @@ const _nodeStyleMap = {
   [UNCOLOR]: '\x1b[0m'
 }
 
+/* istanbul ignore next */
 const computeBrowserLoggingArgs = args => {
   const strBuilder = []
   const styles = []
@@ -127,24 +130,29 @@ const computeNodeLoggingArgs = args => {
   return logArgs
 }
 
+/* istanbul ignore next */
 const computeLoggingArgs = isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs
 
 export const print = (...args) => {
   console.log(...computeLoggingArgs(args))
+  /* istanbul ignore next */
   vconsoles.forEach(vc => vc.print(args))
 }
 
+/* istanbul ignore next */
 export const warn = (...args) => {
   console.warn(...computeLoggingArgs(args))
   args.unshift(ORANGE)
   vconsoles.forEach(vc => vc.print(args))
 }
 
+/* istanbul ignore next */
 export const printError = err => {
   console.error(err)
   vconsoles.forEach(vc => vc.printError(err))
 }
 
+/* istanbul ignore next */
 /**
  * @param {string} url image location
  * @param {number} height height of the image in pixel
@@ -157,31 +165,40 @@ export const printImg = (url, height) => {
   vconsoles.forEach(vc => vc.printImg(url, height))
 }
 
+/* istanbul ignore next */
 export const printImgBase64 = (base64, height) => printImg(`data:image/gif;base64,${base64}`, height)
 
 export const group = (...args) => {
   console.group(...computeLoggingArgs(args))
+  /* istanbul ignore next */
   vconsoles.forEach(vc => vc.group(args))
 }
+
 export const groupCollapsed = (...args) => {
   console.groupCollapsed(...computeLoggingArgs(args))
+  /* istanbul ignore next */
   vconsoles.forEach(vc => vc.groupCollapsed(args))
 }
+
 export const groupEnd = () => {
   console.groupEnd()
+  /* istanbul ignore next */
   vconsoles.forEach(vc => vc.groupEnd())
 }
 
+/* istanbul ignore next */
 /**
  * @param {function():Node} createNode
  */
 export const printDom = createNode =>
   vconsoles.forEach(vc => vc.printDom(createNode()))
 
+/* istanbul ignore next */
 export const printCanvas = (canvas, height) => printImg(canvas.toDataURL(), height)
 
 export const vconsoles = new Set()
 
+/* istanbul ignore next */
 const _computeLineSpans = args => {
   const spans = []
   const currentStyle = new Map()
@@ -217,6 +234,7 @@ const _computeLineSpans = args => {
 
 const lineStyle = 'font-family:monospace;border-bottom:1px solid #e2e2e2;padding:2px;'
 
+/* istanbul ignore next */
 export class VConsole {
   constructor (dom) {
     this.dom = dom
@@ -278,4 +296,5 @@ export class VConsole {
   }
 }
 
+/* istanbul ignore next */
 export const createVConsole = dom => new VConsole(dom)
