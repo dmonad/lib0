@@ -1,5 +1,5 @@
 {
-  "name": "funlib",
+  "name": "lib0",
   "version": "1.0.0",
   "description": "",
   "dependencies": {},
@@ -18,12 +18,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dmonad/funlib.git"
+    "url": "git+https://github.com/dmonad/lib0.git"
   },
   "author": "Kevin Jahns <kevin.jahns@protonmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/dmonad/funlib/issues"
+    "url": "https://github.com/dmonad/lib0/issues"
   },
-  "homepage": "https://github.com/dmonad/funlib#readme"
+  "homepage": "https://github.com/dmonad/lib0#readme"
 }

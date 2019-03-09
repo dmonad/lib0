@@ -263,13 +263,15 @@ export const runTests = async tests => {
   }
   const end = perf.now()
   log.print('')
-  if (successfulTests === numberOfTests) {
+  const success = successfulTests === numberOfTests
+  if (success) {
     log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${(end - start).toFixed(2)}ms`)
     log.printImgBase64(nyanCatImage, 50)
   } else {
     const failedTests = numberOfTests - successfulTests
     log.print(log.RED, log.BOLD, `> ${failedTests} test${failedTests > 1 ? 's' : ''} failed`)
   }
+  return success
 }
 
 class TestError extends Error {}

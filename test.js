@@ -15,4 +15,6 @@ if (isBrowser) {
   log.createVConsole(document.body)
 }
 
-runTests({ logging, string, encoding, diff, testing, indexeddb, prng, statistics })
+runTests({ logging, string, encoding, diff, testing, indexeddb, prng, statistics }).then(success => {
+  process.exit(success ? 0 : 1)
+})
