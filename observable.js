@@ -64,4 +64,3 @@ export class Observable {
     this._observers = map.create()
   }
 }
-

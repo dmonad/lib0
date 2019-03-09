@@ -3,7 +3,6 @@ import * as decoding from './decoding.js'
 import * as prng from './prng.js'
 import * as t from './testing.js'
 import * as string from './string.js'
-import * as math from './math.js'
 
 /**
  * Check if binary encoding is compatible with golang binary encoding - binary.PutVarUint.

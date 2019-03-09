@@ -1,6 +1,3 @@
-
-import * as f from './function.js'
-
 /**
  * @type {Array<function>}
  */
@@ -20,7 +17,7 @@ export const enqueue = f => {
   }
 }
 
-export const profile = (name, f)  => {
+export const profile = (name, f) => {
   enqueue(() => {
     console.profile(name)
     f()

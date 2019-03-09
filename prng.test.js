@@ -2,7 +2,7 @@
 import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
 import * as prng from './prng.js'
 import { MAX_SAFE_INTEGER } from './number.js'
-import { BITS30, BIT31, BIT32, BITS31, BITS32 } from './binary.js'
+import { BIT32, BITS31, BITS32 } from './binary.js'
 import * as t from './testing.js'
 import { Xorshift32 } from './prng/Xorshift32.js'
 import { Mt19937 } from './prng/Mt19937.js'
