@@ -17,6 +17,7 @@ import * as eventloop from './eventloop.test.js'
 import * as time from './time.test.js'
 import * as pair from './pair.test.js'
 import * as object from './object.test.js'
+import * as math from './math.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
@@ -41,7 +42,8 @@ runTests({
   eventloop,
   time,
   pair,
-  object
+  object,
+  math
 }).then(success => {
   /* istanbul ignore next */
   if (isNode) {
