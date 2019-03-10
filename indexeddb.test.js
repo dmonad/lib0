@@ -1,7 +1,6 @@
 import * as t from './testing.js'
 import * as idb from './indexeddb.js'
 import * as environment from './environment.js'
-import * as promise from './promise.js'
 
 if (environment.isNode) {
   // @ts-ignore
@@ -10,7 +9,7 @@ if (environment.isNode) {
   global.IDBKeyRange = require('fake-indexeddb/lib/FDBKeyRange')
 }
 
-const initTestDB = db => idb.createStores(db, [['test']])
+const initTestDB = db => idb.createStores(db, [['test', { autoIncrement: true }]])
 const testDBName = 'idb-test'
 
 const createTransaction = db => db.transaction(['test'], 'readwrite')
@@ -20,54 +19,61 @@ const createTransaction = db => db.transaction(['test'], 'readwrite')
  */
 const getStore = t => idb.getStore(t, 'test')
 
-export const testIdbIteration = async () => {
+export const testRetrieveElements = async () => {
   t.describe('create, then iterate some keys')
   await idb.deleteDB(testDBName)
   const db = await idb.openDB(testDBName, initTestDB)
   const transaction = createTransaction(db)
-  await idb.put(getStore(transaction), 0, ['t', 0])
-  await idb.put(getStore(transaction), 1, ['t', 1])
-  const valsGetAll = await idb.getAll(getStore(transaction))
-  if (valsGetAll.length !== 2) {
-    t.fail('getAll does not return two values')
-  }
-  const valsIterate = []
-  const keyrange = idb.createIDBKeyRangeBound(['t', 0], ['t', 1], false, false)
-  await idb.put(getStore(transaction), 2, ['t', 2])
-  await idb.iterate(getStore(transaction), keyrange, (val, key) => {
-    valsIterate.push(val)
-  })
-  if (valsIterate.length !== 2) {
-    t.fail('iterate does not return two values')
-  }
-}
+  const store = getStore(transaction)
+  await idb.put(store, 0, ['t', 1])
+  await idb.put(store, 1, ['t', 2])
+  const expectedKeys = [['t', 1], ['t', 2]]
+  const expectedVals = [0, 1]
+  const expectedKeysVals = [{ v: 0, k: ['t', 1] }, { v: 1, k: ['t', 2] }]
+  t.describe('idb.getAll')
+  const valsGetAll = await idb.getAll(store)
+  t.compare(valsGetAll, expectedVals)
+  t.describe('idb.getAllKeys')
+  const valsGetAllKeys = await idb.getAllKeys(store)
+  t.compare(valsGetAllKeys, expectedKeys)
+  t.describe('idb.getAllKeysVals')
+  const valsGetAllKeysVals = await idb.getAllKeysValues(store)
+  t.compare(valsGetAllKeysVals, expectedKeysVals)
 
-export const testIdbIterationNoAwait = () => {
-  t.describe('create, then iterate some keys')
-  return idb.deleteDB(testDBName)
-    .then(() => idb.openDB(testDBName, initTestDB))
-    .then(db => {
-      const transaction = createTransaction(db)
-      return promise.all([idb.put(getStore(transaction), 0, ['t', 0]), idb.put(getStore(transaction), 1, ['t', 1])])
-        .then(() => idb.getAll(getStore(transaction)))
-        .then(valsGetAll => {
-          if (valsGetAll.length !== 2) {
-            return promise.reject('getAll does not return two values')
-          }
-          return idb.put(getStore(transaction), 2, ['t', 2])
-        })
-        .then(() => {
-          const valsIterate = []
-          const keyrange = idb.createIDBKeyRangeBound(['t', 0], ['t', 1], false, false)
-          return idb.iterate(getStore(transaction), keyrange, (val, key) => {
-            valsIterate.push(val)
-          }).then(() => {
-            if (valsIterate.length !== 2) {
-              return promise.reject('iterate does not return two values')
-            } else {
-              return promise.resolve()
-            }
-          })
-        })
+  const iterateTests = async (desc, keyrange) => {
+    t.describe(`idb.iterate (${desc})`)
+    const valsIterate = []
+    await idb.iterate(store, keyrange, (v, k) => {
+      valsIterate.push({ v, k })
     })
+    t.compare(valsIterate, expectedKeysVals)
+    t.describe(`idb.iterateKeys (${desc})`)
+    const keysIterate = []
+    await idb.iterateKeys(store, keyrange, key => {
+      keysIterate.push(key)
+    })
+    t.compare(keysIterate, expectedKeys)
+  }
+  await iterateTests('range=null', null)
+  const range = idb.createIDBKeyRangeBound(['t', 1], ['t', 2], false, false)
+  // adding more items that should not be touched by iteration with above range
+  await idb.put(store, 2, ['t', 3])
+  await idb.put(store, 2, ['t', 0])
+  await iterateTests('range!=null', range)
+
+  t.describe('idb.get')
+  const getV = await idb.get(store, ['t', 1])
+  t.assert(getV === 0)
+  t.describe('idb.del')
+  await idb.del(store, ['t', 0])
+  const getVDel = await idb.get(store, ['t', 0])
+  t.assert(getVDel === undefined)
+  t.describe('idb.add')
+  await idb.add(store, 99, 42)
+  const idbVAdd = await idb.get(store, 42)
+  t.assert(idbVAdd === 99)
+  t.describe('idb.addAutoKey')
+  const key = await idb.addAutoKey(store, 1234)
+  const retrieved = await idb.get(store, key)
+  t.assert(retrieved === 1234)
 }
