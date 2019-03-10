@@ -14,6 +14,7 @@ import * as array from './array.js'
 import * as env from './environment.js'
 import * as json from './json.js'
 
+/* istanbul ignore next */
 const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed')) : null
 
 export class TestCase {
@@ -30,14 +31,17 @@ export class TestCase {
     this._seed = null
     this._prng = null
   }
+  /* istanbul ignore next */
   get seed () {
+    /* istanbul ignore else */
     if (this._seed === null) {
-      // istanbul ignore next
+      /* istanbul ignore next */
       this._seed = envSeed === null ? random.uint32() : envSeed
     }
     return this._seed
   }
   get prng () {
+    /* istanbul ignore else */
     if (this._prng === null) {
       this._prng = prng.create(this.seed)
     }
@@ -45,13 +49,13 @@ export class TestCase {
   }
 }
 
-const perf = typeof performance === 'undefined'
-  // @ts-ignore
-  ? require('perf_hooks').performance
-  : performance // eslint-disable-line no-undef
+/* istanbul ignore next */
+// @ts-ignore
+const perf = typeof performance === 'undefined' ? require('perf_hooks').performance : performance // eslint-disable-line no-undef
 
 const repititionTime = Number(env.getParam('--repitition-time', '50'))
 const testFilter = env.getParam('--filter', null)
+/* istanbul ignore next */
 const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : new RegExp('.*')
 
 const repeatTestRegex = /^(repeat|repeating)\s/
@@ -59,12 +63,14 @@ const repeatTestRegex = /^(repeat|repeating)\s/
 export const run = async (moduleName, name, f, i, numberOfTests) => {
   const uncamelized = string.fromCamelCase(name.slice(4), ' ')
   let filtered = !testFilterRegExp.test(`[${i + 1}/${numberOfTests}] ${moduleName}: ${uncamelized}`)
+  /* istanbul ignore if */
   if (filtered) {
     return true
   }
   const tc = new TestCase(moduleName, name)
   const repeat = repeatTestRegex.test(uncamelized)
   const groupArgs = [log.GREY, `[${i + 1}/${numberOfTests}] `, log.PURPLE, `${moduleName}: `, log.BLUE, uncamelized]
+  /* istanbul ignore next */
   if (testFilter === null) {
     log.groupCollapsed(...groupArgs)
   } else {
@@ -94,6 +100,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     }
   } while (err === null && (lastTime - start) < repititionTime)
   perf.mark(`${name}-end`)
+  /* istanbul ignore if */
   if (err !== null && err.constructor !== SkipError) {
     log.printError(err)
   }
@@ -102,6 +109,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   const duration = lastTime - start
   let success = true
   times.sort((a, b) => a < b ? -1 : (a === b) ? 0 : 1)
+  /* istanbul ignore next */
   const againMessage = env.isBrowser
     ? `     - ${window.location.protocol}//${window.location.host}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
     : `\nrepeat: npm run test -- --filter "\\[${i + 1}/" ${tc._seed === null ? '' : `--seed ${tc._seed}`}`
@@ -109,6 +117,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     ? ` - ${times.length} repititions in ${duration.toFixed(2)}ms (best: ${times[0].toFixed(2)}ms, worst: ${array.last(times).toFixed(2)}ms, median: ${statistics.median(times).toFixed(2)}ms, average: ${statistics.average(times).toFixed(2)}ms)`
     : ` in ${duration.toFixed(2)}ms`
   if (err !== null) {
+    /* istanbul ignore else */
     if (err.constructor === SkipError) {
       log.print(log.GREY, log.BOLD, 'Skipped: ', log.UNBOLD, uncamelized)
     } else {
@@ -121,7 +130,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   return success
 }
 
-export const describe = (description = '', info = '') => log.print(log.BLUE, description, ' ', log.GREY, info)
+export const describe = (description, info = '') => log.print(log.BLUE, description, ' ', log.GREY, info)
 
 export const info = info => describe('', info)
 
@@ -178,7 +187,7 @@ export const compareStrings = (a, b, m = 'Strings match') => {
  * @param {string} [m]
  * @throws {TestError} Throws if test fails
  */
-export const campareObjects = (a, b, m = 'Objects match') => object.equalFlat(a, b) || fail(m)
+export const compareObjects = (a, b, m = 'Objects match') => { object.equalFlat(a, b) || fail(m) }
 
 /**
  * @param {any} a
@@ -234,6 +243,7 @@ const _compare = (a, b, path, message, customCompare) => {
       }
       a.forEach((value, i) => _compare(value, b[i], `${path}[${i}]`, message, customCompare))
       break
+    /* istanbul ignore next */
     default:
       if (!customCompare(a.constructor, a, b, path, compareValues)) {
         _failMessage(message, `Values ${json.stringify(a)} and ${json.stringify(b)} don't match`, path)
@@ -245,6 +255,7 @@ const _compare = (a, b, path, message, customCompare) => {
 
 export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
+/* istanbul ignore next */
 export const assert = (condition, message = null) => condition
   ? (message !== null && log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message))
   : fail(message ? `Failed condition: ${message}` : 'Assertion failed')
@@ -263,7 +274,7 @@ export const fails = (f, message) => {
  * @param {Object<string, Object<string, function>>} tests
  */
 export const runTests = async tests => {
-  const numberOfTests = object.map(tests, mod => object.map(mod, f => f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
+  const numberOfTests = object.map(tests, mod => object.map(mod, f => /* istanbul ignore next */ f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
   let successfulTests = 0
   let testnumber = 0
   const start = perf.now()
@@ -287,8 +298,10 @@ export const runTests = async tests => {
   const end = perf.now()
   log.print('')
   const success = successfulTests === numberOfTests
+  /* istanbul ignore else */
   if (success) {
     log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${(end - start).toFixed(2)}ms`)
+    /* istanbul ignore next */
     log.printImgBase64(nyanCatImage, 50)
   } else {
     const failedTests = numberOfTests - successfulTests

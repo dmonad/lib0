@@ -39,6 +39,7 @@ runTests({
   eventloop,
   time
 }).then(success => {
+  /* istanbul ignore next */
   if (isNode) {
     process.exit(success ? 0 : 1)
   }
