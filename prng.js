@@ -30,7 +30,7 @@ export const DefaultPRNG = Xoroshiro128plus
  * @param {number} seed A positive 32bit integer. Do not use negative numbers.
  * @return {PRNG}
  */
-export const create = seed => new DefaultPRNG(Math.floor(seed < 1 ? seed * binary.BITS32 : seed))
+export const create = seed => new DefaultPRNG(seed)
 
 /**
  * Generates a single random bool.
@@ -81,14 +81,6 @@ export const int31 = (gen, min, max) => {
   const _max = max & binary.BITS32
   return math.floor((gen.next() * (_max + 1 - _min)) + _min)
 }
-
-/**
- * Generates a random real on [0, 1) with 32 bit resolution.
- *
- * @param {PRNG} gen A random number generator.
- * @return {Number} A random real number on [0, 1).
- */
-export const real32 = gen => gen.next()
 
 /**
  * Generates a random real on [0, 1) with 53 bit resolution.

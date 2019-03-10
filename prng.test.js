@@ -106,7 +106,7 @@ const runGenTest = (tc, gen) => {
 
   t.group('uint53 - generates integer exceeding 32 bits', () => {
     let largest = 0
-    let smallest = 0
+    let smallest = 10000
     let i
     let newNum
     for (i = 0; i < genTestData; i++) {
@@ -114,6 +114,7 @@ const runGenTest = (tc, gen) => {
       if (newNum > largest) {
         largest = newNum
       }
+      /* istanbul ignore if */
       if (newNum < smallest) {
         smallest = newNum
       }
@@ -175,6 +176,7 @@ export const testGeneratorXoroshiro128plus = tc => runGenTest(tc, new Xoroshiro1
 export const testGeneratorXorshift32 = tc => runGenTest(tc, new Xorshift32(tc.seed))
 export const testGeneratorMt19937 = tc => runGenTest(tc, new Mt19937(tc.seed))
 
+/* istanbul ignore next */
 /**
  * @param {prng.PRNG} gen
  * @param {t.TestCase} tc
@@ -195,6 +197,7 @@ const printDistribution = (gen, tc) => {
   t.printCanvas(canvas, DIAMETER)
 }
 
+/* istanbul ignore next */
 export const testNumberDistributions = tc => {
   t.skip(!isBrowser)
   t.group('Xoroshiro128plus', () => printDistribution(new Xoroshiro128plus(tc.seed), tc))
