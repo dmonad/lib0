@@ -16,11 +16,3 @@ export const enqueue = f => {
     setTimeout(_runQueue, 0)
   }
 }
-
-export const profile = (name, f) => {
-  enqueue(() => {
-    console.profile(name)
-    f()
-    console.profileEnd(name)
-  })
-}

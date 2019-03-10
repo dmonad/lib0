@@ -13,6 +13,7 @@ import * as binary from './binary.test.js'
 import * as random from './random.test.js'
 import * as promise from './promise.test.js'
 import * as map from './map.test.js'
+import * as eventloop from './eventloop.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
@@ -33,7 +34,8 @@ runTests({
   binary,
   random,
   promise,
-  map
+  map,
+  eventloop
 }).then(success => {
   if (isNode) {
     process.exit(success ? 0 : 1)
