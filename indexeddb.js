@@ -4,13 +4,12 @@
 
 /* eslint-env browser */
 
-import * as globals from './globals.js'
 import * as promise from './promise.js'
 
 /*
  * IDB Request to Promise transformer
  */
-export const rtop = request => globals.createPromise((resolve, reject) => {
+export const rtop = request => promise.create((resolve, reject) => {
   /* istanbul ignore next */
   request.onerror = event => reject(new Error(event.target.error))
   /* istanbul ignore next */
@@ -23,7 +22,7 @@ export const rtop = request => globals.createPromise((resolve, reject) => {
  * @param {Function} initDB Called when the database is first created
  * @return {Promise<IDBDatabase>}
  */
-export const openDB = (name, initDB) => globals.createPromise((resolve, reject) => {
+export const openDB = (name, initDB) => promise.create((resolve, reject) => {
   let request = indexedDB.open(name)
   /**
    * @param {any} event

@@ -1,6 +1,6 @@
 import * as t from './testing.js'
 import * as math from './math.js'
-import * as binary from './binary.js'
+import * as buffer from './buffer.js'
 
 export const testComparing = () => {
   t.compare({}, {})
@@ -28,7 +28,7 @@ export const testComparing = () => {
     t.compare([1], [1, 2]) // childs have different length (array) -- no message
   })
   t.fails(() => {
-    t.compare(binary.createUint8ArrayFromLen(1), binary.createUint8ArrayFromLen(2), 'ArrayBuffer have different length')
+    t.compare(buffer.createUint8ArrayFromLen(1), buffer.createUint8ArrayFromLen(2), 'ArrayBuffer have different length')
   })
   t.fails(() => {
     t.compareStrings('str1', 'str2', 'Strings comparison can fail')

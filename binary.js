@@ -4,9 +4,6 @@
  * @module binary
  */
 
-import * as string from './string.js'
-import * as env from './environment.js'
-
 export const BIT1 = 1
 export const BIT2 = 2
 export const BIT3 = 4
@@ -73,46 +70,3 @@ export const BITS29 = BIT30 - 1
 export const BITS30 = BIT31 - 1
 export const BITS31 = BIT32 - 1
 export const BITS32 = 0xFFFFFFFF
-
-export const createUint8ArrayFromLen = len => new Uint8Array(len)
-
-/* istanbul ignore next */
-/**
- * @param {Uint8Array} bytes
- * @return {string}
- */
-const toBase64Browser = bytes => {
-  let s = ''
-  for (let i = 0; i < bytes.byteLength; i++) {
-    s += string.fromCharCode(bytes[i])
-  }
-  return btoa(s)
-}
-
-/**
- * @param {Uint8Array} bytes
- * @return {string}
- */
-const toBase64Node = bytes => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64')
-
-/* istanbul ignore next */
-/**
- * @param {string} s
- * @return {Uint8Array}
- */
-const fromBase64Browser = s => {
-  const a = atob(s)
-  const bytes = createUint8ArrayFromLen(a.length)
-  for (let i = 0; i < a.length; i++) {
-    bytes[i] = a.charCodeAt(i)
-  }
-  return bytes
-}
-
-const fromBase64Node = s => new Uint8Array(Buffer.from(s, 'base64').buffer)
-
-/* istanbul ignore next */
-export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
-
-/* istanbul ignore next */
-export const fromBase64 = env.isBrowser ? fromBase64Browser : fromBase64Node

@@ -6,6 +6,7 @@ import * as binary from './binary.js'
 import { fromCharCode, fromCodePoint } from './string.js'
 import * as math from './math.js'
 import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
+import * as buffer from './buffer.js'
 
 /**
  * Description of the function
@@ -155,7 +156,7 @@ export const oneOf = (gen, array) => array[int31(gen, 0, array.length - 1)]
  * @return {Uint8Array}
  */
 export const uint8Array = (gen, len) => {
-  const buf = binary.createUint8ArrayFromLen(len)
+  const buf = buffer.createUint8ArrayFromLen(len)
   for (let i = 0; i < buf.length; i++) {
     buf[i] = int32(gen, 0, binary.BITS8)
   }

@@ -18,6 +18,7 @@ import * as time from './time.test.js'
 import * as pair from './pair.test.js'
 import * as object from './object.test.js'
 import * as math from './math.test.js'
+import * as buffer from './buffer.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
@@ -43,7 +44,8 @@ runTests({
   time,
   pair,
   object,
-  math
+  math,
+  buffer
 }).then(success => {
   /* istanbul ignore next */
   if (isNode) {

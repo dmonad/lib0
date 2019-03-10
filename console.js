@@ -2,8 +2,8 @@
  * @module logging
  */
 
-import * as globals from './globals.js'
 import * as time from './time.js'
+import * as buffer from './buffer.js'
 
 let date = time.getUnixTime()
 
@@ -21,7 +21,7 @@ export const groupCollapsed = console.groupCollapsed
 export const groupEnd = console.groupEnd
 
 /**
- * @param {ArrayBuffer} buffer
+ * @param {ArrayBuffer} buf
  * @return {string}
  */
-export const arrayBufferToString = buffer => JSON.stringify(Array.from(globals.createUint8ArrayFromBuffer(buffer)))
+export const arrayBufferToString = buf => JSON.stringify(Array.from(buffer.createUint8ArrayFromArrayBuffer(buf)))

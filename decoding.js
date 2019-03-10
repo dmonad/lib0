@@ -1,10 +1,7 @@
 /**
  * @module decoding
  */
-
-/* global Buffer */
-
-import * as globals from './globals.js'
+import * as buffer from './buffer.js'
 
 /**
  * A Decoder handles the decoding of an ArrayBuffer.
@@ -56,8 +53,8 @@ export const clone = (decoder, newPos = decoder.pos) => {
  * @return {ArrayBuffer}
  */
 export const readArrayBuffer = (decoder, len) => {
-  const arrayBuffer = globals.createUint8ArrayFromLen(len)
-  const view = globals.createUint8ArrayFromBuffer(decoder.arr.buffer, decoder.pos, len)
+  const arrayBuffer = buffer.createUint8ArrayFromLen(len)
+  const view = buffer.createUint8ArrayViewFromArrayBuffer(decoder.arr.buffer, decoder.pos, len)
   arrayBuffer.set(view)
   decoder.pos += len
   return arrayBuffer.buffer
