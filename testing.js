@@ -235,7 +235,12 @@ const _compare = (a, b, path, message, customCompare) => {
       if (object.length(a) !== object.length(b)) {
         _failMessage(message, 'Objects have a different number of attributes', path)
       }
-      object.forEach(a, (value, key) => _compare(value, b[key], `${path}["${key}"]`, message, customCompare))
+      object.forEach(a, (value, key) => {
+        if (!b.hasOwnProperty(key)) {
+          _failMessage(message, `Property ${path} does not exist on second argument`, path)
+        }
+        b.hasOwnProperty(key) && _compare(value, b[key], `${path}["${key}"]`, message, customCompare)
+      })
       break
     case Array:
       if (a.length !== b.length) {
@@ -260,14 +265,18 @@ export const assert = (condition, message = null) => condition
   ? (message !== null && log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message))
   : fail(message ? `Failed condition: ${message}` : 'Assertion failed')
 
-export const fails = (f, message) => {
+export const fails = f => {
   let err = null
   try {
     f()
   } catch (_err) {
     err = _err
+    log.print(log.GREEN, '⇖ This Error was expected')
   }
-  assert(err !== null, message)
+  /* istanbul ignore if */
+  if (err === null) {
+    fail('Expected this to fail')
+  }
 }
 
 /**

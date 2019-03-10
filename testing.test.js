@@ -8,8 +8,15 @@ export const testComparing = () => {
   t.compare([1, 2], [1, 2], 'simple compare (array)')
   t.compare({ a: [1, 2] }, { a: [1, 2] }, 'simple compare nested')
 
+  t.describe('The following errors are expected!')
   t.fails(() => {
     t.compare({ a: 4 }, { b: 5 }, 'childs are not equal')
+  })
+  t.fails(() => {
+    t.compare({ a: 4 }, { a: 5 }, 'childs are not equal')
+  })
+  t.fails(() => {
+    t.compare({ a: 4 }, null, 'childs are not equal')
   })
   t.fails(() => {
     t.compare({ a: 4 }, [4], 'childs have different types')
@@ -39,6 +46,12 @@ export const testComparing = () => {
   })
   t.fails(() => {
     t.compareObjects({ x: 3 }, { x: 1 }) // Compare different objects -- no message
+  })
+  t.fails(() => {
+    t.compare({ x: undefined }, { y: 1 }, 'compare correctly handles undefined')
+  })
+  t.fails(() => {
+    t.compareObjects({ x: undefined }, { y: 1 }, 'compare correctly handles undefined')
   })
 }
 
