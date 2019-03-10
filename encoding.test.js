@@ -64,11 +64,13 @@ function test (testname, write, read, val, doLog = true) {
 }
 
 const testVarString = (s) => {
-  let encoder = encoding.createEncoder()
+  const encoder = encoding.createEncoder()
   encoding.writeVarString(encoder, s)
-  let reader = decoding.createDecoder(encoding.toBuffer(encoder))
-  let result = decoding.readVarString(reader)
+  const decoder = decoding.createDecoder(encoding.toBuffer(encoder))
+  const peeked = decoding.peekVarString(decoder)
+  const result = decoding.readVarString(decoder)
   t.compareStrings(s, result)
+  t.compareStrings(s, peeked)
 }
 
 /**
@@ -85,6 +87,11 @@ export const testVarUintEncoding = tc => {
 export const testRepeatVarUintEncoding = tc => {
   const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
   test(`varUint of ${n}`, encoding.writeVarUint, decoding.readVarUint, n, false)
+}
+
+export const testRepeatPeekVarUintEncoding = tc => {
+  const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
+  test(`varUint of ${n}`, encoding.writeVarUint, decoding.peekVarUint, n, false)
 }
 
 export const testStringEncoding = tc => {
@@ -185,6 +192,20 @@ export const testSetOnOverflow = tc => {
   t.assert(buffer.createUint8ArrayFromArrayBuffer(buf2)[initialLen + 1] === 7)
 }
 
+export const testCloneDecoder = tc => {
+  const encoder = encoding.createEncoder()
+  encoding.writeUint8(encoder, 12132)
+  encoding.writeVarUint(encoder, 329840128734)
+  encoding.writeVarString(encoder, 'dtrnuiaednudiaendturinaedt nduiaen dturinaed ')
+  const buf = encoding.toBuffer(encoder)
+  const decoder = decoding.createDecoder(buf)
+  decoding.skip8(decoder)
+  const decoder2 = decoding.clone(decoder)
+  const payload1 = decoding.readTail(decoder)
+  const payload2 = decoding.readTail(decoder2)
+  t.compare(payload1, payload2)
+}
+
 export const testWriteBinaryEncoder = tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint16(encoder, 4)
@@ -195,4 +216,17 @@ export const testWriteBinaryEncoder = tc => {
   const decoder = decoding.createDecoder(buf)
   t.assert(decoding.readVarUint(decoder) === 143095)
   t.assert(decoding.readUint16(decoder) === 4)
+}
+
+export const testOverflowStringDecoding = tc => {
+  const gen = tc.prng
+  const encoder = encoding.createEncoder()
+  let longStr = ''
+  while (longStr.length < 11000) {
+    longStr += prng.utf16String(gen, 100000)
+  }
+  encoding.writeVarString(encoder, longStr)
+  const buf = encoding.toBuffer(encoder)
+  const decoder = decoding.createDecoder(buf)
+  t.assert(longStr === decoding.readVarString(decoder))
 }

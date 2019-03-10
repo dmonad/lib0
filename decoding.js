@@ -154,11 +154,12 @@ export const peekUint16 = decoder =>
  * @param {Decoder} decoder
  * @return {number} An unsigned integer.
  */
-export const peekUint32 = decoder =>
-  (decoder.arr[decoder.pos] +
+export const peekUint32 = decoder => (
+  decoder.arr[decoder.pos] +
   (decoder.arr[decoder.pos + 1] << 8) +
   (decoder.arr[decoder.pos + 2] << 16) +
-  (decoder.arr[decoder.pos + 3] << 24)) >>> 0
+  (decoder.arr[decoder.pos + 3] << 24)
+) >>> 0
 
 /**
  * Read unsigned integer (32bit) with variable length.
@@ -180,6 +181,7 @@ export const readVarUint = decoder => {
     if (r < 1 << 7) {
       return num >>> 0 // return unsigned number!
     }
+    /* istanbul ignore if */
     if (len > 35) {
       throw new Error('Integer out of range!')
     }
