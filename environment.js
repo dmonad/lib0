@@ -2,8 +2,10 @@
 import * as map from './map.js'
 import * as string from './string.js'
 
+/* istanbul ignore next */
 // @ts-ignore
 export const isNode = typeof process !== 'undefined' && /node|io\.js/.test(process.release.name)
+/* istanbul ignore next */
 export const isBrowser = typeof window !== 'undefined' && !isNode
 
 /**
@@ -17,6 +19,7 @@ const computeParamsNode = () => {
     params = map.create()
     const pargs = process.argv
     let currParamName = null
+    /* istanbul ignore next */
     for (let i = 0; i < pargs.length; i++) {
       const parg = pargs[i]
       if (parg[0] === '-') {
@@ -37,6 +40,7 @@ const computeParamsNode = () => {
   return params
 }
 
+/* istanbul ignore next */
 const computeParamsBrowser = () => {
   if (params === undefined) {
     params = map.create()
@@ -52,8 +56,10 @@ const computeParamsBrowser = () => {
   return params
 }
 
+/* istanbul ignore next */
 const computeParams = isNode ? computeParamsNode : computeParamsBrowser
 
 export const hasParam = name => computeParams().has(name)
+/* istanbul ignore next */
 export const getParam = (name, defaultVal = null) => computeParams().get(name) || defaultVal
-export const getArgs = name => computeParams() && args
+// export const getArgs = name => computeParams() && args
