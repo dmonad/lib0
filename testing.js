@@ -32,6 +32,7 @@ export class TestCase {
   }
   get seed () {
     if (this._seed === null) {
+      // istanbul ignore next
       this._seed = envSeed === null ? random.uint32() : envSeed
     }
     return this._seed
