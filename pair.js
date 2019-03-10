@@ -1,7 +1,6 @@
 
 /**
- * @template L
- * @template R
+ * @template L,R
  */
 export class Pair {
   /**
@@ -14,21 +13,24 @@ export class Pair {
   }
 }
 
+/**
+ * @template L,R
+ * @param {L} left
+ * @param {R} right
+ * @return {Pair<L,R>}
+ */
 export const create = (left, right) => new Pair(left, right)
 export const createReversed = (right, left) => new Pair(left, right)
 
 /**
- * @template L
- * @template R
+ * @template L,R
  * @param {Array<Pair<L,R>>} arr
  * @param {function(L, R):any} f
  */
 export const forEach = (arr, f) => arr.forEach(p => f(p.left, p.right))
 
 /**
- * @template L
- * @template R
- * @template X
+ * @template L,R,X
  * @param {Array<Pair<L,R>>} arr
  * @param {function(L, R):X} f
  * @return {Array<X>}

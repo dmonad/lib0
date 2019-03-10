@@ -74,7 +74,7 @@ export const removeEventListeners = (node, listeners) => {
 
 /**
  * @param {string} name
- * @param {Array<pair.Pair<string,string>>} attrs Array of key-value pairs
+ * @param {Array<pair.Pair<string,string>|pair.Pair<string,boolean>>} attrs Array of key-value pairs
  * @param {Array<Node>} children
  * @return {Element}
  */
