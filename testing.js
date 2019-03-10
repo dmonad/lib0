@@ -15,7 +15,7 @@ import * as env from './environment.js'
 import * as json from './json.js'
 
 /* istanbul ignore next */
-const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed')) : null
+export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed')) : null
 
 export class TestCase {
   constructor (moduleName, testName) {
@@ -53,7 +53,7 @@ export class TestCase {
 // @ts-ignore
 const perf = typeof performance === 'undefined' ? require('perf_hooks').performance : performance // eslint-disable-line no-undef
 
-const repititionTime = Number(env.getParam('--repitition-time', '50'))
+export const repititionTime = Number(env.getParam('--repitition-time', '50'))
 const testFilter = env.getParam('--filter', null)
 /* istanbul ignore next */
 const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : new RegExp('.*')
