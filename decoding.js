@@ -116,10 +116,10 @@ export const readUint16 = decoder => {
  */
 export const readUint32 = decoder => {
   const uint =
-    decoder.arr[decoder.pos] +
+    (decoder.arr[decoder.pos] +
     (decoder.arr[decoder.pos + 1] << 8) +
     (decoder.arr[decoder.pos + 2] << 16) +
-    (decoder.arr[decoder.pos + 3] << 24)
+    (decoder.arr[decoder.pos + 3] << 24)) >>> 0
   decoder.pos += 4
   return uint
 }
@@ -133,6 +133,32 @@ export const readUint32 = decoder => {
  * @return {number} An unsigned integer.
  */
 export const peekUint8 = decoder => decoder.arr[decoder.pos]
+
+/**
+ * Look ahead without incrementing position.
+ * to the next byte and read it as unsigned integer.
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {number} An unsigned integer.
+ */
+export const peekUint16 = decoder =>
+  decoder.arr[decoder.pos] +
+  (decoder.arr[decoder.pos + 1] << 8)
+
+/**
+ * Look ahead without incrementing position.
+ * to the next byte and read it as unsigned integer.
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {number} An unsigned integer.
+ */
+export const peekUint32 = decoder =>
+  (decoder.arr[decoder.pos] +
+  (decoder.arr[decoder.pos + 1] << 8) +
+  (decoder.arr[decoder.pos + 2] << 16) +
+  (decoder.arr[decoder.pos + 3] << 24)) >>> 0
 
 /**
  * Read unsigned integer (32bit) with variable length.
