@@ -209,6 +209,7 @@ const _failMessage = (message, reason, path) => fail(
 )
 
 const _compare = (a, b, path, message, customCompare) => {
+  // we don't use assert here because we want to test all branches (istanbul errors if one branch is not tested)
   if (a == null || b == null) {
     return compareValues(null, a, b, path)
   }
@@ -231,6 +232,29 @@ const _compare = (a, b, path, message, customCompare) => {
       }
       break
     }
+    case Set: {
+      if (a.size !== b.size) {
+        _failMessage(message, 'Sets have different number of attributes', path)
+      }
+      a.forEach(value => {
+        if (!b.has(value)) {
+          _failMessage(message, `b.${path} does have ${value}`, path)
+        }
+      })
+      break
+    }
+    case Map: {
+      if (a.size !== b.size) {
+        _failMessage(message, 'Maps have different number of attributes', path)
+      }
+      a.forEach((value, key) => {
+        if (!b.has(key)) {
+          _failMessage(message, `Property ${path}["${key}"] does not exist on second argument`, path)
+        }
+        _compare(value, b.get(key), `${path}["${key}"]`, message, customCompare)
+      })
+      break
+    }
     case Object:
       if (object.length(a) !== object.length(b)) {
         _failMessage(message, 'Objects have a different number of attributes', path)
@@ -239,7 +263,7 @@ const _compare = (a, b, path, message, customCompare) => {
         if (!b.hasOwnProperty(key)) {
           _failMessage(message, `Property ${path} does not exist on second argument`, path)
         }
-        b.hasOwnProperty(key) && _compare(value, b[key], `${path}["${key}"]`, message, customCompare)
+        _compare(value, b[key], `${path}["${key}"]`, message, customCompare)
       })
       break
     case Array:
@@ -261,9 +285,7 @@ const _compare = (a, b, path, message, customCompare) => {
 export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
 /* istanbul ignore next */
-export const assert = (condition, message = null) => condition
-  ? (message !== null && log.print(log.GREEN, log.BOLD, '√ ', log.UNBOLD, message))
-  : fail(message ? `Failed condition: ${message}` : 'Assertion failed')
+export const assert = (condition, message = null) => condition || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`)
 
 export const fails = f => {
   let err = null

@@ -1,12 +1,23 @@
 import * as t from './testing.js'
 import * as math from './math.js'
 import * as buffer from './buffer.js'
+import * as map from './map.js'
 
 export const testComparing = () => {
   t.compare({}, {})
   t.compare({ a: 4 }, { a: 4 }, 'simple compare (object)')
   t.compare([1, 2], [1, 2], 'simple compare (array)')
   t.compare({ a: [1, 2] }, { a: [1, 2] }, 'simple compare nested')
+  t.compare(new Set(['3', 1234]), new Set(['3', 1234]), 'compare Sets')
+  const map1 = map.create()
+  map1.set(1, 2)
+  map1.set('x', {})
+  map1.set(98, 'tst')
+  const map2 = new Map()
+  map2.set(1, 2)
+  map2.set('x', {})
+  map2.set(98, 'tst')
+  t.compare(map1, map2, 'compare Maps')
 
   t.describe('The following errors are expected!')
   t.fails(() => {
@@ -52,6 +63,34 @@ export const testComparing = () => {
   })
   t.fails(() => {
     t.compareObjects({ x: undefined }, { y: 1 }, 'compare correctly handles undefined')
+  })
+  t.describe('Map fails')
+  t.fails(() => {
+    const m1 = new Map()
+    m1.set(1, 2)
+    const m2 = new Map()
+    m2.set(1, 3)
+    t.compare(m1, m2) // childs have different length (array) -- no message
+  })
+  t.fails(() => {
+    const m1 = new Map()
+    m1.set(2, 2)
+    const m2 = new Map()
+    m2.set(1, 2)
+    t.compare(m1, m2) // childs have different length (array) -- no message
+  })
+  t.fails(() => {
+    const m1 = new Map()
+    m1.set(1, 2)
+    const m2 = new Map()
+    t.compare(m1, m2) // childs have different length (array) -- no message
+  })
+  t.describe('Set fails')
+  t.fails(() => {
+    t.compare(new Set([1]), new Set([1, 2])) // childs have different length (array) -- no message
+  })
+  t.fails(() => {
+    t.compare(new Set([1]), new Set([2])) // childs have different length (array) -- no message
   })
 }
 
