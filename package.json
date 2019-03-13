@@ -8,7 +8,8 @@
     "live-server": "^1.2.1",
     "nyc": "^13.3.0",
     "rollup": "^1.1.2",
-    "standard": "^12.0.1"
+    "standard": "^12.0.1",
+    "typescript": "^3.3.3333"
   },
   "scripts": {
     "dist": "rollup -c",
@@ -18,7 +19,7 @@
     "test-code-coverage": "npm run dist && nyc --reporter html node ./dist/test.js",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.js",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.js",
-    "lint": "standard",
+    "lint": "standard && tsc",
     "preversion": "npm run test"
   },
   "repository": {
