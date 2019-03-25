@@ -147,6 +147,19 @@ export const group = (description, f) => {
   }
 }
 
+export const measureTime = (message, f) => {
+  let duration = 0
+  let iterations = 0
+  const start = perf.now()
+  while (duration < 5) {
+    f()
+    duration = perf.now() - start
+    iterations++
+  }
+  const iterationsInfo = iterations > 1 ? `, ${iterations} repititions` : ''
+  log.print(log.PURPLE, message, log.GREY, ` ${(duration / iterations)}ms${iterationsInfo}`)
+}
+
 /**
  * @template T
  * @param {Array<T>} as
