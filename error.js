@@ -7,3 +7,17 @@ export const create = m => {
   captureStackTrace(e, create)
   return e
 }
+
+/**
+ * @throws
+ */
+export const throwMethodUnimplemented = () => {
+  throw new Error('Method unimplemented')
+}
+
+/**
+ * @throws
+ */
+export const throwUnexpectedCase = () => {
+  throw new Error('Unexpected case')
+}

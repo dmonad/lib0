@@ -8,8 +8,7 @@ export const create = () => new Map()
  *   const listeners = map.setIfUndefined(events, 'eventName', set.create)
  *   listeners.add(listener)
  *
- * @template T
- * @template K
+ * @template T,K
  * @param {Map<K, T>} map
  * @param {K} key
  * @param {function():T} createT

@@ -120,24 +120,35 @@ const isBlack = node =>
 const isRed = (node) =>
   node !== null ? node.isRed() : false
 
-/*
+/**
  * This is a Red Black Tree implementation
+ *
+ * @template K,V
  */
 export class Tree {
   constructor () {
     this.root = null
     this.length = 0
   }
+  /**
+   * @param {K} id
+   */
   findNext (id) {
     var nextID = id.clone()
     nextID.clock += 1
     return this.findWithLowerBound(nextID)
   }
+  /**
+   * @param {K} id
+   */
   findPrev (id) {
     let prevID = id.clone()
     prevID.clock -= 1
     return this.findWithUpperBound(prevID)
   }
+  /**
+   * @param {K} from
+   */
   findNodeWithLowerBound (from) {
     var o = this.root
     if (o === null) {
@@ -163,6 +174,9 @@ export class Tree {
       }
     }
   }
+  /**
+   * @param {K} to
+   */
   findNodeWithUpperBound (to) {
     if (to === void 0) {
       throw new Error('You must define from!')
@@ -191,6 +205,9 @@ export class Tree {
       }
     }
   }
+  /**
+   * @return {V}
+   */
   findSmallestNode () {
     var o = this.root
     while (o != null && o.left != null) {
@@ -198,14 +215,27 @@ export class Tree {
     }
     return o
   }
+  /**
+   * @param {K} from
+   * @return {V}
+   */
   findWithLowerBound (from) {
     var n = this.findNodeWithLowerBound(from)
     return n == null ? null : n.val
   }
+  /**
+   * @param {K} to
+   * @return {V}
+   */
   findWithUpperBound (to) {
     var n = this.findNodeWithUpperBound(to)
     return n == null ? null : n.val
   }
+  /**
+   * @param {K} from
+   * @param {V} from
+   * @param {function(V):void} f
+   */
   iterate (from, to, f) {
     var o
     if (from === null) {
@@ -225,6 +255,10 @@ export class Tree {
       o = o.next()
     }
   }
+  /**
+   * @param {K} id
+   * @return {V|null}
+   */
   find (id) {
     let n = this.findNode(id)
     if (n !== null) {
@@ -233,6 +267,10 @@ export class Tree {
       return null
     }
   }
+  /**
+   * @param {K} id
+   * @return {N<V>|null}
+   */
   findNode (id) {
     var o = this.root
     if (o === null) {
@@ -252,6 +290,9 @@ export class Tree {
       }
     }
   }
+  /**
+   * @param {K} id
+   */
   delete (id) {
     var d = this.findNode(id)
     if (d == null) {
