@@ -1,23 +1,17 @@
 import * as f from './function.js'
 
-export const captureStackTrace = Error.captureStackTrace || f.nop
-
-export const create = m => {
-  const e = new Error(m)
-  captureStackTrace(e, create)
-  return e
-}
-
 /**
  * @throws
+ * @return {never}
  */
-export const throwMethodUnimplemented = () => {
+export const methodUnimplemented = () => {
   throw new Error('Method unimplemented')
 }
 
 /**
  * @throws
+ * @return {never}
  */
-export const throwUnexpectedCase = () => {
+export const unexpectedCase = () => {
   throw new Error('Unexpected case')
 }
