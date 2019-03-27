@@ -54,16 +54,19 @@ const createSortTest = (tc, createArray, compare, getVal) => {
   runSortTest(tc, createArray(10000), compare, getVal)
   t.describe('sort 100k elements')
   runSortTest(tc, createArray(100000), compare, getVal)
-  t.describe('sort 1M elements')
-  runSortTest(tc, createArray(1000000), compare, getVal)
-  t.describe('sort 10M elements')
-  runSortTest(tc, createArray(10000000), compare, getVal)
+  if (t.production) {
+    t.describe('sort 1M elements')
+    runSortTest(tc, createArray(1000000), compare, getVal)
+    t.describe('sort 10M elements')
+    runSortTest(tc, createArray(10000000), compare, getVal)
+  }
 }
 
 /**
  * @param {t.TestCase} tc
  */
 export const testSortUint16 = tc => {
+  t.skip(!t.production)
   const getVal = i => i
   const compare = (a, b) => a - b
   const createArray = len => Array.from(new Uint16Array(prng.arrayBuffer(tc.prng, len * 2)))
@@ -74,6 +77,7 @@ export const testSortUint16 = tc => {
  * @param {t.TestCase} tc
  */
 export const testSortUint32 = tc => {
+  t.skip(!t.production)
   const getVal = i => i
   const compare = (a, b) => a - b
   const createArray = len => Array.from(new Uint32Array(prng.arrayBuffer(tc.prng, len * 4)))
@@ -88,4 +92,32 @@ export const testSortObjectUint32 = tc => {
   const compare = (a, b) => a.index - b.index
   const createArray = len => Array.from(new Uint32Array(prng.arrayBuffer(tc.prng, len * 4))).map(index => ({ index }))
   createSortTest(tc, createArray, compare, getVal)
+}
+
+export const testListVsArrayPerformance = tc => {
+  /**
+   * @typedef {{ val: number }} Val
+   * @typedef {{ val: Val, next: item }|null} item
+   */
+  const len = 100000
+  t.measureTime('array creation', () => {
+    /**
+     * @type {Array<Val>}
+     */
+    const array = new Array(len)
+    for (let i = 0; i < len; i++) {
+      array[i] = { val: i }
+    }
+  })
+  t.measureTime('list creation', () => {
+    /**
+     * @type {item}
+     */
+    const listStart = { val: { val: 0 }, next: null }
+    for (let i = 1, n = listStart; i < len; i++) {
+      const next = { val: { val: i }, next: null }
+      n.next = next
+      n = next
+    }
+  })
 }

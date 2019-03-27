@@ -1,25 +1,24 @@
 import * as t from './testing.js'
 import * as idb from './indexeddb.js'
-import * as environment from './environment.js'
+import { isBrowser } from './environment.js'
 
-if (environment.isNode) {
-  // @ts-ignore
-  global.indexedDB = require('fake-indexeddb')
-  // @ts-ignore
-  global.IDBKeyRange = require('fake-indexeddb/lib/FDBKeyRange')
-}
-
+/* istanbul ignore next */
 const initTestDB = db => idb.createStores(db, [['test', { autoIncrement: true }]])
 const testDBName = 'idb-test'
 
+/* istanbul ignore next */
 const createTransaction = db => db.transaction(['test'], 'readwrite')
+
+/* istanbul ignore next */
 /**
  * @param {IDBTransaction} t
  * @return {IDBObjectStore}
  */
 const getStore = t => idb.getStore(t, 'test')
 
+/* istanbul ignore next */
 export const testRetrieveElements = async () => {
+  t.skip(!isBrowser)
   t.describe('create, then iterate some keys')
   await idb.deleteDB(testDBName)
   const db = await idb.openDB(testDBName, initTestDB)

@@ -14,7 +14,7 @@ export const create = () => new Map()
  * @param {function():T} createT
  * @return {T}
  */
-export const setTfUndefined = (map, key, createT) => {
+export const setIfUndefined = (map, key, createT) => {
   let set = map.get(key)
   if (set === undefined) {
     map.set(key, set = createT())

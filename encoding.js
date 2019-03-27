@@ -1,5 +1,8 @@
 /**
  * @module encoding
+ * Encodes numbers in little-endian order (least to most significant byte order)
+ * This should be compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+ * which is also used in Protocol Buffers.
  */
 import * as buffer from './buffer.js'
 
@@ -12,7 +15,10 @@ const bits8 = 0b11111111
 export class Encoder {
   constructor () {
     this.cpos = 0
-    this.cbuf = buffer.createUint8ArrayFromLen(100)
+    this.cbuf = new Uint8Array(100)
+    /**
+     * @type {Array<Uint8Array>}
+     */
     this.bufs = []
   }
 }
@@ -67,7 +73,7 @@ export const toBuffer = encoder => {
 export const write = (encoder, num) => {
   if (encoder.cpos === encoder.cbuf.length) {
     encoder.bufs.push(encoder.cbuf)
-    encoder.cbuf = buffer.createUint8ArrayFromLen(encoder.cbuf.length * 2)
+    encoder.cbuf = new Uint8Array(encoder.cbuf.length * 2)
     encoder.cpos = 0
   }
   encoder.cbuf[encoder.cpos++] = num

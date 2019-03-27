@@ -1,8 +1,15 @@
 import fs from 'fs'
 
-const files = fs.readdirSync('./').filter(file => /(?<!\.(test|config))\.js$/.test(file))
+const files = fs.readdirSync('./').filter(file => /(?<!(test|config))\.js$/.test(file))
 
 export default [{
+  input: './test.js',
+  output: {
+    dir: './dist',
+    format: 'iife',
+    sourcemap: true
+  }
+}, {
   input: files,
   output: {
     dir: './dist',

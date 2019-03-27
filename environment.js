@@ -63,3 +63,5 @@ export const hasParam = name => computeParams().has(name)
 /* istanbul ignore next */
 export const getParam = (name, defaultVal = null) => computeParams().get(name) || defaultVal
 // export const getArgs = name => computeParams() && args
+
+export const production = getParam('production', false)

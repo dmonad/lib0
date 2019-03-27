@@ -78,9 +78,9 @@ export const uint32 = (gen, min, max) => int32(gen, min, max) >>> 0
  * @return {Number} A random integer on [min, max]
  */
 export const int31 = (gen, min, max) => {
-  const _min = min & binary.BITS32
-  const _max = max & binary.BITS32
-  return math.floor((gen.next() * (_max + 1 - _min)) + _min)
+  const _min = min & binary.BITS31
+  const _max = max & binary.BITS31
+  return math.floor(gen.next() * ((_max - _min + 1) & binary.BITS31) + _min)
 }
 
 /**

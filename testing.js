@@ -14,6 +14,8 @@ import * as array from './array.js'
 import * as env from './environment.js'
 import * as json from './json.js'
 
+export { production } from './environment.js'
+
 /* istanbul ignore next */
 export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed')) : null
 

@@ -7,7 +7,7 @@ import * as t from './testing.js'
 import { Xorshift32 } from './prng/Xorshift32.js'
 import { Mt19937 } from './prng/Mt19937.js'
 import * as dom from './dom.js'
-import { isBrowser } from './environment.js'
+import { isBrowser, production } from './environment.js'
 
 const genTestData = 5000
 
@@ -173,8 +173,14 @@ const runGenTest = (tc, gen) => {
  * @param {t.TestCase} tc
  */
 export const testGeneratorXoroshiro128plus = tc => runGenTest(tc, new Xoroshiro128plus(tc.seed))
-export const testGeneratorXorshift32 = tc => runGenTest(tc, new Xorshift32(tc.seed))
-export const testGeneratorMt19937 = tc => runGenTest(tc, new Mt19937(tc.seed))
+export const testGeneratorXorshift32 = tc => {
+  t.skip(!production)
+  runGenTest(tc, new Xorshift32(tc.seed))
+}
+export const testGeneratorMt19937 = tc => {
+  t.skip(!production)
+  runGenTest(tc, new Mt19937(tc.seed))
+}
 
 /* istanbul ignore next */
 /**
