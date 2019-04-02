@@ -28,12 +28,12 @@ const failsP = p => promise.create((resolve, reject) => p.then(() => reject(erro
  * @param {t.TestCase} tc
  */
 export const testRepeatPromise = async tc => {
-  t.assert(promise.create(r => r()).constructor === Promise, 'p.create() creates a Promise')
+  t.assert(promise.createEmpty(r => r()).constructor === Promise, 'p.create() creates a Promise')
   t.assert(promise.resolve().constructor === Promise, 'p.reject() creates a Promise')
   const rejectedP = promise.reject()
   t.assert(rejectedP.constructor === Promise, 'p.reject() creates a Promise')
   rejectedP.catch(() => {})
-  await promise.create(r => r())
+  await promise.createEmpty(r => r())
   await failsP(promise.reject())
   await promise.resolve()
   await measureP(promise.wait(10), 7, 1000)

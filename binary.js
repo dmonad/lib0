@@ -68,5 +68,5 @@ export const BITS27 = BIT28 - 1
 export const BITS28 = BIT29 - 1
 export const BITS29 = BIT30 - 1
 export const BITS30 = BIT31 - 1
-export const BITS31 = BIT32 - 1
+export const BITS31 = 0x7FFFFFFF
 export const BITS32 = 0xFFFFFFFF

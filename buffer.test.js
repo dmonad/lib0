@@ -11,7 +11,7 @@ export const testRepeatBase64Encoding = tc => {
   const encoded = buffer.toBase64(barr)
   t.assert(encoded.constructor === String)
   const decoded = buffer.fromBase64(encoded)
-  t.assert(decoded.constructor = Uint8Array)
+  t.assert(decoded.constructor === Uint8Array)
   t.assert(decoded.byteLength === barr.byteLength)
   for (let i = 0; i < barr.length; i++) {
     t.assert(barr[i] === decoded[i])

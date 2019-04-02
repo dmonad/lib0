@@ -3,10 +3,16 @@ import * as idb from './indexeddb.js'
 import { isBrowser } from './environment.js'
 
 /* istanbul ignore next */
+/**
+ * @param {IDBDatabase} db
+ */
 const initTestDB = db => idb.createStores(db, [['test', { autoIncrement: true }]])
 const testDBName = 'idb-test'
 
 /* istanbul ignore next */
+/**
+ * @param {IDBDatabase} db
+ */
 const createTransaction = db => db.transaction(['test'], 'readwrite')
 
 /* istanbul ignore next */
@@ -39,14 +45,24 @@ export const testRetrieveElements = async () => {
   const valsGetAllKeysVals = await idb.getAllKeysValues(store)
   t.compare(valsGetAllKeysVals, expectedKeysVals)
 
+  /**
+   * @param {string} desc
+   * @param {IDBKeyRange?} keyrange
+   */
   const iterateTests = async (desc, keyrange) => {
     t.describe(`idb.iterate (${desc})`)
+    /**
+     * @type {Array<{v:any,k:any}>}
+     */
     const valsIterate = []
     await idb.iterate(store, keyrange, (v, k) => {
       valsIterate.push({ v, k })
     })
     t.compare(valsIterate, expectedKeysVals)
     t.describe(`idb.iterateKeys (${desc})`)
+    /**
+     * @type {Array<any>}
+     */
     const keysIterate = []
     await idb.iterateKeys(store, keyrange, key => {
       keysIterate.push(key)

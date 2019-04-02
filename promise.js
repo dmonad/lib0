@@ -2,10 +2,16 @@ import * as time from './time.js'
 
 /**
  * @template T
- * @param {function(function():void,function(Error):void):void} f
+ * @param {function(function(T|PromiseLike<T>):void,function(Error):void):void} f
  * @return {Promise<T>}
  */
 export const create = f => new Promise(f)
+
+/**
+ * @param {function(function():void,function(Error):void):void} f
+ * @return {Promise<void>}
+ */
+export const createEmpty = f => new Promise(f)
 
 /**
  * `Promise.all` wait for all promises in the array to resolve and return the result

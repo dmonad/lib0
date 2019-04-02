@@ -20,6 +20,13 @@ export class Pair {
  * @return {Pair<L,R>}
  */
 export const create = (left, right) => new Pair(left, right)
+
+/**
+ * @template L,R
+ * @param {R} right
+ * @param {L} left
+ * @return {Pair<L,R>}
+ */
 export const createReversed = (right, left) => new Pair(left, right)
 
 /**

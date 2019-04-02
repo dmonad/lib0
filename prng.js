@@ -55,6 +55,14 @@ export const bool = gen => (gen.next() >= 0.5)
  */
 export const int53 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) + min)
 
+/**
+ * Generates a random integer with 53 bit resolution.
+ *
+ * @param {PRNG} gen A random number generator.
+ * @param {Number} min The lower bound of the allowed return values (inclusive).
+ * @param {Number} max The upper bound of the allowed return values (inclusive).
+ * @return {Number} A random integer on [min, max]
+ */
 export const uint53 = (gen, min, max) => {
   const n = int53(gen, min, max)
   return (n < 0 ? (-1) : 1) * n
@@ -70,6 +78,14 @@ export const uint53 = (gen, min, max) => {
  */
 export const int32 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) + min)
 
+/**
+ * Generates a random integer with 53 bit resolution.
+ *
+ * @param {PRNG} gen A random number generator.
+ * @param {Number} min The lower bound of the allowed return values (inclusive).
+ * @param {Number} max The upper bound of the allowed return values (inclusive).
+ * @return {Number} A random integer on [min, max]
+ */
 export const uint32 = (gen, min, max) => int32(gen, min, max) >>> 0
 
 /**
@@ -78,13 +94,13 @@ export const uint32 = (gen, min, max) => int32(gen, min, max) >>> 0
  *
  * @param {PRNG} gen A random number generator.
  * @param {Number} min The lower bound of the allowed return values (inclusive).
- * @param {Number} max The upper bound of the allowed return values (inclusive).
+ * @param {Number} max The upper bound of the allowed return values (inclusive). The max inclusive number is `binary.BITS31-1`
  * @return {Number} A random integer on [min, max]
  */
 export const int31 = (gen, min, max) => {
   const _min = min & binary.BITS31
   const _max = max & binary.BITS31
-  return math.floor(gen.next() * ((_max - _min + 1) & binary.BITS31) + _min)
+  return math.floor(gen.next() * (math.min(_max - _min + 1, binary.BITS31) & binary.BITS31) + _min)
 }
 
 /**
@@ -97,6 +113,9 @@ export const real53 = gen => gen.next() // (((gen.next() >>> 5) * binary.BIT26) 
 
 /**
  * Generates a random character from char code 32 - 126. I.e. Characters, Numbers, special characters, and Space:
+ *
+ * @param {PRNG} gen A random number generator.
+ * @return {string}
  *
  * (Space)!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[/]^_`abcdefghijklmnopqrstuvwxyz{|}~
  */
@@ -125,6 +144,9 @@ export const word = (gen, minLen = 0, maxLen = 20) => {
 
 /**
  * TODO: this function produces invalid runes. Does not cover all of utf16!!
+ *
+ * @param {PRNG} gen
+ * @return {string}
  */
 export const utf16Rune = gen => {
   const codepoint = int31(gen, 0, 256)

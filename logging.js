@@ -20,6 +20,10 @@ export const UNCOLOR = symbol.create()
 
 /* istanbul ignore next */
 class Style {
+  /**
+   * @param {string} text
+   * @param {Array<pair.Pair<string,string>>} attrs
+   */
   constructor (text, attrs) {
     this.text = text
     this.attrs = attrs
@@ -27,6 +31,10 @@ class Style {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {string} text
+ * @param {Array<pair.Pair<string,string>>} attrs
+ */
 export const style = (text, attrs) => new Style(text, attrs)
 
 /**
@@ -57,17 +65,24 @@ const _nodeStyleMap = {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {Array<string|Symbol>} args
+ * @return {Array<string>}
+ */
 const computeBrowserLoggingArgs = args => {
   const strBuilder = []
   const styles = []
   const currentStyle = map.create()
+  /**
+   * @type {Array<string>}
+   */
   let logArgs = []
-
   // try with formatting until we find something unsupported
   let i = 0
 
   for (; i < args.length; i++) {
     const arg = args[i]
+    // @ts-ignore
     const style = _browserStyleMap[arg]
     if (style !== undefined) {
       currentStyle.set(style.left, style.right)
@@ -93,11 +108,18 @@ const computeBrowserLoggingArgs = args => {
   }
   // append the rest
   for (; i < args.length; i++) {
-    logArgs.push(args[i])
+    const arg = args[i]
+    if (!(arg instanceof Symbol)) {
+      logArgs.push(arg)
+    }
   }
   return logArgs
 }
 
+/**
+ * @param {Array<string|Symbol>} args
+ * @return {Array<string>}
+ */
 const computeNodeLoggingArgs = args => {
   const strBuilder = []
   const logArgs = []
@@ -107,6 +129,7 @@ const computeNodeLoggingArgs = args => {
 
   for (; i < args.length; i++) {
     const arg = args[i]
+    // @ts-ignore
     const style = _nodeStyleMap[arg]
     if (style !== undefined) {
       strBuilder.push(style)
@@ -125,7 +148,10 @@ const computeNodeLoggingArgs = args => {
   }
   // append the rest
   for (; i < args.length; i++) {
-    logArgs.push(args[i])
+    const arg = args[i]
+    if (!(arg instanceof Symbol)) {
+      logArgs.push(arg)
+    }
   }
   return logArgs
 }
@@ -133,6 +159,9 @@ const computeNodeLoggingArgs = args => {
 /* istanbul ignore next */
 const computeLoggingArgs = isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs
 
+/**
+ * @param {Array<string|Symbol|Object|number>} args
+ */
 export const print = (...args) => {
   console.log(...computeLoggingArgs(args))
   /* istanbul ignore next */
@@ -140,6 +169,9 @@ export const print = (...args) => {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {Array<string|Symbol|Object|number>} args
+ */
 export const warn = (...args) => {
   console.warn(...computeLoggingArgs(args))
   args.unshift(ORANGE)
@@ -147,6 +179,9 @@ export const warn = (...args) => {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {Error} err
+ */
 export const printError = err => {
   console.error(err)
   vconsoles.forEach(vc => vc.printError(err))
@@ -166,14 +201,24 @@ export const printImg = (url, height) => {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {string} base64
+ * @param {number} height
+ */
 export const printImgBase64 = (base64, height) => printImg(`data:image/gif;base64,${base64}`, height)
 
+/**
+ * @param {Array<string|Symbol|Object|number>} args
+ */
 export const group = (...args) => {
   console.group(...computeLoggingArgs(args))
   /* istanbul ignore next */
   vconsoles.forEach(vc => vc.group(args))
 }
 
+/**
+ * @param {Array<string|Symbol|Object|number>} args
+ */
 export const groupCollapsed = (...args) => {
   console.groupCollapsed(...computeLoggingArgs(args))
   /* istanbul ignore next */
@@ -194,11 +239,19 @@ export const printDom = createNode =>
   vconsoles.forEach(vc => vc.printDom(createNode()))
 
 /* istanbul ignore next */
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @param {number} height
+ */
 export const printCanvas = (canvas, height) => printImg(canvas.toDataURL(), height)
 
 export const vconsoles = new Set()
 
 /* istanbul ignore next */
+/**
+ * @param {Array<string|Symbol|Object|number>} args
+ * @return {Array<Element>}
+ */
 const _computeLineSpans = args => {
   const spans = []
   const currentStyle = new Map()
@@ -206,11 +259,13 @@ const _computeLineSpans = args => {
   let i = 0
   for (; i < args.length; i++) {
     const arg = args[i]
+    // @ts-ignore
     const style = _browserStyleMap[arg]
     if (style !== undefined) {
       currentStyle.set(style.left, style.right)
     } else {
       if (arg.constructor === String || arg.constructor === Number) {
+        // @ts-ignore
         const span = dom.element('span', [pair.create('style', dom.mapToStyleString(currentStyle))], [dom.text(arg)])
         if (span.innerHTML === '') {
           span.innerHTML = '&nbsp;'
@@ -224,10 +279,12 @@ const _computeLineSpans = args => {
   // append the rest
   for (; i < args.length; i++) {
     let content = args[i]
-    if (content.constructor !== String && content.constructor !== Number) {
-      content = ' ' + json.stringify(content) + ' '
+    if (!(content instanceof Symbol)) {
+      if (content.constructor !== String && content.constructor !== Number) {
+        content = ' ' + json.stringify(content) + ' '
+      }
+      spans.push(dom.element('span', [], [dom.text(content)]))
     }
-    spans.push(dom.element('span', [], [dom.text(content)]))
   }
   return spans
 }
@@ -236,12 +293,22 @@ const lineStyle = 'font-family:monospace;border-bottom:1px solid #e2e2e2;padding
 
 /* istanbul ignore next */
 export class VConsole {
+  /**
+   * @param {Element} dom
+   */
   constructor (dom) {
     this.dom = dom
+    /**
+     * @type {Element}
+     */
     this.ccontainer = this.dom
     this.depth = 0
     vconsoles.add(this)
   }
+  /**
+   * @param {Array<string|Symbol|Object|number>} args
+   * @param {boolean} collapsed
+   */
   group (args, collapsed = false) {
     eventloop.enqueue(() => {
       const triangleDown = dom.element('span', [pair.create('hidden', collapsed), pair.create('style', 'color:grey;font-size:120%;')], [dom.text('▼')])
@@ -260,6 +327,9 @@ export class VConsole {
       })
     })
   }
+  /**
+   * @param {Array<string|Symbol|Object|number>} args
+   */
   groupCollapsed (args) {
     this.group(args, true)
   }
@@ -267,23 +337,37 @@ export class VConsole {
     eventloop.enqueue(() => {
       if (this.depth > 0) {
         this.depth--
+        // @ts-ignore
         this.ccontainer = this.ccontainer.parentElement.parentElement
       }
     })
   }
+  /**
+   * @param {Array<string|Symbol|Object|number>} args
+   */
   print (args) {
     eventloop.enqueue(() => {
       dom.append(this.ccontainer, [dom.element('div', [pair.create('style', `${lineStyle};padding-left:${this.depth * 10}px`)], _computeLineSpans(args))])
     })
   }
+  /**
+   * @param {Error} err
+   */
   printError (err) {
     this.print([RED, BOLD, err.toString()])
   }
+  /**
+   * @param {string} url
+   * @param {number} height
+   */
   printImg (url, height) {
     eventloop.enqueue(() => {
       dom.append(this.ccontainer, [dom.element('img', [pair.create('src', url), pair.create('height', `${math.round(height * 1.5)}px`)])])
     })
   }
+  /**
+   * @param {Node} node
+   */
   printDom (node) {
     eventloop.enqueue(() => {
       dom.append(this.ccontainer, [node])
@@ -297,4 +381,7 @@ export class VConsole {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {Element} dom
+ */
 export const createVConsole = dom => new VConsole(dom)

@@ -19,4 +19,9 @@ export const callAll = (fs, args, i = 0) => {
 
 export const nop = () => {}
 
+/**
+ * @template T
+ * @param {function():T} f
+ * @return {T}
+ */
 export const apply = f => f()

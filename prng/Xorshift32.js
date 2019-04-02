@@ -2,6 +2,8 @@
  * @module prng
  */
 
+import * as binary from '../binary.js'
+
 /**
  * Xorshift32 is a very simple but elegang PRNG with a period of `2^32-1`.
  */
@@ -27,6 +29,6 @@ export class Xorshift32 {
     x ^= x >> 17
     x ^= x << 5
     this._state = x
-    return (x >>> 0) / 0xFFFFFFFF
+    return (x >>> 0) / (binary.BITS32 + 1)
   }
 }

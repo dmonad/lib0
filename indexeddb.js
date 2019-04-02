@@ -1,19 +1,22 @@
-/**
- * @module lib/idb
- */
-
 /* eslint-env browser */
 
 import * as promise from './promise.js'
+import * as error from './error.js'
 
-/*
+/**
  * IDB Request to Promise transformer
+ *
+ * @param {IDBRequest} request
+ * @return {Promise<any>}
  */
 export const rtop = request => promise.create((resolve, reject) => {
   /* istanbul ignore next */
+  // @ts-ignore
   request.onerror = event => reject(new Error(event.target.error))
   /* istanbul ignore next */
+  // @ts-ignore
   request.onblocked = () => location.reload()
+  // @ts-ignore
   request.onsuccess = event => resolve(event.target.result)
 })
 
@@ -23,7 +26,7 @@ export const rtop = request => promise.create((resolve, reject) => {
  * @return {Promise<IDBDatabase>}
  */
 export const openDB = (name, initDB) => promise.create((resolve, reject) => {
-  let request = indexedDB.open(name)
+  const request = indexedDB.open(name)
   /**
    * @param {any} event
    */
@@ -32,13 +35,16 @@ export const openDB = (name, initDB) => promise.create((resolve, reject) => {
   /**
    * @param {any} event
    */
-  request.onerror = event => reject(new Error(event.target.error))
+  request.onerror = event => reject(error.create(event.target.error))
   /* istanbul ignore next */
   request.onblocked = () => location.reload()
   /**
    * @param {any} event
    */
   request.onsuccess = event => {
+    /**
+     * @type {IDBDatabase}
+     */
     const db = event.target.result
     /* istanbul ignore next */
     db.onversionchange = () => { db.close() }
@@ -50,8 +56,15 @@ export const openDB = (name, initDB) => promise.create((resolve, reject) => {
   }
 })
 
+/**
+ * @param {string} name
+ */
 export const deleteDB = name => rtop(indexedDB.deleteDatabase(name))
 
+/**
+ * @param {IDBDatabase} db
+ * @param {Array<[string,IDBObjectStoreParameters|undefined]>} definitions
+ */
 export const createStores = (db, definitions) => definitions.forEach(d =>
   db.createObjectStore.apply(db, d)
 )
@@ -123,12 +136,13 @@ export const getAllKeys = (store, range) =>
  * @return {Promise<Array<KeyValuePair>>}
  */
 export const getAllKeysValues = (store, range) =>
+  // @ts-ignore
   promise.all([getAllKeys(store, range), getAll(store, range)]).then(([ks, vs]) => ks.map((k, i) => ({ k, v: vs[i] })))
 
 /**
  * @param {any} request
  * @param {function(IDBCursorWithValue):void} f
- * @return {Promise}
+ * @return {Promise<void>}
  */
 const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
   /* istanbul ignore next */
@@ -173,8 +187,24 @@ export const iterateKeys = (store, keyrange, f) =>
  */
 export const getStore = (t, store) => t.objectStore(store)
 
+/**
+ * @param {any} lower
+ * @param {any} upper
+ * @param {boolean} lowerOpen
+ * @param {boolean} upperOpen
+ */
 export const createIDBKeyRangeBound = (lower, upper, lowerOpen, upperOpen) => IDBKeyRange.bound(lower, upper, lowerOpen, upperOpen)
+
 /* istanbul ignore next */
+/**
+ * @param {any} upper
+ * @param {boolean} upperOpen
+ */
 export const createIDBKeyRangeUpperBound = (upper, upperOpen) => IDBKeyRange.upperBound(upper, upperOpen)
+
 /* istanbul ignore next */
+/**
+ * @param {any} lower
+ * @param {boolean} lowerOpen
+ */
 export const createIDBKeyRangeLowerBound = (lower, lowerOpen) => IDBKeyRange.lowerBound(lower, lowerOpen)

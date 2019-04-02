@@ -11,7 +11,7 @@
  *   })
  * })
  *
- * @return {Function} A mutual exclude function
+ * @return {function(function():void,function():void):void} A mutual exclude function
  * @public
  */
 export const createMutex = () => {

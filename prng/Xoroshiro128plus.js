@@ -3,6 +3,7 @@
  */
 
 import { Xorshift32 } from './Xorshift32.js'
+import * as binary from '../binary.js'
 
 /**
  * This is a variant of xoroshiro128plus - the fastest full-period generator passing BigCrush without systematic failures.
@@ -27,15 +28,18 @@ export class Xoroshiro128plus {
     const xorshift32 = new Xorshift32(seed)
     this.state = new Uint32Array(4)
     for (let i = 0; i < 4; i++) {
-      this.state[i] = xorshift32.next() * 0xFFFFFFFF
+      this.state[i] = xorshift32.next() * binary.BITS32
     }
     this._fresh = true
   }
+  /**
+   * @return {number} Float/Double in [0,1)
+   */
   next () {
     const state = this.state
     if (this._fresh) {
       this._fresh = false
-      return ((state[0] + state[2]) >>> 0) / 0xFFFFFFFF
+      return ((state[0] + state[2]) >>> 0) / binary.BITS32
     } else {
       this._fresh = true
       const s0 = state[0]
@@ -55,10 +59,7 @@ export class Xoroshiro128plus {
       // rol(s1, 36) // k = 4 = 36 - 32; j = 23 = 32 - 9
       state[2] = s3 << 4 | s2 >>> 28
       state[3] = s2 << 4 | s3 >>> 28
-      // const x = (((state[1] + state[3]) >>> 0) & Number.MAX_SAFE_INTEGER) >>> 0
-      return (((state[1] + state[3]) >>> 0) / 0xFFFFFFFF)
-      // return (((gen.next() >>> 5) * binary.BIT26) + (gen.next() >>> 6)) / MAX_SAFE_INTEGER
-      // return ((state[1] + state[3]) & 0xFFFFFFFF) >>> 0
+      return (((state[1] + state[3]) >>> 0) / (binary.BITS32 + 1))
     }
   }
 }

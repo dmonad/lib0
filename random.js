@@ -4,6 +4,7 @@
  * @module random
  */
 import * as env from './environment.js'
+import * as binary from './binary.js'
 
 /* istanbul ignore next */
 const uint32BrowserCrypto = () => {
@@ -13,7 +14,7 @@ const uint32BrowserCrypto = () => {
 }
 
 /* istanbul ignore next */
-const uint32NoCrypto = () => Math.ceil((Math.random() * 0xFFFFFFFF) >>> 0)
+const uint32NoCrypto = () => Math.ceil((Math.random() * binary.BITS32) >>> 0)
 
 /**
  * @param {typeof import('crypto')} crypto

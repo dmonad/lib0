@@ -18,7 +18,7 @@ export const testEventloopOrder = tc => {
   })
   t.assert(currI === 0)
   return promise.all([
-    promise.create(resolve => eventloop.enqueue(resolve)),
+    promise.createEmpty(resolve => eventloop.enqueue(resolve)),
     promise.until(0, () => currI === 10)
   ])
 }

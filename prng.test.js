@@ -53,7 +53,7 @@ const runGenTest = (tc, gen) => {
     let i
     let newNum
     for (i = 0; i < genTestData; i++) {
-      newNum = prng.int32(gen, binary.BITS32, binary.BITS31)
+      newNum = prng.int32(gen, -binary.BITS31, binary.BITS31)
       if (newNum > largest) {
         largest = newNum
       }
