@@ -1,17 +1,26 @@
 import * as string from './string.js'
 import * as env from './environment.js'
 
+/**
+ * @param {number} len
+ */
 export const createUint8ArrayFromLen = len => new Uint8Array(len)
 
 /**
  * Create Uint8Array with initial content from buffer
+ *
+ * @param {ArrayBuffer} buffer
+ * @param {number} byteOffset
+ * @param {number} length
  */
 export const createUint8ArrayViewFromArrayBuffer = (buffer, byteOffset, length) => new Uint8Array(buffer, byteOffset, length)
 
 /**
  * Create Uint8Array with initial content from buffer
+ *
+ * @param {ArrayBuffer} buffer
  */
-export const createUint8ArrayFromArrayBuffer = arraybuffer => new Uint8Array(arraybuffer)
+export const createUint8ArrayFromArrayBuffer = buffer => new Uint8Array(buffer)
 
 /* istanbul ignore next */
 /**
@@ -48,6 +57,9 @@ const fromBase64Browser = s => {
   return bytes
 }
 
+/**
+ * @param {string} s
+ */
 const fromBase64Node = s => new Uint8Array(Buffer.from(s, 'base64').buffer)
 
 /* istanbul ignore next */

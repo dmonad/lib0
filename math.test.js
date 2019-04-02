@@ -1,6 +1,9 @@
 import * as t from './testing.js'
 import * as math from './math.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testMath = tc => {
   t.describe('math.abs')
   t.assert(math.abs(-1) === 1)

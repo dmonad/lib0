@@ -18,6 +18,9 @@ import { Xorshift32 } from './Xorshift32.js'
  * [Reference implementation](http://vigna.di.unimi.it/xorshift/xoroshiro128plus.c)
  */
 export class Xoroshiro128plus {
+  /**
+   * @param {number} seed Unsigned 32 bit number
+   */
   constructor (seed) {
     this.seed = seed
     // This is a variant of Xoroshiro128plus to fill the initial state

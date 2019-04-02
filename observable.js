@@ -20,7 +20,7 @@ export class Observable {
    * @param {function} f
    */
   on (name, f) {
-    map.setTfUndefined(this._observers, name, set.create).add(f)
+    map.setIfUndefined(this._observers, name, set.create).add(f)
   }
 
   /**
@@ -28,6 +28,9 @@ export class Observable {
    * @param {function} f
    */
   once (name, f) {
+    /**
+     * @param  {...any} args
+     */
     const _f = (...args) => {
       this.off(name, f)
       f(...args)
@@ -57,6 +60,7 @@ export class Observable {
    * @param {Array} args The arguments that are applied to the event listener.
    */
   emit (name, args) {
+    // @ts-ignore
     return (this._observers.get(name) || map.create()).forEach(f => f(...args))
   }
 

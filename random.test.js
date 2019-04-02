@@ -2,6 +2,9 @@ import * as random from './random.js'
 import * as t from './testing.js'
 import * as binary from './binary.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testUint32 = tc => {
   let num = 0
   let newNum = 0

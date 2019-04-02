@@ -15,6 +15,10 @@ const uint32BrowserCrypto = () => {
 /* istanbul ignore next */
 const uint32NoCrypto = () => Math.ceil((Math.random() * 0xFFFFFFFF) >>> 0)
 
+/**
+ * @param {typeof import('crypto')} crypto
+ * @return {function():number}
+ */
 const uint32NodeCrypto = crypto => () => {
   // @ts-ignore
   const buf = crypto.randomBytes(4)

@@ -2,6 +2,9 @@ import * as time from './time.js'
 import * as t from './testing.js'
 import * as math from './math.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testTime = tc => {
   const l = time.getDate().getTime()
   const r = time.getUnixTime()

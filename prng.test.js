@@ -173,10 +173,18 @@ const runGenTest = (tc, gen) => {
  * @param {t.TestCase} tc
  */
 export const testGeneratorXoroshiro128plus = tc => runGenTest(tc, new Xoroshiro128plus(tc.seed))
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testGeneratorXorshift32 = tc => {
   t.skip(!production)
   runGenTest(tc, new Xorshift32(tc.seed))
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testGeneratorMt19937 = tc => {
   t.skip(!production)
   runGenTest(tc, new Mt19937(tc.seed))
@@ -204,6 +212,9 @@ const printDistribution = (gen, tc) => {
 }
 
 /* istanbul ignore next */
+/**
+ * @param {t.TestCase} tc
+ */
 export const testNumberDistributions = tc => {
   t.skip(!isBrowser)
   t.group('Xoroshiro128plus', () => printDistribution(new Xoroshiro128plus(tc.seed), tc))

@@ -17,13 +17,14 @@ import * as json from './json.js'
 export { production } from './environment.js'
 
 /* istanbul ignore next */
-export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed')) : null
+export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed', '0')) : null
 
 export class TestCase {
+  /**
+   * @param {string} moduleName
+   * @param {string} testName
+   */
   constructor (moduleName, testName) {
-    /**
-     * @type {prng.PRNG}
-     */
     this.moduleName = moduleName
     this.testName = testName
     this._seed = null
@@ -56,12 +57,20 @@ export class TestCase {
 const perf = typeof performance === 'undefined' ? require('perf_hooks').performance : performance // eslint-disable-line no-undef
 
 export const repititionTime = Number(env.getParam('--repitition-time', '50'))
-const testFilter = env.getParam('--filter', null)
+const testFilter = env.hasParam('--filter') ? env.getParam('--filter', '') : null
+
 /* istanbul ignore next */
 const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : new RegExp('.*')
 
 const repeatTestRegex = /^(repeat|repeating)\s/
 
+/**
+ * @param {string} moduleName
+ * @param {string} name
+ * @param {function(TestCase):void|Promise<any>} f
+ * @param {number} i
+ * @param {number} numberOfTests
+ */
 export const run = async (moduleName, name, f, i, numberOfTests) => {
   const uncamelized = string.fromCamelCase(name.slice(4), ' ')
   let filtered = !testFilterRegExp.test(`[${i + 1}/${numberOfTests}] ${moduleName}: ${uncamelized}`)
@@ -132,14 +141,25 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   return success
 }
 
+/**
+ * @param {string} description
+ * @param {string} info
+ */
 export const describe = (description, info = '') => log.print(log.BLUE, description, ' ', log.GREY, info)
 
+/**
+ * @param {string} info
+ */
 export const info = info => describe('', info)
 
 export const printDom = log.printDom
 
 export const printCanvas = log.printCanvas
 
+/**
+ * @param {string} description
+ * @param {function(void):void} f
+ */
 export const group = (description, f) => {
   log.group(log.BLUE, description)
   try {
@@ -149,6 +169,10 @@ export const group = (description, f) => {
   }
 }
 
+/**
+ * @param {string} message
+ * @param {function():void} f
+ */
 export const measureTime = (message, f) => {
   let duration = 0
   let iterations = 0
@@ -205,6 +229,7 @@ export const compareStrings = (a, b, m = 'Strings match') => {
 export const compareObjects = (a, b, m = 'Objects match') => { object.equalFlat(a, b) || fail(m) }
 
 /**
+ * @param {any} constructor
  * @param {any} a
  * @param {any} b
  * @param {string} path
@@ -217,12 +242,25 @@ const compareValues = (constructor, a, b, path) => {
   return true
 }
 
+/**
+ * @param {string?} message
+ * @param {string} reason
+ * @param {string} path
+ * @throws {TestError}
+ */
 const _failMessage = (message, reason, path) => fail(
   message === null
     ? `${reason} ${path}`
     : `${message} (${reason}) ${path}`
 )
 
+/**
+ * @param {any} a
+ * @param {any} b
+ * @param {string} path
+ * @param {string?} message
+ * @param {function(any,any,any,string,any):boolean} customCompare
+ */
 const _compare = (a, b, path, message, customCompare) => {
   // we don't use assert here because we want to test all branches (istanbul errors if one branch is not tested)
   if (a == null || b == null) {
@@ -251,6 +289,7 @@ const _compare = (a, b, path, message, customCompare) => {
       if (a.size !== b.size) {
         _failMessage(message, 'Sets have different number of attributes', path)
       }
+      // @ts-ignore
       a.forEach(value => {
         if (!b.has(value)) {
           _failMessage(message, `b.${path} does have ${value}`, path)
@@ -262,6 +301,7 @@ const _compare = (a, b, path, message, customCompare) => {
       if (a.size !== b.size) {
         _failMessage(message, 'Maps have different number of attributes', path)
       }
+      // @ts-ignore
       a.forEach((value, key) => {
         if (!b.has(key)) {
           _failMessage(message, `Property ${path}["${key}"] does not exist on second argument`, path)
@@ -285,6 +325,7 @@ const _compare = (a, b, path, message, customCompare) => {
       if (a.length !== b.length) {
         _failMessage(message, 'Arrays have a different number of attributes', path)
       }
+      // @ts-ignore
       a.forEach((value, i) => _compare(value, b[i], `${path}[${i}]`, message, customCompare))
       break
     /* istanbul ignore next */
@@ -297,11 +338,27 @@ const _compare = (a, b, path, message, customCompare) => {
   return true
 }
 
+/**
+ * @template T
+ * @param {T} a
+ * @param {T} b
+ * @param {string?} [message]
+ * @param {function(any,T,T,string,any):boolean} [customCompare]
+ */
 export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
 /* istanbul ignore next */
+/**
+ * @param {boolean} condition
+ * @param {string?} [message]
+ * @throws {TestError}
+ */
 export const assert = (condition, message = null) => condition || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`)
 
+/**
+ * @param {function():void} f
+ * @throws {TestError}
+ */
 export const fails = f => {
   let err = null
   try {
@@ -317,7 +374,7 @@ export const fails = f => {
 }
 
 /**
- * @param {Object<string, Object<string, function>>} tests
+ * @param {Object<string, Object<string, function(TestCase):void|Promise<any>>>} tests
  */
 export const runTests = async tests => {
   const numberOfTests = object.map(tests, mod => object.map(mod, f => /* istanbul ignore next */ f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)

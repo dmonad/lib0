@@ -2,6 +2,9 @@ import * as eventloop from './eventloop.js'
 import * as t from './testing.js'
 import * as promise from './promise.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testEventloopOrder = tc => {
   let currI = 0
   for (let i = 0; i < 10; i++) {

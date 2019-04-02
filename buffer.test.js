@@ -2,6 +2,9 @@ import * as t from './testing.js'
 import * as buffer from './buffer.js'
 import * as prng from './prng.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatBase64Encoding = tc => {
   const gen = tc.prng
   const barr = prng.uint8Array(gen, 100000)

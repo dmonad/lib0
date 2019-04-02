@@ -1,6 +1,7 @@
 /**
  * @module tree
  */
+// @ts-nocheck TODO: remove or refactor this file
 
 const rotate = (tree, parent, newParent, n) => {
   if (parent === null) {

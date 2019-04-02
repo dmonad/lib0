@@ -2,6 +2,9 @@ import * as t from './testing.js'
 import * as pair from './pair.js'
 import * as math from './math.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testPair = tc => {
   const ps = [pair.create(1, 2), pair.create(3, 4), pair.createReversed(6, 5)]
   t.describe('Counting elements in pair list')

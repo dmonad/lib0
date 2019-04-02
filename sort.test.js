@@ -33,6 +33,7 @@ const runSortTest = (tc, arr, compare, getVal) => {
  * @template T
  * @param {t.TestCase} tc
  * @param {function(number):Array<T>} createArray
+ * @param {function(T,T):number} compare 0 if equal, 1 if a<b, -1 otherwise
  * @param {function(T):number} getVal
  */
 const createSortTest = (tc, createArray, compare, getVal) => {
@@ -67,8 +68,21 @@ const createSortTest = (tc, createArray, compare, getVal) => {
  */
 export const testSortUint16 = tc => {
   t.skip(!t.production)
+  /**
+   * @param {number} i
+   * @return {number}
+   */
   const getVal = i => i
+  /**
+   * @param {number} a
+   * @param {number} b
+   * @return {number}
+   */
   const compare = (a, b) => a - b
+  /**
+   * @param {number} len
+   * @return {Array<number>}
+   */
   const createArray = len => Array.from(new Uint16Array(prng.arrayBuffer(tc.prng, len * 2)))
   createSortTest(tc, createArray, compare, getVal)
 }
@@ -78,8 +92,21 @@ export const testSortUint16 = tc => {
  */
 export const testSortUint32 = tc => {
   t.skip(!t.production)
+  /**
+   * @param {number} i
+   * @return {number}
+   */
   const getVal = i => i
+  /**
+   * @param {number} a
+   * @param {number} b
+   * @return {number}
+   */
   const compare = (a, b) => a - b
+  /**
+   * @param {number} len
+   * @return {Array<number>}
+   */
   const createArray = len => Array.from(new Uint32Array(prng.arrayBuffer(tc.prng, len * 4)))
   createSortTest(tc, createArray, compare, getVal)
 }
@@ -88,12 +115,28 @@ export const testSortUint32 = tc => {
  * @param {t.TestCase} tc
  */
 export const testSortObjectUint32 = tc => {
+  /**
+   * @param {{index:number}} obj
+   * @return {number}
+   */
   const getVal = obj => obj.index
+  /**
+   * @param {{index:number}} a
+   * @param {{index:number}} b
+   * @return {number}
+   */
   const compare = (a, b) => a.index - b.index
+  /**
+   * @param {number} len
+   * @return {Array<{index:number}>}
+   */
   const createArray = len => Array.from(new Uint32Array(prng.arrayBuffer(tc.prng, len * 4))).map(index => ({ index }))
   createSortTest(tc, createArray, compare, getVal)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testListVsArrayPerformance = tc => {
   /**
    * @typedef {{ val: number }} Val

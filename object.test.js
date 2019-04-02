@@ -2,6 +2,9 @@ import * as t from './testing.js'
 import * as object from './object.js'
 import * as math from './math.js'
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testObject = tc => {
   t.assert(object.create().constructor === undefined, 'object.create creates an empty object without constructor')
   t.describe('object.equalFlat')

@@ -7,10 +7,13 @@
  */
 export class Xorshift32 {
   /**
-   * @param {number} seed The starting point for the random number generation. If you use the same seed, the generator will return the same sequence of random numbers.
+   * @param {number} seed Unsigned 32 bit number
    */
   constructor (seed) {
     this.seed = seed
+    /**
+     * @type {number}
+     */
     this._state = seed
   }
   /**

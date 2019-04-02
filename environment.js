@@ -59,9 +59,19 @@ const computeParamsBrowser = () => {
 /* istanbul ignore next */
 const computeParams = isNode ? computeParamsNode : computeParamsBrowser
 
+/**
+ * @param {string} name
+ * @return {boolean}
+ */
 export const hasParam = name => computeParams().has(name)
+
 /* istanbul ignore next */
-export const getParam = (name, defaultVal = null) => computeParams().get(name) || defaultVal
+/**
+ * @param {string} name
+ * @param {string} defaultVal
+ * @return {string}
+ */
+export const getParam = (name, defaultVal) => computeParams().get(name) || defaultVal
 // export const getArgs = name => computeParams() && args
 
-export const production = getParam('production', false)
+export const production = getParam('production', '0') !== '0'

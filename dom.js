@@ -49,12 +49,23 @@ export const append = (parent, nodes) => {
   return parent
 }
 
+/**
+ * @param {EventTarget} el
+ * @param {string} name
+ * @param {EventListener} f
+ */
 export const addEventListener = (el, name, f) => el.addEventListener(name, f)
+
+/**
+ * @param {EventTarget} el
+ * @param {string} name
+ * @param {EventListener} f
+ */
 export const removeEventListener = (el, name, f) => el.removeEventListener(name, f)
 
 /**
  * @param {Node} node
- * @param {Array<pair.Pair<string,function>>} listeners
+ * @param {Array<pair.Pair<string,EventListener>>} listeners
  * @return {Node}
  */
 export const addEventListeners = (node, listeners) => {
@@ -64,7 +75,7 @@ export const addEventListeners = (node, listeners) => {
 
 /**
  * @param {Node} node
- * @param {Array<pair.Pair<string,function>>} listeners
+ * @param {Array<pair.Pair<string,EventListener>>} listeners
  * @return {Node}
  */
 export const removeEventListeners = (node, listeners) => {
@@ -92,6 +103,10 @@ export const canvas = (width, height) => {
   return c
 }
 
+/**
+ * @param {string} t
+ * @return {Text}
+ */
 export const text = t => document.createTextNode(t)
 
 /**

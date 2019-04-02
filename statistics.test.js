@@ -2,7 +2,10 @@ import * as statistics from './statistics.js'
 import * as t from './testing.js'
 import * as math from './math.js'
 
-export const testMedian = () => {
+/**
+ * @param {t.TestCase} tc
+ */
+export const testMedian = tc => {
   t.assert(math.isNaN(statistics.median([])), 'median([]) = NaN')
   t.assert(statistics.median([1]) === 1, 'median([x]) = x')
   t.assert(statistics.median([1, 2, 3]) === 2, 'median([a,b,c]) = b')

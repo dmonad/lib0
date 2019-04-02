@@ -1,7 +1,13 @@
 import * as promise from './promise.js'
 import * as t from './testing.js'
 import * as time from './time.js'
+import * as error from './error.js'
 
+/**
+ * @param {Promise<any>} p
+ * @param {number} min
+ * @param {number} max
+ */
 const measureP = (p, min, max) => {
   const start = time.getUnixTime()
   return p.then(() => {
@@ -11,16 +17,24 @@ const measureP = (p, min, max) => {
   })
 }
 
-const failsP = p => promise.create((resolve, reject) => p.then(reject, resolve))
+/**
+ * @template T
+ * @param {Promise<T>} p
+ * @return {Promise<T>}
+ */
+const failsP = p => promise.create((resolve, reject) => p.then(() => reject(error.create('Promise should fail')), resolve))
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatPromise = async tc => {
   t.assert(promise.create(r => r()).constructor === Promise, 'p.create() creates a Promise')
   t.assert(promise.resolve().constructor === Promise, 'p.reject() creates a Promise')
-  const rejectedP = promise.reject('')
+  const rejectedP = promise.reject()
   t.assert(rejectedP.constructor === Promise, 'p.reject() creates a Promise')
   rejectedP.catch(() => {})
   await promise.create(r => r())
-  await failsP(promise.reject(''))
+  await failsP(promise.reject())
   await promise.resolve()
   await measureP(promise.wait(10), 7, 1000)
   await measureP(failsP(promise.until(15, () => false)), 15, 1000)

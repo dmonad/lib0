@@ -3,7 +3,10 @@ import * as math from './math.js'
 import * as buffer from './buffer.js'
 import * as map from './map.js'
 
-export const testComparing = () => {
+/**
+ * @param {t.TestCase} tc
+ */
+export const testComparing = tc => {
   t.compare({}, {})
   t.compare({ a: 4 }, { a: 4 }, 'simple compare (object)')
   t.compare([1, 2], [1, 2], 'simple compare (array)')
@@ -30,6 +33,7 @@ export const testComparing = () => {
     t.compare({ a: 4 }, null, 'childs are not equal')
   })
   t.fails(() => {
+    // @ts-ignore
     t.compare({ a: 4 }, [4], 'childs have different types')
   })
   t.fails(() => {

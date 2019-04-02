@@ -46,6 +46,14 @@ export const testGolangBinaryEncodingCompatibility = () => {
   })
 }
 
+/**
+ * @template T
+ * @param {string} testname
+ * @param {function(encoding.Encoder, T):void} write
+ * @param {function(decoding.Decoder):T} read
+ * @param {T} val
+ * @param {boolean} doLog
+ */
 function test (testname, write, read, val, doLog = true) {
   let encoder = encoding.createEncoder()
   write(encoder, val)
@@ -56,14 +64,17 @@ function test (testname, write, read, val, doLog = true) {
   if (doLog) {
     t.describe(testname, ` utf8 encode: ${utf8ByteLength} bytes / binary encode: ${binaryByteLength} bytes`)
   }
-  t.compareStrings(val + '', result + '')
+  t.compare(val, result)
   return {
     utf8ByteLength,
     binaryByteLength
   }
 }
 
-const testVarString = (s) => {
+/**
+ * @param {string} s
+ */
+const testVarString = s => {
   const encoder = encoding.createEncoder()
   encoding.writeVarString(encoder, s)
   const decoder = decoding.createDecoder(encoding.toBuffer(encoder))
@@ -84,16 +95,25 @@ export const testVarUintEncoding = tc => {
   test('varUint of 2839012934', encoding.writeVarUint, decoding.readVarUint, 2839012934)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatVarUintEncoding = tc => {
   const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
   test(`varUint of ${n}`, encoding.writeVarUint, decoding.readVarUint, n, false)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatPeekVarUintEncoding = tc => {
   const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
   test(`varUint of ${n}`, encoding.writeVarUint, decoding.peekVarUint, n, false)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testStringEncoding = tc => {
   testVarString('hello')
   testVarString('test!')
@@ -105,9 +125,15 @@ export const testStringEncoding = tc => {
   testVarString('😝') // surrogate length 4
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatStringEncoding = tc =>
   testVarString(prng.utf16String(tc.prng))
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testSetMethods = tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint8(encoder, 1)
@@ -130,7 +156,15 @@ const defLen = 1000
 const loops = 10000
 
 /**
- * @type {Array<any>}
+ * @typedef {Object} EncodingPair
+ * @property {function(decoding.Decoder):any} EncodingPair.read
+ * @property {function(encoding.Encoder,any):void} EncodingPair.write
+ * @property {function(prng.PRNG):any} EncodingPair.gen
+ */
+
+/**
+ * @template T
+ * @type {Array<EncodingPair>}
  */
 const encodingPairs = [
   { read: decoder => decoding.readArrayBuffer(decoder, defLen), write: encoding.writeArrayBuffer, gen: gen => prng.arrayBuffer(gen, defLen) },
@@ -142,6 +176,9 @@ const encodingPairs = [
   { read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS31) }
 ]
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatRandomWrites = tc => {
   t.describe(`Writing ${loops} random values`, `defLen=${defLen}`)
   const gen = tc.prng
@@ -169,6 +206,9 @@ export const testRepeatRandomWrites = tc => {
   t.compare(tailData, decoding.readTail(decoder))
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testSetOnOverflow = tc => {
   const encoder = encoding.createEncoder()
   const initialLen = encoder.cbuf.byteLength
@@ -192,6 +232,9 @@ export const testSetOnOverflow = tc => {
   t.assert(buffer.createUint8ArrayFromArrayBuffer(buf2)[initialLen + 1] === 7)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testCloneDecoder = tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint8(encoder, 12132)
@@ -206,6 +249,9 @@ export const testCloneDecoder = tc => {
   t.compare(payload1, payload2)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testWriteBinaryEncoder = tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint16(encoder, 4)
@@ -218,6 +264,9 @@ export const testWriteBinaryEncoder = tc => {
   t.assert(decoding.readUint16(decoder) === 4)
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
 export const testOverflowStringDecoding = tc => {
   const gen = tc.prng
   const encoder = encoding.createEncoder()

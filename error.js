@@ -1,4 +1,3 @@
-import * as f from './function.js'
 
 /**
  * @throws
@@ -15,3 +14,9 @@ export const methodUnimplemented = () => {
 export const unexpectedCase = () => {
   throw new Error('Unexpected case')
 }
+
+/**
+ * @param {string} s
+ * @return {Error}
+ */
+export const create = s => new Error(s)

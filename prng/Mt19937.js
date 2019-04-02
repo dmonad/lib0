@@ -4,9 +4,16 @@
 const N = 624
 const M = 397
 
+/**
+ * @param {number} u
+ * @param {number} v
+ */
 const twist = (u, v) => ((((u & 0x80000000) | (v & 0x7fffffff)) >>> 1) ^ ((v & 1) ? 0x9908b0df : 0))
 
-const nextState = (state) => {
+/**
+ * @param {Uint32Array} state
+ */
+const nextState = state => {
   let p = 0
   let j
   for (j = N - M + 1; --j; p++) {
@@ -32,7 +39,7 @@ const nextState = (state) => {
  */
 export class Mt19937 {
   /**
-   * @param {Number} seed The starting point for the random number generation. If you use the same seed, the generator will return the same sequence of random numbers.
+   * @param {number} seed Unsigned 32 bit number
    */
   constructor (seed) {
     this.seed = seed

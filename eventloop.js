@@ -10,6 +10,9 @@ const _runQueue = () => {
   queue = []
 }
 
+/**
+ * @param {function():void} f
+ */
 export const enqueue = f => {
   queue.push(f)
   if (queue.length === 1) {

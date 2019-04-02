@@ -15,8 +15,14 @@ import * as buffer from './buffer.js'
 const channels = new Map()
 
 class LocalStoragePolyfill {
+  /**
+   * @param {string} room
+   */
   constructor (room) {
     this.room = room
+    /**
+     * @type {null|function({data:ArrayBuffer}):void}
+     */
     this.onmessage = null
     addEventListener('storage', e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') }))
   }
@@ -38,9 +44,12 @@ const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : Broa
  * @return {Channel}
  */
 const getChannel = room =>
-  map.setTfUndefined(channels, room, () => {
+  map.setIfUndefined(channels, room, () => {
     const subs = new Set()
     const bc = new BC(room)
+    /**
+     * @param {{data:ArrayBuffer}} e
+     */
     bc.onmessage = e => subs.forEach(sub => sub(e.data))
     return {
       bc, subs
