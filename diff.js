@@ -9,12 +9,12 @@
  * console.log(a) // the old value
  * console.log(b) // the updated value
  * // Apply changes of diff (pseudocode)
- * a.remove(diff.pos, diff.remove) // Remove `diff.remove` characters
- * a.insert(diff.pos, diff.insert) // Insert `diff.insert`
+ * a.remove(diff.index, diff.remove) // Remove `diff.remove` characters
+ * a.insert(diff.index, diff.insert) // Insert `diff.insert`
  * a === b // values match
  *
  * @typedef {Object} SimpleDiff
- * @property {Number} pos The index where changes were applied
+ * @property {Number} index The index where changes were applied
  * @property {Number} remove The number of characters to delete starting
  *                                  at `index`.
  * @property {String} insert The new text to insert at `index` after applying
@@ -43,7 +43,7 @@ export const simpleDiff = (a, b) => {
     }
   }
   return {
-    pos: left, // TODO: rename to index (also in type above)
+    index: left,
     remove: a.length - left - right,
     insert: b.slice(left, b.length - right)
   }

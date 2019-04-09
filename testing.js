@@ -119,7 +119,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   log.groupEnd()
   const duration = lastTime - start
   let success = true
-  times.sort((a, b) => a < b ? -1 : (a === b) ? 0 : 1)
+  times.sort((a, b) => a - b)
   /* istanbul ignore next */
   const againMessage = env.isBrowser
     ? `     - ${window.location.protocol}//${window.location.host}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
@@ -214,7 +214,7 @@ export const compareArrays = (as, bs, m = 'Arrays match') => {
 export const compareStrings = (a, b, m = 'Strings match') => {
   if (a !== b) {
     const diff = simpleDiff(a, b)
-    log.print(log.GREY, a.slice(0, diff.pos), log.RED, a.slice(diff.pos, diff.remove), log.GREEN, diff.insert, log.GREY, a.slice(diff.pos + diff.remove))
+    log.print(log.GREY, a.slice(0, diff.index), log.RED, a.slice(diff.index, diff.remove), log.GREEN, diff.insert, log.GREY, a.slice(diff.index + diff.remove))
     fail(m)
   }
 }

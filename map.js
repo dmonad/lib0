@@ -37,3 +37,19 @@ export const map = (m, f) => {
   }
   return res
 }
+
+/**
+ * @template K
+ * @template V
+ * @param {Map<K,V>} m
+ * @param {function(V,K):boolean} f
+ * @return {boolean}
+ */
+export const any = (m, f) => {
+  for (const [key, value] of m) {
+    if (f(value, key)) {
+      return true
+    }
+  }
+  return false
+}

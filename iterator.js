@@ -5,6 +5,9 @@
  * @return {Iterator<R>}
  */
 export const mapIterator = (iterator, f) => ({
+  /**
+   * @param {function(T):R} f
+   */
   [Symbol.iterator] () {
     return this
   },
@@ -18,9 +21,12 @@ export const mapIterator = (iterator, f) => ({
 /**
  * @template T
  * @param {function():{done:boolean,value:T|undefined}} next
- * @return {Iterator<T>}
+ * @return {IterableIterator<T>}
  */
 export const createIterator = next => ({
+  /**
+   * @return {IterableIterator<T>}
+   */
   [Symbol.iterator] () {
     return this
   },
