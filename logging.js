@@ -48,7 +48,7 @@ const _browserStyleMap = {
   [GREY]: pair.create('color', 'grey'),
   [RED]: pair.create('color', 'red'),
   [PURPLE]: pair.create('color', 'purple'),
-  [ORANGE]: pair.create('color', 'orange'),
+  [ORANGE]: pair.create('color', 'orange'), // not well supported in chrome when debugging node with inspector - TODO: deprecate
   [UNCOLOR]: pair.create('color', 'black')
 }
 
