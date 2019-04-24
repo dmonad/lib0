@@ -1,5 +1,11 @@
 
 /**
+ * @callback mutex
+ * @param {function():void} cb Only executed when this mutex is not in the current stack
+ * @param {function():void} [elseCb] Executed when this mutex is in the current stack
+ */
+
+/**
  * Creates a mutual exclude function with the following property:
  *
  * @example
@@ -11,7 +17,7 @@
  *   })
  * })
  *
- * @return {function(function():void,function():void):void} A mutual exclude function
+ * @return {mutex} A mutual exclude function
  * @public
  */
 export const createMutex = () => {
