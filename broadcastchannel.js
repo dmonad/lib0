@@ -64,6 +64,13 @@ const getChannel = room =>
 export const subscribe = (room, f) => getChannel(room).subs.add(f)
 
 /**
+ * @function
+ * @param {string} room
+ * @param {Function} f
+ */
+export const unsubscribe = (room, f) => getChannel(room).subs.delete(f)
+
+/**
  * Publish data to all subscribers (including subscribers on this tab)
  *
  * @function
