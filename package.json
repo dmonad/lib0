@@ -13,7 +13,7 @@
     "typescript": "^3.3.3333"
   },
   "scripts": {
-    "dist": "rollup -c",
+    "dist": "rm -rf dist && rollup -c",
     "debug": "live-server --port=3443 --entry-file=test.html",
     "test": "npm run dist && npm run lint && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.js --repitition-time 50",
     "test-extensive": "npm test -- --repitition-time 30000",
