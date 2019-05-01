@@ -1,4 +1,3 @@
-
 import { runTests } from './testing.js'
 import * as logging from './logging.test.js'
 import * as string from './string.test.js'

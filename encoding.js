@@ -51,7 +51,7 @@ export const length = encoder => {
  * @param {Encoder} encoder
  * @return {ArrayBuffer} The created ArrayBuffer.
  */
-export const toBuffer = encoder => {
+export const toArrayBuffer = encoder => {
   const uint8arr = new Uint8Array(length(encoder))
   let curPos = 0
   for (let i = 0; i < encoder.bufs.length; i++) {
@@ -221,7 +221,7 @@ export const writeVarString = (encoder, str) => {
  * @param {Encoder} encoder The enUint8Arr
  * @param {Encoder} append The BinaryEncoder to be written.
  */
-export const writeBinaryEncoder = (encoder, append) => writeArrayBuffer(encoder, toBuffer(append))
+export const writeBinaryEncoder = (encoder, append) => writeArrayBuffer(encoder, toArrayBuffer(append))
 
 /**
  * Append an arrayBuffer to the encoder.
