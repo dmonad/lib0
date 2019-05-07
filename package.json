@@ -15,7 +15,7 @@
   "scripts": {
     "dist": "rm -rf dist && rollup -c",
     "debug": "live-server --port=3443 --entry-file=test.html",
-    "test": "npm run dist && npm run lint && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.js --repitition-time 50",
+    "test": "npm run dist && npm run lint && PRODUCTION=1 nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.js --repitition-time 50",
     "test-extensive": "npm test -- --repitition-time 30000",
     "test-code-coverage": "npm run dist && nyc --reporter html node ./dist/test.js",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.js",

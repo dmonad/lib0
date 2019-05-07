@@ -271,10 +271,9 @@ const _compare = (a, b, path, message, customCompare) => {
   }
   let success = true
   switch (a.constructor) {
-    case ArrayBuffer: {
+    case ArrayBuffer:
       a = new Uint8Array(a)
       b = new Uint8Array(b)
-    }
     // eslint-disable-next-line no-fallthrough
     case Uint8Array: {
       if (a.byteLength !== b.byteLength) {

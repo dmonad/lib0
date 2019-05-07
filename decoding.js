@@ -4,24 +4,24 @@
 import * as buffer from './buffer.js'
 
 /**
- * A Decoder handles the decoding of an ArrayBuffer.
+ * A Decoder handles the decoding of an Uint8Array.
  */
 export class Decoder {
   /**
-   * @param {ArrayBuffer} buffer Binary data to decode
+   * @param {Uint8Array} uint8Array Binary data to decode
    */
-  constructor (buffer) {
-    this.arr = new Uint8Array(buffer)
+  constructor (uint8Array) {
+    this.arr = uint8Array
     this.pos = 0
   }
 }
 
 /**
  * @function
- * @param {ArrayBuffer} buffer
+ * @param {Uint8Array} uint8Array
  * @return {Decoder}
  */
-export const createDecoder = buffer => new Decoder(buffer)
+export const createDecoder = uint8Array => new Decoder(uint8Array)
 
 /**
  * @function
@@ -40,41 +40,47 @@ export const hasContent = decoder => decoder.pos !== decoder.arr.length
  * @return {Decoder} A clone of `decoder`
  */
 export const clone = (decoder, newPos = decoder.pos) => {
-  const _decoder = createDecoder(decoder.arr.buffer)
+  const _decoder = createDecoder(decoder.arr)
   _decoder.pos = newPos
   return _decoder
 }
 
 /**
- * Read `len` bytes as an ArrayBuffer.
+ * Create an Uint8Array view of the next `len` bytes and advance the position by `len`.
+ *
+ * Important: The Uint8Array still points to the underlying ArrayBuffer. Make sure to discard the result as soon as possible to prevent any memory leaks.
+ *            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
+ *
  * @function
  * @param {Decoder} decoder The decoder instance
  * @param {number} len The length of bytes to read
- * @return {ArrayBuffer}
+ * @return {Uint8Array}
  */
-export const readArrayBuffer = (decoder, len) => {
-  const arrayBuffer = buffer.createUint8ArrayFromLen(len)
+export const readUint8Array = (decoder, len) => {
   const view = buffer.createUint8ArrayViewFromArrayBuffer(decoder.arr.buffer, decoder.pos, len)
-  arrayBuffer.set(view)
   decoder.pos += len
-  return arrayBuffer.buffer
+  return view
 }
 
 /**
- * Read variable length payload as ArrayBuffer
+ * Read variable length Uint8Array.
+ *
+ * Important: The Uint8Array still points to the underlying ArrayBuffer. Make sure to discard the result as soon as possible to prevent any memory leaks.
+ *            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
+ *
  * @function
  * @param {Decoder} decoder
- * @return {ArrayBuffer}
+ * @return {Uint8Array}
  */
-export const readPayload = decoder => readArrayBuffer(decoder, readVarUint(decoder))
+export const readVarUint8Array = decoder => readUint8Array(decoder, readVarUint(decoder))
 
 /**
  * Read the rest of the content as an ArrayBuffer
  * @function
  * @param {Decoder} decoder
- * @return {ArrayBuffer}
+ * @return {Uint8Array}
  */
-export const readTail = decoder => readArrayBuffer(decoder, decoder.arr.length - decoder.pos)
+export const readTailAsUint8Array = decoder => readUint8Array(decoder, decoder.arr.length - decoder.pos)
 
 /**
  * Skip one byte, jump to the next position.

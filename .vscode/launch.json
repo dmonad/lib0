@@ -7,7 +7,7 @@
         {
             "type": "chrome",
             "request": "launch",
-            "name": "DEBUG in Chrome",
+            "name": "DEBUG lib0 in Chrome",
             "url": "http://localhost:3443",
             "webRoot": "${workspaceFolder}"
         }

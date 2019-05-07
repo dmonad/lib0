@@ -83,7 +83,7 @@ export const testSortUint16 = tc => {
    * @param {number} len
    * @return {Array<number>}
    */
-  const createArray = len => Array.from(new Uint16Array(prng.arrayBuffer(tc.prng, len * 2)))
+  const createArray = len => Array.from(new Uint16Array(prng.uint8Array(tc.prng, len * 2)))
   createSortTest(tc, createArray, compare, getVal)
 }
 
@@ -107,7 +107,7 @@ export const testSortUint32 = tc => {
    * @param {number} len
    * @return {Array<number>}
    */
-  const createArray = len => Array.from(new Uint32Array(prng.arrayBuffer(tc.prng, len * 4)))
+  const createArray = len => Array.from(prng.uint32Array(tc.prng, len))
   createSortTest(tc, createArray, compare, getVal)
 }
 
@@ -130,7 +130,7 @@ export const testSortObjectUint32 = tc => {
    * @param {number} len
    * @return {Array<{index:number}>}
    */
-  const createArray = len => Array.from(new Uint32Array(prng.arrayBuffer(tc.prng, len * 4))).map(index => ({ index }))
+  const createArray = len => Array.from(prng.uint32Array(tc.prng, len)).map(index => ({ index }))
   createSortTest(tc, createArray, compare, getVal)
 }
 

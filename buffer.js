@@ -67,3 +67,15 @@ export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
 
 /* istanbul ignore next */
 export const fromBase64 = env.isBrowser ? fromBase64Browser : fromBase64Node
+
+/**
+ * Copy the content of an Uint8Array view to a new ArrayBuffer.
+ *
+ * @param {Uint8Array} uint8Array
+ * @return {Uint8Array}
+ */
+export const copyUint8Array = uint8Array => {
+  const newBuf = createUint8ArrayFromLen(uint8Array.byteLength)
+  newBuf.set(uint8Array)
+  return newBuf
+}

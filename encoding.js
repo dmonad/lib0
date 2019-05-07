@@ -10,7 +10,7 @@ const bits7 = 0b1111111
 const bits8 = 0b11111111
 
 /**
- * A BinaryEncoder handles the encoding to an ArrayBuffer.
+ * A BinaryEncoder handles the encoding to an Uint8Array.
  */
 export class Encoder {
   constructor () {
@@ -45,13 +45,13 @@ export const length = encoder => {
 }
 
 /**
- * Transform to ArrayBuffer. TODO: rename to .toArrayBuffer
+ * Transform to Uint8Array.
  *
  * @function
  * @param {Encoder} encoder
- * @return {ArrayBuffer} The created ArrayBuffer.
+ * @return {Uint8Array} The created ArrayBuffer.
  */
-export const toArrayBuffer = encoder => {
+export const toUint8Array = encoder => {
   const uint8arr = new Uint8Array(length(encoder))
   let curPos = 0
   for (let i = 0; i < encoder.bufs.length; i++) {
@@ -60,7 +60,7 @@ export const toArrayBuffer = encoder => {
     curPos += d.length
   }
   uint8arr.set(buffer.createUint8ArrayViewFromArrayBuffer(encoder.cbuf.buffer, 0, encoder.cpos), curPos)
-  return uint8arr.buffer
+  return uint8arr
 }
 
 /**
@@ -221,30 +221,32 @@ export const writeVarString = (encoder, str) => {
  * @param {Encoder} encoder The enUint8Arr
  * @param {Encoder} append The BinaryEncoder to be written.
  */
-export const writeBinaryEncoder = (encoder, append) => writeArrayBuffer(encoder, toArrayBuffer(append))
+export const writeBinaryEncoder = (encoder, append) => writeUint8Array(encoder, toUint8Array(append))
 
 /**
- * Append an arrayBuffer to the encoder.
+ * Append fixed-length Uint8Array to the encoder.
  *
  * @function
  * @param {Encoder} encoder
- * @param {ArrayBuffer} arrayBuffer
+ * @param {Uint8Array} uint8Array
  */
-export const writeArrayBuffer = (encoder, arrayBuffer) => {
+export const writeUint8Array = (encoder, uint8Array) => {
   const prevBufferLen = encoder.cbuf.length
   // TODO: Append to cbuf if possible
   encoder.bufs.push(buffer.createUint8ArrayViewFromArrayBuffer(encoder.cbuf.buffer, 0, encoder.cpos))
-  encoder.bufs.push(buffer.createUint8ArrayFromArrayBuffer(arrayBuffer))
+  encoder.bufs.push(uint8Array)
   encoder.cbuf = buffer.createUint8ArrayFromLen(prevBufferLen)
   encoder.cpos = 0
 }
 
 /**
+ * Append an Uint8Array to Encoder.
+ *
  * @function
  * @param {Encoder} encoder
- * @param {ArrayBuffer} arrayBuffer
+ * @param {Uint8Array} uint8Array
  */
-export const writePayload = (encoder, arrayBuffer) => {
-  writeVarUint(encoder, arrayBuffer.byteLength)
-  writeArrayBuffer(encoder, arrayBuffer)
+export const writeVarUint8Array = (encoder, uint8Array) => {
+  writeVarUint(encoder, uint8Array.byteLength)
+  writeUint8Array(encoder, uint8Array)
 }
