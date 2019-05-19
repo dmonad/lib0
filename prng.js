@@ -194,11 +194,11 @@ export const uint8Array = (gen, len) => {
  * @param {number} len
  * @return {Uint16Array}
  */
-export const uint16Array = (gen, len) => new Uint16Array(uint8Array(gen, len * 2))
+export const uint16Array = (gen, len) => new Uint16Array(uint8Array(gen, len * 2).buffer)
 
 /**
  * @param {PRNG} gen
  * @param {number} len
  * @return {Uint32Array}
  */
-export const uint32Array = (gen, len) => new Uint32Array(uint8Array(gen, len * 4))
+export const uint32Array = (gen, len) => new Uint32Array(uint8Array(gen, len * 4).buffer)
