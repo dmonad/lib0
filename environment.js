@@ -4,7 +4,7 @@ import * as string from './string.js'
 
 /* istanbul ignore next */
 // @ts-ignore
-export const isNode = typeof process !== 'undefined' && /node|io\.js/.test(process.release.name)
+export const isNode = typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name)
 /* istanbul ignore next */
 export const isBrowser = typeof window !== 'undefined' && !isNode
 
