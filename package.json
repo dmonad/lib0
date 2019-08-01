@@ -4,7 +4,7 @@
   "description": "",
   "dependencies": {},
   "devDependencies": {
-    "@types/node": "^11.13.0",
+    "@types/node": "^11.13.18",
     "fake-indexeddb": "^2.0.5",
     "live-server": "^1.2.1",
     "nyc": "^14.0.0",
@@ -32,5 +32,12 @@
   "bugs": {
     "url": "https://github.com/dmonad/lib0/issues"
   },
-  "homepage": "https://github.com/dmonad/lib0#readme"
+  "homepage": "https://github.com/dmonad/lib0#readme",
+  "standard": {
+    "ignore": [
+      "/dist",
+      "/node_modules",
+      "/docs"
+    ]
+  }
 }
