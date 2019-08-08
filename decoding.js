@@ -2,6 +2,7 @@
  * @module decoding
  */
 import * as buffer from './buffer.js'
+import * as binary from './binary.js'
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -181,14 +182,47 @@ export const readVarUint = decoder => {
   let num = 0
   let len = 0
   while (true) {
-    let r = decoder.arr[decoder.pos++]
-    num = num | ((r & 0b1111111) << len)
+    const r = decoder.arr[decoder.pos++]
+    num = num | ((r & binary.BITS7) << len)
     len += 7
-    if (r < 1 << 7) {
+    if (r < binary.BIT8) {
       return num >>> 0 // return unsigned number!
     }
     /* istanbul ignore if */
     if (len > 35) {
+      throw new Error('Integer out of range!')
+    }
+  }
+}
+
+/**
+ * Read signed integer (32bit) with variable length.
+ * 1/8th of the storage is used as encoding overhead.
+ *  * numbers < 2^7 is stored in one bytlength
+ *  * numbers < 2^14 is stored in two bylength
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {number} An unsigned integer.length
+ */
+export const readVarInt = decoder => {
+  let r = decoder.arr[decoder.pos++]
+  let num = r & binary.BITS6
+  let len = 6
+  const sign = (r & binary.BIT7) > 0 ? -1 : 1
+  if ((r & binary.BIT8) === 0) {
+    // don't continue reading
+    return sign * num
+  }
+  while (true) {
+    r = decoder.arr[decoder.pos++]
+    num = num | ((r & binary.BITS7) << len)
+    len += 7
+    if (r < binary.BIT8) {
+      return sign * num
+    }
+    /* istanbul ignore if */
+    if (len > 41) {
       throw new Error('Integer out of range!')
     }
   }
@@ -204,6 +238,20 @@ export const readVarUint = decoder => {
 export const peekVarUint = decoder => {
   const pos = decoder.pos
   const s = readVarUint(decoder)
+  decoder.pos = pos
+  return s
+}
+
+/**
+ * Look ahead and read varUint without incrementing position
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {number}
+ */
+export const peekVarInt = decoder => {
+  const pos = decoder.pos
+  const s = readVarInt(decoder)
   decoder.pos = pos
   return s
 }
@@ -249,3 +297,75 @@ export const peekVarString = decoder => {
   decoder.pos = pos
   return s
 }
+
+/**
+ * @param {Decoder} decoder
+ * @param {number} len
+ * @return {DataView}
+ */
+export const readFromDataView = (decoder, len) => {
+  const dv = new DataView(decoder.arr.buffer, decoder.arr.byteOffset + decoder.pos, len)
+  decoder.pos += len
+  return dv
+}
+
+/**
+ * @param {Decoder} decoder
+ */
+export const readFloat32 = decoder => readFromDataView(decoder, 4).getFloat32(0)
+
+/**
+ * @param {Decoder} decoder
+ */
+export const readFloat64 = decoder => readFromDataView(decoder, 8).getFloat64(0)
+
+/**
+ * @param {Decoder} decoder
+ */
+export const readBigInt64 = decoder => readFromDataView(decoder, 8).getBigInt64(0)
+
+/**
+ * @param {Decoder} decoder
+ */
+export const readBigUint64 = decoder => readFromDataView(decoder, 8).getBigUint64(0)
+
+/**
+ * @type {Array<function(Decoder):any>}
+ */
+const readAnyLookupTable = [
+  decoder => undefined, // CASE 127: undefined
+  decoder => null, // CASE 126: null
+  readVarInt, // CASE 125: integer
+  readFloat32, // CASE 124: float32
+  readFloat64, // CASE 123: float64
+  readBigInt64, // CASE 122: bigint
+  decoder => false, // CASE 121: boolean (false)
+  decoder => true, // CASE 120: boolean (true)
+  readVarString, // CASE 119: string
+  decoder => { // CASE 118: object<string,any>
+    const len = readVarUint(decoder)
+    /**
+     * @type {Object<string,any>}
+     */
+    const obj = {}
+    for (let i = 0; i < len; i++) {
+      const key = readVarString(decoder)
+      obj[key] = readAny(decoder)
+    }
+    return obj
+  },
+  decoder => { // CASE 117: array<any>
+    const len = readVarUint(decoder)
+    const arr = []
+    for (let i = 0; i < len; i++) {
+      arr.push(readAny(decoder))
+    }
+    return arr
+  },
+  readVarUint8Array // CASE 116: Uint8Array
+]
+
+/**
+ * @param {Decoder} decoder
+ */
+export const readAny = decoder => readAnyLookupTable[127 - readUint8(decoder)](decoder)

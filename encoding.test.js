@@ -1,3 +1,5 @@
+/** eslint-env: browser */
+
 import * as encoding from './encoding.js'
 import * as decoding from './decoding.js'
 import * as prng from './prng.js'
@@ -5,6 +7,30 @@ import * as t from './testing.js'
 import * as string from './string.js'
 import * as binary from './binary.js'
 import * as buffer from './buffer.js'
+import * as number from './number.js'
+
+/**
+ * @type {Array<function(prng.PRNG, number):any>}
+ */
+const genAnyLookupTable = [
+  gen => undefined, // TYPE 127
+  gen => null, // TYPE 126
+  gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), // TYPE 125
+  gen => prng.real53(gen), // TYPE 124 and 123
+  // gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
+  gen => true, // TYPE 121
+  gen => false, // TYPE 120
+  gen => prng.utf16String(gen), // TYPE 119
+  (gen, depth) => ({ val: genAny(gen, depth + 1) }), // TYPE 118
+  (gen, depth) => Array.from({ length: prng.int31(gen, 0, 20 - depth) }).map(() => genAny(gen, depth + 1)), // TYPE 117
+  gen => prng.uint8Array(gen, prng.int31(gen, 0, 50)) // TYPE 116
+]
+
+/**
+ * @param {prng.PRNG} gen
+ * @param {number} _depth The current call-depth
+ */
+const genAny = (gen, _depth = 0) => prng.oneOf(gen, genAnyLookupTable)(gen, _depth)
 
 /**
  * Check if binary encoding is compatible with golang binary encoding - binary.PutVarUint.
@@ -87,12 +113,37 @@ const testVarString = s => {
 /**
  * @param {t.TestCase} tc
  */
+export const testAnyEncodeDate = tc => {
+  test('Encode current date', encoding.writeAny, decoding.readAny, new Date().getTime())
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testEncodeMax32bitUint = tc => {
+  test('max 32bit uint', encoding.writeVarUint, decoding.readVarUint, binary.BITS32)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testVarUintEncoding = tc => {
   test('varUint 1 byte', encoding.writeVarUint, decoding.readVarUint, 42)
   test('varUint 2 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 9 | 3)
   test('varUint 3 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 17 | 1 << 9 | 3)
   test('varUint 4 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 25 | 1 << 17 | 1 << 9 | 3)
   test('varUint of 2839012934', encoding.writeVarUint, decoding.readVarUint, 2839012934)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testVarIntEncoding = tc => {
+  test('varInt 1 byte', encoding.writeVarInt, decoding.readVarInt, -42)
+  test('varInt 2 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 9 | 3))
+  test('varInt 3 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 17 | 1 << 9 | 3))
+  test('varInt 4 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 25 | 1 << 17 | 1 << 9 | 3))
+  test('varInt of -691529286', encoding.writeVarInt, decoding.readVarInt, -(691529286))
 }
 
 /**
@@ -106,9 +157,54 @@ export const testRepeatVarUintEncoding = tc => {
 /**
  * @param {t.TestCase} tc
  */
+export const testRepeatVarIntEncoding = tc => {
+  const n = prng.int31(tc.prng, 0, binary.BITS32)
+  test(`varInt of ${n}`, encoding.writeVarInt, decoding.readVarInt, n, false)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatAnyEncoding = tc => {
+  const n = genAny(tc.prng)
+  test(`any encoding`, encoding.writeAny, decoding.readAny, n, false)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatPeekVarUintEncoding = tc => {
   const n = prng.int31(tc.prng, 0, (1 << 28) - 1)
   test(`varUint of ${n}`, encoding.writeVarUint, decoding.peekVarUint, n, false)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatPeekVarIntEncoding = tc => {
+  const n = prng.int31(tc.prng, 0, binary.BITS32)
+  test(`varInt of ${n}`, encoding.writeVarInt, decoding.peekVarInt, n, false)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testAnyVsJsonEncoding = tc => {
+  const n = Array.from({ length: 5000 }).map(() => genAny(tc.prng))
+  t.measureTime('lib0 any encoding', () => {
+    const encoder = encoding.createEncoder()
+    encoding.writeAny(encoder, n)
+    const buffer = encoding.toUint8Array(encoder)
+    t.info('buffer length is ' + buffer.length)
+    decoding.readAny(decoding.createDecoder(buffer))
+  })
+  t.measureTime('JSON.stringify encoding', () => {
+    const encoder = encoding.createEncoder()
+    encoding.writeVarString(encoder, JSON.stringify(n))
+    const buffer = encoding.toUint8Array(encoder)
+    t.info('buffer length is ' + buffer.length)
+    JSON.parse(decoding.readVarString(decoding.createDecoder(buffer)))
+  })
 }
 
 /**
@@ -156,10 +252,19 @@ const defLen = 1000
 const loops = 10000
 
 /**
+ * @param {any} a
+ * @param {any} b
+ * @return {boolean}
+ */
+const strictComparison = (a, b) => a === b
+
+/**
  * @typedef {Object} EncodingPair
  * @property {function(decoding.Decoder):any} EncodingPair.read
  * @property {function(encoding.Encoder,any):void} EncodingPair.write
  * @property {function(prng.PRNG):any} EncodingPair.gen
+ * @property {function(any,any):boolean} EncodingPair.compare
+ * @property {string} name
  */
 
 /**
@@ -167,13 +272,15 @@ const loops = 10000
  * @type {Array<EncodingPair>}
  */
 const encodingPairs = [
-  { read: decoder => decoding.readUint8Array(decoder, defLen), write: encoding.writeUint8Array, gen: gen => prng.uint8Array(gen, defLen) },
-  { read: decoding.readVarUint8Array, write: encoding.writeVarUint8Array, gen: gen => prng.uint8Array(gen, prng.int31(gen, 0, defLen)) },
-  { read: decoding.readUint8, write: encoding.writeUint8, gen: gen => prng.uint32(gen, 0, binary.BITS8) },
-  { read: decoding.readUint16, write: encoding.writeUint16, gen: gen => prng.uint32(gen, 0, binary.BITS16) },
-  { read: decoding.readUint32, write: encoding.writeUint32, gen: gen => prng.uint32(gen, 0, binary.BITS32) },
-  { read: decoding.readVarString, write: encoding.writeVarString, gen: gen => prng.utf16String(gen, prng.int31(gen, 0, defLen)) },
-  { read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS32) }
+  { name: 'uint8Array', read: decoder => decoding.readUint8Array(decoder, defLen), write: encoding.writeUint8Array, gen: gen => prng.uint8Array(gen, defLen), compare: t.compare },
+  { name: 'varUint8Array', read: decoding.readVarUint8Array, write: encoding.writeVarUint8Array, gen: gen => prng.uint8Array(gen, prng.int31(gen, 0, defLen)), compare: t.compare },
+  { name: 'uint8', read: decoding.readUint8, write: encoding.writeUint8, gen: gen => prng.uint32(gen, 0, binary.BITS8), compare: strictComparison },
+  { name: 'uint16', read: decoding.readUint16, write: encoding.writeUint16, gen: gen => prng.uint32(gen, 0, binary.BITS16), compare: strictComparison },
+  { name: 'uint32', read: decoding.readUint32, write: encoding.writeUint32, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
+  { name: 'varString', read: decoding.readVarString, write: encoding.writeVarString, gen: gen => prng.utf16String(gen, prng.int31(gen, 0, defLen)), compare: strictComparison },
+  { name: 'varUint', read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS32), compare: strictComparison },
+  { name: 'varInt', read: decoding.readVarInt, write: encoding.writeVarInt, gen: gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), compare: strictComparison },
+  { name: 'Any', read: decoding.readAny, write: encoding.writeAny, gen: genAny, compare: t.compare }
 ]
 
 /**
@@ -189,8 +296,10 @@ export const testRepeatRandomWrites = tc => {
     const val = pair.gen(gen)
     pair.write(encoder, val)
     ops.push({
+      compare: pair.compare,
       read: pair.read,
-      val
+      val,
+      name: pair.name
     })
   }
   const tailData = prng.uint8Array(gen, prng.int31(gen, 0, defLen))
@@ -201,7 +310,7 @@ export const testRepeatRandomWrites = tc => {
   for (let i = 0; i < ops.length; i++) {
     const o = ops[i]
     const val = o.read(decoder)
-    t.compare(val, o.val)
+    t.assert(o.compare(val, o.val), o.name)
   }
   t.compare(tailData, decoding.readTailAsUint8Array(decoder))
 }
