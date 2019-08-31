@@ -341,6 +341,7 @@ export const writeBigInt64 = (encoder, num) => writeOnDataView(encoder, 8).setBi
  */
 export const writeBigUint64 = (encoder, num) => writeOnDataView(encoder, 8).setBigUint64(0, num)
 
+const floatTestBed = new DataView(new ArrayBuffer(4))
 /**
  * Check if a number can be encoded as a 32 bit float.
  *
@@ -348,9 +349,8 @@ export const writeBigUint64 = (encoder, num) => writeOnDataView(encoder, 8).setB
  * @return {boolean}
  */
 const isFloat32 = num => {
-  const dv = new DataView(new ArrayBuffer(4))
-  dv.setFloat32(0, num)
-  return dv.getFloat32(0) === num
+  floatTestBed.setFloat32(0, num)
+  return floatTestBed.getFloat32(0) === num
 }
 
 /**

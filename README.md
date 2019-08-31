@@ -13,7 +13,6 @@ Each function in this lib is tested thoroughly and is not deoptimized by v8. Thi
 * https://github.com/thlorenz/deoptigate - A great tool for investigating deoptimizations
 * https://github.com/vhf/v8-bailout-reasons - Description of some deopt messages
 
-
 ### License
 
 [The MIT License](./LICENSE) © Kevin Jahns
