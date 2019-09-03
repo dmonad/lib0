@@ -58,7 +58,7 @@ export const clone = (decoder, newPos = decoder.pos) => {
  * @return {Uint8Array}
  */
 export const readUint8Array = (decoder, len) => {
-  const view = buffer.createUint8ArrayViewFromArrayBuffer(decoder.arr.buffer, decoder.pos, len)
+  const view = buffer.createUint8ArrayViewFromArrayBuffer(decoder.arr.buffer, decoder.pos + decoder.arr.byteOffset, len)
   decoder.pos += len
   return view
 }

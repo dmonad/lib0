@@ -2,6 +2,17 @@
 export const create = () => new Map()
 
 /**
+ * @template X,Y
+ * @param {Map<X,Y>} m
+ * @return {Map<X,Y>}
+ */
+export const copy = m => {
+  const r = create()
+  m.forEach((v, k) => { r.set(k, v) })
+  return r
+}
+
+/**
  * Get map property. Create T if property is undefined and set T on map.
  *
  * @example
