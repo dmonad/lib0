@@ -2,7 +2,7 @@
  * @template T,R
  * @param {Iterator<T>} iterator
  * @param {function(T):R} f
- * @return {Iterator<R>}
+ * @return {IterableIterator<R>}
  */
 export const mapIterator = (iterator, f) => ({
   /**
@@ -14,13 +14,13 @@ export const mapIterator = (iterator, f) => ({
   // @ts-ignore
   next () {
     const r = iterator.next()
-    return r.done ? { value: r.done ? undefined : f(r.value), done: r.done } : { value: f(r.value), done: false }
+    return { value: r.done ? undefined : f(r.value), done: r.done }
   }
 })
 
 /**
  * @template T
- * @param {function():{done:boolean,value:T|undefined}} next
+ * @param {function():IteratorResult<T>} next
  * @return {IterableIterator<T>}
  */
 export const createIterator = next => ({
