@@ -9,6 +9,7 @@ export const round = Math.round
 export const log10 = Math.log10
 export const log2 = Math.log2
 export const log = Math.log
+export const sqrt = Math.sqrt
 
 /**
  * @function
