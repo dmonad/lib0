@@ -20,3 +20,16 @@ export const create = () => []
  * @return {Array<T>}
  */
 export const copy = a => a.slice()
+
+/**
+ * Append elements from src to dest
+ *
+ * @template T
+ * @param {Array<T>} dest
+ * @param {Array<T>} src
+ */
+export const appendTo = (dest, src) => {
+  for (let i = 0; i < src.length; i++) {
+    dest.push(src[i])
+  }
+}

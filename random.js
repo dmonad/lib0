@@ -5,6 +5,12 @@
  */
 import * as env from './environment.js'
 import * as binary from './binary.js'
+import * as math from './math.js'
+
+/**
+ * Basically Math.random. Returns a pseudo random number in [0,1).
+ */
+const rand = Math.random
 
 /* istanbul ignore next */
 const uint32BrowserCrypto = () => {
@@ -14,7 +20,7 @@ const uint32BrowserCrypto = () => {
 }
 
 /* istanbul ignore next */
-const uint32NoCrypto = () => Math.ceil((Math.random() * binary.BITS32) >>> 0)
+const uint32NoCrypto = () => math.ceil((rand() * binary.BITS32) >>> 0)
 
 /**
  * @param {typeof import('crypto')} crypto
@@ -30,3 +36,10 @@ const uint32NodeCrypto = crypto => () => {
 export const uint32 = env.isBrowser
   ? (typeof crypto === 'undefined' ? uint32NoCrypto : uint32BrowserCrypto)
   : uint32NodeCrypto(require('crypto'))
+
+/**
+ * @template T
+ * @param {Array<T>} arr
+ * @return {T}
+ */
+export const oneOf = arr => arr[math.floor(rand() * arr.length)]

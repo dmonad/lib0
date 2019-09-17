@@ -1,4 +1,5 @@
 import * as binary from '../binary.js'
+import * as math from '../math.js'
 
 /**
  * @module prng
@@ -48,7 +49,7 @@ export class Mt19937 {
     const state = new Uint32Array(N)
     state[0] = seed
     for (let i = 1; i < N; i++) {
-      state[i] = (Math.imul(1812433253, (state[i - 1] ^ (state[i - 1] >>> 30))) + i) & binary.BITS32
+      state[i] = (math.imul(1812433253, (state[i - 1] ^ (state[i - 1] >>> 30))) + i) & binary.BITS32
     }
     this._state = state
     this._i = 0

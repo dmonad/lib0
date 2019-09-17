@@ -4,8 +4,11 @@
 export const floor = Math.floor
 export const ceil = Math.ceil
 export const abs = Math.abs
-
+export const imul = Math.imul
 export const round = Math.round
+export const log10 = Math.log10
+export const log2 = Math.log2
+export const log = Math.log
 
 /**
  * @function

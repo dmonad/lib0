@@ -8,6 +8,7 @@ import { Xorshift32 } from './prng/Xorshift32.js'
 import { Mt19937 } from './prng/Mt19937.js'
 import * as dom from './dom.js'
 import { isBrowser, production } from './environment.js'
+import * as math from './math.js'
 
 const genTestData = 5000
 
@@ -31,8 +32,8 @@ const runGenTest = (tc, gen) => {
       }
     }
     t.info(`Generated ${head} heads and ${tail} tails.`)
-    t.assert(tail >= Math.floor(genTestData * 0.45), 'Generated enough tails.')
-    t.assert(head >= Math.floor(genTestData * 0.45), 'Generated enough heads.')
+    t.assert(tail >= math.floor(genTestData * 0.45), 'Generated enough tails.')
+    t.assert(head >= math.floor(genTestData * 0.45), 'Generated enough heads.')
   })
   t.group('int31 - integers average correctly', () => {
     let count = 0
@@ -44,7 +45,7 @@ const runGenTest = (tc, gen) => {
     const average = count / genTestData
     const expectedAverage = 100 / 2
     t.info(`Average is: ${average}. Expected average is ${expectedAverage}.`)
-    t.assert(Math.abs(average - expectedAverage) <= 2, 'Expected average is at most 1 off.')
+    t.assert(math.abs(average - expectedAverage) <= 2, 'Expected average is at most 1 off.')
   })
 
   t.group('int32 - generates integer with 32 bits', () => {
