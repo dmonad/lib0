@@ -132,6 +132,8 @@ export const pairsToStyleString = pairs => pairs.map(pairToStyleString).join('')
 export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value};`).join('')
 
 /**
+ * @todo should always query on a dom element
+ *
  * @param {string} id
  * @return {Element | null}
  */
