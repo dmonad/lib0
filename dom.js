@@ -2,6 +2,11 @@
 import * as pair from './pair.js'
 import * as map from './map.js'
 
+const domDocument = document
+const createElement = domDocument.createElement.bind(domDocument)
+const createDocumentFragment = domDocument.createDocumentFragment.bind(domDocument)
+const createTextNode = domDocument.createTextNode.bind(domDocument)
+
 /**
  * @param {Element} el
  * @param {Array<pair.Pair<string,string|boolean>>} attrs Array of key-value pairs
@@ -34,7 +39,7 @@ export const setAttributesMap = (el, attrs) => {
  * @return {DocumentFragment}
  */
 export const fragment = children => {
-  const fragment = document.createDocumentFragment()
+  const fragment = createDocumentFragment()
   children.forEach(fragment.appendChild.bind(fragment))
   return fragment
 }
@@ -90,14 +95,14 @@ export const removeEventListeners = (node, listeners) => {
  * @return {Element}
  */
 export const element = (name, attrs = [], children = []) =>
-  append(setAttributes(document.createElement(name), attrs), children)
+  append(setAttributes(createElement(name), attrs), children)
 
 /**
  * @param {number} width
  * @param {number} height
  */
 export const canvas = (width, height) => {
-  const c = document.createElement('canvas')
+  const c = createElement('canvas')
   c.height = height
   c.width = width
   return c
@@ -107,7 +112,7 @@ export const canvas = (width, height) => {
  * @param {string} t
  * @return {Text}
  */
-export const text = t => document.createTextNode(t)
+export const text = createTextNode
 
 /**
  * @param {pair.Pair<string,string>} pair
@@ -125,3 +130,21 @@ export const pairsToStyleString = pairs => pairs.map(pairToStyleString).join('')
  * @return {string}
  */
 export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value};`).join('')
+
+/**
+ * @param {string} id
+ * @return {Element | null}
+ */
+export const querySelector = domDocument.querySelector.bind(domDocument)
+
+/**
+ * @param {string} id
+ * @return {Array<Element>}
+ */
+export const querySelectorAll = domDocument.querySelectorAll.bind(domDocument)
+
+/**
+ * @param {string} id
+ * @return {Element}
+ */
+export const getElementById = domDocument.getElementById.bind(domDocument)

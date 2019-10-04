@@ -7,6 +7,7 @@ import * as string from './string.js'
 export const isNode = typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name)
 /* istanbul ignore next */
 export const isBrowser = typeof window !== 'undefined' && !isNode
+export const isMac = typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false
 
 /**
  * @type {Map<string,string>}
