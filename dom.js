@@ -1,11 +1,13 @@
 /* istanbul ignore file */
 import * as pair from './pair.js'
 import * as map from './map.js'
+import * as environment from './environment.js'
+import * as error from './error.js'
 
-export const doc = document
-const createElement = doc.createElement.bind(doc)
-const createDocumentFragment = doc.createDocumentFragment.bind(doc)
-const createTextNode = doc.createTextNode.bind(doc)
+export const doc = /** @type {Document} */ (environment.isBrowser ? document : {})
+const createElement = /** @type {function(string):HTMLElement} */ (environment.isBrowser ? doc.createElement.bind(doc) : error.unexpectedCase)
+const createDocumentFragment = /** @type {function():DocumentFragment} */ (environment.isBrowser ? doc.createDocumentFragment.bind(doc) : error.unexpectedCase)
+const createTextNode = /** @type {function(string):Text} */ (environment.isBrowser ? doc.createTextNode.bind(doc) : error.unexpectedCase)
 
 /**
  * @param {Element} el
@@ -102,7 +104,7 @@ export const element = (name, attrs = [], children = []) =>
  * @param {number} height
  */
 export const canvas = (width, height) => {
-  const c = createElement('canvas')
+  const c = /** @type {HTMLCanvasElement} */ (createElement('canvas'))
   c.height = height
   c.width = width
   return c
@@ -151,4 +153,4 @@ export const querySelectorAll = (el, query) => el.querySelectorAll(query)
  * @param {string} id
  * @return {Element}
  */
-export const getElementById = doc.getElementById.bind(doc)
+export const getElementById = environment.isBrowser ? doc.getElementById.bind(doc) : error.unexpectedCase
