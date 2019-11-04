@@ -56,6 +56,8 @@ export class Observable {
    * Emit a named event. All registered event listeners that listen to the
    * specified name will receive the event.
    *
+   * @todo This should catch exceptions
+   *
    * @param {N} name The event name.
    * @param {Array} args The arguments that are applied to the event listener.
    */

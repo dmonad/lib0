@@ -2,10 +2,10 @@
 import * as pair from './pair.js'
 import * as map from './map.js'
 
-const domDocument = document
-const createElement = domDocument.createElement.bind(domDocument)
-const createDocumentFragment = domDocument.createDocumentFragment.bind(domDocument)
-const createTextNode = domDocument.createTextNode.bind(domDocument)
+export const doc = document
+const createElement = doc.createElement.bind(doc)
+const createDocumentFragment = doc.createDocumentFragment.bind(doc)
+const createTextNode = doc.createTextNode.bind(doc)
 
 /**
  * @param {Element} el
@@ -134,19 +134,21 @@ export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value}
 /**
  * @todo should always query on a dom element
  *
- * @param {string} id
+ * @param {Element} el
+ * @param {string} query
  * @return {Element | null}
  */
-export const querySelector = domDocument.querySelector.bind(domDocument)
+export const querySelector = (el, query) => el.querySelector(query)
 
 /**
- * @param {string} id
- * @return {Array<Element>}
+ * @param {Element} el
+ * @param {string} query
+ * @return {NodeListOf<Element>}
  */
-export const querySelectorAll = domDocument.querySelectorAll.bind(domDocument)
+export const querySelectorAll = (el, query) => el.querySelectorAll(query)
 
 /**
  * @param {string} id
  * @return {Element}
  */
-export const getElementById = domDocument.getElementById.bind(domDocument)
+export const getElementById = doc.getElementById.bind(doc)

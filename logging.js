@@ -18,25 +18,6 @@ export const PURPLE = symbol.create()
 export const ORANGE = symbol.create()
 export const UNCOLOR = symbol.create()
 
-/* istanbul ignore next */
-class Style {
-  /**
-   * @param {string} text
-   * @param {Array<pair.Pair<string,string>>} attrs
-   */
-  constructor (text, attrs) {
-    this.text = text
-    this.attrs = attrs
-  }
-}
-
-/* istanbul ignore next */
-/**
- * @param {string} text
- * @param {Array<pair.Pair<string,string>>} attrs
- */
-export const style = (text, attrs) => new Style(text, attrs)
-
 /**
  * @type {Object<Symbol,pair.Pair<string,string>>}
  */

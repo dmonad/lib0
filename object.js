@@ -5,6 +5,11 @@
 export const create = () => Object.create(null)
 
 /**
+ * Object.assign
+ */
+export const assign = Object.assign
+
+/**
  * @param {Object<string,any>} obj
  */
 export const keys = Object.keys
