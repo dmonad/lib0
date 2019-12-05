@@ -16,6 +16,9 @@ const setupWS = (wsclient) => {
   if (wsclient.shouldConnect && wsclient.ws === null) {
     const websocket = new WebSocket(wsclient.url)
     const binaryType = wsclient.binaryType
+    /**
+     * @type {any}
+     */
     let pingTimeout = null
     if (binaryType) {
       websocket.binaryType = binaryType
