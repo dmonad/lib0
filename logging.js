@@ -1,5 +1,5 @@
 
-import { isNode, isBrowser } from './environment.js'
+import * as env from './environment.js'
 import * as symbol from './symbol.js'
 import * as pair from './pair.js'
 import * as dom from './dom.js'
@@ -7,6 +7,8 @@ import * as json from './json.js'
 import * as map from './map.js'
 import * as eventloop from './eventloop.js'
 import * as math from './math.js'
+import * as time from './time.js'
+import * as func from './function.js'
 
 export const BOLD = symbol.create()
 export const UNBOLD = symbol.create()
@@ -138,7 +140,7 @@ const computeNodeLoggingArgs = args => {
 }
 
 /* istanbul ignore next */
-const computeLoggingArgs = isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs
+const computeLoggingArgs = env.isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs
 
 /**
  * @param {Array<string|Symbol|Object|number>} args
@@ -174,7 +176,7 @@ export const printError = err => {
  * @param {number} height height of the image in pixel
  */
 export const printImg = (url, height) => {
-  if (isBrowser) {
+  if (env.isBrowser) {
     console.log('%c                      ', `font-size: ${height}px; background-size: contain; background-repeat: no-repeat; background-image: url(${url})`)
     // console.log('%c                ', `font-size: ${height}x; background: url(${url}) no-repeat;`)
   }
@@ -366,3 +368,26 @@ export class VConsole {
  * @param {Element} dom
  */
 export const createVConsole = dom => new VConsole(dom)
+
+const loggingColors = [GREEN, PURPLE, ORANGE, BLUE]
+let nextColor = 0
+let lastLoggingTime = time.getUnixTime()
+
+/**
+ * @param {string} moduleName
+ * @return {function(...any)}
+ */
+export const createModuleLogger = moduleName => {
+  const color = loggingColors[nextColor]
+  const debugRegexVar = env.getVariable('log')
+  const doLogging = debugRegexVar !== null && (debugRegexVar === '*' || debugRegexVar === 'true' || new RegExp(debugRegexVar, 'gi').test(moduleName))
+  nextColor = (nextColor + 1) % loggingColors.length
+  moduleName += ': '
+
+  return !doLogging ? func.nop : (...args) => {
+    const timeNow = time.getUnixTime()
+    const timeDiff = timeNow - lastLoggingTime
+    lastLoggingTime = timeNow
+    print(color, moduleName, UNCOLOR, ...args.map(arg => (typeof arg === 'string' || typeof arg === 'symbol') ? arg : JSON.stringify(arg)), color, ' +' + timeDiff + 'ms')
+  }
+}
