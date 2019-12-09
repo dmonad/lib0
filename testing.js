@@ -171,14 +171,17 @@ export const group = (description, f) => {
 
 /**
  * @param {string} message
- * @param {function():void} f
+ * @param {function():void|Promise} f
  */
-export const measureTime = (message, f) => {
+export const measureTime = async (message, f) => {
   let duration = 0
   let iterations = 0
   const start = perf.now()
   while (duration < 5) {
-    f()
+    const p = f()
+    if (p) {
+      await p
+    }
     duration = perf.now() - start
     iterations++
   }
