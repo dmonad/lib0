@@ -3,6 +3,7 @@
  */
 import * as buffer from './buffer.js'
 import * as binary from './binary.js'
+import * as string from './string.js'
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -269,20 +270,8 @@ export const peekVarInt = decoder => {
  * @param {Decoder} decoder
  * @return {String} The read String.
  */
-export const readVarString = decoder => {
-  let remainingLen = readVarUint(decoder)
-  let encodedString = ''
-  while (remainingLen > 0) {
-    const nextLen = remainingLen < 10000 ? remainingLen : 10000
-    const bytes = new Array(nextLen)
-    for (let i = 0; i < nextLen; i++) {
-      bytes[i] = decoder.arr[decoder.pos++]
-    }
-    encodedString += String.fromCodePoint.apply(null, bytes)
-    remainingLen -= nextLen
-  }
-  return decodeURIComponent(escape(encodedString))
-}
+export const readVarString = decoder =>
+  string.decodeUtf8(readVarUint8Array(decoder))
 
 /**
  * Look ahead and read varString without incrementing position

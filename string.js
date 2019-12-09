@@ -33,3 +33,65 @@ export const fromCamelCase = (s, separator) => trimLeft(s.replace(fromCamelCaseR
  * @return {number}
  */
 export const utf8ByteLength = str => unescape(encodeURIComponent(str)).length
+
+/**
+ * @param {string} str
+ * @return {Uint8Array}
+ */
+export const _encodeUtf8Polyfill = str => {
+  const encodedString = unescape(encodeURIComponent(str))
+  const len = encodedString.length
+  const buf = new Uint8Array(len)
+  for (let i = 0; i < len; i++) {
+    buf[i] = /** @type {number} */ (encodedString.codePointAt(i))
+  }
+  return buf
+}
+
+export const utf8TextEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null
+
+/**
+ * @param {string} str
+ * @return {Uint8Array}
+ */
+export const _encodeUtf8Native = str => /** @type {TextEncoder} */ (utf8TextEncoder).encode(str)
+
+/**
+ * @param {string} str
+ * @return {Uint8Array}
+ */
+export const encodeUtf8 = utf8TextEncoder ? _encodeUtf8Native : _encodeUtf8Polyfill
+
+/**
+ * @param {Uint8Array} buf
+ * @return {string}
+ */
+export const _decodeUtf8Polyfill = buf => {
+  let remainingLen = buf.length
+  let encodedString = ''
+  let bufPos = 0
+  while (remainingLen > 0) {
+    const nextLen = remainingLen < 10000 ? remainingLen : 10000
+    const bytes = new Array(nextLen)
+    for (let i = 0; i < nextLen; i++) {
+      bytes[i] = buf[bufPos++]
+    }
+    encodedString += String.fromCodePoint.apply(null, bytes)
+    remainingLen -= nextLen
+  }
+  return decodeURIComponent(escape(encodedString))
+}
+
+export const utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true })
+
+/**
+ * @param {Uint8Array} buf
+ * @return {string}
+ */
+export const _decodeUtf8Native = buf => /** @type {TextDecoder} */ (utf8TextDecoder).decode(buf)
+
+/**
+ * @param {Uint8Array} buf
+ * @return {string}
+ */
+export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill

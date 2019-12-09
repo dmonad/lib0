@@ -72,7 +72,6 @@ const setupWS = (wsclient) => {
       wsclient.connected = true
       wsclient.unsuccessfulReconnects = 0
       wsclient.emit('connect', [{ type: 'connect' }, wsclient])
-      wsclient.afterOpen.forEach(m => wsclient.send(m(wsclient)))
       // set ping
       pingTimeout = setTimeout(sendPing, messageReconnectTimeout / 2)
     }
@@ -105,11 +104,6 @@ export class WebsocketClient extends Observable {
      * @type {boolean}
      */
     this.shouldConnect = true
-    /**
-     * Array of functions that create messages that will be sent after a connection is opened
-     * @type {Array<function(WebsocketClient):any>}
-     */
-    this.afterOpen = []
     this._checkInterval = setInterval(() => {
       if (this.connected && messageReconnectTimeout < time.getUnixTime() - this.lastMessageReceived) {
         // no message received in a long time - not even your own awareness
