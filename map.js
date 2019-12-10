@@ -64,3 +64,19 @@ export const any = (m, f) => {
   }
   return false
 }
+
+/**
+ * @template K
+ * @template V
+ * @param {Map<K,V>} m
+ * @param {function(V,K):boolean} f
+ * @return {boolean}
+ */
+export const all = (m, f) => {
+  for (const [key, value] of m) {
+    if (!f(value, key)) {
+      return false
+    }
+  }
+  return true
+}
