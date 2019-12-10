@@ -318,6 +318,26 @@ export const testRepeatRandomWrites = tc => {
 /**
  * @param {t.TestCase} tc
  */
+export const testWriteUint8ArrayOverflow = tc => {
+  const encoder = encoding.createEncoder()
+  const initialLen = encoder.cbuf.byteLength
+  const buf = buffer.createUint8ArrayFromLen(initialLen * 4)
+  for (let i = 0; i < buf.length; i++) {
+    buf[i] = i
+  }
+  encoding.writeUint8Array(encoder, buf)
+  encoding.write(encoder, 42)
+  const res = encoding.toUint8Array(encoder)
+  t.assert(res.length === initialLen * 4 + 1)
+  for (let i = 0; i < buf.length - 1; i++) {
+    t.assert(res[i] === (i % 256))
+  }
+  t.assert(res[initialLen * 4] === 42)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testSetOnOverflow = tc => {
   const encoder = encoding.createEncoder()
   const initialLen = encoder.cbuf.byteLength

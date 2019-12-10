@@ -268,12 +268,22 @@ export const writeBinaryEncoder = (encoder, append) => writeUint8Array(encoder, 
  * @param {Uint8Array} uint8Array
  */
 export const writeUint8Array = (encoder, uint8Array) => {
-  const prevBufferLen = encoder.cbuf.length
-  // TODO: Append to cbuf if possible
-  encoder.bufs.push(buffer.createUint8ArrayViewFromArrayBuffer(encoder.cbuf.buffer, 0, encoder.cpos))
-  encoder.bufs.push(uint8Array)
-  encoder.cbuf = buffer.createUint8ArrayFromLen(prevBufferLen)
-  encoder.cpos = 0
+  const bufferLen = encoder.cbuf.length
+  const cpos = encoder.cpos
+  const leftCopyLen = math.min(bufferLen - cpos, uint8Array.length)
+  const rightCopyLen = uint8Array.length - leftCopyLen
+  encoder.cbuf.set(uint8Array.subarray(0, leftCopyLen), cpos)
+  encoder.cpos += leftCopyLen
+  if (rightCopyLen > 0) {
+    // Still something to write, write right half..
+    // Append new buffer
+    encoder.bufs.push(encoder.cbuf)
+    // must have at least size of remaining buffer
+    encoder.cbuf = new Uint8Array(math.max(bufferLen * 2, rightCopyLen))
+    // copy array
+    encoder.cbuf.set(uint8Array.subarray(leftCopyLen))
+    encoder.cpos = rightCopyLen
+  }
 }
 
 /**
