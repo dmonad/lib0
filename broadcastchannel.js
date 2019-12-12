@@ -1,5 +1,7 @@
 /* eslint-env browser */
 
+// @todo before next major: use Uint8Array instead as buffer object
+
 import * as map from './map.js'
 import * as buffer from './buffer.js'
 
