@@ -16,4 +16,11 @@ export default [{
     format: 'cjs',
     sourcemap: true
   }
+}, {
+  input: './index.js',
+  output: {
+    dir: './dist',
+    format: 'cjs',
+    sourcemap: true
+  }
 }]
