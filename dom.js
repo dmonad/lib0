@@ -1,13 +1,35 @@
+/* eslint-env browser */
 /* istanbul ignore file */
 import * as pair from './pair.js'
 import * as map from './map.js'
-import * as environment from './environment.js'
-import * as error from './error.js'
 
-export const doc = /** @type {Document} */ (environment.isBrowser ? document : {})
-const createElement = /** @type {function(string):HTMLElement} */ (environment.isBrowser ? doc.createElement.bind(doc) : error.unexpectedCase)
-const createDocumentFragment = /** @type {function():DocumentFragment} */ (environment.isBrowser ? doc.createDocumentFragment.bind(doc) : error.unexpectedCase)
-const createTextNode = /** @type {function(string):Text} */ (environment.isBrowser ? doc.createTextNode.bind(doc) : error.unexpectedCase)
+export const doc = /** @type {Document} */ (typeof document !== 'undefined' ? document : {})
+
+/**
+ * @param {string} name
+ * @return {HTMLElement}
+ */
+const createElement = name => doc.createElement(name)
+
+/**
+ * @return {DocumentFragment}
+ */
+const createDocumentFragment = () => doc.createDocumentFragment()
+
+/**
+ * @param {string} text
+ * @return {Text}
+ */
+const createTextNode = text => doc.createTextNode(text)
+
+export const domParser = new DOMParser()
+
+/**
+ * @param {HTMLElement} el
+ * @param {string} name
+ * @param {Object} opts
+ */
+export const emitCustomEvent = (el, name, opts) => el.dispatchEvent(new CustomEvent(name, opts))
 
 /**
  * @param {Element} el
@@ -37,12 +59,14 @@ export const setAttributesMap = (el, attrs) => {
 }
 
 /**
- * @param {Array<Node>} children
+ * @param {Array<Node>|HTMLCollection} children
  * @return {DocumentFragment}
  */
 export const fragment = children => {
   const fragment = createDocumentFragment()
-  children.forEach(fragment.appendChild.bind(fragment))
+  for (let i = 0; i < children.length; i++) {
+    fragment.appendChild(children[i])
+  }
   return fragment
 }
 
@@ -153,4 +177,22 @@ export const querySelectorAll = (el, query) => el.querySelectorAll(query)
  * @param {string} id
  * @return {Element}
  */
-export const getElementById = environment.isBrowser ? doc.getElementById.bind(doc) : error.unexpectedCase
+export const getElementById = id => /** @type {Element} */ (doc.getElementById(id))
+
+/**
+ * @param {string} html
+ * @return {HTMLElement}
+ */
+const _parse = html => domParser.parseFromString(`<html><body>${html}</body></html>`, 'text/html').body
+
+/**
+ * @param {string} html
+ * @return {DocumentFragment}
+ */
+export const parseFragment = html => fragment(_parse(html).children)
+
+/**
+ * @param {string} html
+ * @return {HTMLElement}
+ */
+export const parseElement = html => /** @type HTMLElement */ (_parse(html).firstElementChild)

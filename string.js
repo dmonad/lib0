@@ -19,13 +19,14 @@ const trimLeftRegex = /^\s*/g
  */
 export const trimLeft = s => s.replace(trimLeftRegex, '')
 
-const fromCamelCaseRegex = /([A-Z])/g
+const fromCamelCaseRegex = /([a-z0-9])([A-Z])/g
 
 /**
  * @param {string} s
  * @param {string} separator
+ * @return {string}
  */
-export const fromCamelCase = (s, separator) => trimLeft(s.replace(fromCamelCaseRegex, match => `${separator}${toLowerCase(match)}`))
+export const fromCamelCase = (s, separator) => toLowerCase(s.replace(fromCamelCaseRegex, `$1${separator}$2`))
 
 /**
  * Compute the utf8ByteLength

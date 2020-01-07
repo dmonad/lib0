@@ -33,3 +33,5 @@ export const appendTo = (dest, src) => {
     dest.push(src[i])
   }
 }
+
+export const from = Array.from

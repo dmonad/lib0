@@ -25,3 +25,11 @@ export const nop = () => {}
  * @return {T}
  */
 export const apply = f => f()
+
+/**
+ * @template A
+ *
+ * @param {A} a
+ * @return {A}
+ */
+export const id = a => a

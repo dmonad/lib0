@@ -16,50 +16,44 @@ export const isMac = typeof navigator !== 'undefined' ? /Mac/.test(navigator.pla
 let params
 const args = []
 
-const computeParamsNode = () => {
+/* istanbul ignore next */
+const computeParams = () => {
   if (params === undefined) {
-    params = map.create()
-    const pargs = process.argv
-    let currParamName = null
-    /* istanbul ignore next */
-    for (let i = 0; i < pargs.length; i++) {
-      const parg = pargs[i]
-      if (parg[0] === '-') {
-        if (currParamName !== null) {
-          params.set(currParamName, '')
-        }
-        currParamName = parg
-      } else {
-        if (currParamName !== null) {
-          params.set(currParamName, parg)
-          currParamName = null
+    if (isNode) {
+      params = map.create()
+      const pargs = process.argv
+      let currParamName = null
+      /* istanbul ignore next */
+      for (let i = 0; i < pargs.length; i++) {
+        const parg = pargs[i]
+        if (parg[0] === '-') {
+          if (currParamName !== null) {
+            params.set(currParamName, '')
+          }
+          currParamName = parg
         } else {
-          args.push(parg)
+          if (currParamName !== null) {
+            params.set(currParamName, parg)
+            currParamName = null
+          } else {
+            args.push(parg)
+          }
         }
       }
+    } else {
+      params = map.create()
+      // eslint-disable-next-line no-undef
+      ;(location.search || '?').slice(1).split('&').forEach(kv => {
+        if (kv.length !== 0) {
+          const [key, value] = kv.split('=')
+          params.set(`--${string.fromCamelCase(key, '-')}`, value)
+          params.set(`-${string.fromCamelCase(key, '-')}`, value)
+        }
+      })
     }
   }
   return params
 }
-
-/* istanbul ignore next */
-const computeParamsBrowser = () => {
-  if (params === undefined) {
-    params = map.create()
-    // eslint-disable-next-line no-undef
-    ;(location.search || '?').slice(1).split('&').forEach(kv => {
-      if (kv.length !== 0) {
-        const [key, value] = kv.split('=')
-        params.set(`--${string.fromCamelCase(key, '-')}`, value)
-        params.set(`-${string.fromCamelCase(key, '-')}`, value)
-      }
-    })
-  }
-  return params
-}
-
-/* istanbul ignore next */
-const computeParams = isNode ? computeParamsNode : computeParamsBrowser
 
 /**
  * @param {string} name
@@ -82,4 +76,4 @@ export const production = getParam('production', '0') !== '0'
  * @param {string} name
  * @return {string|null}
  */
-export const getVariable = isNode ? /** @param {string} name */ name => conditions.undefinedToNull(process.env[name.toUpperCase()]) : /** @param {string} name */ name => conditions.undefinedToNull(window.localStorage.getItem(name))
+export const getVariable = name => isNode ? conditions.undefinedToNull(process.env[name.toUpperCase()]) : conditions.undefinedToNull(window.localStorage.getItem(name))

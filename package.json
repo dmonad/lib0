@@ -2,6 +2,7 @@
   "name": "lib0",
   "version": "0.1.7",
   "description": "",
+  "sideEffects": false,
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^11.13.18",
