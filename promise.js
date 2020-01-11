@@ -2,7 +2,7 @@ import * as time from './time.js'
 
 /**
  * @template T
- * @param {function(function(T|PromiseLike<T>):void,function(Error):void):void} f
+ * @param {function(function(T|PromiseLike<T>):void,function(Error):void):any} f
  * @return {Promise<T>}
  */
 export const create = f => new Promise(f)

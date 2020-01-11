@@ -70,10 +70,16 @@ export const hasParam = name => computeParams().has(name)
 export const getParam = (name, defaultVal) => computeParams().get(name) || defaultVal
 // export const getArgs = name => computeParams() && args
 
-export const production = getParam('production', '0') !== '0'
-
 /**
  * @param {string} name
  * @return {string|null}
  */
 export const getVariable = name => isNode ? conditions.undefinedToNull(process.env[name.toUpperCase()]) : conditions.undefinedToNull(window.localStorage.getItem(name))
+
+/**
+ * @param {string} name
+ * @return {string|null}
+ */
+export const getConf = name => computeParams().get(name) || getVariable(name)
+
+export const production = hasParam('production') || getVariable('production') !== null

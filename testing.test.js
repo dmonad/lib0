@@ -2,6 +2,7 @@ import * as t from './testing.js'
 import * as math from './math.js'
 import * as buffer from './buffer.js'
 import * as map from './map.js'
+import * as promise from './promise.js'
 
 /**
  * @param {t.TestCase} tc
@@ -43,7 +44,10 @@ export const testComparing = tc => {
     t.compare([1], [1, 2]) // childs have different length (array) -- no message
   })
   t.fails(() => {
-    t.compare(buffer.createUint8ArrayFromLen(1), buffer.createUint8ArrayFromLen(2), 'ArrayBuffer have different length')
+    t.compare(buffer.createUint8ArrayFromLen(1), buffer.createUint8ArrayFromLen(2), 'Uint8Arrays have different length')
+  })
+  t.fails(() => {
+    t.compare(buffer.createUint8ArrayFromLen(1).buffer, buffer.createUint8ArrayFromLen(2).buffer, 'ArrayBuffer have different length')
   })
   t.fails(() => {
     t.compareStrings('str1', 'str2', 'Strings comparison can fail')
@@ -109,6 +113,8 @@ export const testSkipping = () => {
   /* istanbul ignore next */
   t.fail('should have skipped')
 }
+
+export const testAsync = () => t.measureTime('time', () => promise.create(r => setTimeout(r)))
 
 export const testRepeatRepitition = () => {
   const arr = []

@@ -19,14 +19,14 @@ const trimLeftRegex = /^\s*/g
  */
 export const trimLeft = s => s.replace(trimLeftRegex, '')
 
-const fromCamelCaseRegex = /([a-z0-9])([A-Z])/g
+const fromCamelCaseRegex = /([A-Z])/g
 
 /**
  * @param {string} s
  * @param {string} separator
  * @return {string}
  */
-export const fromCamelCase = (s, separator) => toLowerCase(s.replace(fromCamelCaseRegex, `$1${separator}$2`))
+export const fromCamelCase = (s, separator) => trimLeft(s.replace(fromCamelCaseRegex, match => `${separator}${toLowerCase(match)}`))
 
 /**
  * Compute the utf8ByteLength
@@ -49,13 +49,14 @@ export const _encodeUtf8Polyfill = str => {
   return buf
 }
 
-export const utf8TextEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null
+/* istanbul ignore next */
+export const utf8TextEncoder = /** @type {TextEncoder} */ (typeof TextEncoder !== 'undefined' ? new TextEncoder() : null)
 
 /**
  * @param {string} str
  * @return {Uint8Array}
  */
-export const _encodeUtf8Native = str => /** @type {TextEncoder} */ (utf8TextEncoder).encode(str)
+export const _encodeUtf8Native = str => utf8TextEncoder.encode(str)
 
 /**
  * @param {string} str

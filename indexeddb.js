@@ -71,15 +71,15 @@ export const createStores = (db, definitions) => definitions.forEach(d =>
 
 /**
  * @param {IDBObjectStore} store
- * @param {String | number | ArrayBuffer | Date | Array } key
- * @return {Promise<String | number | ArrayBuffer | Date | Array>}
+ * @param {String | number | ArrayBuffer | Date | Array<any> } key
+ * @return {Promise<String | number | ArrayBuffer | Date | Array<any>>}
  */
 export const get = (store, key) =>
   rtop(store.get(key))
 
 /**
  * @param {IDBObjectStore} store
- * @param {String | number | ArrayBuffer | Date | IDBKeyRange | Array } key
+ * @param {String | number | ArrayBuffer | Date | IDBKeyRange | Array<any> } key
  */
 export const del = (store, key) =>
   rtop(store.delete(key))
@@ -87,7 +87,7 @@ export const del = (store, key) =>
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date | boolean} item
- * @param {String | number | ArrayBuffer | Date | Array} [key]
+ * @param {String | number | ArrayBuffer | Date | Array<any>} [key]
  */
 export const put = (store, item, key) =>
   rtop(store.put(item, key))
@@ -95,8 +95,8 @@ export const put = (store, item, key) =>
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date | boolean}  item
- * @param {String | number | ArrayBuffer | Date | Array}  key
- * @return {Promise}
+ * @param {String | number | ArrayBuffer | Date | Array<any>}  key
+ * @return {Promise<any>}
  */
 export const add = (store, item, key) =>
   rtop(store.add(item, key))

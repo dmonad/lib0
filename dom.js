@@ -22,7 +22,7 @@ export const createDocumentFragment = () => doc.createDocumentFragment()
  */
 export const createTextNode = text => doc.createTextNode(text)
 
-export const domParser = new DOMParser()
+export const domParser = /** @type {DOMParser} */ (typeof DOMParser !== 'undefined' ? new DOMParser() : null)
 
 /**
  * @param {HTMLElement} el

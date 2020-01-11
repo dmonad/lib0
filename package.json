@@ -8,9 +8,9 @@
     "@types/node": "^11.13.18",
     "fake-indexeddb": "^2.0.5",
     "live-server": "^1.2.1",
-    "nyc": "^14.0.0",
+    "nyc": "^15.0.0",
     "rollup": "^1.1.2",
-    "standard": "^12.0.1",
+    "standard": "^14.0.0",
     "typescript": "3.3.3333"
   },
   "scripts": {
@@ -18,7 +18,7 @@
     "debug": "live-server --port=3443 --entry-file=test.html",
     "test": "npm run dist && npm run lint && PRODUCTION=1 nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.js --repitition-time 50",
     "test-extensive": "npm test -- --repitition-time 30000",
-    "test-code-coverage": "npm run dist && nyc --reporter html node ./dist/test.js",
+    "test-code-coverage": "npm run dist && PRODUCTION=1 nyc --reporter html node ./dist/test.js",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.js",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.js",
     "lint": "standard && tsc",
