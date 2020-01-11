@@ -113,6 +113,7 @@ export class WebsocketClient extends Observable {
     }, messageReconnectTimeout / 2)
     setupWS(this)
   }
+
   /**
    * @param {any} message
    */
@@ -121,17 +122,20 @@ export class WebsocketClient extends Observable {
       this.ws.send(JSON.stringify(message))
     }
   }
+
   destroy () {
     clearInterval(this._checkInterval)
     this.disconnect()
     super.destroy()
   }
+
   disconnect () {
     this.shouldConnect = false
     if (this.ws !== null) {
       this.ws.close()
     }
   }
+
   connect () {
     this.shouldConnect = true
     if (!this.connected && this.ws === null) {

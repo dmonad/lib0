@@ -56,7 +56,7 @@ export const toUint8Array = encoder => {
   const uint8arr = new Uint8Array(length(encoder))
   let curPos = 0
   for (let i = 0; i < encoder.bufs.length; i++) {
-    let d = encoder.bufs[i]
+    const d = encoder.bufs[i]
     uint8arr.set(d, curPos)
     curPos += d.length
   }

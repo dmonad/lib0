@@ -34,6 +34,7 @@ export class Lib0Component extends HTMLElement {
     super()
     this.state = state
   }
+
   /**
    * @param {S} state
    */
@@ -109,7 +110,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
    * @type {Object<string,string>}
    */
   const normalizedAttrs = {}
-  for (let key in attrs) {
+  for (const key in attrs) {
     normalizedAttrs[string.fromCamelCase(key, '-')] = key
   }
   const templateElement = template ? /** @type {HTMLTemplateElement} */ (dom.parseElement(`
@@ -136,7 +137,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         const shadow = /** @type {ShadowRoot} */ (this.attachShadow({ mode: 'open' }))
         shadow.appendChild(templateElement.content.cloneNode(true))
         // fill child states
-        for (let key in childStates) {
+        for (const key in childStates) {
           this._childStates.push({
             d: /** @type {Lib0Component} */ (dom.querySelector(/** @type {any} */ (shadow), key)),
             s: childStates[key]
@@ -145,6 +146,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       }
       dom.emitCustomEvent(this, upgradedEventName, { bubbles: true })
     }
+
     connectedCallback () {
       if (!this._init) {
         this._init = true
@@ -157,7 +159,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         }
         const startState = this.state
         if (attrs) {
-          for (let key in attrs) {
+          for (const key in attrs) {
             const normalizedKey = string.fromCamelCase(key, '-')
             const val = parseAttrVal(this.getAttribute(normalizedKey), attrs[key])
             if (val) {
@@ -166,7 +168,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
           }
         }
         // add event listeners
-        for (let key in listeners) {
+        for (const key in listeners) {
           dom.addEventListener(shadow || this, key, event => {
             if (listeners[key](/** @type {CustomEvent} */ (event), this) !== false) {
               event.stopPropagation()
@@ -180,12 +182,15 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         this.setState(startState)
       }
     }
+
     disconnectedCallback () {
       this.setState(null)
     }
+
     static get observedAttributes () {
       return object.keys(normalizedAttrs)
     }
+
     /**
      * @param {string} name
      * @param {string} oldVal
@@ -202,12 +207,14 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         this.updateState({ [camelAttrName]: parsedVal })
       }
     }
+
     /**
      * @param {any} stateUpdate
      */
     updateState (stateUpdate) {
       this.setState(object.assign({}, this.state, stateUpdate))
     }
+
     /**
      * @param {any} state
      */
@@ -217,7 +224,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       if (this._init && (state !== prevState || forceStateUpdates)) {
         // fill slots
         const slotElems = slots(state)
-        for (let key in slotElems) {
+        for (const key in slotElems) {
           const currentSlot = dom.querySelector(this, `[slot="${key}"]`)
           const nextSlot = dom.parseElement(slotElems[key])
           nextSlot.setAttribute('slot', key)
@@ -234,7 +241,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
             d.updateState(cnf.s(state))
           }
         })
-        for (let key in attrs) {
+        for (const key in attrs) {
           const normalizedKey = string.fromCamelCase(key, '-')
           const stateVal = state[key]
           const attrsType = attrs[key]
@@ -275,12 +282,12 @@ export const createComponentDefiner = definer => {
 
 export const defineListComponent = createComponentDefiner(() => {
   const ListItem = createComponent('lib0-list-item', {
-    template: `<slot name="content"></slot>`,
+    template: '<slot name="content"></slot>',
     slots: state => ({
       content: `<div>${state}</div>`
     })
   })
-  return createComponent(`lib0-list`, {
+  return createComponent('lib0-list', {
     state: { list: /** @type {Array<string>} */ ([]), Item: ListItem },
     onStateChange: ({ list = /** @type {Array<any>} */ ([]), Item = ListItem }, prevState, component) => {
       let { index, remove, insert } = diff.simpleDiffArray(prevState ? prevState.list : [], list)

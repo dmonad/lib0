@@ -18,6 +18,7 @@ export class Xorshift32 {
      */
     this._state = seed
   }
+
   /**
    * Generate a random signed integer.
    *

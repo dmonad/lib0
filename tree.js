@@ -25,6 +25,7 @@ class N {
     this._right = null
     this._parent = null
   }
+
   isRed () { return this.color }
   isBlack () { return !this.color }
   redden () { this.color = true; return this }
@@ -32,31 +33,38 @@ class N {
   get grandparent () {
     return this.parent.parent
   }
+
   get parent () {
     return this._parent
   }
+
   get sibling () {
     return (this === this.parent.left)
       ? this.parent.right : this.parent.left
   }
+
   get left () {
     return this._left
   }
+
   get right () {
     return this._right
   }
+
   set left (n) {
     if (n !== null) {
       n._parent = this
     }
     this._left = n
   }
+
   set right (n) {
     if (n !== null) {
       n._parent = this
     }
     this._right = n
   }
+
   rotateLeft (tree) {
     const parent = this.parent
     const newParent = this.right
@@ -65,6 +73,7 @@ class N {
     this.right = newRight
     rotate(tree, parent, newParent, this)
   }
+
   next () {
     if (this.right !== null) {
       // search the most left node in the right tree
@@ -81,6 +90,7 @@ class N {
       return p.parent
     }
   }
+
   prev () {
     if (this.left !== null) {
       // search the most right node in the left tree
@@ -97,6 +107,7 @@ class N {
       return p.parent
     }
   }
+
   rotateRight (tree) {
     const parent = this.parent
     const newParent = this.left
@@ -105,6 +116,7 @@ class N {
     this.left = newLeft
     rotate(tree, parent, newParent, this)
   }
+
   getUncle () {
     // we can assume that grandparent exists when this is called!
     if (this.parent === this.parent.parent.left) {
@@ -131,6 +143,7 @@ export class Tree {
     this.root = null
     this.length = 0
   }
+
   /**
    * @param {K} id
    */
@@ -139,14 +152,16 @@ export class Tree {
     nextID.clock += 1
     return this.findWithLowerBound(nextID)
   }
+
   /**
    * @param {K} id
    */
   findPrev (id) {
-    let prevID = id.clone()
+    const prevID = id.clone()
     prevID.clock -= 1
     return this.findWithUpperBound(prevID)
   }
+
   /**
    * @param {K} from
    */
@@ -175,11 +190,12 @@ export class Tree {
       }
     }
   }
+
   /**
    * @param {K} to
    */
   findNodeWithUpperBound (to) {
-    if (to === void 0) {
+    if (to === undefined) {
       throw new Error('You must define from!')
     }
     var o = this.root
@@ -206,6 +222,7 @@ export class Tree {
       }
     }
   }
+
   /**
    * @return {V}
    */
@@ -216,6 +233,7 @@ export class Tree {
     }
     return o
   }
+
   /**
    * @param {K} from
    * @return {V}
@@ -224,6 +242,7 @@ export class Tree {
     var n = this.findNodeWithLowerBound(from)
     return n == null ? null : n.val
   }
+
   /**
    * @param {K} to
    * @return {V}
@@ -232,6 +251,7 @@ export class Tree {
     var n = this.findNodeWithUpperBound(to)
     return n == null ? null : n.val
   }
+
   /**
    * @param {K} from
    * @param {V} from
@@ -256,18 +276,20 @@ export class Tree {
       o = o.next()
     }
   }
+
   /**
    * @param {K} id
    * @return {V|null}
    */
   find (id) {
-    let n = this.findNode(id)
+    const n = this.findNode(id)
     if (n !== null) {
       return n.val
     } else {
       return null
     }
   }
+
   /**
    * @param {K} id
    * @return {N<V>|null}
@@ -291,6 +313,7 @@ export class Tree {
       }
     }
   }
+
   /**
    * @param {K} id
    */
@@ -360,6 +383,7 @@ export class Tree {
       }
     }
   }
+
   _fixDelete (n) {
     if (n.parent === null) {
       // this can only be called after the first iteration of fixDelete.
@@ -428,6 +452,7 @@ export class Tree {
       }
     }
   }
+
   put (v) {
     var node = new N(v)
     if (this.root !== null) {
@@ -460,6 +485,7 @@ export class Tree {
     this.root.blacken()
     return node
   }
+
   _fixInsert (n) {
     if (n.parent === null) {
       n.blacken()

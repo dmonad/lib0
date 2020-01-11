@@ -28,6 +28,7 @@ class LocalStoragePolyfill {
     this.onmessage = null
     addEventListener('storage', e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') }))
   }
+
   /**
    * @param {ArrayBuffer} buf
    */

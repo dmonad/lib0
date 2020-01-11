@@ -9,7 +9,7 @@ export const testObject = tc => {
   t.assert(object.create().constructor === undefined, 'object.create creates an empty object without constructor')
   t.describe('object.equalFlat')
   t.assert(object.equalFlat({}, {}), 'comparing equal objects')
-  t.assert(object.equalFlat({ 'x': 1 }, { 'x': 1 }), 'comparing equal objects')
+  t.assert(object.equalFlat({ x: 1 }, { x: 1 }), 'comparing equal objects')
   t.assert(object.equalFlat({ x: 'dtrn' }, { x: 'dtrn' }), 'comparing equal objects')
   t.assert(!object.equalFlat({ x: {} }, { x: {} }), 'flatEqual does not dive deep')
   t.assert(object.equalFlat({ x: undefined }, { x: undefined }), 'flatEqual handles undefined')

@@ -19,7 +19,7 @@ export const keys = Object.keys
  * @param {function(any,string):any} f
  */
 export const forEach = (obj, f) => {
-  for (let key in obj) {
+  for (const key in obj) {
     f(obj[key], key)
   }
 }
@@ -32,7 +32,7 @@ export const forEach = (obj, f) => {
  */
 export const map = (obj, f) => {
   const results = []
-  for (let key in obj) {
+  for (const key in obj) {
     results.push(f(obj[key], key))
   }
   return results
@@ -50,7 +50,7 @@ export const length = obj => keys(obj).length
  * @return {boolean}
  */
 export const some = (obj, f) => {
-  for (let key in obj) {
+  for (const key in obj) {
     if (f(obj[key], key)) {
       return true
     }
@@ -64,7 +64,7 @@ export const some = (obj, f) => {
  * @return {boolean}
  */
 export const every = (obj, f) => {
-  for (let key in obj) {
+  for (const key in obj) {
     if (!f(obj[key], key)) {
       return false
     }
@@ -73,8 +73,17 @@ export const every = (obj, f) => {
 }
 
 /**
+ * Calls `Object.prototype.hasOwnProperty`.
+ *
+ * @param {any} obj
+ * @param {string|symbol} key
+ * @return {boolean}
+ */
+export const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
+
+/**
  * @param {Object<string,any>} a
  * @param {Object<string,any>} b
  * @return {boolean}
  */
-export const equalFlat = (a, b) => a === b || (length(a) === length(b) && every(a, (val, key) => (val !== undefined || b.hasOwnProperty(key)) && b[key] === val))
+export const equalFlat = (a, b) => a === b || (length(a) === length(b) && every(a, (val, key) => (val !== undefined || hasProperty(b, key)) && b[key] === val))

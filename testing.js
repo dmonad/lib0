@@ -30,10 +30,12 @@ export class TestCase {
     this._seed = null
     this._prng = null
   }
+
   resetSeed () {
     this._seed = null
     this._prng = null
   }
+
   /* istanbul ignore next */
   get seed () {
     /* istanbul ignore else */
@@ -43,6 +45,7 @@ export class TestCase {
     }
     return this._seed
   }
+
   get prng () {
     /* istanbul ignore else */
     if (this._prng === null) {
@@ -73,7 +76,7 @@ const repeatTestRegex = /^(repeat|repeating)\s/
  */
 export const run = async (moduleName, name, f, i, numberOfTests) => {
   const uncamelized = string.fromCamelCase(name.slice(4), ' ')
-  let filtered = !testFilterRegExp.test(`[${i + 1}/${numberOfTests}] ${moduleName}: ${uncamelized}`)
+  const filtered = !testFilterRegExp.test(`[${i + 1}/${numberOfTests}] ${moduleName}: ${uncamelized}`)
   /* istanbul ignore if */
   if (filtered) {
     return true
@@ -171,7 +174,7 @@ export const group = (description, f) => {
 
 /**
  * @param {string} message
- * @param {function():void|Promise} f
+ * @param {function():void|Promise<undefined>} f
  */
 export const measureTime = async (message, f) => {
   let duration = 0
@@ -317,7 +320,7 @@ const _compare = (a, b, path, message, customCompare) => {
         _failMessage(message, 'Objects have a different number of attributes', path)
       }
       object.forEach(a, (value, key) => {
-        if (!b.hasOwnProperty(key)) {
+        if (!object.hasProperty(b, key)) {
           _failMessage(message, `Property ${path} does not exist on second argument`, path)
         }
         _compare(value, b[key], `${path}["${key}"]`, message, customCompare)

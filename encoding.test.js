@@ -81,10 +81,10 @@ export const testGolangBinaryEncodingCompatibility = () => {
  * @param {boolean} doLog
  */
 function test (testname, write, read, val, doLog = true) {
-  let encoder = encoding.createEncoder()
+  const encoder = encoding.createEncoder()
   write(encoder, val)
-  let reader = decoding.createDecoder(encoding.toUint8Array(encoder))
-  let result = read(reader)
+  const reader = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const result = read(reader)
   const utf8ByteLength = string.utf8ByteLength(val + '')
   const binaryByteLength = encoding.length(encoder)
   if (doLog) {
@@ -167,7 +167,7 @@ export const testRepeatVarIntEncoding = tc => {
  */
 export const testRepeatAnyEncoding = tc => {
   const n = genAny(tc.prng)
-  test(`any encoding`, encoding.writeAny, decoding.readAny, n, false)
+  test('any encoding', encoding.writeAny, decoding.readAny, n, false)
 }
 
 /**

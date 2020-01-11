@@ -288,6 +288,7 @@ export class VConsole {
     this.depth = 0
     vconsoles.add(this)
   }
+
   /**
    * @param {Array<string|Symbol|Object|number>} args
    * @param {boolean} collapsed
@@ -310,12 +311,14 @@ export class VConsole {
       })
     })
   }
+
   /**
    * @param {Array<string|Symbol|Object|number>} args
    */
   groupCollapsed (args) {
     this.group(args, true)
   }
+
   groupEnd () {
     eventloop.enqueue(() => {
       if (this.depth > 0) {
@@ -325,6 +328,7 @@ export class VConsole {
       }
     })
   }
+
   /**
    * @param {Array<string|Symbol|Object|number>} args
    */
@@ -333,12 +337,14 @@ export class VConsole {
       dom.append(this.ccontainer, [dom.element('div', [pair.create('style', `${lineStyle};padding-left:${this.depth * 10}px`)], _computeLineSpans(args))])
     })
   }
+
   /**
    * @param {Error} err
    */
   printError (err) {
     this.print([RED, BOLD, err.toString()])
   }
+
   /**
    * @param {string} url
    * @param {number} height
@@ -348,6 +354,7 @@ export class VConsole {
       dom.append(this.ccontainer, [dom.element('img', [pair.create('src', url), pair.create('height', `${math.round(height * 1.5)}px`)])])
     })
   }
+
   /**
    * @param {Node} node
    */
@@ -356,6 +363,7 @@ export class VConsole {
       dom.append(this.ccontainer, [node])
     })
   }
+
   destroy () {
     eventloop.enqueue(() => {
       vconsoles.delete(this)

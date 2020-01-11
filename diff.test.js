@@ -8,7 +8,7 @@ import * as t from './testing.js'
  * @param {{index: number,remove:number,insert:string}} expected
  */
 function runDiffTest (a, b, expected) {
-  let result = simpleDiff(a, b)
+  const result = simpleDiff(a, b)
   t.compare(result, expected)
 }
 

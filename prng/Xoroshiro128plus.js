@@ -32,6 +32,7 @@ export class Xoroshiro128plus {
     }
     this._fresh = true
   }
+
   /**
    * @return {number} Float/Double in [0,1)
    */
