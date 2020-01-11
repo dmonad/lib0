@@ -9,18 +9,18 @@ export const doc = /** @type {Document} */ (typeof document !== 'undefined' ? do
  * @param {string} name
  * @return {HTMLElement}
  */
-const createElement = name => doc.createElement(name)
+export const createElement = name => doc.createElement(name)
 
 /**
  * @return {DocumentFragment}
  */
-const createDocumentFragment = () => doc.createDocumentFragment()
+export const createDocumentFragment = () => doc.createDocumentFragment()
 
 /**
  * @param {string} text
  * @return {Text}
  */
-const createTextNode = text => doc.createTextNode(text)
+export const createTextNode = text => doc.createTextNode(text)
 
 export const domParser = new DOMParser()
 
@@ -160,24 +160,24 @@ export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value}
 /**
  * @todo should always query on a dom element
  *
- * @param {Element} el
+ * @param {HTMLElement} el
  * @param {string} query
- * @return {Element | null}
+ * @return {HTMLElement | null}
  */
 export const querySelector = (el, query) => el.querySelector(query)
 
 /**
- * @param {Element} el
+ * @param {HTMLElement} el
  * @param {string} query
- * @return {NodeListOf<Element>}
+ * @return {NodeListOf<HTMLElement>}
  */
 export const querySelectorAll = (el, query) => el.querySelectorAll(query)
 
 /**
  * @param {string} id
- * @return {Element}
+ * @return {HTMLElement}
  */
-export const getElementById = id => /** @type {Element} */ (doc.getElementById(id))
+export const getElementById = id => /** @type {HTMLElement} */ (doc.getElementById(id))
 
 /**
  * @param {string} html
@@ -196,3 +196,24 @@ export const parseFragment = html => fragment(_parse(html).children)
  * @return {HTMLElement}
  */
 export const parseElement = html => /** @type HTMLElement */ (_parse(html).firstElementChild)
+
+/**
+ * @param {HTMLElement} oldEl
+ * @param {HTMLElement} newEl
+ */
+export const replaceWith = (oldEl, newEl) => oldEl.replaceWith(newEl)
+
+/**
+ * @param {HTMLElement} parent
+ * @param {HTMLElement} el
+ * @param {Node|null} ref
+ * @return {HTMLElement}
+ */
+export const insertBefore = (parent, el, ref) => parent.insertBefore(el, ref)
+
+/**
+ * @param {HTMLElement} parent
+ * @param {HTMLElement} child
+ * @return {HTMLElement}
+ */
+export const appendChild = (parent, child) => parent.appendChild(child)
