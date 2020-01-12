@@ -62,6 +62,7 @@ export const _encodeUtf8Native = str => utf8TextEncoder.encode(str)
  * @param {string} str
  * @return {Uint8Array}
  */
+/* istanbul ignore next */
 export const encodeUtf8 = utf8TextEncoder ? _encodeUtf8Native : _encodeUtf8Polyfill
 
 /**
@@ -84,6 +85,7 @@ export const _decodeUtf8Polyfill = buf => {
   return decodeURIComponent(escape(encodedString))
 }
 
+/* istanbul ignore next */
 export const utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true })
 
 /**
@@ -96,4 +98,5 @@ export const _decodeUtf8Native = buf => /** @type {TextDecoder} */ (utf8TextDeco
  * @param {Uint8Array} buf
  * @return {string}
  */
+/* istanbul ignore next */
 export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill

@@ -63,10 +63,7 @@ export const int53 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) 
  * @param {Number} max The upper bound of the allowed return values (inclusive).
  * @return {Number} A random integer on [min, max]
  */
-export const uint53 = (gen, min, max) => {
-  const n = int53(gen, min, max)
-  return (n < 0 ? (-1) : 1) * n
-}
+export const uint53 = (gen, min, max) => math.abs(int53(gen, min, max))
 
 /**
  * Generates a random integer with 32 bit resolution.

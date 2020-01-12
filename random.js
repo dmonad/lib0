@@ -7,6 +7,7 @@ import * as env from './environment.js'
 import * as binary from './binary.js'
 import * as math from './math.js'
 
+/* istanbul ignore next */
 const nodeCrypto = env.isNode ? require('crypto') : null
 
 /**

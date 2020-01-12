@@ -8,6 +8,7 @@ import * as conditions from './conditions.js'
 export const isNode = typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name)
 /* istanbul ignore next */
 export const isBrowser = typeof window !== 'undefined' && !isNode
+/* istanbul ignore next */
 export const isMac = typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false
 
 /**
@@ -39,6 +40,9 @@ const computeParams = () => {
             args.push(parg)
           }
         }
+      }
+      if (currParamName !== null) {
+        params.set(currParamName, '')
       }
     } else {
       params = map.create()
@@ -74,12 +78,20 @@ export const getParam = (name, defaultVal) => computeParams().get(name) || defau
  * @param {string} name
  * @return {string|null}
  */
+/* istanbul ignore next */
 export const getVariable = name => isNode ? conditions.undefinedToNull(process.env[name.toUpperCase()]) : conditions.undefinedToNull(window.localStorage.getItem(name))
 
 /**
  * @param {string} name
  * @return {string|null}
  */
-export const getConf = name => computeParams().get(name) || getVariable(name)
+export const getConf = name => computeParams().get('--' + name) || getVariable(name)
 
-export const production = hasParam('production') || getVariable('production') !== null
+/**
+ * @param {string} name
+ * @return {boolean}
+ */
+export const hasConf = name => hasParam('--' + name) || getVariable(name) !== null
+
+/* istanbul ignore next */
+export const production = hasConf('production')

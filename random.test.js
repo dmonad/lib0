@@ -31,7 +31,7 @@ export const testUuidv4 = tc => {
  */
 export const testUuidv4Overlaps = tc => {
   t.skip(!t.production)
-  const iterations = 1000000
+  const iterations = t.extensive ? 1000000 : 10000
   const uuids = new Set()
   for (let i = 0; i < iterations; i++) {
     const uuid = random.uuidv4()

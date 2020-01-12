@@ -1,5 +1,4 @@
-/** eslint-env: browser */
-
+/* global BigInt */
 import * as encoding from './encoding.js'
 import * as decoding from './decoding.js'
 import * as prng from './prng.js'
@@ -10,27 +9,29 @@ import * as buffer from './buffer.js'
 import * as number from './number.js'
 
 /**
- * @type {Array<function(prng.PRNG, number):any>}
+ * @type {Array<function(prng.PRNG, number, boolean):any>}
  */
 const genAnyLookupTable = [
+  gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
   gen => undefined, // TYPE 127
   gen => null, // TYPE 126
   gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), // TYPE 125
   gen => prng.real53(gen), // TYPE 124 and 123
-  // gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
   gen => true, // TYPE 121
   gen => false, // TYPE 120
   gen => prng.utf16String(gen), // TYPE 119
-  (gen, depth) => ({ val: genAny(gen, depth + 1) }), // TYPE 118
-  (gen, depth) => Array.from({ length: prng.int31(gen, 0, 20 - depth) }).map(() => genAny(gen, depth + 1)), // TYPE 117
+  (gen, depth, toJsonCompatible) => ({ val: genAny(gen, depth + 1, toJsonCompatible) }), // TYPE 118
+  (gen, depth, toJsonCompatible) => Array.from({ length: prng.int31(gen, 0, 20 - depth) }).map(() => genAny(gen, depth + 1, toJsonCompatible)), // TYPE 117
   gen => prng.uint8Array(gen, prng.int31(gen, 0, 50)) // TYPE 116
 ]
+
+const genAnyLookupTableJsonCompatible = genAnyLookupTable.slice(1)
 
 /**
  * @param {prng.PRNG} gen
  * @param {number} _depth The current call-depth
  */
-const genAny = (gen, _depth = 0) => prng.oneOf(gen, genAnyLookupTable)(gen, _depth)
+const genAny = (gen, _depth = 0, toJsonCompatible = false) => prng.oneOf(gen, toJsonCompatible ? genAnyLookupTableJsonCompatible : genAnyLookupTable)(gen, _depth, toJsonCompatible)
 
 /**
  * Check if binary encoding is compatible with golang binary encoding - binary.PutVarUint.
@@ -113,6 +114,21 @@ const testVarString = s => {
 /**
  * @param {t.TestCase} tc
  */
+export const testAnyEncodeUnknowns = tc => {
+  const encoder = encoding.createEncoder()
+  // @ts-ignore
+  encoding.writeAny(encoder, Symbol('a'))
+  encoding.writeAny(encoder, undefined)
+  encoding.writeAny(encoder, () => {})
+  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  t.assert(decoding.readAny(decoder) === undefined)
+  t.assert(decoding.readAny(decoder) === undefined)
+  t.assert(decoding.readAny(decoder) === undefined)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testAnyEncodeDate = tc => {
   test('Encode current date', encoding.writeAny, decoding.readAny, new Date().getTime())
 }
@@ -190,7 +206,7 @@ export const testRepeatPeekVarIntEncoding = tc => {
  * @param {t.TestCase} tc
  */
 export const testAnyVsJsonEncoding = tc => {
-  const n = Array.from({ length: 5000 }).map(() => genAny(tc.prng))
+  const n = Array.from({ length: 5000 }).map(() => genAny(tc.prng, 5, true))
   t.measureTime('lib0 any encoding', () => {
     const encoder = encoding.createEncoder()
     encoding.writeAny(encoder, n)

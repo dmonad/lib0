@@ -55,7 +55,7 @@ const createSortTest = (tc, createArray, compare, getVal) => {
   runSortTest(tc, createArray(10000), compare, getVal)
   t.describe('sort 100k elements')
   runSortTest(tc, createArray(100000), compare, getVal)
-  if (t.production) {
+  if (t.extensive) {
     t.describe('sort 1M elements')
     runSortTest(tc, createArray(1000000), compare, getVal)
     t.describe('sort 10M elements')

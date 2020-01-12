@@ -109,6 +109,8 @@ export const testFailing = () => {
 }
 
 export const testSkipping = () => {
+  t.skip(false)
+  t.assert(true)
   t.skip()
   /* istanbul ignore next */
   t.fail('should have skipped')

@@ -321,7 +321,7 @@ export const defineListComponent = createComponentDefiner(() => {
 })
 
 export const defineLazyLoadingComponent = createComponentDefiner(() => createComponent('lib0-lazy', {
-  state: /** @type {{component:null|String,import:null|function():Promise,state:null|object}} */ ({
+  state: /** @type {{component:null|String,import:null|function():Promise<any>,state:null|object}} */ ({
     component: null, import: null, state: null
   }),
   attrs: {

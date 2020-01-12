@@ -392,7 +392,7 @@ const isFloat32 = num => {
  *          lib0/encoding.js
  *
  * @param {Encoder} encoder
- * @param {undefined|null|number|bigint|boolean|string|Object|Array|ArrayBuffer} data
+ * @param {undefined|null|number|bigint|boolean|string|Object<string,any>|Array<any>|Uint8Array} data
  */
 export const writeAny = (encoder, data) => {
   switch (typeof data) {
@@ -452,9 +452,6 @@ export const writeAny = (encoder, data) => {
       // TYPE 120/121: boolean (true/false)
       write(encoder, data ? 120 : 121)
       break
-    case 'symbol':
-    case 'function':
-    case 'undefined':
     default:
       // TYPE 127: undefined
       write(encoder, 127)

@@ -15,6 +15,7 @@ import * as env from './environment.js'
 import * as json from './json.js'
 
 export { production } from './environment.js'
+export const extensive = env.hasConf('extensive')
 
 /* istanbul ignore next */
 export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed', '0')) : null
@@ -60,6 +61,7 @@ export class TestCase {
 const perf = typeof performance === 'undefined' ? require('perf_hooks').performance : performance // eslint-disable-line no-undef
 
 export const repititionTime = Number(env.getParam('--repitition-time', '50'))
+/* istanbul ignore next */
 const testFilter = env.hasParam('--filter') ? env.getParam('--filter', '') : null
 
 /* istanbul ignore next */
@@ -390,6 +392,7 @@ export const runTests = async tests => {
     const mod = tests[modName]
     for (const fname in mod) {
       const f = mod[fname]
+      /* istanbul ignore else */
       if (f) {
         const repeatEachTest = 1
         let success = true
@@ -397,6 +400,7 @@ export const runTests = async tests => {
           success = await run(modName, fname, f, testnumber, numberOfTests)
         }
         testnumber++
+        /* istanbul ignore else */
         if (success) {
           successfulTests++
         }

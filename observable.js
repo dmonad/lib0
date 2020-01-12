@@ -59,7 +59,7 @@ export class Observable {
    * @todo This should catch exceptions
    *
    * @param {N} name The event name.
-   * @param {Array} args The arguments that are applied to the event listener.
+   * @param {Array<any>} args The arguments that are applied to the event listener.
    */
   emit (name, args) {
     // @ts-ignore

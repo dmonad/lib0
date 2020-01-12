@@ -49,15 +49,15 @@ const _nodeStyleMap = {
 
 /* istanbul ignore next */
 /**
- * @param {Array<string|Symbol>} args
- * @return {Array<string>}
+ * @param {Array<string|Symbol|Object|number>} args
+ * @return {Array<string|object|number>}
  */
 const computeBrowserLoggingArgs = args => {
   const strBuilder = []
   const styles = []
   const currentStyle = map.create()
   /**
-   * @type {Array<string>}
+   * @type {Array<string|Object|number>}
    */
   let logArgs = []
   // try with formatting until we find something unsupported
@@ -100,8 +100,8 @@ const computeBrowserLoggingArgs = args => {
 }
 
 /**
- * @param {Array<string|Symbol>} args
- * @return {Array<string>}
+ * @param {Array<string|Symbol|Object|number>} args
+ * @return {Array<string|object|number>}
  */
 const computeNodeLoggingArgs = args => {
   const strBuilder = []
@@ -132,6 +132,7 @@ const computeNodeLoggingArgs = args => {
   // append the rest
   for (; i < args.length; i++) {
     const arg = args[i]
+    /* istanbul ignore else */
     if (!(arg instanceof Symbol)) {
       logArgs.push(arg)
     }
@@ -266,7 +267,7 @@ const _computeLineSpans = args => {
       if (content.constructor !== String && content.constructor !== Number) {
         content = ' ' + json.stringify(content) + ' '
       }
-      spans.push(dom.element('span', [], [dom.text(content)]))
+      spans.push(dom.element('span', [], [dom.text(/** @type {string} */ (content))]))
     }
   }
   return spans

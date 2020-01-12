@@ -17,6 +17,7 @@ import * as time from './time.test.js'
 import * as pair from './pair.test.js'
 import * as object from './object.test.js'
 import * as math from './math.test.js'
+import * as number from './number.test.js'
 import * as buffer from './buffer.test.js'
 import * as sort from './sort.test.js'
 
@@ -45,6 +46,7 @@ runTests({
   pair,
   object,
   math,
+  number,
   buffer,
   sort
 }).then(success => {

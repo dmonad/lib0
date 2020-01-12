@@ -1,3 +1,4 @@
 language: node_js
+script: npm run test-extensive
 node_js:
-  - "11"
+  - "12"

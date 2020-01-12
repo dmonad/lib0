@@ -11,5 +11,6 @@ export const MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER
 export const LOWEST_INT32 = 1 << 31
 export const HIGHEST_INT32 = binary.BITS31
 
+/* istanbul ignore next */
 export const isInteger = Number.isInteger || (num => typeof num === 'number' && isFinite(num) && math.floor(num) === num)
 export const isNaN = Number.isNaN

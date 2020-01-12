@@ -58,13 +58,18 @@ export const simpleDiffString = (a, b) => {
 export const simpleDiff = simpleDiffString
 
 /**
- * Create a diff between two strings. This diff implementation is highly
+ * Create a diff between two arrays. This diff implementation is highly
  * efficient, but not very sophisticated.
  *
+ * Note: This is basically the same function as above. Another function was created so that the runtime
+ * can better optimize these function calls.
+ *
  * @public
- * @param {Array} a The old version of the string
- * @param {Array} b The updated version of the string
- * @return {SimpleDiff<Array>} The diff description.
+ * @param {Array<T>} a The old version of the array
+ * @param {Array<T>} b The updated version of the array
+ * @return {SimpleDiff<Array<T>>} The diff description.
+ *
+ * @template T
  */
 export const simpleDiffArray = (a, b) => {
   let left = 0 // number of same characters counting from left
