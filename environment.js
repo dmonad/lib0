@@ -63,14 +63,15 @@ const computeParams = () => {
  * @param {string} name
  * @return {boolean}
  */
+/* istanbul ignore next */
 export const hasParam = name => computeParams().has(name)
 
-/* istanbul ignore next */
 /**
  * @param {string} name
  * @param {string} defaultVal
  * @return {string}
  */
+/* istanbul ignore next */
 export const getParam = (name, defaultVal) => computeParams().get(name) || defaultVal
 // export const getArgs = name => computeParams() && args
 
@@ -91,6 +92,7 @@ export const getConf = name => computeParams().get('--' + name) || getVariable(n
  * @param {string} name
  * @return {boolean}
  */
+/* istanbul ignore next */
 export const hasConf = name => hasParam('--' + name) || getVariable(name) !== null
 
 /* istanbul ignore next */
