@@ -311,12 +311,12 @@ export const readFloat64 = decoder => readFromDataView(decoder, 8).getFloat64(0)
 /**
  * @param {Decoder} decoder
  */
-export const readBigInt64 = decoder => readFromDataView(decoder, 8).getBigInt64(0)
+export const readBigInt64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigInt64(0)
 
 /**
  * @param {Decoder} decoder
  */
-export const readBigUint64 = decoder => readFromDataView(decoder, 8).getBigUint64(0)
+export const readBigUint64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigUint64(0)
 
 /**
  * @type {Array<function(Decoder):any>}

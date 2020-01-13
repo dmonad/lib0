@@ -337,13 +337,13 @@ export const writeFloat64 = (encoder, num) => writeOnDataView(encoder, 8).setFlo
  * @param {Encoder} encoder
  * @param {bigint} num
  */
-export const writeBigInt64 = (encoder, num) => writeOnDataView(encoder, 8).setBigInt64(0, num)
+export const writeBigInt64 = (encoder, num) => /** @type {any} */ (writeOnDataView(encoder, 8)).setBigInt64(0, num)
 
 /**
  * @param {Encoder} encoder
  * @param {bigint} num
  */
-export const writeBigUint64 = (encoder, num) => writeOnDataView(encoder, 8).setBigUint64(0, num)
+export const writeBigUint64 = (encoder, num) => /** @type {any} */ (writeOnDataView(encoder, 8)).setBigUint64(0, num)
 
 const floatTestBed = new DataView(new ArrayBuffer(4))
 /**
