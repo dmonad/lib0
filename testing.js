@@ -14,7 +14,10 @@ import * as array from './array.js'
 import * as env from './environment.js'
 import * as json from './json.js'
 
+import { performance } from './isomorphic.js'
+
 export { production } from './environment.js'
+
 export const extensive = env.hasConf('extensive')
 
 /* istanbul ignore next */
@@ -56,10 +59,6 @@ export class TestCase {
   }
 }
 
-/* istanbul ignore next */
-// @ts-ignore
-const perf = typeof performance === 'undefined' ? require('perf_hooks').performance : performance // eslint-disable-line no-undef
-
 export const repititionTime = Number(env.getParam('--repitition-time', '50'))
 /* istanbul ignore next */
 const testFilter = env.hasParam('--filter') ? env.getParam('--filter', '') : null
@@ -93,10 +92,10 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     log.group(...groupArgs)
   }
   const times = []
-  const start = perf.now()
+  const start = performance.now()
   let lastTime = start
   let err = null
-  perf.mark(`${name}-start`)
+  performance.mark(`${name}-start`)
   do {
     try {
       const p = f(tc)
@@ -106,7 +105,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     } catch (_err) {
       err = _err
     }
-    const currTime = perf.now()
+    const currTime = performance.now()
     times.push(currTime - lastTime)
     lastTime = currTime
     if (repeat && err === null && (lastTime - start) < repititionTime) {
@@ -115,12 +114,12 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
       break
     }
   } while (err === null && (lastTime - start) < repititionTime)
-  perf.mark(`${name}-end`)
+  performance.mark(`${name}-end`)
   /* istanbul ignore if */
   if (err !== null && err.constructor !== SkipError) {
     log.printError(err)
   }
-  perf.measure(name, `${name}-start`, `${name}-end`)
+  performance.measure(name, `${name}-start`, `${name}-end`)
   log.groupEnd()
   const duration = lastTime - start
   let success = true
@@ -181,13 +180,13 @@ export const group = (description, f) => {
 export const measureTime = async (message, f) => {
   let duration = 0
   let iterations = 0
-  const start = perf.now()
+  const start = performance.now()
   while (duration < 5) {
     const p = f()
     if (p) {
       await p
     }
-    duration = perf.now() - start
+    duration = performance.now() - start
     iterations++
   }
   const iterationsInfo = iterations > 1 ? `, ${iterations} repititions` : ''
@@ -387,7 +386,7 @@ export const runTests = async tests => {
   const numberOfTests = object.map(tests, mod => object.map(mod, f => /* istanbul ignore next */ f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
   let successfulTests = 0
   let testnumber = 0
-  const start = perf.now()
+  const start = performance.now()
   for (const modName in tests) {
     const mod = tests[modName]
     for (const fname in mod) {
@@ -407,7 +406,7 @@ export const runTests = async tests => {
       }
     }
   }
-  const end = perf.now()
+  const end = performance.now()
   log.print('')
   const success = successfulTests === numberOfTests
   /* istanbul ignore else */

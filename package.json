@@ -3,11 +3,15 @@
   "version": "0.1.7",
   "description": "",
   "sideEffects": false,
-  "dependencies": {},
+  "type": "module",
+  "dependencies": {
+    "isomorphic.js": "^0.1.0"
+  },
   "devDependencies": {
-    "@types/node": "^13.1.6",
-    "fake-indexeddb": "^2.0.5",
-    "live-server": "^1.2.1",
+    "@rollup/plugin-commonjs": "^11.0.1",
+    "@rollup/plugin-node-resolve": "^7.0.0",
+    "concurrently": "^5.0.2",
+    "http-server": "^0.12.1",
     "nyc": "^15.0.0",
     "rollup": "^1.1.2",
     "standard": "^14.0.0",
@@ -15,12 +19,12 @@
   },
   "scripts": {
     "dist": "rm -rf dist && rollup -c",
-    "debug": "live-server --port=3443 --entry-file=test.html",
-    "test": "npm run lint && npm run dist && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.js --repitition-time 50 --production",
+    "debug": "rollup -c && concurrently 'rollup -wc' 'http-server -o test.html'",
+    "test": "npm run lint && npm run dist && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.cjs --repitition-time 50 --production",
     "test-extensive": "npm test -- --repitition-time 30000 --extensive",
-    "test-code-coverage": "npm run dist && nyc --reporter html node ./dist/test.js --production",
-    "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.js",
-    "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.js",
+    "test-code-coverage": "npm run dist && nyc --reporter html node ./dist/test.cjs --production",
+    "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.cjs",
+    "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",
     "preversion": "npm run test"
   },
@@ -40,5 +44,8 @@
       "/node_modules",
       "/docs"
     ]
+  },
+  "engines": {
+    "node": ">=13"
   }
 }

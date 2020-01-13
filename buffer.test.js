@@ -8,6 +8,7 @@ import * as prng from './prng.js'
 export const testRepeatBase64Encoding = tc => {
   const gen = tc.prng
   const barr = prng.uint8Array(gen, 100000)
+  const copied = buffer.copyUint8Array(barr)
   const encoded = buffer.toBase64(barr)
   t.assert(encoded.constructor === String)
   const decoded = buffer.fromBase64(encoded)
@@ -16,4 +17,5 @@ export const testRepeatBase64Encoding = tc => {
   for (let i = 0; i < barr.length; i++) {
     t.assert(barr[i] === decoded[i])
   }
+  t.compare(copied, decoded)
 }

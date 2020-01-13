@@ -1,36 +1,14 @@
-/* global crypto */
 
 /**
  * @module random
  */
-import * as env from './environment.js'
-import * as binary from './binary.js'
 import * as math from './math.js'
+import { cryptoRandomBuffer } from './isomorphic.js'
+
+export const rand = Math.random
 
 /* istanbul ignore next */
-const nodeCrypto = env.isNode ? require('crypto') : null
-
-/**
- * Basically Math.random. Returns a pseudo random number in [0,1).
- */
-const rand = Math.random
-
-/* istanbul ignore next */
-const uint32BrowserCrypto = () => {
-  const arr = new Uint32Array(1)
-  crypto.getRandomValues(arr)
-  return arr[0]
-}
-
-/* istanbul ignore next */
-const uint32NoCrypto = () => math.ceil((rand() * binary.BITS32) >>> 0)
-
-const uint32NodeCrypto = () => new Uint32Array(/** @type {any} */ (nodeCrypto).randomBytes(4).buffer)[0]
-
-/* istanbul ignore next */
-export const uint32 = env.isNode
-  ? uint32NodeCrypto
-  : (typeof crypto === 'undefined' ? uint32NoCrypto : uint32BrowserCrypto)
+export const uint32 = () => new Uint32Array(cryptoRandomBuffer(4))[0]
 
 /**
  * @template T

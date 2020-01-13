@@ -18,5 +18,6 @@ export const testMap = tc => {
   map.setIfUndefined(m, 3, createT)
   map.setIfUndefined(m, 3, createT)
   map.setIfUndefined(m, 3, createT)
+  t.compare(map.copy(m), m)
   t.assert(numberOfWrites === 1)
 }
