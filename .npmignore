@@ -1,4 +1,3 @@
 *.test.js
 tsconfig.json
 rollup.config.js
-dist
