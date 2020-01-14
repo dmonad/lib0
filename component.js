@@ -131,6 +131,10 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       /**
        * @type {any}
        */
+      this._internal = {}
+      /**
+       * @type {any}
+       */
       this.state = /** @type {any} */ (object.assign({}, state))
       // init shadow dom
       if (templateElement) {
