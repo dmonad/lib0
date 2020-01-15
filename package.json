@@ -5,7 +5,7 @@
   "sideEffects": false,
   "type": "module",
   "dependencies": {
-    "isomorphic.js": "^0.1.0"
+    "isomorphic.js": "^0.1.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^11.0.1",
