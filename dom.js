@@ -181,7 +181,7 @@ export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value}
 /**
  * @todo should always query on a dom element
  *
- * @param {HTMLElement} el
+ * @param {HTMLElement|ShadowRoot} el
  * @param {string} query
  * @return {HTMLElement | null}
  */
@@ -189,7 +189,7 @@ export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value}
 export const querySelector = (el, query) => el.querySelector(query)
 
 /**
- * @param {HTMLElement} el
+ * @param {HTMLElement|ShadowRoot} el
  * @param {string} query
  * @return {NodeListOf<HTMLElement>}
  */
