@@ -22,7 +22,7 @@ export const rtop = request => promise.create((resolve, reject) => {
 
 /**
  * @param {string} name
- * @param {Function} initDB Called when the database is first created
+ * @param {function(IDBDatabase):any} initDB Called when the database is first created
  * @return {Promise<IDBDatabase>}
  */
 /* istanbul ignore next */
@@ -65,12 +65,32 @@ export const deleteDB = name => rtop(indexedDB.deleteDatabase(name))
 
 /**
  * @param {IDBDatabase} db
- * @param {Array<[string,IDBObjectStoreParameters|undefined]>} definitions
+ * @param {Array<[string]|[string,IDBObjectStoreParameters|undefined]>} definitions
  */
 /* istanbul ignore next */
 export const createStores = (db, definitions) => definitions.forEach(d =>
   db.createObjectStore.apply(db, d)
 )
+
+/**
+ * @param {IDBDatabase} db
+ * @param {Array<string>} stores
+ * @param {"readwrite"|"readonly"} [access]
+ * @return {Array<IDBObjectStore>}
+ */
+export const transact = (db, stores, access = 'readwrite') => {
+  const transaction = db.transaction(stores, access)
+  return stores.map(store => getStore(transaction, store))
+}
+
+/**
+ * @param {IDBObjectStore} store
+ * @param {IDBKeyRange} [range]
+ * @return {Promise<number>}
+ */
+/* istanbul ignore next */
+export const count = (store, range) =>
+  rtop(store.count(range))
 
 /**
  * @param {IDBObjectStore} store
@@ -120,6 +140,7 @@ export const addAutoKey = (store, item) =>
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
+ * @return {Promise<Array<any>>}
  */
 /* istanbul ignore next */
 export const getAll = (store, range) =>
@@ -128,10 +149,40 @@ export const getAll = (store, range) =>
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
+ * @return {Promise<Array<any>>}
  */
 /* istanbul ignore next */
 export const getAllKeys = (store, range) =>
   rtop(store.getAllKeys(range))
+
+/**
+ * @param {IDBObjectStore} store
+ * @param {IDBKeyRange|null} query
+ * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
+ * @return {Promise<any>}
+ */
+export const queryFirst = (store, query, direction) => {
+  /**
+   * @type {any}
+   */
+  let first = null
+  return iterateKeys(store, query, key => {
+    first = key
+    return false
+  }, direction).then(() => first)
+}
+
+/**
+ * @param {IDBObjectStore} store
+ * @return {Promise<any>}
+ */
+export const getLastKey = store => queryFirst(store, null, 'prev')
+
+/**
+ * @param {IDBObjectStore} store
+ * @return {Promise<any>}
+ */
+export const getFirstKey = store => queryFirst(store, null, 'prev')
 
 /**
  * @typedef KeyValuePair
@@ -152,7 +203,7 @@ export const getAllKeysValues = (store, range) =>
 
 /**
  * @param {any} request
- * @param {function(IDBCursorWithValue):void} f
+ * @param {function(IDBCursorWithValue):void|boolean} f
  * @return {Promise<void>}
  */
 /* istanbul ignore next */
@@ -164,10 +215,9 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
    */
   request.onsuccess = event => {
     const cursor = event.target.result
-    if (cursor === null) {
+    if (cursor === null || f(cursor) === false) {
       return resolve()
     }
-    f(cursor)
     cursor.continue()
   }
 })
@@ -176,22 +226,24 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
  * Iterate on keys and values
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange|null} keyrange
- * @param {function(any,any):void} f Callback that receives (value, key)
+ * @param {function(any,any):void|boolean} f Callback that receives (value, key)
+ * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 /* istanbul ignore next */
-export const iterate = (store, keyrange, f) =>
-  iterateOnRequest(keyrange !== null ? store.openCursor(keyrange) : store.openCursor(), cursor => f(cursor.value, cursor.key))
+export const iterate = (store, keyrange, f, direction = 'next') =>
+  iterateOnRequest(store.openCursor(keyrange, direction), cursor => f(cursor.value, cursor.key))
 
 /**
  * Iterate on the keys (no values)
  *
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange|null} keyrange
- * @param {function(any):void} f callback that receives the key
+ * @param {function(any):void|boolean} f callback that receives the key
+ * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 /* istanbul ignore next */
-export const iterateKeys = (store, keyrange, f) =>
-  iterateOnRequest(keyrange !== null ? store.openKeyCursor(keyrange) : store.openKeyCursor(), cursor => f(cursor.key))
+export const iterateKeys = (store, keyrange, f, direction = 'next') =>
+  iterateOnRequest(store.openKeyCursor(keyrange, direction), cursor => f(cursor.key))
 
 /**
  * Open store from transaction
