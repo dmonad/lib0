@@ -92,6 +92,12 @@ export const append = (parent, nodes) => {
 }
 
 /**
+ * @param {HTMLElement} el
+ */
+/* istanbul ignore next */
+export const remove = el => el.remove()
+
+/**
  * @param {EventTarget} el
  * @param {string} name
  * @param {EventListener} f
@@ -215,7 +221,7 @@ const _parse = html => domParser.parseFromString(`<html><body>${html}</body></ht
  * @return {DocumentFragment}
  */
 /* istanbul ignore next */
-export const parseFragment = html => fragment(_parse(html).children)
+export const parseFragment = html => fragment(/** @type {any} */ (_parse(html).childNodes))
 
 /**
  * @param {string} html
@@ -226,7 +232,7 @@ export const parseElement = html => /** @type HTMLElement */ (_parse(html).first
 
 /**
  * @param {HTMLElement} oldEl
- * @param {HTMLElement} newEl
+ * @param {HTMLElement|DocumentFragment} newEl
  */
 /* istanbul ignore next */
 export const replaceWith = (oldEl, newEl) => oldEl.replaceWith(newEl)
@@ -242,8 +248,22 @@ export const insertBefore = (parent, el, ref) => parent.insertBefore(el, ref)
 
 /**
  * @param {HTMLElement} parent
- * @param {HTMLElement} child
- * @return {HTMLElement}
+ * @param {HTMLElement|DocumentFragment} child
+ * @return {HTMLElement|DocumentFragment}
  */
 /* istanbul ignore next */
 export const appendChild = (parent, child) => parent.appendChild(child)
+
+export const ELEMENT_NODE = document.ELEMENT_NODE
+export const TEXT_NODE = document.TEXT_NODE
+export const CDATA_SECTION_NODE = document.CDATA_SECTION_NODE
+export const COMMENT_NODE = document.COMMENT_NODE
+export const DOCUMENT_NODE = document.DOCUMENT_NODE
+export const DOCUMENT_TYPE_NODE = document.DOCUMENT_TYPE_NODE
+export const DOCUMENT_FRAGMENT_NODE = document.DOCUMENT_FRAGMENT_NODE
+
+/**
+ * @param {any} node
+ * @param {number} type
+ */
+export const checkNodeType = (node, type) => node.nodeType === type

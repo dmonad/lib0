@@ -5,6 +5,7 @@ import * as diff from './diff.js'
 import * as object from './object.js'
 import * as json from './json.js'
 import * as string from './string.js'
+import * as array from './array.js'
 
 export const registry = customElements
 
@@ -229,11 +230,14 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         // fill slots
         const slotElems = slots(state)
         for (const key in slotElems) {
-          const currentSlot = dom.querySelector(this, `[slot="${key}"]`)
-          const nextSlot = dom.parseElement(slotElems[key])
-          nextSlot.setAttribute('slot', key)
-          if (currentSlot) {
-            dom.replaceWith(currentSlot, nextSlot)
+          const currentSlots = /** @type {Array<any>} */ (key !== 'default' ? array.from(dom.querySelectorAll(this, `[slot="${key}"]`)) : array.from(this.childNodes).filter(/** @param {any} child */ child => !dom.checkNodeType(child, dom.ELEMENT_NODE) || !child.hasAttribute('slot')))
+          currentSlots.slice(1).map(dom.remove)
+          const nextSlot = dom.parseFragment(slotElems[key])
+          if (key !== 'default') {
+            array.from(nextSlot.children).forEach(c => c.setAttribute('slot', key))
+          }
+          if (currentSlots.length > 0) {
+            dom.replaceWith(currentSlots[0], nextSlot)
           } else {
             dom.appendChild(this, nextSlot)
           }
