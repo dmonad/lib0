@@ -1,6 +1,7 @@
 
 import * as map from './map.js'
 import * as set from './set.js'
+import * as array from './array.js'
 
 /**
  * Handles named events.
@@ -62,8 +63,8 @@ export class Observable {
    * @param {Array<any>} args The arguments that are applied to the event listener.
    */
   emit (name, args) {
-    // @ts-ignore
-    return (this._observers.get(name) || map.create()).forEach(f => f(...args))
+    // copy all listeners to an array first to make sure that no event is emitted to listeners that are subscribed while the event handler is called.
+    return array.from((this._observers.get(name) || map.create()).values()).forEach(f => f(...args))
   }
 
   destroy () {

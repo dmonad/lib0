@@ -6,6 +6,7 @@ import * as object from './object.js'
 import * as json from './json.js'
 import * as string from './string.js'
 import * as array from './array.js'
+import * as number from './number.js'
 
 export const registry = customElements
 
@@ -86,7 +87,7 @@ const parseAttrVal = (val, type) => {
  * @property {S} [CONF.state] Initial component state.
  * @property {function(S,S|null,Lib0Component<S>):void} [CONF.onStateChange] Called when
  * the state changes.
- * @property {Object<string,function(any):Object>} [CONF.childStates] maps from
+ * @property {Object<string,function(any, any):Object>} [CONF.childStates] maps from
  * CSS-selector to transformer function. The first element that matches the
  * CSS-selector receives state updates via the transformer function.
  * @property {Object<string,"json"|"number"|"string"|"bool">} [CONF.attrs]
@@ -125,7 +126,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
     constructor () {
       super()
       /**
-       * @type {Array<{d:Lib0Component, s:function(any):Object}>}
+       * @type {Array<{d:Lib0Component, s:function(any, any):Object}>}
        */
       this._childStates = []
       this._init = false
@@ -208,7 +209,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       const camelAttrName = normalizedAttrs[name]
       const type = attrs[camelAttrName]
       const parsedVal = parseAttrVal(newVal, type)
-      if ((type !== 'json' || json.stringify(curState[camelAttrName]) !== newVal) && curState[camelAttrName] !== parsedVal) {
+      if ((type !== 'json' || json.stringify(curState[camelAttrName]) !== newVal) && curState[camelAttrName] !== parsedVal && !number.isNaN(parsedVal)) {
         this.updateState({ [camelAttrName]: parsedVal })
       }
     }
@@ -246,7 +247,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         this._childStates.forEach(cnf => {
           const d = cnf.d
           if (d.updateState) {
-            d.updateState(cnf.s(state))
+            d.updateState(cnf.s(state, this))
           }
         })
         for (const key in attrs) {
@@ -260,6 +261,8 @@ export const createComponent = (name, { template, style = '', state, onStateChan
               } else {
                 this.removeAttribute(normalizedKey)
               }
+            } else if (stateVal == null && (attrsType === 'string' || attrsType === 'number')) {
+              this.removeAttribute(normalizedKey)
             } else {
               this.setAttribute(normalizedKey, encodeAttrVal(stateVal, attrsType))
             }
@@ -298,6 +301,7 @@ export const defineListComponent = createComponentDefiner(() => {
   return createComponent('lib0-list', {
     state: { list: /** @type {Array<string>} */ ([]), Item: ListItem },
     onStateChange: ({ list = /** @type {Array<any>} */ ([]), Item = ListItem }, prevState, component) => {
+      // @todo deep compare here by providing another parameter to simpleDiffArray
       let { index, remove, insert } = diff.simpleDiffArray(prevState ? prevState.list : [], list)
       if (remove === 0 && insert.length === 0) {
         return
