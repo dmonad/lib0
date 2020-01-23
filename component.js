@@ -229,42 +229,50 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       this.state = state
       if (this._init && (state !== prevState || forceStateUpdates)) {
         // fill slots
-        const slotElems = slots(state)
-        for (const key in slotElems) {
-          const currentSlots = /** @type {Array<any>} */ (key !== 'default' ? array.from(dom.querySelectorAll(this, `[slot="${key}"]`)) : array.from(this.childNodes).filter(/** @param {any} child */ child => !dom.checkNodeType(child, dom.ELEMENT_NODE) || !child.hasAttribute('slot')))
-          currentSlots.slice(1).map(dom.remove)
-          const nextSlot = dom.parseFragment(slotElems[key])
-          if (key !== 'default') {
-            array.from(nextSlot.children).forEach(c => c.setAttribute('slot', key))
-          }
-          if (currentSlots.length > 0) {
-            dom.replaceWith(currentSlots[0], nextSlot)
-          } else {
-            dom.appendChild(this, nextSlot)
+        if (state) {
+          const slotElems = slots(state)
+          for (const key in slotElems) {
+            const currentSlots = /** @type {Array<any>} */ (key !== 'default' ? array.from(dom.querySelectorAll(this, `[slot="${key}"]`)) : array.from(this.childNodes).filter(/** @param {any} child */ child => !dom.checkNodeType(child, dom.ELEMENT_NODE) || !child.hasAttribute('slot')))
+            currentSlots.slice(1).map(dom.remove)
+            const nextSlot = dom.parseFragment(slotElems[key])
+            if (key !== 'default') {
+              array.from(nextSlot.children).forEach(c => c.setAttribute('slot', key))
+            }
+            if (currentSlots.length > 0) {
+              dom.replaceWith(currentSlots[0], nextSlot)
+            } else {
+              dom.appendChild(this, nextSlot)
+            }
           }
         }
         onStateChange(state, prevState, this)
-        this._childStates.forEach(cnf => {
-          const d = cnf.d
-          if (d.updateState) {
-            d.updateState(cnf.s(state, this))
-          }
-        })
+        if (state != null) {
+          this._childStates.forEach(cnf => {
+            const d = cnf.d
+            if (d.updateState) {
+              d.updateState(cnf.s(state, this))
+            }
+          })
+        }
         for (const key in attrs) {
           const normalizedKey = string.fromCamelCase(key, '-')
-          const stateVal = state[key]
-          const attrsType = attrs[key]
-          if (!prevState || prevState[key] !== stateVal) {
-            if (attrsType === 'bool') {
-              if (stateVal) {
-                this.setAttribute(normalizedKey, '')
-              } else {
+          if (state == null) {
+            this.removeAttribute(normalizedKey)
+          } else {
+            const stateVal = state[key]
+            const attrsType = attrs[key]
+            if (!prevState || prevState[key] !== stateVal) {
+              if (attrsType === 'bool') {
+                if (stateVal) {
+                  this.setAttribute(normalizedKey, '')
+                } else {
+                  this.removeAttribute(normalizedKey)
+                }
+              } else if (stateVal == null && (attrsType === 'string' || attrsType === 'number')) {
                 this.removeAttribute(normalizedKey)
+              } else {
+                this.setAttribute(normalizedKey, encodeAttrVal(stateVal, attrsType))
               }
-            } else if (stateVal == null && (attrsType === 'string' || attrsType === 'number')) {
-              this.removeAttribute(normalizedKey)
-            } else {
-              this.setAttribute(normalizedKey, encodeAttrVal(stateVal, attrsType))
             }
           }
         }
@@ -300,7 +308,11 @@ export const defineListComponent = createComponentDefiner(() => {
   })
   return createComponent('lib0-list', {
     state: { list: /** @type {Array<string>} */ ([]), Item: ListItem },
-    onStateChange: ({ list = /** @type {Array<any>} */ ([]), Item = ListItem }, prevState, component) => {
+    onStateChange: (state, prevState, component) => {
+      if (state == null) {
+        return
+      }
+      const { list = /** @type {Array<any>} */ ([]), Item = ListItem } = state
       // @todo deep compare here by providing another parameter to simpleDiffArray
       let { index, remove, insert } = diff.simpleDiffArray(prevState ? prevState.list : [], list)
       if (remove === 0 && insert.length === 0) {
