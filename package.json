@@ -26,7 +26,7 @@
     "dist": "npm run clean && rollup -c",
     "debug": "rollup -c && concurrently 'rollup -wc' 'http-server -o test.html'",
     "test": "npm run lint && npm run dist && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.cjs --repitition-time 50 --production",
-    "test-extensive": "npm test -- --repitition-time 30000 --extensive",
+    "test-extensive": "node test.js && npm test -- --repitition-time 30000 --extensive",
     "test-code-coverage": "npm run dist && nyc --reporter html node ./dist/test.cjs --production",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.cjs",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
