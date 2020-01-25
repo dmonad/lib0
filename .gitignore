@@ -2,3 +2,5 @@ dist
 .nyc_output
 coverage
 node_modules
+*.d.ts
+*.d.ts.map

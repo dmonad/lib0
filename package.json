@@ -4,6 +4,9 @@
   "description": "",
   "sideEffects": false,
   "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "types": "./index.d.ts",
   "dependencies": {
     "isomorphic.js": "^0.1.1"
   },
@@ -13,12 +16,14 @@
     "concurrently": "^5.0.2",
     "http-server": "^0.12.1",
     "nyc": "^15.0.0",
-    "rollup": "^1.1.2",
+    "rollup": "^1.29.1",
     "standard": "^14.0.0",
-    "typescript": "^3.7.4"
+    "typescript": "^3.7.5"
   },
   "scripts": {
-    "dist": "rm -rf dist && rollup -c",
+    "clean": "rm -rf dist *.d.ts */*.d.ts *.d.ts.map */*.d.ts.map",
+    "types": "tsc --outDir .",
+    "dist": "npm run clean && rollup -c",
     "debug": "rollup -c && concurrently 'rollup -wc' 'http-server -o test.html'",
     "test": "npm run lint && npm run dist && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.cjs --repitition-time 50 --production",
     "test-extensive": "npm test -- --repitition-time 30000 --extensive",
@@ -26,7 +31,8 @@
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.cjs",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",
-    "preversion": "npm run test"
+    "preversion": "npm run test && npm run types",
+    "postpack": "npm run clean"
   },
   "repository": {
     "type": "git",

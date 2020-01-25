@@ -30,11 +30,18 @@ const upgradedEventName = 'upgraded'
  */
 export class Lib0Component extends HTMLElement {
   /**
-   * @param {S} state
+   * @param {S} [state]
    */
   constructor (state) {
     super()
-    this.state = state
+    /**
+     * @type {S|null}
+     */
+    this.state = /** @type {any} */ (state)
+    /**
+     * @type {any}
+     */
+    this._internal = {}
   }
 
   /**
@@ -103,10 +110,11 @@ const parseAttrVal = (val, type) => {
 /**
  * @param {string} name
  * @param {CONF<T>} cnf
+ * @return {typeof Lib0Component}
  *
  * @template T
  */
-export const createComponent = (name, { template, style = '', state, onStateChange = () => {}, childStates = { }, attrs = {}, listeners = {}, slots = () => ({}) }) => {
+export const createComponent = (name, { template, style = '', state: defaultState, onStateChange = () => {}, childStates = { }, attrs = {}, listeners = {}, slots = () => ({}) }) => {
   /**
    * Maps from camelCase attribute name to kebap-case attribute name.
    * @type {Object<string,string>}
@@ -122,11 +130,14 @@ export const createComponent = (name, { template, style = '', state, onStateChan
     </template>
   `)) : null
 
-  class Lib0Component extends HTMLElement {
-    constructor () {
+  class _Lib0Component extends HTMLElement {
+    /**
+     * @param {T} [state]
+     */
+    constructor (state) {
       super()
       /**
-       * @type {Array<{d:Lib0Component, s:function(any, any):Object}>}
+       * @type {Array<{d:Lib0Component<T>, s:function(any, any):Object}>}
        */
       this._childStates = []
       this._init = false
@@ -137,7 +148,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       /**
        * @type {any}
        */
-      this.state = /** @type {any} */ (object.assign({}, state))
+      this.state = state || (object.assign({}, defaultState))
       // init shadow dom
       if (templateElement) {
         const shadow = /** @type {ShadowRoot} */ (this.attachShadow({ mode: 'open' }))
@@ -145,7 +156,7 @@ export const createComponent = (name, { template, style = '', state, onStateChan
         // fill child states
         for (const key in childStates) {
           this._childStates.push({
-            d: /** @type {Lib0Component} */ (dom.querySelector(/** @type {any} */ (shadow), key)),
+            d: /** @type {Lib0Component<T>} */ (dom.querySelector(/** @type {any} */ (shadow), key)),
             s: childStates[key]
           })
         }
@@ -279,8 +290,9 @@ export const createComponent = (name, { template, style = '', state, onStateChan
       }
     }
   }
-  define(name, Lib0Component)
-  return Lib0Component
+  define(name, _Lib0Component)
+  // @ts-ignore
+  return _Lib0Component
 }
 
 /**

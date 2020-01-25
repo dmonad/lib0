@@ -1,3 +1,5 @@
 *.test.js
 tsconfig.json
 rollup.config.js
+.nyc_output
+.travis.yml
