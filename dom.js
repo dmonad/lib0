@@ -254,13 +254,13 @@ export const insertBefore = (parent, el, ref) => parent.insertBefore(el, ref)
 /* istanbul ignore next */
 export const appendChild = (parent, child) => parent.appendChild(child)
 
-export const ELEMENT_NODE = document.ELEMENT_NODE
-export const TEXT_NODE = document.TEXT_NODE
-export const CDATA_SECTION_NODE = document.CDATA_SECTION_NODE
-export const COMMENT_NODE = document.COMMENT_NODE
-export const DOCUMENT_NODE = document.DOCUMENT_NODE
-export const DOCUMENT_TYPE_NODE = document.DOCUMENT_TYPE_NODE
-export const DOCUMENT_FRAGMENT_NODE = document.DOCUMENT_FRAGMENT_NODE
+export const ELEMENT_NODE = doc.ELEMENT_NODE
+export const TEXT_NODE = doc.TEXT_NODE
+export const CDATA_SECTION_NODE = doc.CDATA_SECTION_NODE
+export const COMMENT_NODE = doc.COMMENT_NODE
+export const DOCUMENT_NODE = doc.DOCUMENT_NODE
+export const DOCUMENT_TYPE_NODE = doc.DOCUMENT_TYPE_NODE
+export const DOCUMENT_FRAGMENT_NODE = doc.DOCUMENT_FRAGMENT_NODE
 
 /**
  * @param {any} node
