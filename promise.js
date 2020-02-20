@@ -47,6 +47,7 @@ export const until = (timeout, check) => create((resolve, reject) => {
       clearInterval(intervalHandle)
       resolve()
     } else if (hasTimeout) {
+      /* istanbul ignore else */
       if (time.getUnixTime() - startTime > timeout) {
         clearInterval(intervalHandle)
         reject(new Error('Timeout'))
