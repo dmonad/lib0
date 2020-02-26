@@ -4,6 +4,7 @@
 
 import * as map from './map.js'
 import * as buffer from './buffer.js'
+import * as storage from './storage.js'
 
 /**
  * @typedef {Object} Channel
@@ -33,9 +34,7 @@ class LocalStoragePolyfill {
    * @param {ArrayBuffer} buf
    */
   postMessage (buf) {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(this.room, buffer.toBase64(buffer.createUint8ArrayFromArrayBuffer(buf)))
-    }
+    storage.varStorage.setItem(this.room, buffer.toBase64(buffer.createUint8ArrayFromArrayBuffer(buf)))
   }
 }
 

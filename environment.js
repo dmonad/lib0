@@ -2,6 +2,7 @@
 import * as map from './map.js'
 import * as string from './string.js'
 import * as conditions from './conditions.js'
+import * as storage from './storage.js'
 
 /* istanbul ignore next */
 // @ts-ignore
@@ -80,7 +81,7 @@ export const getParam = (name, defaultVal) => computeParams().get(name) || defau
  * @return {string|null}
  */
 /* istanbul ignore next */
-export const getVariable = name => isNode ? conditions.undefinedToNull(process.env[name.toUpperCase()]) : conditions.undefinedToNull(window.localStorage.getItem(name))
+export const getVariable = name => isNode ? conditions.undefinedToNull(process.env[name.toUpperCase()]) : conditions.undefinedToNull(storage.varStorage.getItem(name))
 
 /**
  * @param {string} name
