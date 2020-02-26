@@ -35,11 +35,14 @@ export const reject = reason => Promise.reject(reason)
 export const resolve = res => Promise.resolve(res)
 
 /**
+ * @todo Next version, reorder parameters: check, [timeout, [intervalResolution]]
+ *
  * @param {number} timeout
  * @param {function():boolean} check
+ * @param {number} [intervalResolution]
  * @return {Promise<void>}
  */
-export const until = (timeout, check) => create((resolve, reject) => {
+export const until = (timeout, check, intervalResolution = 10) => create((resolve, reject) => {
   const startTime = time.getUnixTime()
   const hasTimeout = timeout > 0
   const untilInterval = () => {
@@ -54,7 +57,7 @@ export const until = (timeout, check) => create((resolve, reject) => {
       }
     }
   }
-  const intervalHandle = setInterval(untilInterval, 10)
+  const intervalHandle = setInterval(untilInterval, intervalResolution)
 })
 
 /**

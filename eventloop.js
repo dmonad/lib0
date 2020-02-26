@@ -1,3 +1,5 @@
+/* global requestIdleCallback, requestAnimationFrame, cancelIdleCallback, cancelAnimationFrame */
+
 /**
  * @type {Array<function>}
  */
@@ -19,3 +21,66 @@ export const enqueue = f => {
     setTimeout(_runQueue, 0)
   }
 }
+
+/**
+ * @typedef {Object} TimeoutObject
+ * @property {function} TimeoutObject.destroy
+ */
+
+/**
+ * @param {function(number):void} clearFunction
+ */
+const createTimeoutClass = clearFunction => class TT {
+  /**
+   * @param {number} timeoutId
+   */
+  constructor (timeoutId) {
+    this._ = timeoutId
+  }
+
+  destroy () {
+    clearFunction(this._)
+  }
+}
+
+const Timeout = createTimeoutClass(clearTimeout)
+
+/**
+ * @param {number} timeout
+ * @param {function} callback
+ * @return {TimeoutObject}
+ */
+export const timeout = (timeout, callback) => new Timeout(setTimeout(callback, timeout))
+
+const Interval = createTimeoutClass(clearInterval)
+
+/**
+ * @param {number} timeout
+ * @param {function} callback
+ * @return {TimeoutObject}
+ */
+export const interval = (timeout, callback) => new Interval(setInterval(callback, timeout))
+
+/* istanbul ignore next */
+export const Animation = createTimeoutClass(arg => typeof requestAnimationFrame !== 'undefined' && cancelAnimationFrame(arg))
+
+/* istanbul ignore next */
+/**
+ * @param {function(number):void} cb
+ * @return {TimeoutObject}
+ */
+export const animationFrame = cb => typeof requestAnimationFrame === 'undefined' ? timeout(0, cb) : new Animation(requestAnimationFrame(cb))
+
+/* istanbul ignore next */
+// @ts-ignore
+const Idle = createTimeoutClass(arg => typeof cancelIdleCallback !== 'undefined' && cancelIdleCallback(arg))
+
+/* istanbul ignore next */
+/**
+ * Note: this is experimental and is probably only useful in browsers.
+ *
+ * @param {function} cb
+ * @return {TimeoutObject}
+ */
+// @ts-ignore
+export const idleCallback = cb => typeof requestIdleCallback !== 'undefined' ? new Idle(requestIdleCallback(cb)) : timeout(1000, cb)
