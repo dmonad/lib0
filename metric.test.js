@@ -5,6 +5,7 @@ import * as metric from './metric.js'
  * @param {t.TestCase} tc
  */
 export const testMetricPrefix = tc => {
+  t.compare(metric.prefix(0), { n: 0, prefix: '' })
   t.compare(metric.prefix(1, -1), { n: 1, prefix: 'm' })
   t.compare(metric.prefix(1.5), { n: 1.5, prefix: '' })
   t.compare(metric.prefix(100.5), { n: 100.5, prefix: '' })

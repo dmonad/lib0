@@ -30,7 +30,7 @@ const prefixDown = ['', 'm', 'μ', 'n', 'p', 'f', 'a', 'z', 'y']
  * @return {{n:number,prefix:string}}
  */
 export const prefix = (n, baseMultiplier = 0) => {
-  const nPow = math.log10(n)
+  const nPow = n === 0 ? 0 : math.log10(n)
   let mult = 0
   while (nPow < mult * 3 && baseMultiplier > -8) {
     baseMultiplier--
