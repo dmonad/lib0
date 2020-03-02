@@ -16,7 +16,7 @@ export const testTime = tc => {
  */
 export const testHumanDuration = tc => {
   t.assert(time.humanizeDuration(10) === '10ms')
-  t.assert(time.humanizeDuration(.1) === '100μs')
+  t.assert(time.humanizeDuration(0.1) === '100μs')
   t.assert(time.humanizeDuration(61030) === '1min 1s')
   t.assert(time.humanizeDuration(60030) === '1min')
   t.assert(time.humanizeDuration(3600001) === '1h')

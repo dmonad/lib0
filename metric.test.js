@@ -9,8 +9,8 @@ export const testMetricPrefix = tc => {
   t.compare(metric.prefix(1.5), { n: 1.5, prefix: '' })
   t.compare(metric.prefix(100.5), { n: 100.5, prefix: '' })
   t.compare(metric.prefix(1000.5), { n: 1.0005, prefix: 'k' })
-  t.compare(metric.prefix(.3), { n: 300, prefix: 'm' })
-  t.compare(metric.prefix(.001), { n: 1, prefix: 'm' })
+  t.compare(metric.prefix(0.3), { n: 300, prefix: 'm' })
+  t.compare(metric.prefix(0.001), { n: 1, prefix: 'm' })
   // up
   t.compare(metric.prefix(10000), { n: 10, prefix: 'k' })
   t.compare(metric.prefix(1e7), { n: 10, prefix: 'M' })
@@ -22,7 +22,7 @@ export const testMetricPrefix = tc => {
   t.compare(metric.prefix(1e24), { n: 1, prefix: 'Y' })
   t.compare(metric.prefix(1e28), { n: 10000, prefix: 'Y' })
   // down
-  t.compare(metric.prefix(.01), { n: 10, prefix: 'm' })
+  t.compare(metric.prefix(0.01), { n: 10, prefix: 'm' })
   t.compare(metric.prefix(1e-4), { n: 100, prefix: 'μ' })
   t.compare(metric.prefix(1e-9), { n: 1, prefix: 'n' })
   t.compare(metric.prefix(1e-12), { n: 1, prefix: 'p' })
@@ -30,5 +30,5 @@ export const testMetricPrefix = tc => {
   t.compare(metric.prefix(1e-18), { n: 1, prefix: 'a' })
   t.compare(metric.prefix(1e-21), { n: 1, prefix: 'z' })
   t.compare(metric.prefix(1e-22), { n: 100, prefix: 'y' })
-  t.compare(metric.prefix(1e-30), { n: .000001, prefix: 'y' })
+  t.compare(metric.prefix(1e-30), { n: 0.000001, prefix: 'y' })
 }

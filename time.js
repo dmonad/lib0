@@ -22,7 +22,7 @@ export const humanizeDuration = d => {
   if (days > 0) {
     return days + 'd' + (hours > 0 ? ' ' + (minutes > 30 ? hours + 1 : hours) + 'h' : '')
   }
-  if (hours > 0 ) {
+  if (hours > 0) {
     return hours + 'h' + (minutes > 0 ? ' ' + (seconds > 30 ? minutes + 1 : minutes) + 'min' : '')
   }
   return minutes + 'min' + (seconds > 0 ? ' ' + seconds + 's' : '')
