@@ -36,3 +36,12 @@ export const min = (a, b) => a < b ? a : b
 export const max = (a, b) => a > b ? a : b
 
 export const isNaN = Number.isNaN
+
+export const pow = Math.pow
+/**
+ * Base 10 exponential function. Returns the value of 10 raised to the power of pow.
+ *
+ * @param {number} exp
+ * @return {number}
+ */
+export const exp10 = exp => Math.pow(10, exp)

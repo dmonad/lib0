@@ -13,6 +13,7 @@ import * as statistics from './statistics.js'
 import * as array from './array.js'
 import * as env from './environment.js'
 import * as json from './json.js'
+import * as time from './time.js'
 
 import { performance } from './isomorphic.js'
 
@@ -129,8 +130,8 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     ? `     - ${window.location.href}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
     : `\nrepeat: npm run test -- --filter "\\[${i + 1}/" ${tc._seed === null ? '' : `--seed ${tc._seed}`}`
   const timeInfo = (repeat && err === null)
-    ? ` - ${times.length} repititions in ${duration.toFixed(2)}ms (best: ${times[0].toFixed(2)}ms, worst: ${array.last(times).toFixed(2)}ms, median: ${statistics.median(times).toFixed(2)}ms, average: ${statistics.average(times).toFixed(2)}ms)`
-    : ` in ${duration.toFixed(2)}ms`
+    ? ` - ${times.length} repititions in ${time.humanizeDuration(duration)} (best: ${time.humanizeDuration(times[0])}, worst: ${time.humanizeDuration(array.last(times))}, median: ${time.humanizeDuration(statistics.median(times))}, average: ${time.humanizeDuration(statistics.average(times))})`
+    : ` in ${time.humanizeDuration(duration)}`
   if (err !== null) {
     /* istanbul ignore else */
     if (err.constructor === SkipError) {
@@ -190,7 +191,7 @@ export const measureTime = async (message, f) => {
     iterations++
   }
   const iterationsInfo = iterations > 1 ? `, ${iterations} repititions` : ''
-  log.print(log.PURPLE, message, log.GREY, ` ${(duration / iterations)}ms${iterationsInfo}`)
+  log.print(log.PURPLE, message, log.GREY, ` ${time.humanizeDuration(duration / iterations)}${iterationsInfo}`)
 }
 
 /**
@@ -411,7 +412,7 @@ export const runTests = async tests => {
   const success = successfulTests === numberOfTests
   /* istanbul ignore else */
   if (success) {
-    log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${(end - start).toFixed(2)}ms`)
+    log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${time.humanizeDuration(end - start)}`)
     /* istanbul ignore next */
     log.printImgBase64(nyanCatImage, 50)
   } else {
