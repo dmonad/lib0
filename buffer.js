@@ -30,7 +30,7 @@ export const createUint8ArrayFromArrayBuffer = buffer => new Uint8Array(buffer)
 const toBase64Browser = bytes => {
   let s = ''
   for (let i = 0; i < bytes.byteLength; i++) {
-    s += string.fromCharCode(bytes[i])
+    s += String.fromCharCode(bytes[i])
   }
   // eslint-disable-next-line no-undef
   return btoa(s)
