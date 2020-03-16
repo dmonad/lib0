@@ -907,19 +907,88 @@ integrate this algorithm.</p>
 </details>
 <details><summary><b>[lib0/testing]</b> Testing framework with support for generating tests.</summary>
 <pre>import * as testing from 'lib0/testing.js'</pre>
+
+<pre class="prettyprint source lang-js"><code>// test.js template for creating a test executable
+import { runTests } from 'lib0/testing.js'
+import * as log from 'lib0/logging.js'
+import * as mod1 from './mod1.test.js'
+import * as mod2 from './mod2.test.js'
+import { isBrowser, isNode } from 'lib0/environment.js'
+
+if (isBrowser) {
+  // optional: if this is ran in the browser, attach a virtual console to the dom
+  log.createVConsole(document.body)
+}
+
+runTests({
+ mod1,
+ mod2,
+}).then(success => {
+  if (isNode) {
+    process.exit(success ? 0 : 1)
+  }
+})
+</code></pre>
+<pre class="prettyprint source lang-js"><code>// mod1.test.js
+/**
+ * runTests automatically tests all exported functions that start with &quot;test&quot;.
+ * The name of the function should be in camelCase and is used for the logging output.
+ *
+ * @param {t.TestCase} tc
+ *\/
+export const testMyFirstTest = tc => {
+  t.compare({ a: 4 }, { a: 4 }, 'objects are equal')
+}
+</code></pre>
+<p>Now you can simply run <code>node test.js</code> to run your test or run test.js in the browser.</p>
 <dl>
 <b><code>testing.extensive</code></b><br>
 <b><code>testing.envSeed</code></b><br>
 <b><code>new testing.TestCase(moduleName: string, testName: string)</code></b><br>
+<b><code>testing.TestCase#moduleName: string</code></b><br>
+<b><code>testing.TestCase#testName: string</code></b><br>
 <b><code>testing.TestCase#resetSeed()</code></b><br>
+<b><code>testing.TestCase#prng: prng.PRNG</code></b><br>
+<dd><p>A PRNG for this test case. Use only this PRNG for randomness to make the test case reproducible.</p></dd>
 <b><code>testing.repititionTime</code></b><br>
 <b><code>testing.run(moduleName: string, name: string, f: function(module:testing.TestCase):void|Promise&lt;any&gt;, i: number, numberOfTests: number)</code></b><br>
 <b><code>testing.describe(description: string, info: string)</code></b><br>
+<dd><p>Describe what you are currently testing. The message will be logged.</p>
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = tc => {
+  t.describe('crunching numbers', 'already crunched 4 numbers!') // the optional second argument can describe the state.
+}
+</code></pre></dd>
 <b><code>testing.info(info: string)</code></b><br>
+<dd><p>Describe the state of the current computation.</p>
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = tc => {
+  t.info(already crunched 4 numbers!') // the optional second argument can describe the state.
+}
+</code></pre></dd>
 <b><code>testing.printDom</code></b><br>
 <b><code>testing.printCanvas</code></b><br>
-<b><code>testing.group(description: string, f: function(void):void)</code></b><br>
+<b><code>testing.group(description: string, f: function(void):void|Promise&lt;undefined&gt;)</code></b><br>
+<dd><p>Group outputs in a collapsible category.</p>
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = tc => {
+  t.group('subtest 1', () => {
+    t.describe('this message is part of a collapsible section')
+  })
+  t.group('subtest async 2', async () => {
+    await someaction()
+    t.describe('this message is part of a collapsible section')
+  })
+}
+</code></pre></dd>
 <b><code>testing.measureTime(message: string, f: function():void|Promise&lt;undefined&gt;)</code></b><br>
+<dd><p>Measure the time that it takes to calculate something.</p>
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = tc => {
+  t.measureTime('measurement', () => {
+    heavyCalculation()
+  })
+  t.group('async measurement', async () => {
+    await heavyAsyncCalculation()
+  })
+}
+</code></pre></dd>
 <b><code>testing.compareArrays(as: Array&lt;T&gt;, bs: Array&lt;T&gt;, m: string): boolean</code></b><br>
 <b><code>testing.compareStrings(a: string, b: string, m: string)</code></b><br>
 <b><code>testing.compareObjects(a: Object&lt;K,V&gt;, b: Object&lt;K,V&gt;, m: string)</code></b><br>

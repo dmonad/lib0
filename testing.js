@@ -1,6 +1,45 @@
 /**
  * Testing framework with support for generating tests.
  *
+ * ```js
+ * // test.js template for creating a test executable
+ * import { runTests } from 'lib0/testing.js'
+ * import * as log from 'lib0/logging.js'
+ * import * as mod1 from './mod1.test.js'
+ * import * as mod2 from './mod2.test.js'
+
+ * import { isBrowser, isNode } from 'lib0/environment.js'
+ *
+ * if (isBrowser) {
+ *   // optional: if this is ran in the browser, attach a virtual console to the dom
+ *   log.createVConsole(document.body)
+ * }
+ *
+ * runTests({
+ *  mod1,
+ *  mod2,
+ * }).then(success => {
+ *   if (isNode) {
+ *     process.exit(success ? 0 : 1)
+ *   }
+ * })
+ * ```
+ *
+ * ```js
+ * // mod1.test.js
+ * /**
+ *  * runTests automatically tests all exported functions that start with "test".
+ *  * The name of the function should be in camelCase and is used for the logging output.
+ *  *
+ *  * @param {t.TestCase} tc
+ *  *\/
+ * export const testMyFirstTest = tc => {
+ *   t.compare({ a: 4 }, { a: 4 }, 'objects are equal')
+ * }
+ * ```
+ *
+ * Now you can simply run `node test.js` to run your test or run test.js in the browser.
+ *
  * @module testing
  */
 
@@ -32,7 +71,13 @@ export class TestCase {
    * @param {string} testName
    */
   constructor (moduleName, testName) {
+    /**
+     * @type {string}
+     */
     this.moduleName = moduleName
+    /**
+     * @type {string}
+     */
     this.testName = testName
     this._seed = null
     this._prng = null
@@ -43,6 +88,9 @@ export class TestCase {
     this._prng = null
   }
 
+  /**
+   * @type {number}
+   */
   /* istanbul ignore next */
   get seed () {
     /* istanbul ignore else */
@@ -53,6 +101,11 @@ export class TestCase {
     return this._seed
   }
 
+  /**
+   * A PRNG for this test case. Use only this PRNG for randomness to make the test case reproducible.
+   *
+   * @type {prng.PRNG}
+   */
   get prng () {
     /* istanbul ignore else */
     if (this._prng === null) {
@@ -149,12 +202,27 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
 }
 
 /**
+ * Describe what you are currently testing. The message will be logged.
+ *
+ * ```js
+ * export const testMyFirstTest = tc => {
+ *   t.describe('crunching numbers', 'already crunched 4 numbers!') // the optional second argument can describe the state.
+ * }
+ * ```
+ *
  * @param {string} description
  * @param {string} info
  */
 export const describe = (description, info = '') => log.print(log.BLUE, description, ' ', log.GREY, info)
 
 /**
+ * Describe the state of the current computation.
+ * ```js
+ * export const testMyFirstTest = tc => {
+ *   t.info(already crunched 4 numbers!') // the optional second argument can describe the state.
+ * }
+ * ```
+ *
  * @param {string} info
  */
 export const info = info => describe('', info)
@@ -164,19 +232,49 @@ export const printDom = log.printDom
 export const printCanvas = log.printCanvas
 
 /**
+ * Group outputs in a collapsible category.
+ *
+ * ```js
+ * export const testMyFirstTest = tc => {
+ *   t.group('subtest 1', () => {
+ *     t.describe('this message is part of a collapsible section')
+ *   })
+ *   t.group('subtest async 2', async () => {
+ *     await someaction()
+ *     t.describe('this message is part of a collapsible section')
+ *   })
+ * }
+ * ```
+ *
  * @param {string} description
- * @param {function(void):void} f
+ * @param {function(void):void|Promise<undefined>} f
  */
-export const group = (description, f) => {
+export const group = async (description, f) => {
   log.group(log.BLUE, description)
   try {
-    f()
+    const p = f()
+    if (p) {
+      await p
+    }
   } finally {
     log.groupEnd()
   }
 }
 
 /**
+ * Measure the time that it takes to calculate something.
+ *
+ * ```js
+ * export const testMyFirstTest = tc => {
+ *   t.measureTime('measurement', () => {
+ *     heavyCalculation()
+ *   })
+ *   t.group('async measurement', async () => {
+ *     await heavyAsyncCalculation()
+ *   })
+ * }
+ * ```
+ *
  * @param {string} message
  * @param {function():void|Promise<undefined>} f
  */
