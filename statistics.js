@@ -1,3 +1,8 @@
+/**
+ * Utility helpers for generating statistics.
+ *
+ * @module statistics
+ */
 
 import * as math from './math.js'
 

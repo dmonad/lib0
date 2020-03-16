@@ -1,3 +1,9 @@
+/**
+ * Utility functions to work with buffers (Uint8Array).
+ *
+ * @module buffer
+ */
+
 import * as string from './string.js'
 import * as env from './environment.js'
 

@@ -1,3 +1,8 @@
+/**
+ * Isomorphic logging module with support for colors!
+ *
+ * @module logging
+ */
 
 import * as env from './environment.js'
 import * as symbol from './symbol.js'

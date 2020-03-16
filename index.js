@@ -1,3 +1,11 @@
+/**
+ * Experimental method to import lib0.
+ *
+ * Not recommended if the module bundler doesn't support dead code elimination.
+ *
+ * @module lib0
+ */
+
 import * as array from './array.js'
 import * as binary from './binary.js'
 import * as broadcastchannel from './broadcastchannel.js'

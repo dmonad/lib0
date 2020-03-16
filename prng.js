@@ -1,9 +1,10 @@
 /**
- * @module prng
+ * Fast Pseudo Random Number Generators.
  *
  * Given a seed a PRNG generates a sequence of numbers that cannot be reasonably predicted.
  * Two PRNGs must generate the same random sequence of numbers if  given the same seed.
  *
+ * @module prng
  */
 
 import * as binary from './binary.js'

@@ -1,3 +1,9 @@
+/**
+ * Isomorphic library exports from isomorphic.js.
+ *
+ * @module isomorphic
+ */
+
 // @ts-ignore
 import iso from 'isomorphic.js'
 

@@ -1,4 +1,6 @@
 /**
+ * Efficient diffs.
+ *
  * @module diff
  */
 

@@ -1,4 +1,6 @@
 /**
+ * Testing framework with support for generating tests.
+ *
  * @module testing
  */
 

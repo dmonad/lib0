@@ -1,3 +1,8 @@
+/**
+ * Observable class prototype.
+ *
+ * @module observable
+ */
 
 import * as map from './map.js'
 import * as set from './set.js'
@@ -11,6 +16,7 @@ import * as array from './array.js'
 export class Observable {
   constructor () {
     /**
+     * Some desc.
      * @type {Map<N, any>}
      */
     this._observers = map.create()

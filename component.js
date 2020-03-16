@@ -1,5 +1,11 @@
 /* eslint-env browser */
 
+/**
+ * Web components.
+ *
+ * @module component
+ */
+
 import * as dom from './dom.js'
 import * as diff from './diff.js'
 import * as object from './object.js'
@@ -12,14 +18,14 @@ export const registry = customElements
 
 /**
  * @param {string} name
- * @param {function} constr
+ * @param {any} constr
  * @param {ElementDefinitionOptions} [opts]
  */
 export const define = (name, constr, opts) => registry.define(name, constr, opts)
 
 /**
  * @param {string} name
- * @return Promise
+ * @return {Promise<void>}
  */
 export const whenDefined = name => registry.whenDefined(name)
 
@@ -108,11 +114,10 @@ const parseAttrVal = (val, type) => {
  */
 
 /**
+ * @template T
  * @param {string} name
  * @param {CONF<T>} cnf
  * @return {typeof Lib0Component}
- *
- * @template T
  */
 export const createComponent = (name, { template, style = '', state: defaultState, onStateChange = () => {}, childStates = { }, attrs = {}, listeners = {}, slots = () => ({}) }) => {
   /**
@@ -216,7 +221,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
      * @private
      */
     attributeChangedCallback (name, oldVal, newVal) {
-      const curState = /** @type {object} */ (this.state)
+      const curState = /** @type {any} */ (this.state)
       const camelAttrName = normalizedAttrs[name]
       const type = attrs[camelAttrName]
       const parsedVal = parseAttrVal(newVal, type)

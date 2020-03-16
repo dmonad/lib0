@@ -1,3 +1,8 @@
+/**
+ * Often used conditions.
+ *
+ * @module conditions
+ */
 
 /**
  * @template T

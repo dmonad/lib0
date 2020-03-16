@@ -1,3 +1,9 @@
+/**
+ * Utility module to convert metric values.
+ *
+ * @module metric
+ */
+
 import * as math from './math.js'
 
 export const yotta = 1e24
@@ -25,6 +31,8 @@ const prefixUp = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
 const prefixDown = ['', 'm', 'μ', 'n', 'p', 'f', 'a', 'z', 'y']
 
 /**
+ * Calculate the metric prefix for a number. Assumes E.g. `prefix(1000) = { n: 1, prefix: 'k' }`
+ *
  * @param {number} n
  * @param {number} [baseMultiplier] Multiplier of the base (10^(3*baseMultiplier)). E.g. `convert(time, -3)` if time is already in milli seconds
  * @return {{n:number,prefix:string}}

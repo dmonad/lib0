@@ -1,4 +1,10 @@
 /**
+ * Error helpers.
+ *
+ * @module error
+ */
+
+/**
  * @param {string} s
  * @return {Error}
  */
@@ -6,7 +12,7 @@
 export const create = s => new Error(s)
 
 /**
- * @throws
+ * @throws {Error}
  * @return {never}
  */
 /* istanbul ignore next */
@@ -15,7 +21,7 @@ export const methodUnimplemented = () => {
 }
 
 /**
- * @throws
+ * @throws {Error}
  * @return {never}
  */
 /* istanbul ignore next */

@@ -1,9 +1,16 @@
 /* eslint-env browser */
 
 /**
+ * Binary data constants.
+ *
  * @module binary
  */
 
+/**
+ * n-th bit activated.
+ *
+ * @type {number}
+ */
 export const BIT1 = 1
 export const BIT2 = 2
 export const BIT3 = 4
@@ -37,6 +44,11 @@ export const BIT30 = 1 << 29
 export const BIT31 = 1 << 30
 export const BIT32 = 1 << 31
 
+/**
+ * First n bits activated.
+ *
+ * @type {number}
+ */
 export const BITS0 = 0
 export const BITS1 = 1
 export const BITS2 = 3

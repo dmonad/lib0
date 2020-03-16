@@ -1,4 +1,11 @@
 /* eslint-env browser */
+
+/**
+ * Helpers to work with IndexedDB.
+ *
+ * @module idb
+ */
+
 import * as promise from './promise.js'
 import * as error from './error.js'
 
@@ -65,10 +72,11 @@ export const deleteDB = name => rtop(indexedDB.deleteDatabase(name))
 
 /**
  * @param {IDBDatabase} db
- * @param {Array<[string]|[string,IDBObjectStoreParameters|undefined]>} definitions
+ * @param {Array<Array<string>|Array<string|IDBObjectStoreParameters|undefined>>} definitions
  */
 /* istanbul ignore next */
 export const createStores = (db, definitions) => definitions.forEach(d =>
+  // @ts-ignore
   db.createObjectStore.apply(db, d)
 )
 

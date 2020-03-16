@@ -1,3 +1,8 @@
+/**
+ * Utility module to work with sets.
+ *
+ * @module set
+ */
 
 export const create = () => new Set()
 

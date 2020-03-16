@@ -1,3 +1,8 @@
+/**
+ * Common functions and function call helpers.
+ *
+ * @module function
+ */
 
 /**
  * Calls all functions in `fs` with args. Only throws after all functions were called.

@@ -1,3 +1,8 @@
+/**
+ * Mutual exclude for JavaScript.
+ *
+ * @module mutex
+ */
 
 /**
  * @callback mutex

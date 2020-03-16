@@ -1,4 +1,10 @@
 /**
+ * Utility module to create and manipulate Iterators.
+ *
+ * @module iterator
+ */
+
+/**
  * @template T,R
  * @param {Iterator<T>} iterator
  * @param {function(T):R} f

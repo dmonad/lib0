@@ -1,8 +1,18 @@
 /* eslint-env browser */
+
+/**
+ * Utility module to work with the DOM.
+ *
+ * @module dom
+ */
+
 import * as pair from './pair.js'
 import * as map from './map.js'
 
 /* istanbul ignore next */
+/**
+ * @type {Document}
+ */
 export const doc = /** @type {Document} */ (typeof document !== 'undefined' ? document : {})
 
 /**

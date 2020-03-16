@@ -1,6 +1,12 @@
 /* global requestIdleCallback, requestAnimationFrame, cancelIdleCallback, cancelAnimationFrame */
 
 /**
+ * Utility module to work with EcmaScript's event loop.
+ *
+ * @module eventloop
+ */
+
+/**
  * @type {Array<function>}
  */
 let queue = []

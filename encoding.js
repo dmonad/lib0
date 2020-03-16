@@ -1,9 +1,31 @@
 /**
- * @module encoding
+ * Efficient schema-less binary encoding with support for variable length encoding.
+ *
+ * Use [lib0/encoding] with [lib0/decoding]. Every encoding function has a corresponding decoding function.
+ *
  * Encodes numbers in little-endian order (least to most significant byte order)
- * This should be compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+ * and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
  * which is also used in Protocol Buffers.
+ *
+ * ```js
+ * // encoding step
+ * const encoder = new encoding.createEncoder()
+ * encoding.writeVarUint(encoder, 256)
+ * encoding.writeVarString(encoder, 'Hello world!')
+ * const buf = encoding.toUint8Array(encoder)
+ * ```
+ *
+ * ```js
+ * // decoding step
+ * const decoder = new decoding.createDecoder(buf)
+ * decoding.readVarUint(decoder) // => 256
+ * decoding.readVarString(decoder) // => 'Hello world!'
+ * decoding.hasContent(decoder) // => false - all data is read
+ * ```
+ *
+ * @module encoding
  */
+
 import * as buffer from './buffer.js'
 import * as math from './math.js'
 import * as number from './number.js'

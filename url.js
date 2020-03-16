@@ -1,3 +1,9 @@
+/**
+ * Utility module to work with urls.
+ *
+ * @module url
+ */
+
 import * as object from './object.js'
 
 /**

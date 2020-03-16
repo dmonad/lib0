@@ -1,8 +1,20 @@
+/**
+ * Utility helpers to work with promises.
+ *
+ * @module promise
+ */
+
 import * as time from './time.js'
 
 /**
  * @template T
- * @param {function(function(T|PromiseLike<T>):void,function(Error):void):any} f
+ * @callback PromiseResolve
+ * @param {T|PromiseLike<T>} [result]
+ */
+
+/**
+ * @template T
+ * @param {function(PromiseResolve<T>,function(Error):void):any} f
  * @return {Promise<T>}
  */
 export const create = f => new Promise(f)

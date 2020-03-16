@@ -1,7 +1,12 @@
 
 /**
+ * Isomorphic module for true random numbers / buffers / uuids.
+ *
+ * Attention: falls back to Math.random if the browser does not support crypto.
+ *
  * @module random
  */
+
 import * as math from './math.js'
 import { cryptoRandomBuffer } from './isomorphic.js'
 

@@ -1,6 +1,31 @@
 /**
+ * Efficient schema-less binary decoding with support for variable length encoding.
+ *
+ * Use [lib0/decoding] with [lib0/encoding]. Every encoding function has a corresponding decoding function.
+ *
+ * Encodes numbers in little-endian order (least to most significant byte order)
+ * and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+ * which is also used in Protocol Buffers.
+ *
+ * ```js
+ * // encoding step
+ * const encoder = new encoding.createEncoder()
+ * encoding.writeVarUint(encoder, 256)
+ * encoding.writeVarString(encoder, 'Hello world!')
+ * const buf = encoding.toUint8Array(encoder)
+ * ```
+ *
+ * ```js
+ * // decoding step
+ * const decoder = new decoding.createDecoder(buf)
+ * decoding.readVarUint(decoder) // => 256
+ * decoding.readVarString(decoder) // => 'Hello world!'
+ * decoding.hasContent(decoder) // => false - all data is read
+ * ```
+ *
  * @module decoding
  */
+
 import * as buffer from './buffer.js'
 import * as binary from './binary.js'
 import * as string from './string.js'
@@ -13,7 +38,17 @@ export class Decoder {
    * @param {Uint8Array} uint8Array Binary data to decode
    */
   constructor (uint8Array) {
+    /**
+     * Decoding target.
+     *
+     * @type {Uint8Array}
+     */
     this.arr = uint8Array
+    /**
+     * Current decoding position.
+     *
+     * @type {number}
+     */
     this.pos = 0
   }
 }

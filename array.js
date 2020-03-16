@@ -1,10 +1,15 @@
+/**
+ * Utility module to work with Arrays.
+ *
+ * @module array
+ */
 
 /**
  * Return the last element of an array. The element must exist
  *
- * @template T
- * @param {Array<T>} arr
- * @return {T}
+ * @template L
+ * @param {Array<L>} arr
+ * @return {L}
  */
 export const last = arr => arr[arr.length - 1]
 
@@ -24,9 +29,9 @@ export const copy = a => a.slice()
 /**
  * Append elements from src to dest
  *
- * @template T
- * @param {Array<T>} dest
- * @param {Array<T>} src
+ * @template M
+ * @param {Array<M>} dest
+ * @param {Array<M>} src
  */
 export const appendTo = (dest, src) => {
   for (let i = 0; i < src.length; i++) {
@@ -34,4 +39,10 @@ export const appendTo = (dest, src) => {
   }
 }
 
+/**
+ * @function
+ * @template T
+ * @param {ArrayLike<T>|Iterable<T>} arraylike
+ * @return {T}
+ */
 export const from = Array.from

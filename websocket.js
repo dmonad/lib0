@@ -1,5 +1,13 @@
 /* eslint-env browser */
 
+/**
+ * Tiny websocket connection handler.
+ *
+ * Implements exponential backoff reconnects, ping/pong, and a nice event system using [lib0/observable].
+ *
+ * @module websocket
+ */
+
 import { Observable } from './observable.js'
 import * as time from './time.js'
 import * as math from './math.js'

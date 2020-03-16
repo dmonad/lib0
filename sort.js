@@ -1,3 +1,12 @@
+/**
+ * Efficient sort implementations.
+ *
+ * Note: These sort implementations were created to compare different sorting algorithms in JavaScript.
+ * Don't use them if you don't know what you are doing. Native Array.sort is almost always a better choice.
+ *
+ * @module sort
+ */
+
 import * as math from './math.js'
 
 /**

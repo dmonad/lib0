@@ -13,6 +13,948 @@ Each function in this lib is tested thoroughly and is not deoptimized by v8. Thi
 * https://github.com/thlorenz/deoptigate - A great tool for investigating deoptimizations
 * https://github.com/vhf/v8-bailout-reasons - Description of some deopt messages
 
+### Modules
+
+<details><summary><b>[lib0/array]</b> Utility module to work with Arrays.</summary>
+<pre>import * as array from 'lib0/array.js'</pre>
+<dl>
+<b><code>array.last(arr: Array&lt;L&gt;): L</code></b><br>
+<dd><p>Return the last element of an array. The element must exist</p></dd>
+<b><code>array.create(): Array&lt;T&gt;</code></b><br>
+<b><code>array.copy(a: Array&lt;T&gt;): Array&lt;T&gt;</code></b><br>
+<b><code>array.appendTo(dest: Array&lt;M&gt;, src: Array&lt;M&gt;)</code></b><br>
+<dd><p>Append elements from src to dest</p></dd>
+<b><code>array.from(arraylike: ArrayLike&lt;T&gt;|Iterable&lt;T&gt;): T</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
+<pre>import * as binary from 'lib0/binary.js'</pre>
+<dl>
+<b><code>binary.BIT1: number</code></b><br>
+<dd><p>n-th bit activated.</p></dd>
+<b><code>binary.BIT2</code></b><br>
+<b><code>binary.BIT3</code></b><br>
+<b><code>binary.BIT4</code></b><br>
+<b><code>binary.BIT5</code></b><br>
+<b><code>binary.BIT6</code></b><br>
+<b><code>binary.BIT7</code></b><br>
+<b><code>binary.BIT8</code></b><br>
+<b><code>binary.BIT9</code></b><br>
+<b><code>binary.BIT10</code></b><br>
+<b><code>binary.BIT11</code></b><br>
+<b><code>binary.BIT12</code></b><br>
+<b><code>binary.BIT13</code></b><br>
+<b><code>binary.BIT14</code></b><br>
+<b><code>binary.BIT15</code></b><br>
+<b><code>binary.BIT16</code></b><br>
+<b><code>binary.BIT17</code></b><br>
+<b><code>binary.BIT18</code></b><br>
+<b><code>binary.BIT19</code></b><br>
+<b><code>binary.BIT20</code></b><br>
+<b><code>binary.BIT21</code></b><br>
+<b><code>binary.BIT22</code></b><br>
+<b><code>binary.BIT23</code></b><br>
+<b><code>binary.BIT24</code></b><br>
+<b><code>binary.BIT25</code></b><br>
+<b><code>binary.BIT26</code></b><br>
+<b><code>binary.BIT27</code></b><br>
+<b><code>binary.BIT28</code></b><br>
+<b><code>binary.BIT29</code></b><br>
+<b><code>binary.BIT30</code></b><br>
+<b><code>binary.BIT31</code></b><br>
+<b><code>binary.BIT32</code></b><br>
+<b><code>binary.BITS0: number</code></b><br>
+<dd><p>First n bits activated.</p></dd>
+<b><code>binary.BITS1</code></b><br>
+<b><code>binary.BITS2</code></b><br>
+<b><code>binary.BITS3</code></b><br>
+<b><code>binary.BITS4</code></b><br>
+<b><code>binary.BITS5</code></b><br>
+<b><code>binary.BITS6</code></b><br>
+<b><code>binary.BITS7</code></b><br>
+<b><code>binary.BITS8</code></b><br>
+<b><code>binary.BITS9</code></b><br>
+<b><code>binary.BITS10</code></b><br>
+<b><code>binary.BITS11</code></b><br>
+<b><code>binary.BITS12</code></b><br>
+<b><code>binary.BITS13</code></b><br>
+<b><code>binary.BITS14</code></b><br>
+<b><code>binary.BITS15</code></b><br>
+<b><code>binary.BITS16</code></b><br>
+<b><code>binary.BITS17</code></b><br>
+<b><code>binary.BITS18</code></b><br>
+<b><code>binary.BITS19</code></b><br>
+<b><code>binary.BITS20</code></b><br>
+<b><code>binary.BITS21</code></b><br>
+<b><code>binary.BITS22</code></b><br>
+<b><code>binary.BITS23</code></b><br>
+<b><code>binary.BITS24</code></b><br>
+<b><code>binary.BITS25</code></b><br>
+<b><code>binary.BITS26</code></b><br>
+<b><code>binary.BITS27</code></b><br>
+<b><code>binary.BITS28</code></b><br>
+<b><code>binary.BITS29</code></b><br>
+<b><code>binary.BITS30</code></b><br>
+<b><code>binary.BITS31</code></b><br>
+<b><code>binary.BITS32</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/broadcastchannel]</b> Helpers for cross-tab communication using broadcastchannel with LocalStorage fallback.</summary>
+<pre>import * as broadcastchannel from 'lib0/broadcastchannel.js'</pre>
+
+<pre class="prettyprint source lang-js"><code>// In browser window A:
+broadcastchannel.subscribe('my events', data => console.log(data))
+broadcastchannel.publish('my events', 'Hello world!') // => A: 'Hello world!' fires synchronously in same tab
+
+// In browser window B:
+broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from tab B'
+</code></pre>
+<dl>
+<b><code>broadcastchannel.subscribe(room: string, f: function(any):any)</code></b><br>
+<dd><p>Subscribe to global <code>publish</code> events.</p></dd>
+<b><code>broadcastchannel.unsubscribe(room: string, f: function(any):any)</code></b><br>
+<dd><p>Unsubscribe from <code>publish</code> global events.</p></dd>
+<b><code>broadcastchannel.publish(room: string, data: any)</code></b><br>
+<dd><p>Publish data to all subscribers (including subscribers on this tab)</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/buffer]</b> Utility functions to work with buffers (Uint8Array).</summary>
+<pre>import * as buffer from 'lib0/buffer.js'</pre>
+<dl>
+<b><code>buffer.createUint8ArrayFromLen(len: number)</code></b><br>
+<b><code>buffer.createUint8ArrayViewFromArrayBuffer(buffer: ArrayBuffer, byteOffset: number, length: number)</code></b><br>
+<dd><p>Create Uint8Array with initial content from buffer</p></dd>
+<b><code>buffer.createUint8ArrayFromArrayBuffer(buffer: ArrayBuffer)</code></b><br>
+<dd><p>Create Uint8Array with initial content from buffer</p></dd>
+<b><code>buffer.toBase64</code></b><br>
+<b><code>buffer.fromBase64</code></b><br>
+<b><code>buffer.copyUint8Array(uint8Array: Uint8Array): Uint8Array</code></b><br>
+<dd><p>Copy the content of an Uint8Array view to a new ArrayBuffer.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/component]</b> Web components.</summary>
+<pre>import * as component from 'lib0/component.js'</pre>
+<dl>
+<b><code>component.registry</code></b><br>
+<b><code>component.define(name: string, constr: any, opts: ElementDefinitionOptions)</code></b><br>
+<b><code>component.whenDefined(name: string): Promise&lt;void&gt;</code></b><br>
+<b><code>new component.Lib0Component(state: S)</code></b><br>
+<b><code>component.Lib0Component#state: S|null</code></b><br>
+<b><code>component.Lib0Component#setState(state: S)</code></b><br>
+<b><code>component.Lib0Component#updateState(stateUpdate: any)</code></b><br>
+<b><code>component.createComponent(name: string, cnf: module:component~CONF&lt;T&gt;): Class&lt;module:component.Lib0Component&gt;</code></b><br>
+<b><code>component.createComponentDefiner(definer: function)</code></b><br>
+<b><code>component.defineListComponent</code></b><br>
+<b><code>component.defineLazyLoadingComponent</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/conditions]</b> Often used conditions.</summary>
+<pre>import * as conditions from 'lib0/conditions.js'</pre>
+<dl>
+<b><code>conditions.undefinedToNull</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/decoding]</b> Efficient schema-less binary decoding with support for variable length encoding.</summary>
+<pre>import * as decoding from 'lib0/decoding.js'</pre>
+
+<p>Use [lib0/decoding] with [lib0/encoding]. Every encoding function has a corresponding decoding function.</p>
+<p>Encodes numbers in little-endian order (least to most significant byte order)
+and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+which is also used in Protocol Buffers.</p>
+<pre class="prettyprint source lang-js"><code>// encoding step
+const encoder = new encoding.createEncoder()
+encoding.writeVarUint(encoder, 256)
+encoding.writeVarString(encoder, 'Hello world!')
+const buf = encoding.toUint8Array(encoder)
+</code></pre>
+<pre class="prettyprint source lang-js"><code>// decoding step
+const decoder = new decoding.createDecoder(buf)
+decoding.readVarUint(decoder) // => 256
+decoding.readVarString(decoder) // => 'Hello world!'
+decoding.hasContent(decoder) // => false - all data is read
+</code></pre>
+<dl>
+<b><code>new decoding.Decoder(uint8Array: Uint8Array)</code></b><br>
+<dd><p>A Decoder handles the decoding of an Uint8Array.</p></dd>
+<b><code>decoding.Decoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.Decoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
+<b><code>decoding.createDecoder(uint8Array: Uint8Array): module:decoding.Decoder</code></b><br>
+<b><code>decoding.hasContent(decoder: module:decoding.Decoder): boolean</code></b><br>
+<b><code>decoding.clone(decoder: module:decoding.Decoder, newPos: number): module:decoding.Decoder</code></b><br>
+<dd><p>Clone a decoder instance.
+Optionally set a new position parameter.</p></dd>
+<b><code>decoding.readUint8Array(decoder: module:decoding.Decoder, len: number): Uint8Array</code></b><br>
+<dd><p>Create an Uint8Array view of the next <code>len</code> bytes and advance the position by <code>len</code>.</p>
+<p>Important: The Uint8Array still points to the underlying ArrayBuffer. Make sure to discard the result as soon as possible to prevent any memory leaks.
+Use <code>buffer.copyUint8Array</code> to copy the result into a new Uint8Array.</p></dd>
+<b><code>decoding.readVarUint8Array(decoder: module:decoding.Decoder): Uint8Array</code></b><br>
+<dd><p>Read variable length Uint8Array.</p>
+<p>Important: The Uint8Array still points to the underlying ArrayBuffer. Make sure to discard the result as soon as possible to prevent any memory leaks.
+Use <code>buffer.copyUint8Array</code> to copy the result into a new Uint8Array.</p></dd>
+<b><code>decoding.readTailAsUint8Array(decoder: module:decoding.Decoder): Uint8Array</code></b><br>
+<dd><p>Read the rest of the content as an ArrayBuffer</p></dd>
+<b><code>decoding.skip8(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Skip one byte, jump to the next position.</p></dd>
+<b><code>decoding.readUint8(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Read one byte as unsigned integer.</p></dd>
+<b><code>decoding.readUint16(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Read 2 bytes as unsigned integer.</p></dd>
+<b><code>decoding.readUint32(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Read 4 bytes as unsigned integer.</p></dd>
+<b><code>decoding.peekUint8(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Look ahead without incrementing position.
+to the next byte and read it as unsigned integer.</p></dd>
+<b><code>decoding.peekUint16(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Look ahead without incrementing position.
+to the next byte and read it as unsigned integer.</p></dd>
+<b><code>decoding.peekUint32(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Look ahead without incrementing position.
+to the next byte and read it as unsigned integer.</p></dd>
+<b><code>decoding.readVarUint(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Read unsigned integer (32bit) with variable length.
+1/8th of the storage is used as encoding overhead.</p>
+<ul>
+<li>numbers &lt; 2^7 is stored in one bytlength</li>
+<li>numbers &lt; 2^14 is stored in two bylength</li>
+</ul></dd>
+<b><code>decoding.readVarInt(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Read signed integer (32bit) with variable length.
+1/8th of the storage is used as encoding overhead.</p>
+<ul>
+<li>numbers &lt; 2^7 is stored in one bytlength</li>
+<li>numbers &lt; 2^14 is stored in two bylength</li>
+</ul></dd>
+<b><code>decoding.peekVarUint(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Look ahead and read varUint without incrementing position</p></dd>
+<b><code>decoding.peekVarInt(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Look ahead and read varUint without incrementing position</p></dd>
+<b><code>decoding.readVarString(decoder: module:decoding.Decoder): String</code></b><br>
+<dd><p>Read string of variable length</p>
+<ul>
+<li>varUint is used to store the length of the string</li>
+</ul>
+<p>Transforming utf8 to a string is pretty expensive. The code performs 10x better
+when String.fromCodePoint is fed with all characters as arguments.
+But most environments have a maximum number of arguments per functions.
+For effiency reasons we apply a maximum of 10000 characters at once.</p></dd>
+<b><code>decoding.peekVarString(decoder: module:decoding.Decoder): string</code></b><br>
+<dd><p>Look ahead and read varString without incrementing position</p></dd>
+<b><code>decoding.readFromDataView(decoder: module:decoding.Decoder, len: number): DataView</code></b><br>
+<b><code>decoding.readFloat32(decoder: module:decoding.Decoder)</code></b><br>
+<b><code>decoding.readFloat64(decoder: module:decoding.Decoder)</code></b><br>
+<b><code>decoding.readBigInt64(decoder: module:decoding.Decoder)</code></b><br>
+<b><code>decoding.readBigUint64(decoder: module:decoding.Decoder)</code></b><br>
+<b><code>decoding.readAny(decoder: module:decoding.Decoder)</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/diff]</b> Efficient diffs.</summary>
+<pre>import * as diff from 'lib0/diff.js'</pre>
+<dl>
+<b><code>diff.simpleDiffString(a: string, b: string): module:diff~SimpleDiff&lt;string&gt;</code></b><br>
+<dd><p>Create a diff between two strings. This diff implementation is highly
+efficient, but not very sophisticated.</p></dd>
+<b><code>diff.simpleDiff</code></b><br>
+<b><code>diff.simpleDiffArray(a: Array&lt;T&gt;, b: Array&lt;T&gt;): module:diff~SimpleDiff&lt;Array&lt;T&gt;&gt;</code></b><br>
+<dd><p>Create a diff between two arrays. This diff implementation is highly
+efficient, but not very sophisticated.</p>
+<p>Note: This is basically the same function as above. Another function was created so that the runtime
+can better optimize these function calls.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/dom]</b> Utility module to work with the DOM.</summary>
+<pre>import * as dom from 'lib0/dom.js'</pre>
+<dl>
+<b><code>dom.doc: Document</code></b><br>
+<b><code>dom.createElement</code></b><br>
+<b><code>dom.createDocumentFragment</code></b><br>
+<b><code>dom.createTextNode</code></b><br>
+<b><code>dom.domParser</code></b><br>
+<b><code>dom.emitCustomEvent</code></b><br>
+<b><code>dom.setAttributes</code></b><br>
+<b><code>dom.setAttributesMap</code></b><br>
+<b><code>dom.fragment</code></b><br>
+<b><code>dom.append</code></b><br>
+<b><code>dom.remove</code></b><br>
+<b><code>dom.addEventListener</code></b><br>
+<b><code>dom.removeEventListener</code></b><br>
+<b><code>dom.addEventListeners</code></b><br>
+<b><code>dom.removeEventListeners</code></b><br>
+<b><code>dom.element</code></b><br>
+<b><code>dom.canvas</code></b><br>
+<b><code>dom.text</code></b><br>
+<b><code>dom.pairToStyleString</code></b><br>
+<b><code>dom.pairsToStyleString</code></b><br>
+<b><code>dom.mapToStyleString</code></b><br>
+<b><code>dom.querySelector</code></b><br>
+<b><code>dom.querySelectorAll</code></b><br>
+<b><code>dom.getElementById</code></b><br>
+<b><code>dom.parseFragment</code></b><br>
+<b><code>dom.childNodes: any</code></b><br>
+<b><code>dom.parseElement</code></b><br>
+<b><code>dom.replaceWith</code></b><br>
+<b><code>dom.insertBefore</code></b><br>
+<b><code>dom.appendChild</code></b><br>
+<b><code>dom.ELEMENT_NODE</code></b><br>
+<b><code>dom.TEXT_NODE</code></b><br>
+<b><code>dom.CDATA_SECTION_NODE</code></b><br>
+<b><code>dom.COMMENT_NODE</code></b><br>
+<b><code>dom.DOCUMENT_NODE</code></b><br>
+<b><code>dom.DOCUMENT_TYPE_NODE</code></b><br>
+<b><code>dom.DOCUMENT_FRAGMENT_NODE</code></b><br>
+<b><code>dom.checkNodeType(node: any, type: number)</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/encoding]</b> Efficient schema-less binary encoding with support for variable length encoding.</summary>
+<pre>import * as encoding from 'lib0/encoding.js'</pre>
+
+<p>Use [lib0/encoding] with [lib0/decoding]. Every encoding function has a corresponding decoding function.</p>
+<p>Encodes numbers in little-endian order (least to most significant byte order)
+and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
+which is also used in Protocol Buffers.</p>
+<pre class="prettyprint source lang-js"><code>// encoding step
+const encoder = new encoding.createEncoder()
+encoding.writeVarUint(encoder, 256)
+encoding.writeVarString(encoder, 'Hello world!')
+const buf = encoding.toUint8Array(encoder)
+</code></pre>
+<pre class="prettyprint source lang-js"><code>// decoding step
+const decoder = new decoding.createDecoder(buf)
+decoding.readVarUint(decoder) // => 256
+decoding.readVarString(decoder) // => 'Hello world!'
+decoding.hasContent(decoder) // => false - all data is read
+</code></pre>
+<dl>
+<b><code>new encoding.Encoder()</code></b><br>
+<dd><p>A BinaryEncoder handles the encoding to an Uint8Array.</p></dd>
+<b><code>encoding.Encoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
+<b><code>encoding.createEncoder(): module:encoding.Encoder</code></b><br>
+<b><code>encoding.length(encoder: module:encoding.Encoder): number</code></b><br>
+<dd><p>The current length of the encoded data.</p></dd>
+<b><code>encoding.toUint8Array(encoder: module:encoding.Encoder): Uint8Array</code></b><br>
+<dd><p>Transform to Uint8Array.</p></dd>
+<b><code>encoding.write(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write one byte to the encoder.</p></dd>
+<b><code>encoding.set(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
+<dd><p>Write one byte at a specific position.
+Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
+<b><code>encoding.writeUint8(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write one byte as an unsigned integer.</p></dd>
+<b><code>encoding.setUint8(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
+<dd><p>Write one byte as an unsigned Integer at a specific location.</p></dd>
+<b><code>encoding.writeUint16(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write two bytes as an unsigned integer.</p></dd>
+<b><code>encoding.setUint16(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
+<dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
+<b><code>encoding.writeUint32(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write two bytes as an unsigned integer</p></dd>
+<b><code>encoding.setUint32(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
+<dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
+<b><code>encoding.writeVarUint(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write a variable length unsigned integer.</p>
+<p>Encodes integers in the range from [0, 4294967295] / [0, 0xffffffff]. (max 32 bit unsigned integer)</p></dd>
+<b><code>encoding.writeVarInt(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write a variable length integer.</p>
+<p>Encodes integers in the range from [-2147483648, -2147483647].</p></dd>
+<b><code>encoding.writeVarString(encoder: module:encoding.Encoder, str: String)</code></b><br>
+<dd><p>Write a variable length string.</p></dd>
+<b><code>encoding.writeBinaryEncoder(encoder: module:encoding.Encoder, append: module:encoding.Encoder)</code></b><br>
+<dd><p>Write the content of another Encoder.</p>
+<p>TODO: can be improved!</p></dd>
+<b><code>encoding.writeUint8Array(encoder: module:encoding.Encoder, uint8Array: Uint8Array)</code></b><br>
+<dd><p>Append fixed-length Uint8Array to the encoder.</p></dd>
+<b><code>encoding.writeVarUint8Array(encoder: module:encoding.Encoder, uint8Array: Uint8Array)</code></b><br>
+<dd><p>Append an Uint8Array to Encoder.</p></dd>
+<b><code>encoding.writeOnDataView(encoder: module:encoding.Encoder, len: number): DataView</code></b><br>
+<dd><p>Create an DataView of the next <code>len</code> bytes. Use it to write data after
+calling this function.</p></dd>
+<b><code>encoding.writeFloat32(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<b><code>encoding.writeFloat64(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<b><code>encoding.writeBigInt64(encoder: module:encoding.Encoder, num: bigint)</code></b><br>
+<b><code>encoding.writeBigUint64(encoder: module:encoding.Encoder, num: bigint)</code></b><br>
+<b><code>encoding.writeAny(encoder: module:encoding.Encoder, data: undefined|null|number|bigint|boolean|string|Object&lt;string,any&gt;|Array&lt;any&gt;|Uint8Array)</code></b><br>
+<dd><p>Encode data with efficient binary format.</p>
+<p>Differences to JSON:
+• Transforms data to a binary format (not to a string)
+• Encodes undefined, NaN, and ArrayBuffer (these can't be represented in JSON)
+• Numbers are efficiently encoded either as a variable length integer, as a
+32 bit float, as a 64 bit float, or as a 64 bit bigint.</p>
+<p>Encoding table:</p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th>Prefix</th>
+<th>Encoding Method</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>undefined</td>
+<td>127</td>
+<td></td>
+<td>Functions, symbol, and everything that cannot be identified is encoded as undefined</td>
+</tr>
+<tr>
+<td>null</td>
+<td>126</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>integer</td>
+<td>125</td>
+<td>writeVarInt</td>
+<td>Only encodes 32 bit signed integers</td>
+</tr>
+<tr>
+<td>float32</td>
+<td>124</td>
+<td>writeFloat32</td>
+<td></td>
+</tr>
+<tr>
+<td>float64</td>
+<td>123</td>
+<td>writeFloat64</td>
+<td></td>
+</tr>
+<tr>
+<td>bigint</td>
+<td>122</td>
+<td>writeBigInt64</td>
+<td></td>
+</tr>
+<tr>
+<td>boolean (false)</td>
+<td>121</td>
+<td></td>
+<td>True and false are different data types so we save the following byte</td>
+</tr>
+<tr>
+<td>boolean (true)</td>
+<td>120</td>
+<td></td>
+<td>- 0b01111000 so the last bit determines whether true or false</td>
+</tr>
+<tr>
+<td>string</td>
+<td>119</td>
+<td>writeVarString</td>
+<td></td>
+</tr>
+<tr>
+<td>object&lt;string,any&gt;</td>
+<td>118</td>
+<td>custom</td>
+<td>Writes {length} then {length} key-value pairs</td>
+</tr>
+<tr>
+<td>array<any></td>
+<td>117</td>
+<td>custom</td>
+<td>Writes {length} then {length} json values</td>
+</tr>
+<tr>
+<td>Uint8Array</td>
+<td>116</td>
+<td>writeVarUint8Array</td>
+<td>We use Uint8Array for any kind of binary data</td>
+</tr>
+</tbody>
+</table>
+<p>Reasons for the decreasing prefix:
+We need the first bit for extendability (later we may want to encode the
+prefix with writeVarUint). The remaining 7 bits are divided as follows:
+[0-30]   the beginning of the data range is used for custom purposes
+(defined by the function that uses this library)
+[31-127] the end of the data range is used for data encoding by
+lib0/encoding.js</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/map]</b> Isomorphic module to work access the environment (query params, env variables).</summary>
+<pre>import * as map from 'lib0/environment.js'</pre>
+<dl>
+<b><code>map.isNode</code></b><br>
+<b><code>map.isBrowser</code></b><br>
+<b><code>map.isMac</code></b><br>
+<b><code>map.hasParam</code></b><br>
+<b><code>map.getParam</code></b><br>
+<b><code>map.getVariable</code></b><br>
+<b><code>map.getConf(name: string): string|null</code></b><br>
+<b><code>map.hasConf</code></b><br>
+<b><code>map.production</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/error]</b> Error helpers.</summary>
+<pre>import * as error from 'lib0/error.js'</pre>
+<dl>
+<b><code>error.create</code></b><br>
+<b><code>error.methodUnimplemented</code></b><br>
+<b><code>error.unexpectedCase</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/eventloop]</b> Utility module to work with EcmaScript's event loop.</summary>
+<pre>import * as eventloop from 'lib0/eventloop.js'</pre>
+<dl>
+<b><code>eventloop.enqueue(f: function():void)</code></b><br>
+<b><code>eventloop#destroy()</code></b><br>
+<b><code>eventloop.timeout(timeout: number, callback: function): module:eventloop~TimeoutObject</code></b><br>
+<b><code>eventloop.interval(timeout: number, callback: function): module:eventloop~TimeoutObject</code></b><br>
+<b><code>eventloop.Animation</code></b><br>
+<b><code>eventloop.animationFrame(cb: function(number):void): module:eventloop~TimeoutObject</code></b><br>
+<b><code>eventloop.idleCallback(cb: function): module:eventloop~TimeoutObject</code></b><br>
+<dd><p>Note: this is experimental and is probably only useful in browsers.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/function]</b> Common functions and function call helpers.</summary>
+<pre>import * as function from 'lib0/function.js'</pre>
+<dl>
+<b><code>function.callAll(fs: Array&lt;function&gt;, args: Array&lt;any&gt;)</code></b><br>
+<dd><p>Calls all functions in <code>fs</code> with args. Only throws after all functions were called.</p></dd>
+<b><code>function.nop</code></b><br>
+<b><code>function.apply(f: function():T): T</code></b><br>
+<b><code>function.id(a: A): A</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/lib0]</b> Experimental method to import lib0.</summary>
+<pre>import * as lib0 from 'lib0/index.js'</pre>
+
+<p>Not recommended if the module bundler doesn't support dead code elimination.</p>
+<dl>
+</dl>
+</details>
+<details><summary><b>[lib0/idb]</b> Helpers to work with IndexedDB.</summary>
+<pre>import * as idb from 'lib0/indexeddb.js'</pre>
+<dl>
+<b><code>idb.rtop</code></b><br>
+<b><code>idb.openDB</code></b><br>
+<b><code>idb.deleteDB</code></b><br>
+<b><code>idb.createStores</code></b><br>
+<b><code>idb.transact(db: IDBDatabase, stores: Array&lt;string&gt;, access: "readwrite"|"readonly"): Array&lt;IDBObjectStore&gt;</code></b><br>
+<b><code>idb.count</code></b><br>
+<b><code>idb.get</code></b><br>
+<b><code>idb.del</code></b><br>
+<b><code>idb.put</code></b><br>
+<b><code>idb.add</code></b><br>
+<b><code>idb.addAutoKey</code></b><br>
+<b><code>idb.getAll</code></b><br>
+<b><code>idb.getAllKeys</code></b><br>
+<b><code>idb.queryFirst(store: IDBObjectStore, query: IDBKeyRange|null, direction: 'next'|'prev'|'nextunique'|'prevunique'): Promise&lt;any&gt;</code></b><br>
+<b><code>idb.getLastKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
+<b><code>idb.getFirstKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
+<b><code>idb.getAllKeysValues</code></b><br>
+<b><code>idb.iterate</code></b><br>
+<b><code>idb.iterateKeys</code></b><br>
+<b><code>idb.getStore</code></b><br>
+<b><code>idb.createIDBKeyRangeBound</code></b><br>
+<b><code>idb.createIDBKeyRangeUpperBound</code></b><br>
+<b><code>idb.createIDBKeyRangeLowerBound</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/isomorphic]</b> Isomorphic library exports from isomorphic.js.</summary>
+<pre>import * as isomorphic from 'lib0/isomorphic.js'</pre>
+<dl>
+<b><code>isomorphic.performance</code></b><br>
+<b><code>isomorphic.cryptoRandomBuffer</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/iterator]</b> Utility module to create and manipulate Iterators.</summary>
+<pre>import * as iterator from 'lib0/iterator.js'</pre>
+<dl>
+<b><code>iterator.mapIterator(iterator: Iterator&lt;T&gt;, f: function(T):R): IterableIterator&lt;R&gt;</code></b><br>
+<b><code>iterator.createIterator(next: function():IteratorResult&lt;T&gt;): IterableIterator&lt;T&gt;</code></b><br>
+<b><code>iterator.iteratorFilter(iterator: Iterator&lt;T&gt;, filter: function(T):boolean)</code></b><br>
+<b><code>iterator.iteratorMap(iterator: Iterator&lt;T&gt;, fmap: function(T):M)</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/json]</b> JSON utility functions.</summary>
+<pre>import * as json from 'lib0/json.js'</pre>
+<dl>
+<b><code>json.stringify(object: any): string</code></b><br>
+<dd><p>Transform JavaScript object to JSON.</p></dd>
+<b><code>json.parse(json: string): any</code></b><br>
+<dd><p>Parse JSON object.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/logging]</b> Isomorphic logging module with support for colors!</summary>
+<pre>import * as logging from 'lib0/logging.js'</pre>
+<dl>
+<b><code>logging.BOLD</code></b><br>
+<b><code>logging.UNBOLD</code></b><br>
+<b><code>logging.BLUE</code></b><br>
+<b><code>logging.GREY</code></b><br>
+<b><code>logging.GREEN</code></b><br>
+<b><code>logging.RED</code></b><br>
+<b><code>logging.PURPLE</code></b><br>
+<b><code>logging.ORANGE</code></b><br>
+<b><code>logging.UNCOLOR</code></b><br>
+<b><code>logging.print(args: Array&lt;string|Symbol|Object|number&gt;)</code></b><br>
+<b><code>logging.warn(args: Array&lt;string|Symbol|Object|number&gt;)</code></b><br>
+<b><code>logging.printError(err: Error)</code></b><br>
+<b><code>logging.printImg(url: string, height: number)</code></b><br>
+<b><code>logging.printImgBase64(base64: string, height: number)</code></b><br>
+<b><code>logging.group(args: Array&lt;string|Symbol|Object|number&gt;)</code></b><br>
+<b><code>logging.groupCollapsed(args: Array&lt;string|Symbol|Object|number&gt;)</code></b><br>
+<b><code>logging.groupEnd</code></b><br>
+<b><code>logging.printDom(createNode: function():Node)</code></b><br>
+<b><code>logging.printCanvas(canvas: HTMLCanvasElement, height: number)</code></b><br>
+<b><code>logging.vconsoles</code></b><br>
+<b><code>new logging.VConsole(dom: Element)</code></b><br>
+<b><code>logging.VConsole#ccontainer: Element</code></b><br>
+<b><code>logging.VConsole#group(args: Array&lt;string|Symbol|Object|number&gt;, collapsed: boolean)</code></b><br>
+<b><code>logging.VConsole#groupCollapsed(args: Array&lt;string|Symbol|Object|number&gt;)</code></b><br>
+<b><code>logging.VConsole#groupEnd()</code></b><br>
+<b><code>logging.VConsole#print(args: Array&lt;string|Symbol|Object|number&gt;)</code></b><br>
+<b><code>logging.VConsole#printError(err: Error)</code></b><br>
+<b><code>logging.VConsole#printImg(url: string, height: number)</code></b><br>
+<b><code>logging.VConsole#printDom(node: Node)</code></b><br>
+<b><code>logging.VConsole#destroy()</code></b><br>
+<b><code>logging.createVConsole(dom: Element)</code></b><br>
+<b><code>logging.createModuleLogger(moduleName: string): function(...any)</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/map]</b> Utility module to work with key-value stores.</summary>
+<pre>import * as map from 'lib0/map.js'</pre>
+<dl>
+<b><code>map.create(): Map&lt;any, any&gt;</code></b><br>
+<dd><p>Creates a new Map instance.</p></dd>
+<b><code>map.copy(m: Map&lt;X,Y&gt;): Map&lt;X,Y&gt;</code></b><br>
+<dd><p>Copy a Map object into a fresh Map object.</p></dd>
+<b><code>map.setIfUndefined(map: Map&lt;K, T&gt;, key: K, createT: function():T): T</code></b><br>
+<dd><p>Get map property. Create T if property is undefined and set T on map.</p></dd>
+<b><code>map.map(m: Map&lt;K,V&gt;, f: function(V,K):R): Array&lt;R&gt;</code></b><br>
+<dd><p>Creates an Array and populates it with the content of all key-value pairs using the <code>f(value, key)</code> function.</p></dd>
+<b><code>map.any(m: Map&lt;K,V&gt;, f: function(V,K):boolean): boolean</code></b><br>
+<dd><p>Tests whether any key-value pairs pass the test implemented by <code>f(value, key)</code>.</p></dd>
+<b><code>map.all(m: Map&lt;K,V&gt;, f: function(V,K):boolean): boolean</code></b><br>
+<dd><p>Tests whether all key-value pairs pass the test implemented by <code>f(value, key)</code>.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/math]</b> Common Math expressions.</summary>
+<pre>import * as math from 'lib0/math.js'</pre>
+<dl>
+<b><code>math.floor</code></b><br>
+<b><code>math.ceil</code></b><br>
+<b><code>math.abs</code></b><br>
+<b><code>math.imul</code></b><br>
+<b><code>math.round</code></b><br>
+<b><code>math.log10</code></b><br>
+<b><code>math.log2</code></b><br>
+<b><code>math.log</code></b><br>
+<b><code>math.sqrt</code></b><br>
+<b><code>math.add(a: number, b: number): number</code></b><br>
+<b><code>math.min(a: number, b: number): number</code></b><br>
+<b><code>math.max(a: number, b: number): number</code></b><br>
+<b><code>math.isNaN</code></b><br>
+<b><code>math.pow</code></b><br>
+<b><code>math.exp10(exp: number): number</code></b><br>
+<dd><p>Base 10 exponential function. Returns the value of 10 raised to the power of pow.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/metric]</b> Utility module to convert metric values.</summary>
+<pre>import * as metric from 'lib0/metric.js'</pre>
+<dl>
+<b><code>metric.yotta</code></b><br>
+<b><code>metric.zetta</code></b><br>
+<b><code>metric.exa</code></b><br>
+<b><code>metric.peta</code></b><br>
+<b><code>metric.tera</code></b><br>
+<b><code>metric.giga</code></b><br>
+<b><code>metric.mega</code></b><br>
+<b><code>metric.kilo</code></b><br>
+<b><code>metric.hecto</code></b><br>
+<b><code>metric.deca</code></b><br>
+<b><code>metric.deci</code></b><br>
+<b><code>metric.centi</code></b><br>
+<b><code>metric.milli</code></b><br>
+<b><code>metric.micro</code></b><br>
+<b><code>metric.nano</code></b><br>
+<b><code>metric.pico</code></b><br>
+<b><code>metric.femto</code></b><br>
+<b><code>metric.atto</code></b><br>
+<b><code>metric.zepto</code></b><br>
+<b><code>metric.yocto</code></b><br>
+<b><code>metric.prefix(n: number, baseMultiplier: number): {n:number,prefix:string}</code></b><br>
+<dd><p>Calculate the metric prefix for a number. Assumes E.g. <code>prefix(1000) = { n: 1, prefix: 'k' }</code></p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/mutex]</b> Mutual exclude for JavaScript.</summary>
+<pre>import * as mutex from 'lib0/mutex.js'</pre>
+<dl>
+<b><code>mutex.createMutex(): mutex</code></b><br>
+<dd><p>Creates a mutual exclude function with the following property:</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/number]</b> </summary>
+<pre>import * as number from 'lib0/number.js'</pre>
+<dl>
+<b><code>number.MAX_SAFE_INTEGER</code></b><br>
+<b><code>number.MIN_SAFE_INTEGER</code></b><br>
+<b><code>number.LOWEST_INT32</code></b><br>
+<b><code>number.HIGHEST_INT32</code></b><br>
+<b><code>number.isInteger</code></b><br>
+<b><code>number.isNaN</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/object]</b> Utility functions for working with EcmaScript objects.</summary>
+<pre>import * as object from 'lib0/object.js'</pre>
+<dl>
+<b><code>object.create(): Object&lt;string,any&gt;</code></b><br>
+<b><code>object.assign</code></b><br>
+<dd><p>Object.assign</p></dd>
+<b><code>object.keys(obj: Object&lt;string,any&gt;)</code></b><br>
+<b><code>object.forEach(obj: Object&lt;string,any&gt;, f: function(any,string):any)</code></b><br>
+<b><code>object.map(obj: Object&lt;string,any&gt;, f: function(any,string):R): Array&lt;R&gt;</code></b><br>
+<b><code>object.length(obj: Object&lt;string,any&gt;): number</code></b><br>
+<b><code>object.some(obj: Object&lt;string,any&gt;, f: function(any,string):boolean): boolean</code></b><br>
+<b><code>object.every(obj: Object&lt;string,any&gt;, f: function(any,string):boolean): boolean</code></b><br>
+<b><code>object.hasProperty(obj: any, key: string|symbol): boolean</code></b><br>
+<dd><p>Calls <code>Object.prototype.hasOwnProperty</code>.</p></dd>
+<b><code>object.equalFlat(a: Object&lt;string,any&gt;, b: Object&lt;string,any&gt;): boolean</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/observable]</b> Observable class prototype.</summary>
+<pre>import * as observable from 'lib0/observable.js'</pre>
+<dl>
+<b><code>new observable.Observable()</code></b><br>
+<dd><p>Handles named events.</p></dd>
+<b><code>observable.Observable#on(name: N, f: function)</code></b><br>
+<b><code>observable.Observable#once(name: N, f: function)</code></b><br>
+<b><code>observable.Observable#off(name: N, f: function)</code></b><br>
+<b><code>observable.Observable#emit(name: N, args: Array&lt;any&gt;)</code></b><br>
+<dd><p>Emit a named event. All registered event listeners that listen to the
+specified name will receive the event.</p></dd>
+<b><code>observable.Observable#destroy()</code></b><br>
+<b><code>websocket.WebsocketClient#on(name: N, f: function)</code></b><br>
+<b><code>websocket.WebsocketClient#once(name: N, f: function)</code></b><br>
+<b><code>websocket.WebsocketClient#off(name: N, f: function)</code></b><br>
+<b><code>websocket.WebsocketClient#emit(name: N, args: Array&lt;any&gt;)</code></b><br>
+<dd><p>Emit a named event. All registered event listeners that listen to the
+specified name will receive the event.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/pair]</b> Working with value pairs.</summary>
+<pre>import * as pair from 'lib0/pair.js'</pre>
+<dl>
+<b><code>new pair.Pair(left: L, right: R)</code></b><br>
+<b><code>pair.create(left: L, right: R): module:pair.Pair&lt;L,R&gt;</code></b><br>
+<b><code>pair.createReversed(right: R, left: L): module:pair.Pair&lt;L,R&gt;</code></b><br>
+<b><code>pair.forEach(arr: Array&lt;module:pair.Pair&lt;L,R&gt;&gt;, f: function(L, R):any)</code></b><br>
+<b><code>pair.map(arr: Array&lt;module:pair.Pair&lt;L,R&gt;&gt;, f: function(L, R):X): Array&lt;X&gt;</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/prng]</b> Fast Pseudo Random Number Generators.</summary>
+<pre>import * as prng from 'lib0/prng.js'</pre>
+
+<p>Given a seed a PRNG generates a sequence of numbers that cannot be reasonably predicted.
+Two PRNGs must generate the same random sequence of numbers if  given the same seed.</p>
+<dl>
+<b><code>prng.DefaultPRNG</code></b><br>
+<b><code>prng.create(seed: number): module:prng~PRNG</code></b><br>
+<dd><p>Create a Xoroshiro128plus Pseudo-Random-Number-Generator.
+This is the fastest full-period generator passing BigCrush without systematic failures.
+But there are more PRNGs available in ./PRNG/.</p></dd>
+<b><code>prng.bool(gen: module:prng~PRNG): Boolean</code></b><br>
+<dd><p>Generates a single random bool.</p></dd>
+<b><code>prng.int53(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
+<dd><p>Generates a random integer with 53 bit resolution.</p></dd>
+<b><code>prng.uint53(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
+<dd><p>Generates a random integer with 53 bit resolution.</p></dd>
+<b><code>prng.int32(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
+<dd><p>Generates a random integer with 32 bit resolution.</p></dd>
+<b><code>prng.uint32(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
+<dd><p>Generates a random integer with 53 bit resolution.</p></dd>
+<b><code>prng.int31(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
+<dd><p>Optimized version of prng.int32. It has the same precision as prng.int32, but should be preferred when
+openaring on smaller ranges.</p></dd>
+<b><code>prng.real53(gen: module:prng~PRNG): Number</code></b><br>
+<dd><p>Generates a random real on [0, 1) with 53 bit resolution.</p></dd>
+<b><code>prng.char(gen: module:prng~PRNG): string</code></b><br>
+<dd><p>Generates a random character from char code 32 - 126. I.e. Characters, Numbers, special characters, and Space:</p></dd>
+<b><code>prng.letter(gen: module:prng~PRNG): string</code></b><br>
+<b><code>prng.word(gen: module:prng~PRNG, minLen: number, maxLen: number): string</code></b><br>
+<b><code>prng.utf16Rune(gen: module:prng~PRNG): string</code></b><br>
+<dd><p>TODO: this function produces invalid runes. Does not cover all of utf16!!</p></dd>
+<b><code>prng.utf16String(gen: module:prng~PRNG, maxlen: number)</code></b><br>
+<b><code>prng.oneOf(gen: module:prng~PRNG, array: Array&lt;T&gt;): T</code></b><br>
+<dd><p>Returns one element of a given array.</p></dd>
+<b><code>prng.uint8Array(gen: module:prng~PRNG, len: number): Uint8Array</code></b><br>
+<b><code>prng.uint16Array(gen: module:prng~PRNG, len: number): Uint16Array</code></b><br>
+<b><code>prng.uint32Array(gen: module:prng~PRNG, len: number): Uint32Array</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/promise]</b> Utility helpers to work with promises.</summary>
+<pre>import * as promise from 'lib0/promise.js'</pre>
+<dl>
+<b><code>promise.create(f: function(PromiseResolve&lt;T&gt;,function(Error):void):any): Promise&lt;T&gt;</code></b><br>
+<b><code>promise.createEmpty(f: function(function():void,function(Error):void):void): Promise&lt;void&gt;</code></b><br>
+<b><code>promise.all(arrp: Array&lt;Promise&lt;T&gt;&gt;): Promise&lt;Array&lt;T&gt;&gt;</code></b><br>
+<dd><p><code>Promise.all</code> wait for all promises in the array to resolve and return the result</p></dd>
+<b><code>promise.reject(reason: Error): Promise&lt;never&gt;</code></b><br>
+<b><code>promise.resolve(res: T|void): Promise&lt;T|void&gt;</code></b><br>
+<b><code>promise.until(timeout: number, check: function():boolean, intervalResolution: number): Promise&lt;void&gt;</code></b><br>
+<b><code>promise.wait(timeout: number): Promise&lt;void&gt;</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/random]</b> Isomorphic module for true random numbers / buffers / uuids.</summary>
+<pre>import * as random from 'lib0/random.js'</pre>
+
+<p>Attention: falls back to Math.random if the browser does not support crypto.</p>
+<dl>
+<b><code>random.rand</code></b><br>
+<b><code>random.uint32</code></b><br>
+<b><code>random.oneOf(arr: Array&lt;T&gt;): T</code></b><br>
+<b><code>random.uuidv4</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/set]</b> Utility module to work with sets.</summary>
+<pre>import * as set from 'lib0/set.js'</pre>
+<dl>
+<b><code>set.create</code></b><br>
+<b><code>set.toArray(set: Set&lt;T&gt;): Array&lt;T&gt;</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/sort]</b> Efficient sort implementations.</summary>
+<pre>import * as sort from 'lib0/sort.js'</pre>
+
+<p>Note: These sort implementations were created to compare different sorting algorithms in JavaScript.
+Don't use them if you don't know what you are doing. Native Array.sort is almost always a better choice.</p>
+<dl>
+<b><code>sort.insertionSort(arr: Array&lt;T&gt;, compare: function(T,T):number): void</code></b><br>
+<b><code>sort.quicksort(arr: Array&lt;T&gt;, compare: function(T,T):number): void</code></b><br>
+<dd><p>This algorithm beats Array.prototype.sort in Chrome only with arrays with 10 million entries.
+In most cases [].sort will do just fine. Make sure to performance test your use-case before you
+integrate this algorithm.</p>
+<p>Note that Chrome's sort is now a stable algorithm (Timsort). Quicksort is not stable.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/statistics]</b> Utility helpers for generating statistics.</summary>
+<pre>import * as statistics from 'lib0/statistics.js'</pre>
+<dl>
+<b><code>statistics.median(arr: Array&lt;number&gt;): number</code></b><br>
+<b><code>statistics.average(arr: Array&lt;number&gt;): number</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/storage]</b> Isomorphic variable storage.</summary>
+<pre>import * as storage from 'lib0/storage.js'</pre>
+
+<p>Uses LocalStorage in the browser and falls back to in-memory storage.</p>
+<dl>
+<b><code>storage.varStorage</code></b><br>
+<dd><p>This is basically localStorage in browser, or a polyfill in nodejs</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/string]</b> Utility module to work with strings.</summary>
+<pre>import * as string from 'lib0/string.js'</pre>
+<dl>
+<b><code>string.fromCharCode</code></b><br>
+<b><code>string.fromCodePoint</code></b><br>
+<b><code>string.trimLeft(s: string): string</code></b><br>
+<b><code>string.fromCamelCase(s: string, separator: string): string</code></b><br>
+<b><code>string.utf8ByteLength(str: string): number</code></b><br>
+<dd><p>Compute the utf8ByteLength</p></dd>
+<b><code>string.utf8TextEncoder</code></b><br>
+<b><code>string.encodeUtf8</code></b><br>
+<b><code>string.utf8TextDecoder</code></b><br>
+<b><code>string.decodeUtf8</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/symbol]</b> Utility module to work with EcmaScript Symbols.</summary>
+<pre>import * as symbol from 'lib0/symbol.js'</pre>
+<dl>
+<b><code>symbol.create(): Symbol</code></b><br>
+<dd><p>Return fresh symbol.</p></dd>
+<b><code>symbol.isSymbol(s: any): boolean</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/testing]</b> Testing framework with support for generating tests.</summary>
+<pre>import * as testing from 'lib0/testing.js'</pre>
+<dl>
+<b><code>testing.extensive</code></b><br>
+<b><code>testing.envSeed</code></b><br>
+<b><code>new testing.TestCase(moduleName: string, testName: string)</code></b><br>
+<b><code>testing.TestCase#resetSeed()</code></b><br>
+<b><code>testing.repititionTime</code></b><br>
+<b><code>testing.run(moduleName: string, name: string, f: function(module:testing.TestCase):void|Promise&lt;any&gt;, i: number, numberOfTests: number)</code></b><br>
+<b><code>testing.describe(description: string, info: string)</code></b><br>
+<b><code>testing.info(info: string)</code></b><br>
+<b><code>testing.printDom</code></b><br>
+<b><code>testing.printCanvas</code></b><br>
+<b><code>testing.group(description: string, f: function(void):void)</code></b><br>
+<b><code>testing.measureTime(message: string, f: function():void|Promise&lt;undefined&gt;)</code></b><br>
+<b><code>testing.compareArrays(as: Array&lt;T&gt;, bs: Array&lt;T&gt;, m: string): boolean</code></b><br>
+<b><code>testing.compareStrings(a: string, b: string, m: string)</code></b><br>
+<b><code>testing.compareObjects(a: Object&lt;K,V&gt;, b: Object&lt;K,V&gt;, m: string)</code></b><br>
+<b><code>testing.compare(a: T, b: T, message: string?, customCompare: function(any,T,T,string,any):boolean)</code></b><br>
+<b><code>testing.assert(condition: boolean, message: string?)</code></b><br>
+<b><code>testing.fails(f: function():void)</code></b><br>
+<b><code>testing.runTests(tests: Object&lt;string, Object&lt;string, function(module:testing.TestCase):void|Promise&lt;any&gt;&gt;&gt;)</code></b><br>
+<b><code>testing.fail(reason: string)</code></b><br>
+<b><code>testing.skip(cond: boolean)</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/time]</b> Utility module to work with time.</summary>
+<pre>import * as time from 'lib0/time.js'</pre>
+<dl>
+<b><code>time.getDate(): Date</code></b><br>
+<dd><p>Return current time.</p></dd>
+<b><code>time.getUnixTime(): number</code></b><br>
+<dd><p>Return current unix time.</p></dd>
+<b><code>time.humanizeDuration(d: number): string</code></b><br>
+<dd><p>Transform time (in ms) to a human readable format. E.g. 1100 =&gt; 1.1s. 60s =&gt; 1min. .001 =&gt; 10μs.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/tree]</b> Red-black-tree implementation.</summary>
+<pre>import * as tree from 'lib0/tree.js'</pre>
+<dl>
+<b><code>new tree.Tree()</code></b><br>
+<dd><p>This is a Red Black Tree implementation</p></dd>
+<b><code>tree.Tree#findNext(id: K)</code></b><br>
+<b><code>tree.Tree#findPrev(id: K)</code></b><br>
+<b><code>tree.Tree#findNodeWithLowerBound(from: K)</code></b><br>
+<b><code>tree.Tree#findNodeWithUpperBound(to: K)</code></b><br>
+<b><code>tree.Tree#findSmallestNode(): V</code></b><br>
+<b><code>tree.Tree#findWithLowerBound(from: K): V</code></b><br>
+<b><code>tree.Tree#findWithUpperBound(to: K): V</code></b><br>
+<b><code>tree.Tree#iterate(from: K, from: K, f: K)</code></b><br>
+<b><code>tree.Tree#find(id: K): V|null</code></b><br>
+<b><code>tree.Tree#findNode(id: K): module:tree~N&lt;V&gt;|null</code></b><br>
+<b><code>tree.Tree#delete(id: K)</code></b><br>
+<b><code>tree.Tree#put()</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/url]</b> Utility module to work with urls.</summary>
+<pre>import * as url from 'lib0/url.js'</pre>
+<dl>
+<b><code>url.decodeQueryParams(url: string): Object&lt;string,string&gt;</code></b><br>
+<dd><p>Parse query parameters from an url.</p></dd>
+<b><code>url.encodeQueryParams(params: Object&lt;string,string&gt;): string</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/websocket]</b> Tiny websocket connection handler.</summary>
+<pre>import * as websocket from 'lib0/websocket.js'</pre>
+
+<p>Implements exponential backoff reconnects, ping/pong, and a nice event system using [lib0/observable].</p>
+<dl>
+<b><code>new websocket.WebsocketClient(url: string, opts: object, opts.binaryType: 'arraybuffer' | 'blob' | null)</code></b><br>
+<b><code>websocket.WebsocketClient#ws: WebSocket?</code></b><br>
+<b><code>websocket.WebsocketClient#shouldConnect: boolean</code></b><br>
+<dd><p>Whether to connect to other peers or not</p></dd>
+<b><code>websocket.WebsocketClient#send(message: any)</code></b><br>
+<b><code>websocket.WebsocketClient#destroy()</code></b><br>
+<b><code>websocket.WebsocketClient#disconnect()</code></b><br>
+<b><code>websocket.WebsocketClient#connect()</code></b><br>
+</dl>
+</details>
+
+
+
+
+
+
 ### License
 
 [The MIT License](./LICENSE) © Kevin Jahns

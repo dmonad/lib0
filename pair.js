@@ -1,3 +1,8 @@
+/**
+ * Working with value pairs.
+ *
+ * @module pair
+ */
 
 /**
  * @template L,R

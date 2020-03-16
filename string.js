@@ -1,4 +1,6 @@
 /**
+ * Utility module to work with strings.
+ *
  * @module string
  */
 

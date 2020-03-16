@@ -1,3 +1,8 @@
+/**
+ * Utility functions for working with EcmaScript objects.
+ *
+ * @module object
+ */
 
 /**
  * @return {Object<string,any>} obj

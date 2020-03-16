@@ -1,4 +1,6 @@
 /**
+ * Red-black-tree implementation.
+ *
  * @module tree
  */
 // @ts-nocheck TODO: remove or refactor this file

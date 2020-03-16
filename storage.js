@@ -1,5 +1,13 @@
 /* global localStorage */
 
+/**
+ * Isomorphic variable storage.
+ *
+ * Uses LocalStorage in the browser and falls back to in-memory storage.
+ *
+ * @module storage
+ */
+
 /* istanbul ignore next */
 class VarStoragePolyfill {
   constructor () {

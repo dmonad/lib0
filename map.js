@@ -1,7 +1,23 @@
+/**
+ * Utility module to work with key-value stores.
+ *
+ * @module map
+ */
 
+/**
+ * Creates a new Map instance.
+ *
+ * @function
+ * @return {Map<any, any>}
+ *
+ * @function
+ */
 export const create = () => new Map()
 
 /**
+ * Copy a Map object into a fresh Map object.
+ *
+ * @function
  * @template X,Y
  * @param {Map<X,Y>} m
  * @return {Map<X,Y>}
@@ -19,6 +35,7 @@ export const copy = m => {
  *   const listeners = map.setIfUndefined(events, 'eventName', set.create)
  *   listeners.add(listener)
  *
+ * @function
  * @template T,K
  * @param {Map<K, T>} map
  * @param {K} key
@@ -34,6 +51,9 @@ export const setIfUndefined = (map, key, createT) => {
 }
 
 /**
+ * Creates an Array and populates it with the content of all key-value pairs using the `f(value, key)` function.
+ *
+ * @function
  * @template K
  * @template V
  * @template R
@@ -50,6 +70,11 @@ export const map = (m, f) => {
 }
 
 /**
+ * Tests whether any key-value pairs pass the test implemented by `f(value, key)`.
+ *
+ * @todo should rename to some - similarly to Array.some
+ *
+ * @function
  * @template K
  * @template V
  * @param {Map<K,V>} m
@@ -66,6 +91,9 @@ export const any = (m, f) => {
 }
 
 /**
+ * Tests whether all key-value pairs pass the test implemented by `f(value, key)`.
+ *
+ * @function
  * @template K
  * @template V
  * @param {Map<K,V>} m
