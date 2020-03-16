@@ -1,11 +1,28 @@
 
 # Lib0
-> Monorepo of utility functions
+> Monorepo of isomorphic utility functions
 
-Each function in this lib is tested thoroughly and is not deoptimized by v8. This library implements its own test suite that is very useful to inspect performance issues.
+This library is meant to replace all global JavaScript functions with isomorphic module imports. Furthermore, it implements many performance-oriented utility modules. Most noteworthy are the binary encoding/decoding modules **[lib0/encoding] / [lib0/decoding]**, the randomized testing framework **[lib0/testing]**, a very fast Pseudo Random Number Generator **[lib0/PRNG]**, a small socket.io alternative **[lib0/websocket]** and the logging module **[lib0/logging]** that allows you to log in color in node and the browser. Lib0 only has one dependency, which is also from the author of lib0. If lib0 is transpiled with rollup or webpack, very little code is produced because of the way that lib0 is written. All exports of lib0 are pure (can be removed with dead code elimination). Here is an example on how dead code elemination and mangling optimizes code from lib0:
 
+```js
+// # Example how optimized code is produced.
 
-### Performance resources
+// lib0/json.js
+export const stringify = JSON.stringify
+export const parse = JSON.parse
+
+// index.js
+import * as json from 'lib0/json.js'
+export const f = (arg1, arg2) => json.stringify(arg1) + json.stringify(arg2)
+
+// compiled with rollup + uglifyjs:
+const s=JSON.stringify,f=(a,b)=>s(a)+s(b)
+export {f}
+```
+
+## Performance resources
+
+Each function in this library is tested thoroughly and is not deoptimized by v8 (except some logging and comparison functions that can't be implemented without deoptimizations). This library implements its own test suite that is designed for randomized testing and inspecting performance issues.
 
 * `node --trace-deop` and `node --trace-opt`
 * https://youtu.be/IFWulQnM5E0 Good intro video
@@ -13,7 +30,7 @@ Each function in this lib is tested thoroughly and is not deoptimized by v8. Thi
 * https://github.com/thlorenz/deoptigate - A great tool for investigating deoptimizations
 * https://github.com/vhf/v8-bailout-reasons - Description of some deopt messages
 
-### Modules
+## Modules
 
 <details><summary><b>[lib0/array]</b> Utility module to work with Arrays.</summary>
 <pre>import * as array from 'lib0/array.js'</pre>
@@ -949,11 +966,6 @@ integrate this algorithm.</p>
 <b><code>websocket.WebsocketClient#connect()</code></b><br>
 </dl>
 </details>
-
-
-
-
-
 
 ### License
 
