@@ -2,7 +2,7 @@
 # Lib0
 > Monorepo of isomorphic utility functions
 
-This library is meant to replace all global JavaScript functions with isomorphic module imports. Furthermore, it implements many performance-oriented utility modules. Most noteworthy are the binary encoding/decoding modules **[lib0/encoding] / [lib0/decoding]**, the randomized testing framework **[lib0/testing]**, a very fast Pseudo Random Number Generator **[lib0/PRNG]**, a small socket.io alternative **[lib0/websocket]** and the logging module **[lib0/logging]** that allows you to log in color in node and the browser. Lib0 only has one dependency, which is also from the author of lib0. If lib0 is transpiled with rollup or webpack, very little code is produced because of the way that lib0 is written. All exports of lib0 are pure (can be removed with dead code elimination). Here is an example on how dead code elemination and mangling optimizes code from lib0:
+This library is meant to replace all global JavaScript functions with isomorphic module imports. Furthermore, it implements many performance-oriented utility modules. Most noteworthy are the binary encoding/decoding modules **[lib0/encoding] / [lib0/decoding]**, the randomized testing framework **[lib0/testing]**, a fast Pseudo Random Number Generator **[lib0/PRNG]**, a small socket.io alternative **[lib0/websocket]** and the logging module **[lib0/logging]** that allows you to log in color in node and the browser. Lib0 only has one dependency, which is also from the author of lib0. If lib0 is transpiled with rollup or webpack, very little code is produced because of the way that lib0 is written. All exports of lib0 are pure (can be removed with dead code elimination). Here is an example on how dead code elemination and mangling optimizes code from lib0:
 
 ```js
 // # Example how optimized code is produced.
@@ -385,7 +385,14 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <dd><p>Append an Uint8Array to Encoder.</p></dd>
 <b><code>encoding.writeOnDataView(encoder: module:encoding.Encoder, len: number): DataView</code></b><br>
 <dd><p>Create an DataView of the next <code>len</code> bytes. Use it to write data after
-calling this function.</p></dd>
+calling this function.</p>
+<pre class="prettyprint source lang-js"><code>// write float32 using DataView
+const dv = writeOnDataView(encoder, 4)
+dv.setFloat32(0, 1.1)
+// read float32 using DataView
+const dv = readFromDataView(encoder, 4)
+dv.getFloat32(0) // => 1.100000023841858 (leaving it to the reader to find out why this is the correct result)
+</code></pre></dd>
 <b><code>encoding.writeFloat32(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <b><code>encoding.writeFloat64(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <b><code>encoding.writeBigInt64(encoder: module:encoding.Encoder, num: bigint)</code></b><br>
@@ -641,7 +648,10 @@ lib0/encoding.js</p></dd>
 <b><code>map.copy(m: Map&lt;X,Y&gt;): Map&lt;X,Y&gt;</code></b><br>
 <dd><p>Copy a Map object into a fresh Map object.</p></dd>
 <b><code>map.setIfUndefined(map: Map&lt;K, T&gt;, key: K, createT: function():T): T</code></b><br>
-<dd><p>Get map property. Create T if property is undefined and set T on map.</p></dd>
+<dd><p>Get map property. Create T if property is undefined and set T on map.</p>
+<pre class="prettyprint source lang-js"><code>const listeners = map.setIfUndefined(events, 'eventName', set.create)
+listeners.add(listener)
+</code></pre></dd>
 <b><code>map.map(m: Map&lt;K,V&gt;, f: function(V,K):R): Array&lt;R&gt;</code></b><br>
 <dd><p>Creates an Array and populates it with the content of all key-value pairs using the <code>f(value, key)</code> function.</p></dd>
 <b><code>map.any(m: Map&lt;K,V&gt;, f: function(V,K):boolean): boolean</code></b><br>
@@ -702,7 +712,14 @@ lib0/encoding.js</p></dd>
 <pre>import * as mutex from 'lib0/mutex.js'</pre>
 <dl>
 <b><code>mutex.createMutex(): mutex</code></b><br>
-<dd><p>Creates a mutual exclude function with the following property:</p></dd>
+<dd><p>Creates a mutual exclude function with the following property:</p>
+<p>const mutex = createMutex()
+mutex(() =&gt; {
+// This function is immediately executed
+mutex(() =&gt; {
+// This function is not executed, as the mutex is already active.
+})
+})</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/number]</b> </summary>

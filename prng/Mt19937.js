@@ -34,9 +34,10 @@ const nextState = state => {
  * very relevant (http://vigna.di.unimi.it/xorshift/). It is four times slower than xoroshiro128plus and
  * needs to recompute its state after generating 624 numbers.
  *
- * @example
+ * ```js
  * const gen = new Mt19937(new Date().getTime())
  * console.log(gen.next())
+ * ```
  *
  * @public
  */

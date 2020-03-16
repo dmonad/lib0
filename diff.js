@@ -7,13 +7,14 @@
 /**
  * A SimpleDiff describes a change on a String.
  *
- * @example
+ * ```js
  * console.log(a) // the old value
  * console.log(b) // the updated value
  * // Apply changes of diff (pseudocode)
  * a.remove(diff.index, diff.remove) // Remove `diff.remove` characters
  * a.insert(diff.index, diff.insert) // Insert `diff.insert`
  * a === b // values match
+ * ```
  *
  * @typedef {Object} SimpleDiff
  * @property {Number} index The index where changes were applied

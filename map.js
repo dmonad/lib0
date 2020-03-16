@@ -31,9 +31,10 @@ export const copy = m => {
 /**
  * Get map property. Create T if property is undefined and set T on map.
  *
- * @example
- *   const listeners = map.setIfUndefined(events, 'eventName', set.create)
- *   listeners.add(listener)
+ * ```js
+ * const listeners = map.setIfUndefined(events, 'eventName', set.create)
+ * listeners.add(listener)
+ * ```
  *
  * @function
  * @template T,K

@@ -324,13 +324,14 @@ export const writeVarUint8Array = (encoder, uint8Array) => {
  * Create an DataView of the next `len` bytes. Use it to write data after
  * calling this function.
  *
- * @example
- *     // write float32 using DataView
- *     const dv = writeOnDataView(encoder, 4)
- *     dv.setFloat32(0, 1.1)
- *     // read float32 using DataView
- *     const dv = readFromDataView(encoder, 4)
- *     dv.getFloat32(0) // => 1.100000023841858 (leaving it to the reader to find out why this is the correct result)
+ * ```js
+ * // write float32 using DataView
+ * const dv = writeOnDataView(encoder, 4)
+ * dv.setFloat32(0, 1.1)
+ * // read float32 using DataView
+ * const dv = readFromDataView(encoder, 4)
+ * dv.getFloat32(0) // => 1.100000023841858 (leaving it to the reader to find out why this is the correct result)
+ * ```
  *
  * @param {Encoder} encoder
  * @param {number} len

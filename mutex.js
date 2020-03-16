@@ -13,7 +13,6 @@
 /**
  * Creates a mutual exclude function with the following property:
  *
- * @example
  * const mutex = createMutex()
  * mutex(() => {
  *   // This function is immediately executed
