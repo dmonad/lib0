@@ -713,13 +713,14 @@ listeners.add(listener)
 <dl>
 <b><code>mutex.createMutex(): mutex</code></b><br>
 <dd><p>Creates a mutual exclude function with the following property:</p>
-<p>const mutex = createMutex()
-mutex(() =&gt; {
-// This function is immediately executed
-mutex(() =&gt; {
-// This function is not executed, as the mutex is already active.
+<pre class="prettyprint source lang-js"><code>const mutex = createMutex()
+mutex(() => {
+  // This function is immediately executed
+  mutex(() => {
+    // This function is not executed, as the mutex is already active.
+  })
 })
-})</p></dd>
+</code></pre></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/number]</b> </summary>
