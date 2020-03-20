@@ -59,6 +59,12 @@ The code style might be a bit different from what you are used to. Stay open. Mo
 <b><code>array.appendTo(dest: Array&lt;M&gt;, src: Array&lt;M&gt;)</code></b><br>
 <dd><p>Append elements from src to dest</p></dd>
 <b><code>array.from(arraylike: ArrayLike&lt;T&gt;|Iterable&lt;T&gt;): T</code></b><br>
+<dd><p>Transforms something array-like to an actual Array.</p></dd>
+<b><code>array.every(arr: Array&lt;ITEM&gt;, f: function(ITEM, number, Array&lt;ITEM&gt;):boolean): boolean</code></b><br>
+<dd><p>True iff condition holds on every element in the Array.</p></dd>
+<b><code>array.some(arr: Array&lt;T&gt;, f: function(T, number, Array&lt;T&gt;):boolean): boolean</code></b><br>
+<dd><p>True iff condition holds on some element in the Array.</p></dd>
+<b><code>array.equalFlat(a: Array&lt;ELEM&gt;, b: Array&lt;ELEM&gt;): boolean</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
@@ -290,7 +296,7 @@ For effiency reasons we apply a maximum of 10000 characters at once.</p></dd>
 <dd><p>Create a diff between two strings. This diff implementation is highly
 efficient, but not very sophisticated.</p></dd>
 <b><code>diff.simpleDiff</code></b><br>
-<b><code>diff.simpleDiffArray(a: Array&lt;T&gt;, b: Array&lt;T&gt;): module:diff~SimpleDiff&lt;Array&lt;T&gt;&gt;</code></b><br>
+<b><code>diff.simpleDiffArray(a: Array&lt;T&gt;, b: Array&lt;T&gt;, compare: function(T, T):boolean): module:diff~SimpleDiff&lt;Array&lt;T&gt;&gt;</code></b><br>
 <dd><p>Create a diff between two arrays. This diff implementation is highly
 efficient, but not very sophisticated.</p>
 <p>Note: This is basically the same function as above. Another function was created so that the runtime
@@ -558,6 +564,8 @@ lib0/encoding.js</p></dd>
 <b><code>function.nop</code></b><br>
 <b><code>function.apply(f: function():T): T</code></b><br>
 <b><code>function.id(a: A): A</code></b><br>
+<b><code>function.equalityStrict(a: T, b: T): boolean</code></b><br>
+<b><code>function.equalityFlat(a: Array&lt;T&gt;|object, b: Array&lt;T&gt;|object): boolean</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/lib0]</b> Experimental method to import lib0.</summary>
@@ -848,7 +856,7 @@ openaring on smaller ranges.</p></dd>
 <b><code>promise.reject(reason: Error): Promise&lt;never&gt;</code></b><br>
 <b><code>promise.resolve(res: T|void): Promise&lt;T|void&gt;</code></b><br>
 <b><code>promise.until(timeout: number, check: function():boolean, intervalResolution: number): Promise&lt;void&gt;</code></b><br>
-<b><code>promise.wait(timeout: number): Promise&lt;void&gt;</code></b><br>
+<b><code>promise.wait(timeout: number): Promise&lt;undefined&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/random]</b> Isomorphic module for true random numbers / buffers / uuids.</summary>
