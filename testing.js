@@ -510,8 +510,9 @@ export const runTests = async tests => {
   const end = performance.now()
   log.print('')
   const success = successfulTests === numberOfTests
-  /* istanbul ignore else */
+  /* istanbul ignore next */
   if (success) {
+    /* istanbul ignore next */
     log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${time.humanizeDuration(end - start)}`)
     /* istanbul ignore next */
     log.printImgBase64(nyanCatImage, 50)

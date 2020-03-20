@@ -74,6 +74,6 @@ export const until = (timeout, check, intervalResolution = 10) => create((resolv
 
 /**
  * @param {number} timeout
- * @return {Promise<void>}
+ * @return {Promise<undefined>}
  */
 export const wait = timeout => create((resolve, reject) => setTimeout(resolve, timeout))

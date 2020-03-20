@@ -4,6 +4,8 @@
  * @module diff
  */
 
+import { equalityStrict } from './function.js'
+
 /**
  * A SimpleDiff describes a change on a String.
  *
@@ -30,7 +32,8 @@
  * Create a diff between two strings. This diff implementation is highly
  * efficient, but not very sophisticated.
  *
- * @public
+ * @function
+ *
  * @param {string} a The old version of the string
  * @param {string} b The updated version of the string
  * @return {SimpleDiff<string>} The diff description.
@@ -67,22 +70,23 @@ export const simpleDiff = simpleDiffString
  * Note: This is basically the same function as above. Another function was created so that the runtime
  * can better optimize these function calls.
  *
- * @public
+ * @function
+ * @template T
+ *
  * @param {Array<T>} a The old version of the array
  * @param {Array<T>} b The updated version of the array
+ * @param {function(T, T):boolean} [compare]
  * @return {SimpleDiff<Array<T>>} The diff description.
- *
- * @template T
  */
-export const simpleDiffArray = (a, b) => {
+export const simpleDiffArray = (a, b, compare = equalityStrict) => {
   let left = 0 // number of same characters counting from left
   let right = 0 // number of same characters counting from right
-  while (left < a.length && left < b.length && a[left] === b[left]) {
+  while (left < a.length && left < b.length && compare(a[left], b[left])) {
     left++
   }
   if (left !== a.length || left !== b.length) {
     // Only check right if a !== b
-    while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
+    while (right + left < a.length && right + left < b.length && compare(a[a.length - right - 1], b[b.length - right - 1])) {
       right++
     }
   }

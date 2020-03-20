@@ -40,9 +40,44 @@ export const appendTo = (dest, src) => {
 }
 
 /**
+ * Transforms something array-like to an actual Array.
+ *
  * @function
  * @template T
  * @param {ArrayLike<T>|Iterable<T>} arraylike
  * @return {T}
  */
 export const from = Array.from
+
+/**
+ * True iff condition holds on every element in the Array.
+ *
+ * @function
+ * @template ITEM
+ *
+ * @param {Array<ITEM>} arr
+ * @param {function(ITEM, number, Array<ITEM>):boolean} f
+ * @return {boolean}
+ */
+export const every = (arr, f) => arr.every(f)
+
+/**
+ * True iff condition holds on some element in the Array.
+ *
+ * @function
+ * @template T
+ *
+ * @param {Array<T>} arr
+ * @param {function(T, number, Array<T>):boolean} f
+ * @return {boolean}
+ */
+export const some = (arr, f) => arr.some(f)
+
+/**
+ * @template ELEM
+ *
+ * @param {Array<ELEM>} a
+ * @param {Array<ELEM>} b
+ * @return {boolean}
+ */
+export const equalFlat = (a, b) => a.length === b.length && every(a, (item, index) => item === b[index])
