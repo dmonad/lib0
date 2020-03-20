@@ -13,6 +13,7 @@ import * as json from './json.js'
 import * as string from './string.js'
 import * as array from './array.js'
 import * as number from './number.js'
+import * as func from './function.js'
 
 export const registry = customElements
 
@@ -331,7 +332,7 @@ export const defineListComponent = createComponentDefiner(() => {
       }
       const { list = /** @type {Array<any>} */ ([]), Item = ListItem } = state
       // @todo deep compare here by providing another parameter to simpleDiffArray
-      let { index, remove, insert } = diff.simpleDiffArray(prevState ? prevState.list : [], list)
+      let { index, remove, insert } = diff.simpleDiffArray(prevState ? prevState.list : [], list, func.equalityFlat)
       if (remove === 0 && insert.length === 0) {
         return
       }
