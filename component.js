@@ -248,7 +248,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
     setState (state, forceStateUpdates = false) {
       const prevState = this.state
       this.state = state
-      if (this._init && (state !== prevState || forceStateUpdates)) {
+      if (this._init && (!func.equalityFlat(state, prevState) || forceStateUpdates)) {
         // fill slots
         if (state) {
           const slotElems = slots(state, prevState, this)
