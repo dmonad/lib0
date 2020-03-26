@@ -109,7 +109,7 @@ const parseAttrVal = (val, type) => {
  * `attrs = { myAttr: 4 }` is represeted as `<my-elem my-attr="4" />` in the DOM
  * @property {Object<string, function(CustomEvent, Lib0Component<any>):boolean|void>} [CONF.listeners] Maps from dom-event-name
  * to event listener.
- * @property {function(S):Object<string,string>} [CONF.slots] Fill slots
+ * @property {function(S, S, Lib0Component<S>):Object<string,string>} [CONF.slots] Fill slots
  * automatically when state changes. Maps from slot-name to slot-html.
  * @template S
  */
@@ -251,7 +251,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
       if (this._init && (state !== prevState || forceStateUpdates)) {
         // fill slots
         if (state) {
-          const slotElems = slots(state)
+          const slotElems = slots(state, prevState, this)
           for (const key in slotElems) {
             const slotContent = slotElems[key]
             if (this._slots[key] !== slotContent) {
