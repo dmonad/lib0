@@ -146,6 +146,10 @@ export const createComponent = (name, { template, style = '', state: defaultStat
        * @type {Array<{d:Lib0Component<T>, s:function(any, any):Object}>}
        */
       this._childStates = []
+      /**
+       * @type {Object<string,string>}
+       */
+      this._slots = {}
       this._init = false
       /**
        * @type {any}
@@ -249,16 +253,20 @@ export const createComponent = (name, { template, style = '', state: defaultStat
         if (state) {
           const slotElems = slots(state)
           for (const key in slotElems) {
-            const currentSlots = /** @type {Array<any>} */ (key !== 'default' ? array.from(dom.querySelectorAll(this, `[slot="${key}"]`)) : array.from(this.childNodes).filter(/** @param {any} child */ child => !dom.checkNodeType(child, dom.ELEMENT_NODE) || !child.hasAttribute('slot')))
-            currentSlots.slice(1).map(dom.remove)
-            const nextSlot = dom.parseFragment(slotElems[key])
-            if (key !== 'default') {
-              array.from(nextSlot.children).forEach(c => c.setAttribute('slot', key))
-            }
-            if (currentSlots.length > 0) {
-              dom.replaceWith(currentSlots[0], nextSlot)
-            } else {
-              dom.appendChild(this, nextSlot)
+            const slotContent = slotElems[key]
+            if (this._slots[key] !== slotContent) {
+              this._slots[key] = slotContent
+              const currentSlots = /** @type {Array<any>} */ (key !== 'default' ? array.from(dom.querySelectorAll(this, `[slot="${key}"]`)) : array.from(this.childNodes).filter(/** @param {any} child */ child => !dom.checkNodeType(child, dom.ELEMENT_NODE) || !child.hasAttribute('slot')))
+              currentSlots.slice(1).map(dom.remove)
+              const nextSlot = dom.parseFragment(slotContent)
+              if (key !== 'default') {
+                array.from(nextSlot.children).forEach(c => c.setAttribute('slot', key))
+              }
+              if (currentSlots.length > 0) {
+                dom.replaceWith(currentSlots[0], nextSlot)
+              } else {
+                dom.appendChild(this, nextSlot)
+              }
             }
           }
         }
