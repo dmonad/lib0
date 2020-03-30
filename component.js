@@ -30,6 +30,9 @@ export const define = (name, constr, opts) => registry.define(name, constr, opts
  */
 export const whenDefined = name => registry.whenDefined(name)
 
+/**
+ * @todo rename to lib0-component-upgradet before next major release
+ */
 const upgradedEventName = 'upgraded'
 
 /**
