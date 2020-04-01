@@ -54,15 +54,15 @@ The code style might be a bit different from what you are used to. Stay open. Mo
 <dl>
 <b><code>array.last(arr: Array&lt;L&gt;): L</code></b><br>
 <dd><p>Return the last element of an array. The element must exist</p></dd>
-<b><code>array.create(): Array&lt;T&gt;</code></b><br>
-<b><code>array.copy(a: Array&lt;T&gt;): Array&lt;T&gt;</code></b><br>
+<b><code>array.create(): Array&lt;C&gt;</code></b><br>
+<b><code>array.copy(a: Array&lt;D&gt;): Array&lt;D&gt;</code></b><br>
 <b><code>array.appendTo(dest: Array&lt;M&gt;, src: Array&lt;M&gt;)</code></b><br>
 <dd><p>Append elements from src to dest</p></dd>
 <b><code>array.from(arraylike: ArrayLike&lt;T&gt;|Iterable&lt;T&gt;): T</code></b><br>
 <dd><p>Transforms something array-like to an actual Array.</p></dd>
 <b><code>array.every(arr: Array&lt;ITEM&gt;, f: function(ITEM, number, Array&lt;ITEM&gt;):boolean): boolean</code></b><br>
 <dd><p>True iff condition holds on every element in the Array.</p></dd>
-<b><code>array.some(arr: Array&lt;T&gt;, f: function(T, number, Array&lt;T&gt;):boolean): boolean</code></b><br>
+<b><code>array.some(arr: Array&lt;S&gt;, f: function(S, number, Array&lt;S&gt;):boolean): boolean</code></b><br>
 <dd><p>True iff condition holds on some element in the Array.</p></dd>
 <b><code>array.equalFlat(a: Array&lt;ELEM&gt;, b: Array&lt;ELEM&gt;): boolean</code></b><br>
 </dl>
