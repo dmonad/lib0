@@ -24,7 +24,7 @@
   },
   "scripts": {
     "clean": "rm -rf dist *.d.ts */*.d.ts *.d.ts.map */*.d.ts.map",
-    "types": "tsc --outDir .",
+    "types": "npm run clean && tsc --outDir .",
     "dist": "npm run clean && rollup -c",
     "debug": "rollup -c && concurrently 'rollup -wc' 'http-server -o test.html'",
     "test": "npm run lint && npm run dist && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node ./dist/test.cjs --repitition-time 50 --production",

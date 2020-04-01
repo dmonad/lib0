@@ -14,17 +14,17 @@
 export const last = arr => arr[arr.length - 1]
 
 /**
- * @template T
- * @return {Array<T>}
+ * @template C
+ * @return {Array<C>}
  */
-export const create = () => []
+export const create = () => /** @type {Array<C>} */ ([])
 
 /**
- * @template T
- * @param {Array<T>} a
- * @return {Array<T>}
+ * @template D
+ * @param {Array<D>} a
+ * @return {Array<D>}
  */
-export const copy = a => a.slice()
+export const copy = a => /** @type {Array<D>} */ (a.slice())
 
 /**
  * Append elements from src to dest
@@ -65,10 +65,9 @@ export const every = (arr, f) => arr.every(f)
  * True iff condition holds on some element in the Array.
  *
  * @function
- * @template T
- *
- * @param {Array<T>} arr
- * @param {function(T, number, Array<T>):boolean} f
+ * @template S
+ * @param {Array<S>} arr
+ * @param {function(S, number, Array<S>):boolean} f
  * @return {boolean}
  */
 export const some = (arr, f) => arr.some(f)
