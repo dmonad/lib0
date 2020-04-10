@@ -88,7 +88,7 @@ export const _decodeUtf8Polyfill = buf => {
 }
 
 /* istanbul ignore next */
-export const utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true })
+export const utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
 /**
  * @param {Uint8Array} buf
