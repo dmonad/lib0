@@ -41,3 +41,15 @@ export const testRepeatStringUtf8Decoding = tc => {
   })
   t.compare(nativeResult, polyfilledResult, 'Decoded utf8 buffers match')
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testBomEncodingDecoding = tc => {
+  const bomStr = '﻿bom'
+  t.assert(bomStr.length === 4)
+  const nativeResult = string._decodeUtf8Native(string._encodeUtf8Native(bomStr))
+  const polyfilledResult = string._decodeUtf8Polyfill(string._encodeUtf8Polyfill(bomStr))
+  t.assert(nativeResult === polyfilledResult && nativeResult === bomStr)
+  t.assert(nativeResult.length === 4)
+}
