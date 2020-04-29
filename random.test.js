@@ -2,21 +2,35 @@ import * as random from './random.js'
 import * as t from './testing.js'
 import * as binary from './binary.js'
 import * as math from './math.js'
+import * as number from './number.js'
 
 /**
  * @param {t.TestCase} tc
  */
 export const testUint32 = tc => {
-  let num = 0
+  const iterations = 10000
+  let largest = 0
+  let smallest = number.HIGHEST_INT32
   let newNum = 0
-  for (let i = 0; i < 10000; i++) {
+  let lenSum = 0
+  let ones = 0
+  for (let i = 0; i < iterations; i++) {
     newNum = random.uint32()
-    if (newNum > num) {
-      num = newNum
+    lenSum += newNum.toString().length
+    ones += newNum.toString(2).split('').filter(x => x === '1').length
+    if (newNum > largest) {
+      largest = newNum
+    }
+    if (newNum < smallest) {
+      smallest = newNum
     }
   }
-  t.info(`Largest number generated is ${num} (0x${num.toString(16)})`)
-  t.assert((num & binary.BIT32) !== 0, 'Largest number is 32 bits long.')
+  t.info(`Largest number generated is ${largest} (0x${largest.toString(16)})`)
+  t.info(`Smallest number generated is ${smallest} (0x${smallest.toString(16)})`)
+  t.info(`Average decimal length of number is ${lenSum / iterations}`)
+  t.info(`Average number of 1s in number is ${ones / iterations} (expecting ~16)`)
+  t.assert(((largest & binary.BITS32) >>> 0) === largest, 'Largest number is 32 bits long.')
+  t.assert(((smallest & binary.BITS32) >>> 0) === smallest, 'Smallest number is 32 bits long.')
 }
 
 /**
