@@ -90,3 +90,17 @@ const Idle = createTimeoutClass(arg => typeof cancelIdleCallback !== 'undefined'
  */
 // @ts-ignore
 export const idleCallback = cb => typeof requestIdleCallback !== 'undefined' ? new Idle(requestIdleCallback(cb)) : timeout(1000, cb)
+
+/**
+ * @param {number} timeout Timeout of the debounce action
+ * @return {function(function | null):void}
+ */
+export const createDebouncer = timeout => {
+  let timer = -1
+  return f => {
+    clearTimeout(timer)
+    if (f) {
+      timer = setTimeout(f, timeout)
+    }
+  }
+}

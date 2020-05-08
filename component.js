@@ -30,10 +30,9 @@ export const define = (name, constr, opts) => registry.define(name, constr, opts
  */
 export const whenDefined = name => registry.whenDefined(name)
 
-/**
- * @todo rename to lib0-component-upgradet before next major release
- */
 const upgradedEventName = 'upgraded'
+const connectedEventName = 'connected'
+const disconnectedEventName = 'disconnected'
 
 /**
  * @template S
@@ -162,6 +161,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
        * @type {any}
        */
       this.state = state || (object.assign({}, defaultState))
+      this.connected = false
       // init shadow dom
       if (templateElement) {
         const shadow = /** @type {ShadowRoot} */ (this.attachShadow({ mode: 'open' }))
@@ -178,6 +178,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
     }
 
     connectedCallback () {
+      this.connected = true
       if (!this._init) {
         this._init = true
         const shadow = this.shadowRoot
@@ -211,10 +212,12 @@ export const createComponent = (name, { template, style = '', state: defaultStat
         this.state = null
         this.setState(startState)
       }
+      dom.emitCustomEvent(/** @type {any} */ (this.shadowRoot || this), connectedEventName, { bubbles: true })
     }
 
     disconnectedCallback () {
-      this.setState(null)
+      this.connected = false
+      dom.emitCustomEvent(/** @type {any} */ (this.shadowRoot || this), disconnectedEventName, { bubbles: true })
     }
 
     static get observedAttributes () {

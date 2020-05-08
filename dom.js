@@ -85,7 +85,7 @@ export const setAttributesMap = (el, attrs) => {
 export const fragment = children => {
   const fragment = createDocumentFragment()
   for (let i = 0; i < children.length; i++) {
-    fragment.appendChild(children[i])
+    appendChild(fragment, children[i])
   }
   return fragment
 }
@@ -97,7 +97,7 @@ export const fragment = children => {
  */
 /* istanbul ignore next */
 export const append = (parent, nodes) => {
-  parent.appendChild(fragment(nodes))
+  appendChild(parent, fragment(nodes))
   return parent
 }
 
@@ -257,9 +257,9 @@ export const replaceWith = (oldEl, newEl) => oldEl.replaceWith(newEl)
 export const insertBefore = (parent, el, ref) => parent.insertBefore(el, ref)
 
 /**
- * @param {HTMLElement} parent
- * @param {HTMLElement|DocumentFragment} child
- * @return {HTMLElement|DocumentFragment}
+ * @param {Node} parent
+ * @param {Node} child
+ * @return {Node}
  */
 /* istanbul ignore next */
 export const appendChild = (parent, child) => parent.appendChild(child)
@@ -277,3 +277,15 @@ export const DOCUMENT_FRAGMENT_NODE = doc.DOCUMENT_FRAGMENT_NODE
  * @param {number} type
  */
 export const checkNodeType = (node, type) => node.nodeType === type
+
+/**
+ * @param {Node} parent
+ * @param {HTMLElement} child
+ */
+export const isParentOf = (parent, child) => {
+  let p = child.parentNode
+  while (p && p !== parent) {
+    p = p.parentNode
+  }
+  return p === parent
+}
