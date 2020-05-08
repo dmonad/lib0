@@ -16,6 +16,7 @@ export const testLowercaseTransformation = tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatStringUtf8Encoding = tc => {
+  t.skip(!string.utf8TextDecoder)
   const str = prng.utf16String(tc.prng, 1000000)
   let nativeResult, polyfilledResult
   t.measureTime('TextEncoder utf8 encoding', () => {
@@ -31,6 +32,7 @@ export const testRepeatStringUtf8Encoding = tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatStringUtf8Decoding = tc => {
+  t.skip(!string.utf8TextDecoder)
   const buf = string.encodeUtf8(prng.utf16String(tc.prng, 1000000))
   let nativeResult, polyfilledResult
   t.measureTime('TextEncoder utf8 decoding', () => {
@@ -48,8 +50,11 @@ export const testRepeatStringUtf8Decoding = tc => {
 export const testBomEncodingDecoding = tc => {
   const bomStr = '﻿bom'
   t.assert(bomStr.length === 4)
-  const nativeResult = string._decodeUtf8Native(string._encodeUtf8Native(bomStr))
   const polyfilledResult = string._decodeUtf8Polyfill(string._encodeUtf8Polyfill(bomStr))
-  t.assert(nativeResult === polyfilledResult && nativeResult === bomStr)
-  t.assert(nativeResult.length === 4)
+  t.assert(polyfilledResult.length === 4)
+  t.assert(polyfilledResult === bomStr)
+  if (string.utf8TextDecoder) {
+    const nativeResult = string._decodeUtf8Native(string._encodeUtf8Native(bomStr))
+    t.assert(nativeResult === polyfilledResult)
+  }
 }

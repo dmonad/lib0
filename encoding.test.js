@@ -11,7 +11,7 @@ import * as number from './number.js'
 /**
  * @type {Array<function(prng.PRNG, number, boolean):any>}
  */
-const genAnyLookupTable = [
+let genAnyLookupTable = [
   gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
   gen => undefined, // TYPE 127
   gen => null, // TYPE 126
@@ -26,6 +26,10 @@ const genAnyLookupTable = [
 ]
 
 const genAnyLookupTableJsonCompatible = genAnyLookupTable.slice(1)
+
+if (typeof BigInt === 'undefined') {
+  genAnyLookupTable = genAnyLookupTable.slice(1)
+}
 
 /**
  * @param {prng.PRNG} gen

@@ -88,7 +88,18 @@ export const _decodeUtf8Polyfill = buf => {
 }
 
 /* istanbul ignore next */
-export const utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+export let utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+
+/* istanbul ignore next */
+if (utf8TextDecoder && utf8TextDecoder.decode(new Uint8Array()).length === 1) {
+  // Safari doesn't handle BOM correctly.
+  // This fixes a bug in Safari 13.0.5 where it produces a BOM the first time it is called.
+  // utf8TextDecoder.decode(new Uint8Array()).length === 1 on the first call and
+  // utf8TextDecoder.decode(new Uint8Array()).length === 1 on the second call
+  // Another issue is that from then on no BOM chars are recognized anymore
+  /* istanbul ignore next */
+  utf8TextDecoder = null
+}
 
 /**
  * @param {Uint8Array} buf
