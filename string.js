@@ -77,11 +77,10 @@ export const _decodeUtf8Polyfill = buf => {
   let bufPos = 0
   while (remainingLen > 0) {
     const nextLen = remainingLen < 10000 ? remainingLen : 10000
-    const bytes = new Array(nextLen)
-    for (let i = 0; i < nextLen; i++) {
-      bytes[i] = buf[bufPos++]
-    }
-    encodedString += String.fromCodePoint.apply(null, bytes)
+    const bytes = buf.subarray(bufPos, bufPos + nextLen)
+    bufPos += nextLen
+    // Starting with ES5.1 we can supply a generic array-like object as arguments
+    encodedString += String.fromCodePoint.apply(null, /** @type {any} */ (bytes))
     remainingLen -= nextLen
   }
   return decodeURIComponent(escape(encodedString))
