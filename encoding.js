@@ -268,8 +268,14 @@ export const writeVarInt = (encoder, num) => {
  * @param {Encoder} encoder
  * @param {String} str The string that is to be encoded.
  */
-export const writeVarString = (encoder, str) =>
-  writeVarUint8Array(encoder, string.encodeUtf8(str))
+export const writeVarString = (encoder, str) => {
+  const encodedString = unescape(encodeURIComponent(str))
+  const len = encodedString.length
+  writeVarUint(encoder, len)
+  for (let i = 0; i < len; i++) {
+    write(encoder, /** @type {number} */ (encodedString.codePointAt(i)))
+  }
+}
 
 /**
  * Write the content of another Encoder.
