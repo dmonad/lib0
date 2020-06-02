@@ -306,17 +306,27 @@ export const peekVarInt = decoder => {
  */
 export const readVarString = decoder => {
   let remainingLen = readVarUint(decoder)
-  let encodedString = ''
-  while (remainingLen > 0) {
-    const nextLen = remainingLen < 10000 ? remainingLen : 10000
-    // this is dangerous, we create a fresh array view from the existing buffer
-    const bytes = decoder.arr.subarray(decoder.pos, decoder.pos + nextLen)
-    decoder.pos += nextLen
-    // Starting with ES5.1 we can supply a generic array-like object as arguments
-    encodedString += String.fromCodePoint.apply(null, /** @type {any} */ (bytes))
-    remainingLen -= nextLen
+  if (remainingLen === 0) {
+    return ''
+  } else {
+    let encodedString = String.fromCodePoint(readUint8(decoder)) // remember to decrease remainingLen
+    if (--remainingLen < 100) { // do not create a Uint8Array for small strings
+      while (remainingLen--) {
+        encodedString += String.fromCodePoint(readUint8(decoder))
+      }
+    } else {
+      while (remainingLen > 0) {
+        const nextLen = remainingLen < 10000 ? remainingLen : 10000
+        // this is dangerous, we create a fresh array view from the existing buffer
+        const bytes = decoder.arr.subarray(decoder.pos, decoder.pos + nextLen)
+        decoder.pos += nextLen
+        // Starting with ES5.1 we can supply a generic array-like object as arguments
+        encodedString += String.fromCodePoint.apply(null, /** @type {any} */ (bytes))
+        remainingLen -= nextLen
+      }
+    }
+    return decodeURIComponent(escape(encodedString))
   }
-  return decodeURIComponent(escape(encodedString))
 }
 
 /**

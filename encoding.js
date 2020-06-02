@@ -30,7 +30,6 @@ import * as buffer from './buffer.js'
 import * as math from './math.js'
 import * as number from './number.js'
 import * as binary from './binary.js'
-import * as string from './string.js'
 
 /**
  * A BinaryEncoder handles the encoding to an Uint8Array.
