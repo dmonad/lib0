@@ -23,6 +23,7 @@ import * as buffer from './buffer.test.js'
 import * as sort from './sort.test.js'
 import * as url from './url.test.js'
 import * as metric from './metric.test.js'
+import * as func from './function.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
@@ -54,7 +55,8 @@ runTests({
   buffer,
   sort,
   url,
-  metric
+  metric,
+  func
 }).then(success => {
   /* istanbul ignore next */
   if (isNode) {
