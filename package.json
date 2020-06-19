@@ -7,6 +7,10 @@
   "main": "./index.js",
   "module": "./index.js",
   "types": "./index.d.ts",
+  "funding": {
+    "type": "GitHub Sponsors ❤",
+    "url": "https://github.com/sponsors/dmonad"
+  },
   "dependencies": {
     "isomorphic.js": "^0.1.3"
   },
