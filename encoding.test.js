@@ -115,6 +115,85 @@ const testVarString = s => {
   t.compareStrings(s, peeked)
 }
 
+export const testStringDecodingPerformance = async () => {
+  // test if it is faster to read N single characters, or if it is faster to read N characters in one flush.
+  // to make the comparison meaningful, we read read N characters in an Array
+  const N = 2000000
+  const durationSingleElements = await t.measureTime('read / write single elements', () => {
+    const encoder = encoding.createEncoder()
+    t.measureTime('read / write single elements - write', () => {
+      for (let i = 0; i < N; i++) {
+        encoding.writeVarString(encoder, 'i')
+      }
+    })
+    const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+    t.measureTime('read / write single elements - read', () => {
+      const arr = []
+      for (let i = 0; i < N; i++) {
+        arr.push(decoding.readVarString(decoder))
+      }
+    })
+  })
+
+  const durationConcatElementsNative = await t.measureTime('read / write concatenated string using native encoder/decoder', () => {
+    let stringbuf = new Uint8Array()
+    const encoderLengths = encoding.createEncoder()
+    t.measureTime('read / write concatenated string using native encoder/decoder - write', () => {
+      let s = ''
+      const sArr = []
+      for (let i = 0; i < N; i++) {
+        s += 'i'
+        encoding.writeVarUint(encoderLengths, 1) // we write a single char.
+        if (i % 20 === 0) {
+          sArr.push(s)
+          s = ''
+        }
+      }
+      sArr.push(s)
+      stringbuf = string.encodeUtf8(sArr.join(''))
+    })
+    const decoderLengths = decoding.createDecoder(encoding.toUint8Array(encoderLengths))
+    t.measureTime('read / write concatenated string using native encoder/decoder - read', () => {
+      const arr = []
+      const concatS = string.decodeUtf8(stringbuf)
+      for (let i = 0; i < N; i++) {
+        const len = decoding.readVarUint(decoderLengths)
+        arr.push(concatS.slice(i, len)) // push using slice
+      }
+    })
+  })
+  const durationConcatElements = await t.measureTime('read / write concatenated string', () => {
+    let stringbuf = new Uint8Array()
+    const encoder = encoding.createEncoder()
+    const encoderLengths = encoding.createEncoder()
+    t.measureTime('read / write concatenated string - write', () => {
+      let s = ''
+      for (let i = 0; i < N; i++) {
+        s += 'i'
+        encoding.writeVarUint(encoderLengths, 1) // we write a single char.
+        if (i % 20 === 0) {
+          encoding.writeVarString(encoder, s)
+          s = ''
+        }
+      }
+      encoding.writeVarString(encoder, s)
+      stringbuf = encoding.toUint8Array(encoder)
+    })
+    const decoder = decoding.createDecoder(stringbuf)
+    const decoderLengths = decoding.createDecoder(encoding.toUint8Array(encoderLengths))
+    t.measureTime('read / write concatenated string - read', () => {
+      const arr = []
+      const concatS = decoding.readVarString(decoder)
+      for (let i = 0; i < N; i++) {
+        const len = decoding.readVarUint(decoderLengths)
+        arr.push(concatS.slice(i, len)) // push using slice
+      }
+    })
+  })
+  t.assert(durationConcatElements < durationSingleElements, 'We expect that the second approach is faster. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
+  t.assert(durationConcatElements < durationConcatElementsNative * 1.3, 'We expect that the native approach is slower. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
+}
+
 /**
  * @param {t.TestCase} tc
  */
@@ -427,4 +506,89 @@ export const testOverflowStringDecoding = tc => {
   const buf = encoding.toUint8Array(encoder)
   const decoder = decoding.createDecoder(buf)
   t.assert(longStr === decoding.readVarString(decoder))
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRleEncoder = tc => {
+  const N = 100
+  const encoder = new encoding.RleEncoder(encoding.writeVarUint)
+  for (let i = 0; i < N; i++) {
+    encoder.write(i)
+    for (let j = 0; j < i; j++) { // write additional i times
+      encoder.write(i)
+    }
+  }
+  const decoder = new decoding.RleDecoder(encoding.toUint8Array(encoder), decoding.readVarUint)
+  for (let i = 0; i < N; i++) {
+    t.assert(i === decoder.read())
+    for (let j = 0; j < i; j++) { // read additional i times
+      t.assert(i === decoder.read())
+    }
+  }
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRleIntDiffEncoder = tc => {
+  const N = 100
+  const encoder = new encoding.RleIntDiffEncoder(0)
+  for (let i = -N; i < N; i++) {
+    encoder.write(i)
+    for (let j = 0; j < i; j++) { // write additional i times
+      encoder.write(i)
+    }
+  }
+  const decoder = new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0)
+  for (let i = -N; i < N; i++) {
+    t.assert(i === decoder.read())
+    for (let j = 0; j < i; j++) { // read additional i times
+      t.assert(i === decoder.read())
+    }
+  }
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testIntDiffEncoder = tc => {
+  const N = 100
+  const encoder = new encoding.IntDiffEncoder(0)
+  for (let i = -N; i < N; i++) {
+    encoder.write(i)
+  }
+  const decoder = new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 0)
+  for (let i = -N; i < N; i++) {
+    t.assert(i === decoder.read())
+  }
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testStringDecoder = tc => {
+  const gen = tc.prng
+  const N = 1000
+  const words = []
+  for (let i = 0; i < N; i++) {
+    words.push(prng.utf16String(gen))
+    if (i % 100 === 0) {
+      const char = prng.char(gen).slice(0, 1)
+      words.push(char)
+      words.push(char)
+    }
+    if (i % 107 === 0) {
+      words.push(prng.word(gen, 3000, 8000))
+    }
+  }
+  const encoder = new encoding.StringEncoder()
+  for (let i = 0; i < words.length; i++) {
+    encoder.write(words[i])
+  }
+  const decoder = new decoding.StringDecoder(encoder.toUint8Array())
+  for (let i = 0; i < words.length; i++) {
+    t.assert(decoder.read() === words[i])
+  }
 }

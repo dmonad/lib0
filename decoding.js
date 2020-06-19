@@ -28,6 +28,7 @@
 
 import * as buffer from './buffer.js'
 import * as binary from './binary.js'
+import * as math from './math.js'
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -414,3 +415,149 @@ const readAnyLookupTable = [
  * @param {Decoder} decoder
  */
 export const readAny = decoder => readAnyLookupTable[127 - readUint8(decoder)](decoder)
+
+/**
+ * T must not be null.
+ *
+ * @template T
+ */
+export class RleDecoder extends Decoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   * @param {function(Decoder):T} reader
+   */
+  constructor (uint8Array, reader) {
+    super(uint8Array)
+    /**
+     * The reader
+     */
+    this.reader = reader
+    /**
+     * Current state
+     * @type {T|null}
+     */
+    this.s = null
+    this.count = 0
+  }
+
+  read () {
+    if (this.count === 0) {
+      this.s = this.reader(this)
+      if (hasContent(this)) {
+        this.count = readVarUint(this) + 1 // see encoder implementation for the reason why this is incremented
+      } else {
+        this.count = -1 // read the current value forever
+      }
+    }
+    this.count--
+    return this.s
+  }
+}
+
+export class IntDiffDecoder extends Decoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   * @param {number} start
+   */
+  constructor (uint8Array, start) {
+    super(uint8Array)
+    /**
+     * Current state
+     * @type {number}
+     */
+    this.s = start
+  }
+
+  /**
+   * @return {number}
+   */
+  read () {
+    this.s += readVarInt(this)
+    return this.s
+  }
+}
+
+export class RleIntDiffDecoder extends Decoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   * @param {number} start
+   */
+  constructor (uint8Array, start) {
+    super(uint8Array)
+    /**
+     * Current state
+     * @type {number}
+     */
+    this.s = start
+    this.count = 0
+  }
+
+  /**
+   * @return {number}
+   */
+  read () {
+    if (this.count === 0) {
+      this.s += readVarInt(this)
+      if (hasContent(this)) {
+        this.count = readVarUint(this) + 1 // see encoder implementation for the reason why this is incremented
+      } else {
+        this.count = -1 // read the current value forever
+      }
+    }
+    this.count--
+    return this.s
+  }
+}
+
+export class UintOptRleDecoder extends Decoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   */
+  constructor (uint8Array) {
+    super(uint8Array)
+    /**
+     * @type {number}
+     */
+    this.s = 0
+    this.count = 0
+  }
+
+  read () {
+    if (this.count === 0) {
+      this.s = readVarInt(this)
+      // if the sign is negative, we read the count too, otherwise count is 1
+      const isNegative = math.isNegativeZero(this.s)
+      this.count = 1
+      if (isNegative) {
+        this.s = -this.s
+        this.count = readVarUint(this) + 2
+      }
+    }
+    this.count--
+    return this.s
+  }
+}
+
+export class StringDecoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   */
+  constructor (uint8Array) {
+    this.decoder = new UintOptRleDecoder(uint8Array)
+    this.str = readVarString(this.decoder)
+    /**
+     * @type {number}
+     */
+    this.spos = 0
+  }
+
+  /**
+   * @return {string}
+   */
+  read () {
+    const end = this.spos + this.decoder.read()
+    const res = this.str.slice(this.spos, end)
+    this.spos = end
+    return res
+  }
+}

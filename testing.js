@@ -277,21 +277,17 @@ export const group = async (description, f) => {
  *
  * @param {string} message
  * @param {function():void|Promise<undefined>} f
+ * @return {Promise<number>} Returns a promise that resolves the measured duration to apply f
  */
 export const measureTime = async (message, f) => {
-  let duration = 0
-  let iterations = 0
   const start = performance.now()
-  while (duration < 5) {
-    const p = f()
-    if (p) {
-      await p
-    }
-    duration = performance.now() - start
-    iterations++
+  const p = f()
+  if (p) {
+    await p
   }
-  const iterationsInfo = iterations > 1 ? `, ${iterations} repititions` : ''
-  log.print(log.PURPLE, message, log.GREY, ` ${time.humanizeDuration(duration / iterations)}${iterationsInfo}`)
+  const duration = performance.now() - start
+  log.print(log.PURPLE, message, log.GREY, ` ${time.humanizeDuration(duration)}`)
+  return duration
 }
 
 /**

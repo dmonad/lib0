@@ -239,15 +239,19 @@ export const writeVarUint = (encoder, num) => {
  *
  * Encodes integers in the range from [-2147483648, -2147483647].
  *
+ * We don't use zig-zag encoding because we want to keep the option open
+ * to use the same function for BigInt and 53bit integers (doubles).
+ *
+ * We use the 7th bit instead for signaling that this is a negative number.
+ *
  * @function
  * @param {Encoder} encoder
  * @param {number} num The number that is to be encoded.
  */
 export const writeVarInt = (encoder, num) => {
-  let isNegative = false
-  if (num < 0) {
+  const isNegative = math.isNegativeZero(num)
+  if (isNegative) {
     num = -num
-    isNegative = true
   }
   //             |- whether to continue reading         |- whether is negative     |- number
   write(encoder, (num > binary.BITS6 ? binary.BIT8 : 0) | (isNegative ? binary.BIT7 : 0) | (binary.BITS6 & num))
@@ -483,5 +487,178 @@ export const writeAny = (encoder, data) => {
     default:
       // TYPE 127: undefined
       write(encoder, 127)
+  }
+}
+
+/**
+ * T must not be null.
+ *
+ * @template T
+ */
+export class RleEncoder extends Encoder {
+  /**
+   * @param {function(Encoder, T):void} writer
+   */
+  constructor (writer) {
+    super()
+    /**
+     * The writer
+     */
+    this.w = writer
+    /**
+     * Current state
+     * @type {T|null}
+     */
+    this.s = null
+    this.count = 0
+  }
+
+  /**
+   * @param {T} v
+   */
+  write (v) {
+    if (this.s === v) {
+      this.count++
+    } else {
+      if (this.count > 0) {
+        // flush counter, unless this is the first value (count = 0)
+        writeVarUint(this, this.count - 1) // since count is always > 0, we can decrement by one. non-standard encoding ftw
+      }
+      this.count = 1
+      // write first value
+      this.w(this, v)
+      this.s = v
+    }
+  }
+}
+
+export class IntDiffEncoder extends Encoder {
+  /**
+   * @param {number} start
+   */
+  constructor (start) {
+    super()
+    /**
+     * Current state
+     * @type {number}
+     */
+    this.s = start
+  }
+
+  /**
+   * @param {number} v
+   */
+  write (v) {
+    writeVarInt(this, v - this.s)
+    this.s = v
+  }
+}
+
+export class RleIntDiffEncoder extends Encoder {
+  /**
+   * @param {number} start
+   */
+  constructor (start) {
+    super()
+    /**
+     * Current state
+     * @type {number}
+     */
+    this.s = start
+    this.count = 0
+  }
+
+  /**
+   * @param {number} v
+   */
+  write (v) {
+    if (this.s === v && this.count > 0) {
+      this.count++
+    } else {
+      if (this.count > 0) {
+        // flush counter, unless this is the first value (count = 0)
+        writeVarUint(this, this.count - 1) // since count is always > 0, we can decrement by one. non-standard encoding ftw
+      }
+      this.count = 1
+      // write first value
+      writeVarInt(this, v - this.s)
+      this.s = v
+    }
+  }
+}
+
+/**
+ * @param {UintOptRleEncoder} encoder
+ */
+const flushUintOptRleEncoder = encoder => {
+  if (encoder.count > 0) {
+    // flush counter, unless this is the first value (count = 0)
+    // case 1: just a single value. set sign to positive
+    // case 2: write several values. set sign to negative to indicate that there is a length coming
+    writeVarInt(encoder.encoder, encoder.count === 1 ? encoder.s : -encoder.s)
+    if (encoder.count > 1) {
+      writeVarUint(encoder.encoder, encoder.count - 2) // since count is always > 1, we can decrement by one. non-standard encoding ftw
+    }
+  }
+}
+
+export class UintOptRleEncoder {
+  constructor () {
+    this.encoder = new Encoder()
+    /**
+     * @type {number}
+     */
+    this.s = 0
+    this.count = 0
+  }
+
+  /**
+   * @param {number} v
+   */
+  write (v) {
+    if (this.s === v) {
+      this.count++
+    } else {
+      flushUintOptRleEncoder(this)
+      this.count = 1
+      this.s = v
+    }
+  }
+
+  toUint8Array () {
+    flushUintOptRleEncoder(this)
+    return toUint8Array(this.encoder)
+  }
+}
+
+export class StringEncoder {
+  constructor () {
+    /**
+     * @type {Array<string>}
+     */
+    this.sarr = []
+    this.s = ''
+    this.lensE = new UintOptRleEncoder()
+  }
+
+  /**
+   * @param {string} string
+   */
+  write (string) {
+    this.s += string
+    if (this.s.length > 19) {
+      this.sarr.push(this.s)
+      this.s = ''
+    }
+    this.lensE.write(string.length)
+  }
+
+  toUint8Array () {
+    const encoder = new Encoder()
+    this.sarr.push(this.s)
+    this.s = ''
+    writeVarString(encoder, this.sarr.join(''))
+    writeUint8Array(encoder, this.lensE.toUint8Array())
+    return toUint8Array(encoder)
   }
 }

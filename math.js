@@ -48,3 +48,11 @@ export const pow = Math.pow
  * @return {number}
  */
 export const exp10 = exp => Math.pow(10, exp)
+
+export const sign = Math.sign
+
+/**
+ * @param {number} n
+ * @return {boolean} Wether n is negative. This function also differentiates between -0 and +0
+ */
+export const isNegativeZero = n => n !== 0 ? n < 0 : 1 / n < 0
