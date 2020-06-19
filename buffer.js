@@ -66,7 +66,10 @@ const fromBase64Browser = s => {
 /**
  * @param {string} s
  */
-const fromBase64Node = s => new Uint8Array(Buffer.from(s, 'base64').buffer)
+const fromBase64Node = s => {
+  const buf = Buffer.from(s, 'base64')
+  return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
+}
 
 /* istanbul ignore next */
 export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
