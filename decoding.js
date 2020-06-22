@@ -236,6 +236,7 @@ export const readVarUint = decoder => {
  * 1/8th of the storage is used as encoding overhead.
  *  * numbers < 2^7 is stored in one bytlength
  *  * numbers < 2^14 is stored in two bylength
+ * @todo This should probably create the inverse ~num if unmber is negative - but this would be a breaking change.
  *
  * @function
  * @param {Decoder} decoder
@@ -255,7 +256,7 @@ export const readVarInt = decoder => {
     num = num | ((r & binary.BITS7) << len)
     len += 7
     if (r < binary.BIT8) {
-      return sign * num
+      return sign * (num >>> 0)
     }
     /* istanbul ignore if */
     if (len > 41) {
