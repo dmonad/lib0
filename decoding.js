@@ -450,7 +450,7 @@ export class RleDecoder extends Decoder {
       }
     }
     this.count--
-    return this.s
+    return /** @type {T} */ (this.s)
   }
 }
 
@@ -505,7 +505,7 @@ export class RleIntDiffDecoder extends Decoder {
       }
     }
     this.count--
-    return this.s
+    return /** @type {number} */ (this.s)
   }
 }
 
@@ -534,7 +534,7 @@ export class UintOptRleDecoder extends Decoder {
       }
     }
     this.count--
-    return this.s
+    return /** @type {number} */ (this.s)
   }
 }
 
