@@ -491,7 +491,17 @@ export const writeAny = (encoder, data) => {
 }
 
 /**
- * T must not be null.
+ * Now come a few stateful encoder that have their own classes.
+ */
+
+/**
+ * Basic Run Length Encoder - a basic compression implementation.
+ *
+ * Encodes [1,1,1,7] to [1,3,7,1] (3 times 1, 1 time 7). This encoder might do more harm than good if there are a lot of values that are not repeated.
+ *
+ * It was originally used for image compression. Cool .. article http://csbruce.com/cbm/transactor/pdfs/trans_v7_i06.pdf
+ *
+ * @note T must not be null!
  *
  * @template T
  */
@@ -532,6 +542,11 @@ export class RleEncoder extends Encoder {
   }
 }
 
+/**
+ * Basic diff decoder using variable length encoding.
+ *
+ * Encodes the values [3, 1100, 1101, 1050, 0] to [3, 1097, 1, -51, -1050] using writeVarInt.
+ */
 export class IntDiffEncoder extends Encoder {
   /**
    * @param {number} start
@@ -554,6 +569,13 @@ export class IntDiffEncoder extends Encoder {
   }
 }
 
+/**
+ * A combination of IntDiffEncoder and RleEncoder.
+ *
+ * Basically first writes the IntDiffEncoder and then counts duplicate diffs using RleEncoding.
+ *
+ * Encodes the values [1,1,1,2,3,4,5,6] as [1,1,0,2,1,5] (RLE([1,0,0,1,1,1,1,1]) ⇒ RleIntDiff[1,1,0,2,1,5])
+ */
 export class RleIntDiffEncoder extends Encoder {
   /**
    * @param {number} start
@@ -602,6 +624,14 @@ const flushUintOptRleEncoder = encoder => {
   }
 }
 
+/**
+ * Optimized Rle encoder that does not suffer from the mentioned problem of the basic Rle encoder.
+ *
+ * Internally uses VarInt encoder to write unsigned integers. If the input occurs multiple times, we write
+ * write it as a negative number. The UintOptRleDecoder then understands that it needs to read a count.
+ *
+ * Encodes [1,2,3,3,3] as [1,2,-3,3] (once 1, once 2, three times 3)
+ */
 export class UintOptRleEncoder {
   constructor () {
     this.encoder = new Encoder()
@@ -631,6 +661,119 @@ export class UintOptRleEncoder {
   }
 }
 
+/**
+ * Increasing Uint Optimized RLE Encoder
+ *
+ * The RLE encoder counts the number of same occurences of the same value.
+ * The IncUintOptRle encoder counts if the value increases.
+ * I.e. 7, 8, 9, 10 will be encoded as [-7, 4]. 1, 3, 5 will be encoded
+ * as [1, 3, 5].
+ */
+export class IncUintOptRleEncoder {
+  constructor () {
+    this.encoder = new Encoder()
+    /**
+     * @type {number}
+     */
+    this.s = 0
+    this.count = 0
+  }
+
+  /**
+   * @param {number} v
+   */
+  write (v) {
+    if (this.s + this.count === v) {
+      this.count++
+    } else {
+      flushUintOptRleEncoder(this)
+      this.count = 1
+      this.s = v
+    }
+  }
+
+  toUint8Array () {
+    flushUintOptRleEncoder(this)
+    return toUint8Array(this.encoder)
+  }
+}
+
+/**
+ * @param {IntDiffOptRleEncoder} encoder
+ */
+const flushIntDiffOptRleEncoder = encoder => {
+  if (encoder.count > 0) {
+    //          31 bit making up the diff | wether to write the counter
+    const encodedDiff = encoder.diff << 1 | (encoder.count === 1 ? 0 : 1)
+    // flush counter, unless this is the first value (count = 0)
+    // case 1: just a single value. set first bit to positive
+    // case 2: write several values. set first bit to negative to indicate that there is a length coming
+    writeVarInt(encoder.encoder, encodedDiff)
+    if (encoder.count > 1) {
+      writeVarUint(encoder.encoder, encoder.count - 2) // since count is always > 1, we can decrement by one. non-standard encoding ftw
+    }
+  }
+}
+
+/**
+ * A combination of the IntDiffEncoder and the UintOptRleEncoder.
+ *
+ * The count approach is similar to the UintDiffOptRleEncoder, but instead of using the negative bitflag, it encodes
+ * in the LSB whether a count is to be read. Therefore this Encoder only supports 31 bit integers!
+ *
+ * Encodes [1, 2, 3, 2] as [3, 1, 6, -1] (more specifically [(1 << 1) | 1, (3 << 0) | 0, -1])
+ *
+ * Internally uses variable length encoding. Contrary to normal UintVar encoding, the first byte contains:
+ * * 1 bit that denotes whether the next value is a count (LSB)
+ * * 1 bit that denotes whether this value is negative (MSB - 1)
+ * * 1 bit that denotes whether to continue reading the variable length integer (MSB)
+ *
+ * Therefore, only five bits remain to encode diff ranges.
+ *
+ * Use this Encoder only when appropriate. In most cases, this is probably a bad idea.
+ */
+export class IntDiffOptRleEncoder {
+  constructor () {
+    this.encoder = new Encoder()
+    /**
+     * @type {number}
+     */
+    this.s = 0
+    this.count = 0
+    this.diff = 0
+  }
+
+  /**
+   * @param {number} v
+   */
+  write (v) {
+    if (this.diff === v - this.s) {
+      this.s = v
+      this.count++
+    } else {
+      flushIntDiffOptRleEncoder(this)
+      this.count = 1
+      this.diff = v - this.s
+      this.s = v
+    }
+  }
+
+  toUint8Array () {
+    flushIntDiffOptRleEncoder(this)
+    return toUint8Array(this.encoder)
+  }
+}
+
+/**
+ * Optimized String Encoder.
+ *
+ * Encoding many small strings in a simple Encoder is not very efficient. The function call to decode a string takes some time and creates references that must be eventually deleted.
+ * In practice, when decoding several million small strings, the GC will kick in more and more often to collect orphaned string objects (or maybe there is another reason?).
+ *
+ * This string encoder solves the above problem. All strings are concatenated and written as a single string using a single encoding call.
+ *
+ * The lengths are encoded using a UintOptRleEncoder.
+ */
 export class StringEncoder {
   constructor () {
     /**

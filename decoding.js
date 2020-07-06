@@ -539,6 +539,69 @@ export class UintOptRleDecoder extends Decoder {
   }
 }
 
+export class IncUintOptRleDecoder extends Decoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   */
+  constructor (uint8Array) {
+    super(uint8Array)
+    /**
+     * @type {number}
+     */
+    this.s = 0
+    this.count = 0
+  }
+
+  read () {
+    if (this.count === 0) {
+      this.s = readVarInt(this)
+      // if the sign is negative, we read the count too, otherwise count is 1
+      const isNegative = math.isNegativeZero(this.s)
+      this.count = 1
+      if (isNegative) {
+        this.s = -this.s
+        this.count = readVarUint(this) + 2
+      }
+    }
+    this.count--
+    return /** @type {number} */ (this.s++)
+  }
+}
+
+export class IntDiffOptRleDecoder extends Decoder {
+  /**
+   * @param {Uint8Array} uint8Array
+   */
+  constructor (uint8Array) {
+    super(uint8Array)
+    /**
+     * @type {number}
+     */
+    this.s = 0
+    this.count = 0
+    this.diff = 0
+  }
+
+  /**
+   * @return {number}
+   */
+  read () {
+    if (this.count === 0) {
+      const diff = readVarInt(this)
+      // if the first bit is set, we read more data
+      const hasCount = diff & 1
+      this.diff = diff >> 1
+      this.count = 1
+      if (hasCount) {
+        this.count = readVarUint(this) + 2
+      }
+    }
+    this.s += this.diff
+    this.count--
+    return this.s
+  }
+}
+
 export class StringDecoder {
   /**
    * @param {Uint8Array} uint8Array

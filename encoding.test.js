@@ -553,6 +553,63 @@ export const testRleIntDiffEncoder = tc => {
 /**
  * @param {t.TestCase} tc
  */
+export const testIntDiffRleEncoder = tc => {
+  const N = 100
+  const encoder = new encoding.IntDiffOptRleEncoder()
+  for (let i = -N; i < N; i++) {
+    encoder.write(i)
+    for (let j = 0; j < i; j++) { // write additional i times
+      encoder.write(i)
+    }
+  }
+  const decoder = new decoding.IntDiffOptRleDecoder(encoder.toUint8Array())
+  for (let i = -N; i < N; i++) {
+    t.assert(i === decoder.read())
+    for (let j = 0; j < i; j++) { // read additional i times
+      t.assert(i === decoder.read())
+    }
+  }
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testIntEncoders = tc => {
+  const arrLen = 10000
+  const gen = tc.prng
+  /**
+   * @type {Array<number>}
+   */
+  const vals = []
+  for (let i = 0; i < arrLen; i++) {
+    vals.push(prng.int31(gen, -10, 10))
+  }
+  /**
+   * @type {Array<{ encoder: any, read: function(any):any }>}
+   */
+  const intEncoders = [
+    { encoder: new encoding.IntDiffOptRleEncoder(), read: encoder => new decoding.IntDiffOptRleDecoder(encoder.toUint8Array()) },
+    { encoder: new encoding.IntDiffEncoder(0), read: encoder => new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 0) },
+    { encoder: new encoding.IntDiffEncoder(42), read: encoder => new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 42) },
+    { encoder: new encoding.RleIntDiffEncoder(0), read: encoder => new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0) }
+  ]
+  intEncoders.forEach(({ encoder, read }) => {
+    vals.forEach(v => encoder.write(v))
+    /**
+     * @type {Array<number>}
+     */
+    const readVals = []
+    const dec = read(encoder)
+    for (let i = 0; i < arrLen; i++) {
+      readVals.push(dec.read())
+    }
+    t.compare(vals, readVals)
+  })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testIntDiffEncoder = tc => {
   const N = 100
   const encoder = new encoding.IntDiffEncoder(0)
