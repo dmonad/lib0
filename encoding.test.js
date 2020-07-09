@@ -376,6 +376,7 @@ const encodingPairs = [
   { name: 'uint8', read: decoding.readUint8, write: encoding.writeUint8, gen: gen => prng.uint32(gen, 0, binary.BITS8), compare: strictComparison },
   { name: 'uint16', read: decoding.readUint16, write: encoding.writeUint16, gen: gen => prng.uint32(gen, 0, binary.BITS16), compare: strictComparison },
   { name: 'uint32', read: decoding.readUint32, write: encoding.writeUint32, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
+  { name: 'uint32bigEndian', read: decoding.readUint32BigEndian, write: encoding.writeUint32BigEndian, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
   { name: 'varString', read: decoding.readVarString, write: encoding.writeVarString, gen: gen => prng.utf16String(gen, prng.int31(gen, 0, defLen)), compare: strictComparison },
   { name: 'varUint', read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS32), compare: strictComparison },
   { name: 'varInt', read: decoding.readVarInt, write: encoding.writeVarInt, gen: gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), compare: strictComparison },

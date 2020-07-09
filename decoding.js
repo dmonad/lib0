@@ -168,6 +168,24 @@ export const readUint32 = decoder => {
 }
 
 /**
+ * Read 4 bytes as unsigned integer in big endian order.
+ * (most significant byte first)
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {number} An unsigned integer.
+ */
+export const readUint32BigEndian = decoder => {
+  const uint =
+    (decoder.arr[decoder.pos + 3] +
+    (decoder.arr[decoder.pos + 2] << 8) +
+    (decoder.arr[decoder.pos + 1] << 16) +
+    (decoder.arr[decoder.pos] << 24)) >>> 0
+  decoder.pos += 4
+  return uint
+}
+
+/**
  * Look ahead without incrementing position.
  * to the next byte and read it as unsigned integer.
  *

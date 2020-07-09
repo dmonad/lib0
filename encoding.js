@@ -203,6 +203,20 @@ export const writeUint32 = (encoder, num) => {
 }
 
 /**
+ * Write two bytes as an unsigned integer in big endian order.
+ * (most significant byte first)
+ *
+ * @function
+ * @param {Encoder} encoder
+ * @param {number} num The number that is to be encoded.
+ */
+export const writeUint32BigEndian = (encoder, num) => {
+  for (let i = 3; i >= 0; i--) {
+    write(encoder, (num >>> (8 * i)) & binary.BITS8)
+  }
+}
+
+/**
  * Write two bytes as an unsigned integer at a specific location.
  *
  * @function
