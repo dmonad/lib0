@@ -40,7 +40,7 @@ const runGenTest = (tc, gen) => {
     let i
 
     for (i = 0; i < genTestData; i++) {
-      count += prng.int31(gen, 0, 100)
+      count += prng.uint32(gen, 0, 100)
     }
     const average = count / genTestData
     const expectedAverage = 100 / 2
@@ -132,7 +132,7 @@ const runGenTest = (tc, gen) => {
     let i
     let newNum
     for (i = 0; i < genTestData; i++) {
-      newNum = prng.int31(gen, 0, binary.BITS31)
+      newNum = prng.uint32(gen, 0, binary.BITS31)
       if (newNum > num) {
         num = newNum
       }
@@ -205,8 +205,8 @@ const printDistribution = (gen, tc) => {
   }
   ctx.fillStyle = 'blue'
   for (let i = 0; i < genTestData; i++) {
-    const x = prng.int31(gen, 0, DIAMETER * 3)
-    const y = prng.int31(gen, 0, DIAMETER)
+    const x = prng.int32(gen, 0, DIAMETER * 3)
+    const y = prng.int32(gen, 0, DIAMETER)
     ctx.fillRect(x, y, 1, 2)
   }
   t.printCanvas(canvas, DIAMETER)

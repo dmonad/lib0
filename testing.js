@@ -55,6 +55,7 @@ import * as array from './array.js'
 import * as env from './environment.js'
 import * as json from './json.js'
 import * as time from './time.js'
+import * as promise from './promise.js'
 
 import { performance } from './isomorphic.js'
 
@@ -155,7 +156,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   do {
     try {
       const p = f(tc)
-      if (p != null && p.constructor === Promise) {
+      if (promise.isPromise(p)) {
         await p
       }
     } catch (_err) {
@@ -239,7 +240,7 @@ export const printCanvas = log.printCanvas
  *   t.group('subtest 1', () => {
  *     t.describe('this message is part of a collapsible section')
  *   })
- *   t.group('subtest async 2', async () => {
+ *   await t.groupAsync('subtest async 2', async () => {
  *     await someaction()
  *     t.describe('this message is part of a collapsible section')
  *   })
@@ -247,15 +248,39 @@ export const printCanvas = log.printCanvas
  * ```
  *
  * @param {string} description
- * @param {function(void):void|Promise<undefined>} f
+ * @param {function(void):void} f
  */
-export const group = async (description, f) => {
+export const group = (description, f) => {
   log.group(log.BLUE, description)
   try {
-    const p = f()
-    if (p) {
-      await p
-    }
+    f()
+  } finally {
+    log.groupEnd()
+  }
+}
+
+/**
+ * Group outputs in a collapsible category.
+ *
+ * ```js
+ * export const testMyFirstTest = async tc => {
+ *   t.group('subtest 1', () => {
+ *     t.describe('this message is part of a collapsible section')
+ *   })
+ *   await t.groupAsync('subtest async 2', async () => {
+ *     await someaction()
+ *     t.describe('this message is part of a collapsible section')
+ *   })
+ * }
+ * ```
+ *
+ * @param {string} description
+ * @param {function(void):Promise<any>} f
+ */
+export const groupAsync = async (description, f) => {
+  log.group(log.BLUE, description)
+  try {
+    await f()
   } finally {
     log.groupEnd()
   }
@@ -265,28 +290,59 @@ export const group = async (description, f) => {
  * Measure the time that it takes to calculate something.
  *
  * ```js
- * export const testMyFirstTest = tc => {
+ * export const testMyFirstTest = async tc => {
  *   t.measureTime('measurement', () => {
  *     heavyCalculation()
  *   })
- *   t.group('async measurement', async () => {
+ *   await t.groupAsync('async measurement', async () => {
  *     await heavyAsyncCalculation()
  *   })
  * }
  * ```
  *
  * @param {string} message
- * @param {function():void|Promise<undefined>} f
+ * @param {function():void} f
+ * @return {number} Returns a promise that resolves the measured duration to apply f
+ */
+export const measureTime = (message, f) => {
+  let duration
+  const start = performance.now()
+  try {
+    f()
+  } finally {
+    duration = performance.now() - start
+    log.print(log.PURPLE, message, log.GREY, ` ${time.humanizeDuration(duration)}`)
+  }
+  return duration
+}
+
+/**
+ * Measure the time that it takes to calculate something.
+ *
+ * ```js
+ * export const testMyFirstTest = async tc => {
+ *   t.measureTimeAsync('measurement', async () => {
+ *     await heavyCalculation()
+ *   })
+ *   await t.groupAsync('async measurement', async () => {
+ *     await heavyAsyncCalculation()
+ *   })
+ * }
+ * ```
+ *
+ * @param {string} message
+ * @param {function():Promise<any>} f
  * @return {Promise<number>} Returns a promise that resolves the measured duration to apply f
  */
-export const measureTime = async (message, f) => {
+export const measureTimeAsync = async (message, f) => {
+  let duration
   const start = performance.now()
-  const p = f()
-  if (p) {
-    await p
+  try {
+    await f()
+  } finally {
+    duration = performance.now() - start
+    log.print(log.PURPLE, message, log.GREY, ` ${time.humanizeDuration(duration)}`)
   }
-  const duration = performance.now() - start
-  log.print(log.PURPLE, message, log.GREY, ` ${time.humanizeDuration(duration)}`)
   return duration
 }
 

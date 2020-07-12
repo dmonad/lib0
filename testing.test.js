@@ -117,8 +117,8 @@ export const testSkipping = () => {
 }
 
 export const testAsync = async () => {
-  await t.measureTime('time', () => promise.create(r => setTimeout(r)))
-  await t.group('some description', () => promise.wait(1))
+  await t.measureTimeAsync('time', () => promise.create(r => setTimeout(r)))
+  await t.groupAsync('some description', () => promise.wait(1))
 }
 
 export const testRepeatRepitition = () => {

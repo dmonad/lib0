@@ -87,6 +87,7 @@ export const int32 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) 
 export const uint32 = (gen, min, max) => int32(gen, min, max) >>> 0
 
 /**
+ * @deprecated
  * Optimized version of prng.int32. It has the same precision as prng.int32, but should be preferred when
  * openaring on smaller ranges.
  *
@@ -95,12 +96,7 @@ export const uint32 = (gen, min, max) => int32(gen, min, max) >>> 0
  * @param {Number} max The upper bound of the allowed return values (inclusive). The max inclusive number is `binary.BITS31-1`
  * @return {Number} A random integer on [min, max]
  */
-export const int31 = (gen, min, max) => {
-  // we make sure that this is stored as an Int, not a double.
-  const _min = min & binary.BITS32
-  const _max = max & binary.BITS32
-  return math.floor(gen.next() * (math.min(_max - _min + 1, binary.BITS32) & binary.BITS32) + _min)
-}
+export const int31 = (gen, min, max) => int32(gen, min, max)
 
 /**
  * Generates a random real on [0, 1) with 53 bit resolution.

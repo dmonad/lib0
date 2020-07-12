@@ -77,3 +77,14 @@ export const until = (timeout, check, intervalResolution = 10) => create((resolv
  * @return {Promise<undefined>}
  */
 export const wait = timeout => create((resolve, reject) => setTimeout(resolve, timeout))
+
+/**
+ * Checks if an object is a promise using ducktyping.
+ *
+ * Promises are often polyfilled, so it makes sense to add some additional guarantees if the user of this
+ * library has some insane environment where global Promise objects are overwritten.
+ *
+ * @param {any} p
+ * @return {boolean}
+ */
+export const isPromise = p => p instanceof Promise || (p && p.then && p.catch && p.finally)

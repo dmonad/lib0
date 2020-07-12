@@ -42,3 +42,19 @@ export const testRepeatPromise = async tc => {
   await measureP(promise.until(0, () => (time.getUnixTime() - startTime) > 100), 100, 1000)
   await promise.all([promise.wait(5), promise.wait(10)])
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testispromise = tc => {
+  t.assert(promise.isPromise(new Promise(() => {})))
+  t.assert(promise.isPromise(promise.create(() => {})))
+  const rej = promise.reject()
+  t.assert(promise.isPromise(rej))
+  rej.catch(() => {})
+  t.assert(promise.isPromise(promise.resolve()))
+  t.assert(promise.isPromise({ then: () => {}, catch: () => {}, finally: () => {} }))
+  t.fails(() => {
+    t.assert(promise.isPromise({ then: () => {}, catch: () => {} }))
+  })
+}
