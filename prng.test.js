@@ -17,6 +17,20 @@ const genTestData = 5000
  * @param {prng.PRNG} gen
  */
 const runGenTest = (tc, gen) => {
+  t.group('next - average distribution', () => {
+    let sum = 0
+    for (let i = 0; i < genTestData; i++) {
+      const next = gen.next()
+      if (next >= 1) {
+        t.fail('unexpected prng result')
+      }
+      sum += next
+    }
+    const avg = sum / genTestData
+    t.assert(avg >= 0.45)
+    t.assert(avg <= 0.55)
+  })
+
   t.group('bool - bool distribution is fair', () => {
     let head = 0
     let tail = 0

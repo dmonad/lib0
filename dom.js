@@ -73,7 +73,7 @@ export const setAttributes = (el, attrs) => {
  */
 /* istanbul ignore next */
 export const setAttributesMap = (el, attrs) => {
-  map.map(attrs, (value, key) => el.setAttribute(key, value))
+  attrs.forEach((value, key) => { el.setAttribute(key, value) })
   return el
 }
 

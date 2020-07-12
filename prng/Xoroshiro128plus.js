@@ -40,7 +40,7 @@ export class Xoroshiro128plus {
     const state = this.state
     if (this._fresh) {
       this._fresh = false
-      return ((state[0] + state[2]) >>> 0) / binary.BITS32
+      return ((state[0] + state[2]) >>> 0) / (binary.BITS32 + 1)
     } else {
       this._fresh = true
       const s0 = state[0]
