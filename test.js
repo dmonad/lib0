@@ -12,6 +12,7 @@ import * as statistics from './statistics.test.js'
 import * as binary from './binary.test.js'
 import * as random from './random.test.js'
 import * as promise from './promise.test.js'
+import * as queue from './queue.test.js'
 import * as map from './map.test.js'
 import * as eventloop from './eventloop.test.js'
 import * as time from './time.test.js'
@@ -45,6 +46,7 @@ runTests({
   binary,
   random,
   promise,
+  queue,
   map,
   eventloop,
   time,
