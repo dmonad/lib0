@@ -50,7 +50,8 @@ const computeParams = () => {
       if (currParamName !== null) {
         params.set(currParamName, '')
       }
-    } else {
+    // in ReactNative for example this would not be true (unless connected to the Remote Debugger)
+    } else if (typeof location === 'object') {
       params = map.create()
       // eslint-disable-next-line no-undef
       ;(location.search || '?').slice(1).split('&').forEach(kv => {
@@ -60,6 +61,8 @@ const computeParams = () => {
           params.set(`-${string.fromCamelCase(key, '-')}`, value)
         }
       })
+    } else {
+      params = map.create()
     }
   }
   return params
