@@ -135,8 +135,8 @@ The code style might be a bit different from what you are used to. Stay open. Mo
 <b><code>binary.BITS28</code></b><br>
 <b><code>binary.BITS29</code></b><br>
 <b><code>binary.BITS30</code></b><br>
-<b><code>binary.BITS31</code></b><br>
-<b><code>binary.BITS32</code></b><br>
+<b><code>binary.BITS31: number</code></b><br>
+<b><code>binary.BITS32: number</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/broadcastchannel]</b> Helpers for cross-tab communication using broadcastchannel with LocalStorage fallback.</summary>
@@ -888,7 +888,7 @@ mutex(() => {
 <b><code>number.MAX_SAFE_INTEGER</code></b><br>
 <b><code>number.MIN_SAFE_INTEGER</code></b><br>
 <b><code>number.LOWEST_INT32</code></b><br>
-<b><code>number.HIGHEST_INT32</code></b><br>
+<b><code>number.HIGHEST_INT32: number</code></b><br>
 <b><code>number.isInteger</code></b><br>
 <b><code>number.isNaN</code></b><br>
 </dl>
