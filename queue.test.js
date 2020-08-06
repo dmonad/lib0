@@ -17,7 +17,7 @@ class QueueItem extends queue.QueueNode {
 export const testEnqueueDequeue = tc => {
   const N = 30
   /**
-   * @type {queue.Queue<QueueItem>}
+   * @type {queue.Queue}
    */
   const q = queue.create()
   t.assert(queue.isEmpty(q))
@@ -27,7 +27,7 @@ export const testEnqueueDequeue = tc => {
     t.assert(!queue.isEmpty(q))
   }
   for (let i = 0; i < N; i++) {
-    const item = queue.dequeue(q)
+    const item = /** @type {QueueItem} */ (queue.dequeue(q))
     t.assert(item !== null && item.v === i)
   }
   t.assert(queue.dequeue(q) === null)

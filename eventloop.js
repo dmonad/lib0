@@ -100,7 +100,7 @@ export const createDebouncer = timeout => {
   return f => {
     clearTimeout(timer)
     if (f) {
-      timer = setTimeout(f, timeout)
+      timer = /** @type {any} */ (setTimeout(f, timeout))
     }
   }
 }
