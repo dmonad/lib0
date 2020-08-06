@@ -93,7 +93,7 @@ export const idleCallback = cb => typeof requestIdleCallback !== 'undefined' ? n
 
 /**
  * @param {number} timeout Timeout of the debounce action
- * @return {function(function | null):void}
+ * @return {function(function():void):void}
  */
 export const createDebouncer = timeout => {
   let timer = -1

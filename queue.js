@@ -8,38 +8,35 @@ export class QueueNode {
   }
 }
 
-/**
- * @template T
- */
 export class Queue {
   constructor () {
     /**
-     * @type {(T & QueueNode) | null}
+     * @type {QueueNode | null}
      */
     this.start = null
     /**
-     * @type {(T & QueueNode) | null}
+     * @type {QueueNode | null}
      */
     this.end = null
   }
 }
 
 /**
- * @template T
- * @return {Queue<T & QueueNode>}
+ * @note The queue implementation is experimental and unfinished.
+ * Don't use this in production yet.
+ *
+ * @return {Queue}
  */
 export const create = () => new Queue()
 
 /**
- * @template T
- * @param {Queue<T & QueueNode>} queue
+ * @param {Queue} queue
  */
 export const isEmpty = queue => queue.start === null
 
 /**
- * @template T
- * @param {Queue<T & QueueNode>} queue
- * @param {T & QueueNode} n
+ * @param {Queue} queue
+ * @param {QueueNode} n
  */
 export const enqueue = (queue, n) => {
   if (queue.end !== null) {
@@ -52,9 +49,8 @@ export const enqueue = (queue, n) => {
 }
 
 /**
- * @template T
- * @param {Queue<T & QueueNode>} queue
- * @return {T & QueueNode | null}
+ * @param {Queue} queue
+ * @return {QueueNode | null}
  */
 export const dequeue = queue => {
   const n = queue.start

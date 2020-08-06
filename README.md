@@ -170,6 +170,11 @@ broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from t
 <b><code>buffer.fromBase64</code></b><br>
 <b><code>buffer.copyUint8Array(uint8Array: Uint8Array): Uint8Array</code></b><br>
 <dd><p>Copy the content of an Uint8Array view to a new ArrayBuffer.</p></dd>
+<b><code>buffer.encodeAny(data: any): Uint8Array</code></b><br>
+<dd><p>Encode anything as a UInt8Array. It's a pun on typescripts's <code>any</code> type.
+See encoding.writeAny for more information.</p></dd>
+<b><code>buffer.decodeAny(buf: Uint8Array): any</code></b><br>
+<dd><p>Decode an any-encoded value.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/component]</b> Web components.</summary>
@@ -243,6 +248,9 @@ Use <code>buffer.copyUint8Array</code> to copy the result into a new Uint8Array.
 <dd><p>Read 2 bytes as unsigned integer.</p></dd>
 <b><code>decoding.readUint32(decoder: module:decoding.Decoder): number</code></b><br>
 <dd><p>Read 4 bytes as unsigned integer.</p></dd>
+<b><code>decoding.readUint32BigEndian(decoder: module:decoding.Decoder): number</code></b><br>
+<dd><p>Read 4 bytes as unsigned integer in big endian order.
+(most significant byte first)</p></dd>
 <b><code>decoding.peekUint8(decoder: module:decoding.Decoder): number</code></b><br>
 <dd><p>Look ahead without incrementing position.
 to the next byte and read it as unsigned integer.</p></dd>
@@ -287,6 +295,58 @@ For effiency reasons we apply a maximum of 10000 characters at once.</p></dd>
 <b><code>decoding.readBigInt64(decoder: module:decoding.Decoder)</code></b><br>
 <b><code>decoding.readBigUint64(decoder: module:decoding.Decoder)</code></b><br>
 <b><code>decoding.readAny(decoder: module:decoding.Decoder)</code></b><br>
+<b><code>new decoding.RleDecoder(uint8Array: Uint8Array, reader: function(module:decoding.Decoder):T)</code></b><br>
+<dd><p>T must not be null.</p></dd>
+<b><code>decoding.RleDecoder#s: T|null</code></b><br>
+<dd><p>Current state</p></dd>
+<b><code>decoding.RleDecoder#read()</code></b><br>
+<b><code>decoding.RleDecoder#s: T</code></b><br>
+<b><code>new decoding.IntDiffDecoder(uint8Array: Uint8Array, start: number)</code></b><br>
+<b><code>decoding.IntDiffDecoder#s: number</code></b><br>
+<dd><p>Current state</p></dd>
+<b><code>decoding.IntDiffDecoder#read(): number</code></b><br>
+<b><code>new decoding.RleIntDiffDecoder(uint8Array: Uint8Array, start: number)</code></b><br>
+<b><code>decoding.RleIntDiffDecoder#s: number</code></b><br>
+<dd><p>Current state</p></dd>
+<b><code>decoding.RleIntDiffDecoder#read(): number</code></b><br>
+<b><code>decoding.RleIntDiffDecoder#s: number</code></b><br>
+<b><code>new decoding.UintOptRleDecoder(uint8Array: Uint8Array)</code></b><br>
+<b><code>decoding.UintOptRleDecoder#s: number</code></b><br>
+<b><code>decoding.UintOptRleDecoder#read()</code></b><br>
+<b><code>decoding.UintOptRleDecoder#s: number</code></b><br>
+<b><code>new decoding.IncUintOptRleDecoder(uint8Array: Uint8Array)</code></b><br>
+<b><code>decoding.IncUintOptRleDecoder#s: number</code></b><br>
+<b><code>decoding.IncUintOptRleDecoder#read()</code></b><br>
+<b><code>new decoding.IntDiffOptRleDecoder(uint8Array: Uint8Array)</code></b><br>
+<b><code>decoding.IntDiffOptRleDecoder#s: number</code></b><br>
+<b><code>decoding.IntDiffOptRleDecoder#read(): number</code></b><br>
+<b><code>new decoding.StringDecoder(uint8Array: Uint8Array)</code></b><br>
+<b><code>decoding.StringDecoder#spos: number</code></b><br>
+<b><code>decoding.StringDecoder#read(): string</code></b><br>
+<b><code>decoding.RleDecoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.RleDecoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
+<b><code>decoding.IntDiffDecoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.IntDiffDecoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
+<b><code>decoding.RleIntDiffDecoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.RleIntDiffDecoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
+<b><code>decoding.UintOptRleDecoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.UintOptRleDecoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
+<b><code>decoding.IncUintOptRleDecoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.IncUintOptRleDecoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
+<b><code>decoding.IntDiffOptRleDecoder#arr: Uint8Array</code></b><br>
+<dd><p>Decoding target.</p></dd>
+<b><code>decoding.IntDiffOptRleDecoder#pos: number</code></b><br>
+<dd><p>Current decoding position.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/diff]</b> Efficient diffs.</summary>
@@ -344,6 +404,7 @@ can better optimize these function calls.</p></dd>
 <b><code>dom.DOCUMENT_TYPE_NODE</code></b><br>
 <b><code>dom.DOCUMENT_FRAGMENT_NODE</code></b><br>
 <b><code>dom.checkNodeType(node: any, type: number)</code></b><br>
+<b><code>dom.isParentOf(parent: Node, child: HTMLElement)</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/encoding]</b> Efficient schema-less binary encoding with support for variable length encoding.</summary>
@@ -389,6 +450,9 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeUint32(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write two bytes as an unsigned integer</p></dd>
+<b><code>encoding.writeUint32BigEndian(encoder: module:encoding.Encoder, num: number)</code></b><br>
+<dd><p>Write two bytes as an unsigned integer in big endian order.
+(most significant byte first)</p></dd>
 <b><code>encoding.setUint32(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
 <dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeVarUint(encoder: module:encoding.Encoder, num: number)</code></b><br>
@@ -396,7 +460,10 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <p>Encodes integers in the range from [0, 4294967295] / [0, 0xffffffff]. (max 32 bit unsigned integer)</p></dd>
 <b><code>encoding.writeVarInt(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write a variable length integer.</p>
-<p>Encodes integers in the range from [-2147483648, -2147483647].</p></dd>
+<p>Encodes integers in the range from [-2147483648, -2147483647].</p>
+<p>We don't use zig-zag encoding because we want to keep the option open
+to use the same function for BigInt and 53bit integers (doubles).</p>
+<p>We use the 7th bit instead for signaling that this is a negative number.</p></dd>
 <b><code>encoding.writeVarString(encoder: module:encoding.Encoder, str: String)</code></b><br>
 <dd><p>Write a variable length string.</p></dd>
 <b><code>encoding.writeBinaryEncoder(encoder: module:encoding.Encoder, append: module:encoding.Encoder)</code></b><br>
@@ -519,6 +586,69 @@ prefix with writeVarUint). The remaining 7 bits are divided as follows:
 (defined by the function that uses this library)
 [31-127] the end of the data range is used for data encoding by
 lib0/encoding.js</p></dd>
+<b><code>new encoding.RleEncoder(writer: function(module:encoding.Encoder, T):void)</code></b><br>
+<dd><p>Now come a few stateful encoder that have their own classes.</p></dd>
+<b><code>encoding.RleEncoder#s: T|null</code></b><br>
+<dd><p>Current state</p></dd>
+<b><code>encoding.RleEncoder#write(v: T)</code></b><br>
+<b><code>new encoding.IntDiffEncoder(start: number)</code></b><br>
+<dd><p>Basic diff decoder using variable length encoding.</p>
+<p>Encodes the values [3, 1100, 1101, 1050, 0] to [3, 1097, 1, -51, -1050] using writeVarInt.</p></dd>
+<b><code>encoding.IntDiffEncoder#s: number</code></b><br>
+<dd><p>Current state</p></dd>
+<b><code>encoding.IntDiffEncoder#write(v: number)</code></b><br>
+<b><code>new encoding.RleIntDiffEncoder(start: number)</code></b><br>
+<dd><p>A combination of IntDiffEncoder and RleEncoder.</p>
+<p>Basically first writes the IntDiffEncoder and then counts duplicate diffs using RleEncoding.</p>
+<p>Encodes the values [1,1,1,2,3,4,5,6] as [1,1,0,2,1,5] (RLE([1,0,0,1,1,1,1,1]) ⇒ RleIntDiff[1,1,0,2,1,5])</p></dd>
+<b><code>encoding.RleIntDiffEncoder#s: number</code></b><br>
+<dd><p>Current state</p></dd>
+<b><code>encoding.RleIntDiffEncoder#write(v: number)</code></b><br>
+<b><code>new encoding.UintOptRleEncoder()</code></b><br>
+<dd><p>Optimized Rle encoder that does not suffer from the mentioned problem of the basic Rle encoder.</p>
+<p>Internally uses VarInt encoder to write unsigned integers. If the input occurs multiple times, we write
+write it as a negative number. The UintOptRleDecoder then understands that it needs to read a count.</p>
+<p>Encodes [1,2,3,3,3] as [1,2,-3,3] (once 1, once 2, three times 3)</p></dd>
+<b><code>encoding.UintOptRleEncoder#s: number</code></b><br>
+<b><code>encoding.UintOptRleEncoder#write(v: number)</code></b><br>
+<b><code>encoding.UintOptRleEncoder#toUint8Array()</code></b><br>
+<b><code>new encoding.IncUintOptRleEncoder()</code></b><br>
+<dd><p>Increasing Uint Optimized RLE Encoder</p>
+<p>The RLE encoder counts the number of same occurences of the same value.
+The IncUintOptRle encoder counts if the value increases.
+I.e. 7, 8, 9, 10 will be encoded as [-7, 4]. 1, 3, 5 will be encoded
+as [1, 3, 5].</p></dd>
+<b><code>encoding.IncUintOptRleEncoder#s: number</code></b><br>
+<b><code>encoding.IncUintOptRleEncoder#write(v: number)</code></b><br>
+<b><code>encoding.IncUintOptRleEncoder#toUint8Array()</code></b><br>
+<b><code>new encoding.IntDiffOptRleEncoder()</code></b><br>
+<dd><p>A combination of the IntDiffEncoder and the UintOptRleEncoder.</p>
+<p>The count approach is similar to the UintDiffOptRleEncoder, but instead of using the negative bitflag, it encodes
+in the LSB whether a count is to be read. Therefore this Encoder only supports 31 bit integers!</p>
+<p>Encodes [1, 2, 3, 2] as [3, 1, 6, -1] (more specifically [(1 &lt;&lt; 1) | 1, (3 &lt;&lt; 0) | 0, -1])</p>
+<p>Internally uses variable length encoding. Contrary to normal UintVar encoding, the first byte contains:</p>
+<ul>
+<li>1 bit that denotes whether the next value is a count (LSB)</li>
+<li>1 bit that denotes whether this value is negative (MSB - 1)</li>
+<li>1 bit that denotes whether to continue reading the variable length integer (MSB)</li>
+</ul>
+<p>Therefore, only five bits remain to encode diff ranges.</p>
+<p>Use this Encoder only when appropriate. In most cases, this is probably a bad idea.</p></dd>
+<b><code>encoding.IntDiffOptRleEncoder#s: number</code></b><br>
+<b><code>encoding.IntDiffOptRleEncoder#write(v: number)</code></b><br>
+<b><code>encoding.IntDiffOptRleEncoder#toUint8Array()</code></b><br>
+<b><code>new encoding.StringEncoder()</code></b><br>
+<dd><p>Optimized String Encoder.</p>
+<p>Encoding many small strings in a simple Encoder is not very efficient. The function call to decode a string takes some time and creates references that must be eventually deleted.
+In practice, when decoding several million small strings, the GC will kick in more and more often to collect orphaned string objects (or maybe there is another reason?).</p>
+<p>This string encoder solves the above problem. All strings are concatenated and written as a single string using a single encoding call.</p>
+<p>The lengths are encoded using a UintOptRleEncoder.</p></dd>
+<b><code>encoding.StringEncoder#sarr: Array&lt;string&gt;</code></b><br>
+<b><code>encoding.StringEncoder#write(string: string)</code></b><br>
+<b><code>encoding.StringEncoder#toUint8Array()</code></b><br>
+<b><code>encoding.RleEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
+<b><code>encoding.IntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
+<b><code>encoding.RleIntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/map]</b> Isomorphic module to work access the environment (query params, env variables).</summary>
@@ -554,6 +684,7 @@ lib0/encoding.js</p></dd>
 <b><code>eventloop.animationFrame(cb: function(number):void): module:eventloop~TimeoutObject</code></b><br>
 <b><code>eventloop.idleCallback(cb: function): module:eventloop~TimeoutObject</code></b><br>
 <dd><p>Note: this is experimental and is probably only useful in browsers.</p></dd>
+<b><code>eventloop.createDebouncer(timeout: number): function(function():void):void</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/function]</b> Common functions and function call helpers.</summary>
@@ -566,6 +697,7 @@ lib0/encoding.js</p></dd>
 <b><code>function.id(a: A): A</code></b><br>
 <b><code>function.equalityStrict(a: T, b: T): boolean</code></b><br>
 <b><code>function.equalityFlat(a: Array&lt;T&gt;|object, b: Array&lt;T&gt;|object): boolean</code></b><br>
+<b><code>function.equalityDeep(a: any, b: any): boolean</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/lib0]</b> Experimental method to import lib0.</summary>
@@ -704,6 +836,8 @@ listeners.add(listener)
 <b><code>math.pow</code></b><br>
 <b><code>math.exp10(exp: number): number</code></b><br>
 <dd><p>Base 10 exponential function. Returns the value of 10 raised to the power of pow.</p></dd>
+<b><code>math.sign</code></b><br>
+<b><code>math.isNegativeZero(n: number): boolean</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/metric]</b> Utility module to convert metric values.</summary>
@@ -828,8 +962,6 @@ But there are more PRNGs available in ./PRNG/.</p></dd>
 <b><code>prng.uint32(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
 <dd><p>Generates a random integer with 53 bit resolution.</p></dd>
 <b><code>prng.int31(gen: module:prng~PRNG, min: Number, max: Number): Number</code></b><br>
-<dd><p>Optimized version of prng.int32. It has the same precision as prng.int32, but should be preferred when
-openaring on smaller ranges.</p></dd>
 <b><code>prng.real53(gen: module:prng~PRNG): Number</code></b><br>
 <dd><p>Generates a random real on [0, 1) with 53 bit resolution.</p></dd>
 <b><code>prng.char(gen: module:prng~PRNG): string</code></b><br>
@@ -857,6 +989,28 @@ openaring on smaller ranges.</p></dd>
 <b><code>promise.resolve(res: T|void): Promise&lt;T|void&gt;</code></b><br>
 <b><code>promise.until(timeout: number, check: function():boolean, intervalResolution: number): Promise&lt;void&gt;</code></b><br>
 <b><code>promise.wait(timeout: number): Promise&lt;undefined&gt;</code></b><br>
+<b><code>promise.isPromise(p: any): boolean</code></b><br>
+<dd><p>Checks if an object is a promise using ducktyping.</p>
+<p>Promises are often polyfilled, so it makes sense to add some additional guarantees if the user of this
+library has some insane environment where global Promise objects are overwritten.</p></dd>
+</dl>
+</details>
+<details><summary><b>[lib0/queue]</b> </summary>
+<pre>import * as queue from 'lib0/queue.js'</pre>
+<dl>
+<b><code>new de#QueueNode()</code></b><br>
+<b><code>de#next: module:queue.QueueNode|null</code></b><br>
+<b><code>new ueue()</code></b><br>
+<b><code>tart: module:queue.QueueNode | null</code></b><br>
+<b><code>nd: module:queue.QueueNode | null</code></b><br>
+<b><code>(): module:queue.Queue</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(queue: module:queue.Queue)</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(queue: module:queue.Queue, n: module:queue.QueueNode)</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(queue: module:queue.Queue): module:queue.QueueNode | null</code></b><br>
+<b><code>()</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/random]</b> Isomorphic module for true random numbers / buffers / uuids.</summary>
@@ -918,7 +1072,6 @@ integrate this algorithm.</p>
 <dd><p>Compute the utf8ByteLength</p></dd>
 <b><code>string.utf8TextEncoder</code></b><br>
 <b><code>string.encodeUtf8</code></b><br>
-<b><code>string.utf8TextDecoder</code></b><br>
 <b><code>string.decodeUtf8</code></b><br>
 </dl>
 </details>
@@ -991,25 +1144,48 @@ export const testMyFirstTest = tc => {
 </code></pre></dd>
 <b><code>testing.printDom</code></b><br>
 <b><code>testing.printCanvas</code></b><br>
-<b><code>testing.group(description: string, f: function(void):void|Promise&lt;undefined&gt;)</code></b><br>
+<b><code>testing.group(description: string, f: function(void):void)</code></b><br>
 <dd><p>Group outputs in a collapsible category.</p>
 <pre class="prettyprint source lang-js"><code>export const testMyFirstTest = tc => {
   t.group('subtest 1', () => {
     t.describe('this message is part of a collapsible section')
   })
-  t.group('subtest async 2', async () => {
+  await t.groupAsync('subtest async 2', async () => {
     await someaction()
     t.describe('this message is part of a collapsible section')
   })
 }
 </code></pre></dd>
-<b><code>testing.measureTime(message: string, f: function():void|Promise&lt;undefined&gt;)</code></b><br>
+<b><code>testing.groupAsync(description: string, f: function(void):Promise&lt;any&gt;)</code></b><br>
+<dd><p>Group outputs in a collapsible category.</p>
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = async tc => {
+  t.group('subtest 1', () => {
+    t.describe('this message is part of a collapsible section')
+  })
+  await t.groupAsync('subtest async 2', async () => {
+    await someaction()
+    t.describe('this message is part of a collapsible section')
+  })
+}
+</code></pre></dd>
+<b><code>testing.measureTime(message: string, f: function():void): number</code></b><br>
 <dd><p>Measure the time that it takes to calculate something.</p>
-<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = tc => {
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = async tc => {
   t.measureTime('measurement', () => {
     heavyCalculation()
   })
-  t.group('async measurement', async () => {
+  await t.groupAsync('async measurement', async () => {
+    await heavyAsyncCalculation()
+  })
+}
+</code></pre></dd>
+<b><code>testing.measureTimeAsync(message: string, f: function():Promise&lt;any&gt;): Promise&lt;number&gt;</code></b><br>
+<dd><p>Measure the time that it takes to calculate something.</p>
+<pre class="prettyprint source lang-js"><code>export const testMyFirstTest = async tc => {
+  t.measureTimeAsync('measurement', async () => {
+    await heavyCalculation()
+  })
+  await t.groupAsync('async measurement', async () => {
     await heavyAsyncCalculation()
   })
 }
