@@ -4,3 +4,4 @@ coverage
 node_modules
 *.d.ts
 *.d.ts.map
+.vscode
