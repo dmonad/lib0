@@ -39,7 +39,7 @@ export class Observable {
      * @param  {...any} args
      */
     const _f = (...args) => {
-      this.off(name, f)
+      this.off(name, _f)
       f(...args)
     }
     this.on(name, _f)
