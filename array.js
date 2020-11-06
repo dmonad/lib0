@@ -80,3 +80,10 @@ export const some = (arr, f) => arr.some(f)
  * @return {boolean}
  */
 export const equalFlat = (a, b) => a.length === b.length && every(a, (item, index) => item === b[index])
+
+/**
+ * @template ELEM
+ * @param {Array<Array<ELEM>>} arr
+ * @return {Array<ELEM>}
+ */
+export const flatten = arr => arr.reduce((acc, val) => acc.concat(val), [])
