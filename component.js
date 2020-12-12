@@ -189,6 +189,9 @@ export const createComponent = (name, { template, style = '', state: defaultStat
             event.stopPropagation()
           })
         }
+        /**
+         * @type {Object<string, any>}
+         */
         const startState = this.state || object.assign({}, defaultState)
         if (attrs) {
           for (const key in attrs) {
