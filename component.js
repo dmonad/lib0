@@ -55,8 +55,9 @@ export class Lib0Component extends HTMLElement {
 
   /**
    * @param {S} state
+   * @param {boolean} [forceStateUpdate] Force that the state is rerendered even if state didn't change
    */
-  setState (state) {}
+  setState (state, forceStateUpdate = true) {}
   /**
     * @param {any} stateUpdate
     */
@@ -160,7 +161,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
       /**
        * @type {any}
        */
-      this.state = state || (object.assign({}, defaultState))
+      this.state = state || null
       this.connected = false
       // init shadow dom
       if (templateElement) {
@@ -188,7 +189,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
             event.stopPropagation()
           })
         }
-        const startState = this.state
+        const startState = this.state || object.assign({}, defaultState)
         if (attrs) {
           for (const key in attrs) {
             const normalizedKey = string.fromCamelCase(key, '-')
@@ -218,6 +219,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
     disconnectedCallback () {
       this.connected = false
       dom.emitCustomEvent(/** @type {any} */ (this.shadowRoot || this), disconnectedEventName, { bubbles: true })
+      this.setState(null)
     }
 
     static get observedAttributes () {
@@ -236,7 +238,7 @@ export const createComponent = (name, { template, style = '', state: defaultStat
       const camelAttrName = normalizedAttrs[name]
       const type = attrs[camelAttrName]
       const parsedVal = parseAttrVal(newVal, type)
-      if ((type !== 'json' || json.stringify(curState[camelAttrName]) !== newVal) && curState[camelAttrName] !== parsedVal && !number.isNaN(parsedVal)) {
+      if (curState && (type !== 'json' || json.stringify(curState[camelAttrName]) !== newVal) && curState[camelAttrName] !== parsedVal && !number.isNaN(parsedVal)) {
         this.updateState({ [camelAttrName]: parsedVal })
       }
     }

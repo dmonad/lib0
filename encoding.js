@@ -297,7 +297,9 @@ export const writeVarString = (encoder, str) => {
 /**
  * Write the content of another Encoder.
  *
- * TODO: can be improved!
+ * @TODO: can be improved!
+ *        - Note: Should consider that when appending a lot of small Encoders, we should rather clone than referencing the old structure.
+ *                Encoders start with a rather big initial buffer.
  *
  * @function
  * @param {Encoder} encoder The enUint8Arr
