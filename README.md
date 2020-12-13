@@ -65,6 +65,7 @@ The code style might be a bit different from what you are used to. Stay open. Mo
 <b><code>array.some(arr: Array&lt;S&gt;, f: function(S, number, Array&lt;S&gt;):boolean): boolean</code></b><br>
 <dd><p>True iff condition holds on some element in the Array.</p></dd>
 <b><code>array.equalFlat(a: Array&lt;ELEM&gt;, b: Array&lt;ELEM&gt;): boolean</code></b><br>
+<b><code>array.flatten(arr: Array&lt;Array&lt;ELEM&gt;&gt;): Array&lt;ELEM&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
@@ -185,7 +186,7 @@ See encoding.writeAny for more information.</p></dd>
 <b><code>component.whenDefined(name: string): Promise&lt;void&gt;</code></b><br>
 <b><code>new component.Lib0Component(state: S)</code></b><br>
 <b><code>component.Lib0Component#state: S|null</code></b><br>
-<b><code>component.Lib0Component#setState(state: S)</code></b><br>
+<b><code>component.Lib0Component#setState(state: S, forceStateUpdate: boolean)</code></b><br>
 <b><code>component.Lib0Component#updateState(stateUpdate: any)</code></b><br>
 <b><code>component.createComponent(name: string, cnf: module:component~CONF&lt;T&gt;): Class&lt;module:component.Lib0Component&gt;</code></b><br>
 <b><code>component.createComponentDefiner(definer: function)</code></b><br>
@@ -467,8 +468,7 @@ to use the same function for BigInt and 53bit integers (doubles).</p>
 <b><code>encoding.writeVarString(encoder: module:encoding.Encoder, str: String)</code></b><br>
 <dd><p>Write a variable length string.</p></dd>
 <b><code>encoding.writeBinaryEncoder(encoder: module:encoding.Encoder, append: module:encoding.Encoder)</code></b><br>
-<dd><p>Write the content of another Encoder.</p>
-<p>TODO: can be improved!</p></dd>
+<dd><p>Write the content of another Encoder.</p></dd>
 <b><code>encoding.writeUint8Array(encoder: module:encoding.Encoder, uint8Array: Uint8Array)</code></b><br>
 <dd><p>Append fixed-length Uint8Array to the encoder.</p></dd>
 <b><code>encoding.writeVarUint8Array(encoder: module:encoding.Encoder, uint8Array: Uint8Array)</code></b><br>
