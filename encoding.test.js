@@ -554,6 +554,27 @@ export const testRleIntDiffEncoder = tc => {
 /**
  * @param {t.TestCase} tc
  */
+export const testUintOptRleEncoder = tc => {
+  const N = 100
+  const encoder = new encoding.UintOptRleEncoder()
+  for (let i = 0; i < N; i++) {
+    encoder.write(i)
+    for (let j = 0; j < i; j++) { // write additional i times
+      encoder.write(i)
+    }
+  }
+  const decoder = new decoding.UintOptRleDecoder(encoder.toUint8Array())
+  for (let i = 0; i < N; i++) {
+    t.assert(i === decoder.read())
+    for (let j = 0; j < i; j++) { // read additional i times
+      t.assert(i === decoder.read())
+    }
+  }
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testIntDiffRleEncoder = tc => {
   const N = 100
   const encoder = new encoding.IntDiffOptRleEncoder()
