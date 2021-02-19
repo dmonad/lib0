@@ -11,6 +11,180 @@
     "type": "GitHub Sponsors ❤",
     "url": "https://github.com/sponsors/dmonad"
   },
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./array": {
+      "import": "./array.js",
+      "require": "./dist/array.cjs"
+    },
+    "./binary": {
+      "import": "./binard.js",
+      "require": "./dist/binary.cjs"
+    },
+    "./broadcastchannel": {
+      "import": "./broadcastchannel.js",
+      "require": "./dist/broadcastchannel.cjs"
+    },
+    "./buffer": {
+      "import": "./buffer.js",
+      "require": "./dist/buffer.cjs"
+    },
+    "./component": {
+      "import": "./component.js",
+      "require": "./dist/component.cjs"
+    },
+    "./conditions": {
+      "import": "./condititons.js",
+      "require": "./dist/conditions.cjs"
+    },
+    "./decoding": {
+      "import": "./decoding.js",
+      "require": "./dist/decoding.cjs"
+    },
+    "./diff": {
+      "import": "./diff.js",
+      "require": "./dist/diff.cjs"
+    },
+    "./dom": {
+      "import": "./dom.js",
+      "require": "./dist/dom.cjs"
+    },
+    "./encoding": {
+      "import": "./encoding.js",
+      "require": "./dist/encoding.cjs"
+    },
+    "./environment": {
+      "import": "./environment.js",
+      "require": "./dist/environment.cjs"
+    },
+    "./error": {
+      "import": "./error.js",
+      "require": "./dist/error.cjs"
+    },
+    "./eventloop": {
+      "import": "./eventloop.js",
+      "require": "./dist/eventloop.cjs"
+    },
+    "./function": {
+      "import": "./function.js",
+      "require": "./dist/.cjs"
+    },
+    "./indexeddb": {
+      "import": "./indexeddb.js",
+      "require": "./dist/indexeddb.cjs"
+    },
+    "./isomorphic": {
+      "import": "./isomorphic.js",
+      "require": "./dist/isomorphic.cjs"
+    },
+    "./iterator": {
+      "import": "./iterator.js",
+      "require": "./dist/iterator.cjs"
+    },
+    "./json": {
+      "import": "./json.js",
+      "require": "./dist/json.cjs"
+    },
+    "./logging": {
+      "import": "./logging.js",
+      "require": "./dist/logging.cjs"
+    },
+    "./map": {
+      "import": "./map.js",
+      "require": "./dist/map.cjs"
+    },
+    "./math": {
+      "import": "./math.js",
+      "require": "./dist/math.cjs"
+    },
+    "./metric": {
+      "import": "./metric.js",
+      "require": "./dist/metric.cjs"
+    },
+    "./mutex": {
+      "import": "./mutex.js",
+      "require": "./dist/mutex.cjs"
+    },
+    "./number": {
+      "import": "./number.js",
+      "require": "./dist/number.cjs"
+    },
+    "./object": {
+      "import": "./object.js",
+      "require": "./dist/object.cjs"
+    },
+    "./observable": {
+      "import": "./observable.js",
+      "require": "./dist/observable.cjs"
+    },
+    "./pair": {
+      "import": "./pair.js",
+      "require": "./dist/pair.cjs"
+    },
+    "./prng": {
+      "import": "./prng.js",
+      "require": "./dist/prng.cjs"
+    },
+    "./promise": {
+      "import": "./promise.js",
+      "require": "./dist/promise.cjs"
+    },
+    "./queue": {
+      "import": "./queue.js",
+      "require": "./dist/queue.cjs"
+    },
+    "./random": {
+      "import": "./random.js",
+      "require": "./dist/random.cjs"
+    },
+    "./set": {
+      "import": "./set.js",
+      "require": "./dist/set.cjs"
+    },
+    "./sort": {
+      "import": "./sort.js",
+      "require": "./dist/sort.cjs"
+    },
+    "./statistics": {
+      "import": "./statistics.js",
+      "require": "./dist/statistics.cjs"
+    },
+    "./storage": {
+      "import": "./storage.js",
+      "require": "./dist/storage.cjs"
+    },
+    "./string": {
+      "import": "./string.js",
+      "require": "./dist/string.cjs"
+    },
+    "./symbol": {
+      "import": "./symbol.js",
+      "require": "./dist/symbol.cjs"
+    },
+    "./testing": {
+      "import": "./testing.js",
+      "require": "./dist/testing.cjs"
+    },
+    "./time": {
+      "import": "./time.js",
+      "require": "./dist/time.cjs"
+    },
+    "./tree": {
+      "import": "./tree.js",
+      "require": "./dist/tree.cjs"
+    },
+    "./url": {
+      "import": "./url.js",
+      "require": "./dist/url.cjs"
+    },
+    "./websocket": {
+      "import": "./websocket.js",
+      "require": "./dist/websocket.cjs"
+    }
+  },
   "dependencies": {
     "isomorphic.js": "^0.2.0"
   },

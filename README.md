@@ -38,14 +38,39 @@ The code style might be a bit different from what you are used to. Stay open. Mo
 * Use Classes for structuring data. Classes are well supported by jsdoc and are immediately optimized by the compiler. I.e. prefer `class Coord { constructor (x, y) {  this.x = x; this.y = y} }` instead of `{ x: x, y: y }`, because the compiler needs to be assured that the order of properties does not change. `{ y: y, x: x }` has a different hidden class than `{ x: x, y: y }`, which will lead to code deoptimizations if their use is alternated.
 * The user of your module should never create data objects with the `new` keyword. Prefer exporting factory functions like `const createCoordinate = (x, y) => new Coord(x, y)`.
 * The use of class methods is discouraged, because method names can't be mangled or removed by dead code elimination.
-* The only acceptable use of methods is when two objects implement functionality differently. 
-  E.g. `class Duck { eat () { swallow() } }` and `class Cow { eat () { chew() } }` have the 
+* The only acceptable use of methods is when two objects implement functionality differently.
+  E.g. `class Duck { eat () { swallow() } }` and `class Cow { eat () { chew() } }` have the
   same signature, but implement it differently.
 * Prefer `const` variable declarations. Use `let` only in loops. `const` always leads to easier code.
 * Keep the potential execution stack small and compartmentalized. Nobody wants to debug spaghetti code.
 * Give proper names to your functions and ask yourself if you would know what the function does if you saw it in the execution stack.
 * Avoid recursion. There is a stack limit in most browsers and not every recursive function is optimized by the compiler.
 * Semicolons are superfluous. Lint with https://standardjs.com/
+
+## Using lib0
+
+`lib0` contains isomorphic modules that work in nodejs, the browser, and other environments. It exports modules as the `commonjs` and the new `esm module` format.
+
+If possible,
+
+**ESM module**
+```js
+import module from 'lib0/[module]' // automatically resolves to lib0/[module].js
+```
+
+**CommonJS**
+```js
+require('lib0/[module]') // automatically resolves to lib0/dist/[module].cjs
+```
+
+**Manual**
+
+Automatically resolving to `commonjs` and `esm modules` is implemented using *conditional exports* which is available in `node>=v12`. If support for older versions is required, then it is recommended to define the location of the module manually:
+
+```js
+import module from 'lib0/[module].js'
+// require('lib0/dist/[module].cjs')
+```
 
 ## Modules
 
