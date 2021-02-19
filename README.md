@@ -763,8 +763,6 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <details><summary><b>[lib0/isomorphic]</b> Isomorphic library exports from isomorphic.js.</summary>
 <pre>import * as isomorphic from 'lib0/isomorphic.js'</pre>
 <dl>
-<b><code>isomorphic.performance</code></b><br>
-<b><code>isomorphic.cryptoRandomBuffer</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/iterator]</b> Utility module to create and manipulate Iterators.</summary>
