@@ -189,14 +189,14 @@
     "isomorphic.js": "^0.2.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^17.0.0",
-    "@rollup/plugin-node-resolve": "^11.0.1",
+    "@rollup/plugin-commonjs": "^17.1.0",
+    "@rollup/plugin-node-resolve": "^11.2.0",
     "concurrently": "^5.3.0",
     "http-server": "^0.12.3",
     "jsdoc-api": "^5.0.4",
     "jsdoc-plugin-typescript": "^2.0.6",
     "nyc": "^15.1.0",
-    "rollup": "^2.36.1",
+    "rollup": "^2.39.0",
     "standard": "^14.3.4",
     "typescript": "^3.9.9"
   },
