@@ -817,7 +817,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>logging.VConsole#printDom(node: Node)</code></b><br>
 <b><code>logging.VConsole#destroy()</code></b><br>
 <b><code>logging.createVConsole(dom: Element)</code></b><br>
-<b><code>logging.createModuleLogger(moduleName: string): function(...any)</code></b><br>
+<b><code>logging.createModuleLogger(moduleName: string): function(...any):void</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/map]</b> Utility module to work with key-value stores.</summary>
