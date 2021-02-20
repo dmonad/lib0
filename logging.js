@@ -389,7 +389,7 @@ let lastLoggingTime = time.getUnixTime()
 
 /**
  * @param {string} moduleName
- * @return {function(...any)}
+ * @return {function(...any):void}
  */
 export const createModuleLogger = moduleName => {
   const color = loggingColors[nextColor]

@@ -17,7 +17,7 @@ import * as time from './time.js'
  * @param {function(PromiseResolve<T>,function(Error):void):any} f
  * @return {Promise<T>}
  */
-export const create = f => new Promise(f)
+export const create = f => /** @type {Promise<T>} */ (new Promise(f))
 
 /**
  * @param {function(function():void,function(Error):void):void} f
