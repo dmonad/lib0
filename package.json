@@ -16,170 +16,254 @@
       "import": "./index.js",
       "require": "./dist/index.cjs"
     },
+    "./array.js": "./array.js",
+    "./dist/array.cjs": "./dist/array.cjs",
     "./array": {
       "import": "./array.js",
       "require": "./dist/array.cjs"
     },
+    "./binary.js": "./binary.js",
+    "./dist/binary.cjs": "./dist/binary.cjs",
     "./binary": {
-      "import": "./binard.js",
+      "import": "./binary.js",
       "require": "./dist/binary.cjs"
     },
+    "./broadcastchannel.js": "./broadcastchannel.js",
+    "./dist/broadcastchannel.cjs": "./dist/broadcastchannel.cjs",
     "./broadcastchannel": {
       "import": "./broadcastchannel.js",
       "require": "./dist/broadcastchannel.cjs"
     },
+    "./buffer.js": "./buffer.js",
+    "./dist/buffer.cjs": "./dist/buffer.cjs",
     "./buffer": {
       "import": "./buffer.js",
       "require": "./dist/buffer.cjs"
     },
+    "./component.js": "./component.js",
+    "./dist/component.cjs": "./dist/component.cjs",
     "./component": {
       "import": "./component.js",
       "require": "./dist/component.cjs"
     },
+    "./condititons.js": "./condititons.js",
+    "./dist/condititons.cjs": "./dist/condititons.cjs",
     "./conditions": {
       "import": "./condititons.js",
       "require": "./dist/conditions.cjs"
     },
+    "./decoding.js": "./decoding.js",
+    "./dist/decoding.cjs": "./dist/decoding.cjs",
     "./decoding": {
       "import": "./decoding.js",
       "require": "./dist/decoding.cjs"
     },
+    "./diff.js": "./diff.js",
+    "./dist/diff.cjs": "./dist/diff.cjs",
     "./diff": {
       "import": "./diff.js",
       "require": "./dist/diff.cjs"
     },
+    "./dom.js": "./dom.js",
+    "./dist/dom.cjs": "./dist/dom.cjs",
     "./dom": {
       "import": "./dom.js",
       "require": "./dist/dom.cjs"
     },
+    "./encoding.js": "./encoding.js",
+    "./dist/encoding.cjs": "./dist/encoding.cjs",
     "./encoding": {
       "import": "./encoding.js",
       "require": "./dist/encoding.cjs"
     },
+    "./environment.js": "./environment.js",
+    "./dist/environment.cjs": "./dist/environment.cjs",
     "./environment": {
       "import": "./environment.js",
       "require": "./dist/environment.cjs"
     },
+    "./error.js": "./error.js",
+    "./dist/error.cjs": "./dist/error.cjs",
     "./error": {
       "import": "./error.js",
       "require": "./dist/error.cjs"
     },
+    "./eventloop.js": "./eventloop.js",
+    "./dist/eventloop.cjs": "./dist/eventloop.cjs",
     "./eventloop": {
       "import": "./eventloop.js",
       "require": "./dist/eventloop.cjs"
     },
+    "./function.js": "./function.js",
+    "./dist/function.cjs": "./dist/function.cjs",
     "./function": {
       "import": "./function.js",
       "require": "./dist/.cjs"
     },
+    "./indexeddb.js": "./indexeddb.js",
+    "./dist/indexeddb.cjs": "./dist/indexeddb.cjs",
     "./indexeddb": {
       "import": "./indexeddb.js",
       "require": "./dist/indexeddb.cjs"
     },
+    "./isomorphic.js": "./isomorphic.js",
+    "./dist/isomorphic.cjs": "./dist/isomorphic.cjs",
     "./isomorphic": {
       "import": "./isomorphic.js",
       "require": "./dist/isomorphic.cjs"
     },
+    "./iterator.js": "./iterator.js",
+    "./dist/iterator.cjs": "./dist/iterator.cjs",
     "./iterator": {
       "import": "./iterator.js",
       "require": "./dist/iterator.cjs"
     },
+    "./json.js": "./json.js",
+    "./dist/json.cjs": "./dist/json.cjs",
     "./json": {
       "import": "./json.js",
       "require": "./dist/json.cjs"
     },
+    "./logging.js": "./logging.js",
+    "./dist/logging.cjs": "./dist/logging.cjs",
     "./logging": {
       "import": "./logging.js",
       "require": "./dist/logging.cjs"
     },
+    "./map.js": "./map.js",
+    "./dist/map.cjs": "./dist/map.cjs",
     "./map": {
       "import": "./map.js",
       "require": "./dist/map.cjs"
     },
+    "./math.js": "./math.js",
+    "./dist/math.cjs": "./dist/math.cjs",
     "./math": {
       "import": "./math.js",
       "require": "./dist/math.cjs"
     },
+    "./metric.js": "./metric.js",
+    "./dist/metric.cjs": "./dist/metric.cjs",
     "./metric": {
       "import": "./metric.js",
       "require": "./dist/metric.cjs"
     },
+    "./mutex.js": "./mutex.js",
+    "./dist/mutex.cjs": "./dist/mutex.cjs",
     "./mutex": {
       "import": "./mutex.js",
       "require": "./dist/mutex.cjs"
     },
+    "./number.js": "./number.js",
+    "./dist/number.cjs": "./dist/number.cjs",
     "./number": {
       "import": "./number.js",
       "require": "./dist/number.cjs"
     },
+    "./object.js": "./object.js",
+    "./dist/object.cjs": "./dist/object.cjs",
     "./object": {
       "import": "./object.js",
       "require": "./dist/object.cjs"
     },
+    "./observable.js": "./observable.js",
+    "./dist/observable.cjs": "./dist/observable.cjs",
     "./observable": {
       "import": "./observable.js",
       "require": "./dist/observable.cjs"
     },
+    "./pair.js": "./pair.js",
+    "./dist/pair.cjs": "./dist/pair.cjs",
     "./pair": {
       "import": "./pair.js",
       "require": "./dist/pair.cjs"
     },
+    "./prng.js": "./prng.js",
+    "./dist/prng.cjs": "./dist/prng.cjs",
     "./prng": {
       "import": "./prng.js",
       "require": "./dist/prng.cjs"
     },
+    "./promise.js": "./promise.js",
+    "./dist/promise.cjs": "./dist/promise.cjs",
     "./promise": {
       "import": "./promise.js",
       "require": "./dist/promise.cjs"
     },
+    "./queue.js": "./queue.js",
+    "./dist/queue.cjs": "./dist/queue.cjs",
     "./queue": {
       "import": "./queue.js",
       "require": "./dist/queue.cjs"
     },
+    "./random.js": "./random.js",
+    "./dist/random.cjs": "./dist/random.cjs",
     "./random": {
       "import": "./random.js",
       "require": "./dist/random.cjs"
     },
+    "./set.js": "./set.js",
+    "./dist/set.cjs": "./dist/set.cjs",
     "./set": {
       "import": "./set.js",
       "require": "./dist/set.cjs"
     },
+    "./sort.js": "./sort.js",
+    "./dist/sort.cjs": "./dist/sort.cjs",
     "./sort": {
       "import": "./sort.js",
       "require": "./dist/sort.cjs"
     },
+    "./statistics.js": "./statistics.js",
+    "./dist/statistics.cjs": "./dist/statistics.cjs",
     "./statistics": {
       "import": "./statistics.js",
       "require": "./dist/statistics.cjs"
     },
+    "./storage.js": "./storage.js",
+    "./dist/storage.cjs": "./dist/storage.cjs",
     "./storage": {
       "import": "./storage.js",
       "require": "./dist/storage.cjs"
     },
+    "./string.js": "./string.js",
+    "./dist/string.cjs": "./dist/string.cjs",
     "./string": {
       "import": "./string.js",
       "require": "./dist/string.cjs"
     },
+    "./symbol.js": "./symbol.js",
+    "./dist/symbol.cjs": "./dist/symbol.cjs",
     "./symbol": {
       "import": "./symbol.js",
       "require": "./dist/symbol.cjs"
     },
+    "./testing.js": "./testing.js",
+    "./dist/testing.cjs": "./dist/testing.cjs",
     "./testing": {
       "import": "./testing.js",
       "require": "./dist/testing.cjs"
     },
+    "./time.js": "./time.js",
+    "./dist/time.cjs": "./dist/time.cjs",
     "./time": {
       "import": "./time.js",
       "require": "./dist/time.cjs"
     },
+    "./tree.js": "./tree.js",
+    "./dist/tree.cjs": "./dist/tree.cjs",
     "./tree": {
       "import": "./tree.js",
       "require": "./dist/tree.cjs"
     },
+    "./url.js": "./url.js",
+    "./dist/url.cjs": "./dist/url.cjs",
     "./url": {
       "import": "./url.js",
       "require": "./dist/url.cjs"
     },
+    "./websocket.js": "./websocket.js",
+    "./dist/websocket.cjs": "./dist/websocket.cjs",
     "./websocket": {
       "import": "./websocket.js",
       "require": "./dist/websocket.cjs"
