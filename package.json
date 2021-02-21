@@ -4,7 +4,7 @@
   "description": "",
   "sideEffects": false,
   "type": "module",
-  "main": "./index.js",
+  "main": "./dist/index.cjs",
   "module": "./index.js",
   "types": "./index.d.ts",
   "funding": {
