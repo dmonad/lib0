@@ -12,6 +12,7 @@
     "url": "https://github.com/sponsors/dmonad"
   },
   "exports": {
+    "./package.json": "./package.json",
     ".": {
       "import": "./index.js",
       "require": "./dist/index.cjs"
@@ -270,7 +271,7 @@
     }
   },
   "dependencies": {
-    "isomorphic.js": "^0.2.0"
+    "isomorphic.js": "^0.2.2"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.1.0",
