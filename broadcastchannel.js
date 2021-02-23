@@ -42,7 +42,9 @@ class LocalStoragePolyfill {
      * @type {null|function({data:ArrayBuffer}):void}
      */
     this.onmessage = null
-    addEventListener('storage', e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') }))
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') }))
+    }
   }
 
   /**
