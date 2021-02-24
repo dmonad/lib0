@@ -377,22 +377,22 @@ export const readFromDataView = (decoder, len) => {
 /**
  * @param {Decoder} decoder
  */
-export const readFloat32 = decoder => readFromDataView(decoder, 4).getFloat32(0)
+export const readFloat32 = decoder => readFromDataView(decoder, 4).getFloat32(0, false)
 
 /**
  * @param {Decoder} decoder
  */
-export const readFloat64 = decoder => readFromDataView(decoder, 8).getFloat64(0)
+export const readFloat64 = decoder => readFromDataView(decoder, 8).getFloat64(0, false)
 
 /**
  * @param {Decoder} decoder
  */
-export const readBigInt64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigInt64(0)
+export const readBigInt64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigInt64(0, false)
 
 /**
  * @param {Decoder} decoder
  */
-export const readBigUint64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigUint64(0)
+export const readBigUint64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigUint64(0, false)
 
 /**
  * @type {Array<function(Decoder):any>}

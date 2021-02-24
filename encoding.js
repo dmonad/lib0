@@ -373,25 +373,25 @@ export const writeOnDataView = (encoder, len) => {
  * @param {Encoder} encoder
  * @param {number} num
  */
-export const writeFloat32 = (encoder, num) => writeOnDataView(encoder, 4).setFloat32(0, num)
+export const writeFloat32 = (encoder, num) => writeOnDataView(encoder, 4).setFloat32(0, num, false)
 
 /**
  * @param {Encoder} encoder
  * @param {number} num
  */
-export const writeFloat64 = (encoder, num) => writeOnDataView(encoder, 8).setFloat64(0, num)
+export const writeFloat64 = (encoder, num) => writeOnDataView(encoder, 8).setFloat64(0, num, false)
 
 /**
  * @param {Encoder} encoder
  * @param {bigint} num
  */
-export const writeBigInt64 = (encoder, num) => /** @type {any} */ (writeOnDataView(encoder, 8)).setBigInt64(0, num)
+export const writeBigInt64 = (encoder, num) => /** @type {any} */ (writeOnDataView(encoder, 8)).setBigInt64(0, num, false)
 
 /**
  * @param {Encoder} encoder
  * @param {bigint} num
  */
-export const writeBigUint64 = (encoder, num) => /** @type {any} */ (writeOnDataView(encoder, 8)).setBigUint64(0, num)
+export const writeBigUint64 = (encoder, num) => /** @type {any} */ (writeOnDataView(encoder, 8)).setBigUint64(0, num, false)
 
 const floatTestBed = new DataView(new ArrayBuffer(4))
 /**
