@@ -116,7 +116,7 @@ export class TestCase {
   }
 }
 
-export const repititionTime = Number(env.getParam('--repitition-time', '50'))
+export const repetitionTime = Number(env.getParam('--repetition-time', '50'))
 /* istanbul ignore next */
 const testFilter = env.hasParam('--filter') ? env.getParam('--filter', '') : null
 
@@ -165,12 +165,12 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     const currTime = performance.now()
     times.push(currTime - lastTime)
     lastTime = currTime
-    if (repeat && err === null && (lastTime - start) < repititionTime) {
+    if (repeat && err === null && (lastTime - start) < repetitionTime) {
       tc.resetSeed()
     } else {
       break
     }
-  } while (err === null && (lastTime - start) < repititionTime)
+  } while (err === null && (lastTime - start) < repetitionTime)
   performance.mark(`${name}-end`)
   /* istanbul ignore if */
   if (err !== null && err.constructor !== SkipError) {
@@ -186,7 +186,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     ? `     - ${window.location.href}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
     : `\nrepeat: npm run test -- --filter "\\[${i + 1}/" ${tc._seed === null ? '' : `--seed ${tc._seed}`}`
   const timeInfo = (repeat && err === null)
-    ? ` - ${times.length} repititions in ${time.humanizeDuration(duration)} (best: ${time.humanizeDuration(times[0])}, worst: ${time.humanizeDuration(array.last(times))}, median: ${time.humanizeDuration(statistics.median(times))}, average: ${time.humanizeDuration(statistics.average(times))})`
+    ? ` - ${times.length} repetitions in ${time.humanizeDuration(duration)} (best: ${time.humanizeDuration(times[0])}, worst: ${time.humanizeDuration(array.last(times))}, median: ${time.humanizeDuration(statistics.median(times))}, average: ${time.humanizeDuration(statistics.average(times))})`
     : ` in ${time.humanizeDuration(duration)}`
   if (err !== null) {
     /* istanbul ignore else */

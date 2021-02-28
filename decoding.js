@@ -186,7 +186,7 @@ export const readUint32BigEndian = decoder => {
 }
 
 /**
- * Look ahead without incrementing position.
+ * Look ahead without incrementing the position
  * to the next byte and read it as unsigned integer.
  *
  * @function
@@ -196,7 +196,7 @@ export const readUint32BigEndian = decoder => {
 export const peekUint8 = decoder => decoder.arr[decoder.pos]
 
 /**
- * Look ahead without incrementing position.
+ * Look ahead without incrementing the position
  * to the next byte and read it as unsigned integer.
  *
  * @function
@@ -208,7 +208,7 @@ export const peekUint16 = decoder =>
   (decoder.arr[decoder.pos + 1] << 8)
 
 /**
- * Look ahead without incrementing position.
+ * Look ahead without incrementing the position
  * to the next byte and read it as unsigned integer.
  *
  * @function
@@ -254,7 +254,7 @@ export const readVarUint = decoder => {
  * 1/8th of the storage is used as encoding overhead.
  *  * numbers < 2^7 is stored in one bytlength
  *  * numbers < 2^14 is stored in two bylength
- * @todo This should probably create the inverse ~num if unmber is negative - but this would be a breaking change.
+ * @todo This should probably create the inverse ~num if number is negative - but this would be a breaking change.
  *
  * @function
  * @param {Decoder} decoder

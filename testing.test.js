@@ -121,7 +121,7 @@ export const testAsync = async () => {
   await t.groupAsync('some description', () => promise.wait(1))
 }
 
-export const testRepeatRepitition = () => {
+export const testRepeatRepetition = () => {
   const arr = []
   const n = 100
   for (let i = 1; i <= n; i++) {

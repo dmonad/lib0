@@ -1151,7 +1151,7 @@ export const testMyFirstTest = tc => {
 <b><code>testing.TestCase#resetSeed()</code></b><br>
 <b><code>testing.TestCase#prng: prng.PRNG</code></b><br>
 <dd><p>A PRNG for this test case. Use only this PRNG for randomness to make the test case reproducible.</p></dd>
-<b><code>testing.repititionTime</code></b><br>
+<b><code>testing.repetitionTime</code></b><br>
 <b><code>testing.run(moduleName: string, name: string, f: function(module:testing.TestCase):void|Promise&lt;any&gt;, i: number, numberOfTests: number)</code></b><br>
 <b><code>testing.describe(description: string, info: string)</code></b><br>
 <dd><p>Describe what you are currently testing. The message will be logged.</p>
