@@ -629,6 +629,7 @@ export class RleIntDiffEncoder extends Encoder {
  * @param {UintOptRleEncoder} encoder
  */
 const flushUintOptRleEncoder = encoder => {
+  /* istanbul ignore else */
   if (encoder.count > 0) {
     // flush counter, unless this is the first value (count = 0)
     // case 1: just a single value. set sign to positive
