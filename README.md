@@ -278,13 +278,13 @@ Use <code>buffer.copyUint8Array</code> to copy the result into a new Uint8Array.
 <dd><p>Read 4 bytes as unsigned integer in big endian order.
 (most significant byte first)</p></dd>
 <b><code>decoding.peekUint8(decoder: module:decoding.Decoder): number</code></b><br>
-<dd><p>Look ahead without incrementing position.
+<dd><p>Look ahead without incrementing the position
 to the next byte and read it as unsigned integer.</p></dd>
 <b><code>decoding.peekUint16(decoder: module:decoding.Decoder): number</code></b><br>
-<dd><p>Look ahead without incrementing position.
+<dd><p>Look ahead without incrementing the position
 to the next byte and read it as unsigned integer.</p></dd>
 <b><code>decoding.peekUint32(decoder: module:decoding.Decoder): number</code></b><br>
-<dd><p>Look ahead without incrementing position.
+<dd><p>Look ahead without incrementing the position
 to the next byte and read it as unsigned integer.</p></dd>
 <b><code>decoding.readVarUint(decoder: module:decoding.Decoder): number</code></b><br>
 <dd><p>Read unsigned integer (32bit) with variable length.
@@ -1082,6 +1082,8 @@ integrate this algorithm.</p>
 <dl>
 <b><code>storage.varStorage</code></b><br>
 <dd><p>This is basically localStorage in browser, or a polyfill in nodejs</p></dd>
+<b><code>storage.onChange(eventHandler: function({ key: string, newValue: string, oldValue: string }): void)</code></b><br>
+<dd><p>A polyfill for <code>addEventListener('storage', event =&gt; {..})</code> that does nothing if the polyfill is being used.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/string]</b> Utility module to work with strings.</summary>
