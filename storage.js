@@ -1,4 +1,4 @@
-/* global localStorage */
+/* global localStorage, addEventListener */
 
 /**
  * Isomorphic variable storage.
@@ -16,10 +16,10 @@ class VarStoragePolyfill {
 
   /**
    * @param {string} key
-   * @param {any} value
+   * @param {any} newValue
    */
-  setItem (key, value) {
-    this.map.set(key, value)
+  setItem (key, newValue) {
+    this.map.set(key, newValue)
   }
 
   /**
@@ -35,12 +35,14 @@ class VarStoragePolyfill {
  * @type {any}
  */
 let _localStorage = new VarStoragePolyfill()
+let usePolyfill = true
 
 try {
   // if the same-origin rule is violated, accessing localStorage might thrown an error
   /* istanbul ignore next */
   if (typeof localStorage !== 'undefined') {
     _localStorage = localStorage
+    usePolyfill = false
   }
 } catch (e) { }
 
@@ -49,3 +51,12 @@ try {
  * This is basically localStorage in browser, or a polyfill in nodejs
  */
 export const varStorage = _localStorage
+
+/* istanbul ignore next */
+/**
+ * A polyfill for `addEventListener('storage', event => {..})` that does nothing if the polyfill is being used.
+ *
+ * @param {function({ key: string, newValue: string, oldValue: string }): void} eventHandler
+ * @function
+ */
+export const onChange = eventHandler => usePolyfill || addEventListener('storage', /** @type {any} */ (eventHandler))
