@@ -99,7 +99,7 @@
     "./dist/function.cjs": "./dist/function.cjs",
     "./function": {
       "import": "./function.js",
-      "require": "./dist/.cjs"
+      "require": "./dist/function.cjs"
     },
     "./indexeddb.js": "./indexeddb.js",
     "./dist/indexeddb.cjs": "./dist/indexeddb.cjs",
