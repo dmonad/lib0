@@ -473,7 +473,7 @@ export const writeAny = (encoder, data) => {
       if (data === null) {
         // TYPE 126: null
         write(encoder, 126)
-      } else if (data instanceof Array) {
+      } else if (Array.isArray(data)) {
         // TYPE 117: Array
         write(encoder, 117)
         writeVarUint(encoder, data.length)
