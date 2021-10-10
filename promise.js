@@ -47,6 +47,13 @@ export const reject = reason => Promise.reject(reason)
 export const resolve = res => Promise.resolve(res)
 
 /**
+ * @template T
+ * @param {T} res
+ * @return {Promise<T>}
+ */
+export const resolveWith = res => Promise.resolve(res)
+
+/**
  * @todo Next version, reorder parameters: check, [timeout, [intervalResolution]]
  *
  * @param {number} timeout
