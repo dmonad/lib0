@@ -17,7 +17,10 @@ export const testUint32 = tc => {
   for (let i = 0; i < iterations; i++) {
     newNum = random.uint32()
     lenSum += newNum.toString().length
-    ones += newNum.toString(2).split('').filter(x => x === '1').length
+    ones += newNum
+      .toString(2)
+      .split('')
+      .filter(x => x === '1').length
     if (newNum > largest) {
       largest = newNum
     }
@@ -26,11 +29,21 @@ export const testUint32 = tc => {
     }
   }
   t.info(`Largest number generated is ${largest} (0x${largest.toString(16)})`)
-  t.info(`Smallest number generated is ${smallest} (0x${smallest.toString(16)})`)
+  t.info(
+    `Smallest number generated is ${smallest} (0x${smallest.toString(16)})`
+  )
   t.info(`Average decimal length of number is ${lenSum / iterations}`)
-  t.info(`Average number of 1s in number is ${ones / iterations} (expecting ~16)`)
-  t.assert(((largest & binary.BITS32) >>> 0) === largest, 'Largest number is 32 bits long.')
-  t.assert(((smallest & binary.BITS32) >>> 0) === smallest, 'Smallest number is 32 bits long.')
+  t.info(
+    `Average number of 1s in number is ${ones / iterations} (expecting ~16)`
+  )
+  t.assert(
+    (largest & binary.BITS32) >>> 0 === largest,
+    'Largest number is 32 bits long.'
+  )
+  t.assert(
+    (smallest & binary.BITS32) >>> 0 === smallest,
+    'Smallest number is 32 bits long.'
+  )
 }
 
 /**
@@ -55,7 +68,7 @@ export const testUuidv4Overlaps = tc => {
       uuids.add(uuid)
     }
     if (uuids.size % (iterations / 20) === 0) {
-      t.info(`${math.round(uuids.size * 100 / iterations)}% complete`)
+      t.info(`${math.round((uuids.size * 100) / iterations)}% complete`)
     }
   }
   t.assert(uuids.size === iterations)

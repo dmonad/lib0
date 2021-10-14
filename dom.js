@@ -13,7 +13,9 @@ import * as map from './map.js'
 /**
  * @type {Document}
  */
-export const doc = /** @type {Document} */ (typeof document !== 'undefined' ? document : {})
+export const doc = /** @type {Document} */ (
+  typeof document !== 'undefined' ? document : {}
+)
 
 /**
  * @param {string} name
@@ -36,7 +38,9 @@ export const createDocumentFragment = () => doc.createDocumentFragment()
 export const createTextNode = text => doc.createTextNode(text)
 
 /* istanbul ignore next */
-export const domParser = /** @type {DOMParser} */ (typeof DOMParser !== 'undefined' ? new DOMParser() : null)
+export const domParser = /** @type {DOMParser} */ (
+  typeof DOMParser !== 'undefined' ? new DOMParser() : null
+)
 
 /**
  * @param {HTMLElement} el
@@ -44,7 +48,8 @@ export const domParser = /** @type {DOMParser} */ (typeof DOMParser !== 'undefin
  * @param {Object} opts
  */
 /* istanbul ignore next */
-export const emitCustomEvent = (el, name, opts) => el.dispatchEvent(new CustomEvent(name, opts))
+export const emitCustomEvent = (el, name, opts) =>
+  el.dispatchEvent(new CustomEvent(name, opts))
 
 /**
  * @param {Element} el
@@ -73,7 +78,9 @@ export const setAttributes = (el, attrs) => {
  */
 /* istanbul ignore next */
 export const setAttributesMap = (el, attrs) => {
-  attrs.forEach((value, key) => { el.setAttribute(key, value) })
+  attrs.forEach((value, key) => {
+    el.setAttribute(key, value)
+  })
   return el
 }
 
@@ -121,7 +128,8 @@ export const addEventListener = (el, name, f) => el.addEventListener(name, f)
  * @param {EventListener} f
  */
 /* istanbul ignore next */
-export const removeEventListener = (el, name, f) => el.removeEventListener(name, f)
+export const removeEventListener = (el, name, f) =>
+  el.removeEventListener(name, f)
 
 /**
  * @param {Node} node
@@ -192,7 +200,8 @@ export const pairsToStyleString = pairs => pairs.map(pairToStyleString).join('')
  * @return {string}
  */
 /* istanbul ignore next */
-export const mapToStyleString = m => map.map(m, (value, key) => `${key}:${value};`).join('')
+export const mapToStyleString = m =>
+  map.map(m, (value, key) => `${key}:${value};`).join('')
 
 /**
  * @todo should always query on a dom element
@@ -217,28 +226,33 @@ export const querySelectorAll = (el, query) => el.querySelectorAll(query)
  * @return {HTMLElement}
  */
 /* istanbul ignore next */
-export const getElementById = id => /** @type {HTMLElement} */ (doc.getElementById(id))
+export const getElementById = id =>
+  /** @type {HTMLElement} */ (doc.getElementById(id))
 
 /**
  * @param {string} html
  * @return {HTMLElement}
  */
 /* istanbul ignore next */
-const _parse = html => domParser.parseFromString(`<html><body>${html}</body></html>`, 'text/html').body
+const _parse = html =>
+  domParser.parseFromString(`<html><body>${html}</body></html>`, 'text/html')
+    .body
 
 /**
  * @param {string} html
  * @return {DocumentFragment}
  */
 /* istanbul ignore next */
-export const parseFragment = html => fragment(/** @type {any} */ (_parse(html).childNodes))
+export const parseFragment = html =>
+  fragment(/** @type {any} */ (_parse(html).childNodes))
 
 /**
  * @param {string} html
  * @return {HTMLElement}
  */
 /* istanbul ignore next */
-export const parseElement = html => /** @type HTMLElement */ (_parse(html).firstElementChild)
+export const parseElement = html =>
+  /** @type HTMLElement */ (_parse(html).firstElementChild)
 
 /**
  * @param {HTMLElement} oldEl

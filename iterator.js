@@ -14,11 +14,11 @@ export const mapIterator = (iterator, f) => ({
   /**
    * @param {function(T):R} f
    */
-  [Symbol.iterator] () {
+  [Symbol.iterator]() {
     return this
   },
   // @ts-ignore
-  next () {
+  next() {
     const r = iterator.next()
     return { value: r.done ? undefined : f(r.value), done: r.done }
   }
@@ -33,7 +33,7 @@ export const createIterator = next => ({
   /**
    * @return {IterableIterator<T>}
    */
-  [Symbol.iterator] () {
+  [Symbol.iterator]() {
     return this
   },
   // @ts-ignore
@@ -45,20 +45,22 @@ export const createIterator = next => ({
  * @param {Iterator<T>} iterator
  * @param {function(T):boolean} filter
  */
-export const iteratorFilter = (iterator, filter) => createIterator(() => {
-  let res
-  do {
-    res = iterator.next()
-  } while (!res.done && !filter(res.value))
-  return res
-})
+export const iteratorFilter = (iterator, filter) =>
+  createIterator(() => {
+    let res
+    do {
+      res = iterator.next()
+    } while (!res.done && !filter(res.value))
+    return res
+  })
 
 /**
  * @template T,M
  * @param {Iterator<T>} iterator
  * @param {function(T):M} fmap
  */
-export const iteratorMap = (iterator, fmap) => createIterator(() => {
-  const { done, value } = iterator.next()
-  return { done, value: done ? undefined : fmap(value) }
-})
+export const iteratorMap = (iterator, fmap) =>
+  createIterator(() => {
+    const { done, value } = iterator.next()
+    return { done, value: done ? undefined : fmap(value) }
+  })

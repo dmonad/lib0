@@ -28,7 +28,7 @@ export const add = (a, b) => a + b
  * @param {number} b
  * @return {number} The smaller element of a and b
  */
-export const min = (a, b) => a < b ? a : b
+export const min = (a, b) => (a < b ? a : b)
 
 /**
  * @function
@@ -36,7 +36,7 @@ export const min = (a, b) => a < b ? a : b
  * @param {number} b
  * @return {number} The bigger element of a and b
  */
-export const max = (a, b) => a > b ? a : b
+export const max = (a, b) => (a > b ? a : b)
 
 export const isNaN = Number.isNaN
 
@@ -55,4 +55,4 @@ export const sign = Math.sign
  * @param {number} n
  * @return {boolean} Wether n is negative. This function also differentiates between -0 and +0
  */
-export const isNegativeZero = n => n !== 0 ? n < 0 : 1 / n < 0
+export const isNegativeZero = n => (n !== 0 ? n < 0 : 1 / n < 0)

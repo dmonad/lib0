@@ -58,7 +58,13 @@ export const equalityStrict = (a, b) => a === b
  * @param {Array<T>|object} b
  * @return {boolean}
  */
-export const equalityFlat = (a, b) => a === b || (a != null && b != null && a.constructor === b.constructor && ((a instanceof Array && array.equalFlat(a, /** @type {Array<T>} */ (b))) || (typeof a === 'object' && object.equalFlat(a, b))))
+export const equalityFlat = (a, b) =>
+  a === b ||
+  (a != null &&
+    b != null &&
+    a.constructor === b.constructor &&
+    ((a instanceof Array && array.equalFlat(a, /** @type {Array<T>} */ (b))) ||
+      (typeof a === 'object' && object.equalFlat(a, b))))
 
 /**
  * @param {any} a

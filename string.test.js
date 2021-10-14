@@ -50,11 +50,15 @@ export const testRepeatStringUtf8Decoding = tc => {
 export const testBomEncodingDecoding = tc => {
   const bomStr = '﻿bom'
   t.assert(bomStr.length === 4)
-  const polyfilledResult = string._decodeUtf8Polyfill(string._encodeUtf8Polyfill(bomStr))
+  const polyfilledResult = string._decodeUtf8Polyfill(
+    string._encodeUtf8Polyfill(bomStr)
+  )
   t.assert(polyfilledResult.length === 4)
   t.assert(polyfilledResult === bomStr)
   if (string.utf8TextDecoder) {
-    const nativeResult = string._decodeUtf8Native(string._encodeUtf8Native(bomStr))
+    const nativeResult = string._decodeUtf8Native(
+      string._encodeUtf8Native(bomStr)
+    )
     t.assert(nativeResult === polyfilledResult)
   }
 }

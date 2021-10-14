@@ -46,7 +46,11 @@ export const simpleDiffString = (a, b) => {
   }
   if (left !== a.length || left !== b.length) {
     // Only check right if a !== b
-    while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
+    while (
+      right + left < a.length &&
+      right + left < b.length &&
+      a[a.length - right - 1] === b[b.length - right - 1]
+    ) {
       right++
     }
   }
@@ -86,7 +90,11 @@ export const simpleDiffArray = (a, b, compare = equalityStrict) => {
   }
   if (left !== a.length || left !== b.length) {
     // Only check right if a !== b
-    while (right + left < a.length && right + left < b.length && compare(a[a.length - right - 1], b[b.length - right - 1])) {
+    while (
+      right + left < a.length &&
+      right + left < b.length &&
+      compare(a[a.length - right - 1], b[b.length - right - 1])
+    ) {
       right++
     }
   }

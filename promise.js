@@ -61,29 +61,31 @@ export const resolveWith = res => Promise.resolve(res)
  * @param {number} [intervalResolution]
  * @return {Promise<void>}
  */
-export const until = (timeout, check, intervalResolution = 10) => create((resolve, reject) => {
-  const startTime = time.getUnixTime()
-  const hasTimeout = timeout > 0
-  const untilInterval = () => {
-    if (check()) {
-      clearInterval(intervalHandle)
-      resolve()
-    } else if (hasTimeout) {
-      /* istanbul ignore else */
-      if (time.getUnixTime() - startTime > timeout) {
+export const until = (timeout, check, intervalResolution = 10) =>
+  create((resolve, reject) => {
+    const startTime = time.getUnixTime()
+    const hasTimeout = timeout > 0
+    const untilInterval = () => {
+      if (check()) {
         clearInterval(intervalHandle)
-        reject(new Error('Timeout'))
+        resolve()
+      } else if (hasTimeout) {
+        /* istanbul ignore else */
+        if (time.getUnixTime() - startTime > timeout) {
+          clearInterval(intervalHandle)
+          reject(new Error('Timeout'))
+        }
       }
     }
-  }
-  const intervalHandle = setInterval(untilInterval, intervalResolution)
-})
+    const intervalHandle = setInterval(untilInterval, intervalResolution)
+  })
 
 /**
  * @param {number} timeout
  * @return {Promise<undefined>}
  */
-export const wait = timeout => create((resolve, reject) => setTimeout(resolve, timeout))
+export const wait = timeout =>
+  create((resolve, reject) => setTimeout(resolve, timeout))
 
 /**
  * Checks if an object is a promise using ducktyping.
@@ -94,4 +96,5 @@ export const wait = timeout => create((resolve, reject) => setTimeout(resolve, t
  * @param {any} p
  * @return {boolean}
  */
-export const isPromise = p => p instanceof Promise || (p && p.then && p.catch && p.finally)
+export const isPromise = p =>
+  p instanceof Promise || (p && p.then && p.catch && p.finally)

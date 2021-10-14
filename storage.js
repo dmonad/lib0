@@ -10,7 +10,7 @@
 
 /* istanbul ignore next */
 class VarStoragePolyfill {
-  constructor () {
+  constructor() {
     this.map = new Map()
   }
 
@@ -18,14 +18,14 @@ class VarStoragePolyfill {
    * @param {string} key
    * @param {any} newValue
    */
-  setItem (key, newValue) {
+  setItem(key, newValue) {
     this.map.set(key, newValue)
   }
 
   /**
    * @param {string} key
    */
-  getItem (key) {
+  getItem(key) {
     return this.map.get(key)
   }
 }
@@ -44,7 +44,7 @@ try {
     _localStorage = localStorage
     usePolyfill = false
   }
-} catch (e) { }
+} catch (e) {}
 
 /* istanbul ignore next */
 /**
@@ -59,4 +59,5 @@ export const varStorage = _localStorage
  * @param {function({ key: string, newValue: string, oldValue: string }): void} eventHandler
  * @function
  */
-export const onChange = eventHandler => usePolyfill || addEventListener('storage', /** @type {any} */ (eventHandler))
+export const onChange = eventHandler =>
+  usePolyfill || addEventListener('storage', /** @type {any} */ (eventHandler))

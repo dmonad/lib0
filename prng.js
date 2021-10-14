@@ -44,7 +44,7 @@ export const create = seed => new DefaultPRNG(seed)
  * @param {PRNG} gen A random number generator.
  * @return {Boolean} A random boolean
  */
-export const bool = gen => (gen.next() >= 0.5)
+export const bool = gen => gen.next() >= 0.5
 
 /**
  * Generates a random integer with 53 bit resolution.
@@ -54,7 +54,8 @@ export const bool = gen => (gen.next() >= 0.5)
  * @param {Number} max The upper bound of the allowed return values (inclusive).
  * @return {Number} A random integer on [min, max]
  */
-export const int53 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) + min)
+export const int53 = (gen, min, max) =>
+  math.floor(gen.next() * (max + 1 - min) + min)
 
 /**
  * Generates a random integer with 53 bit resolution.
@@ -74,7 +75,8 @@ export const uint53 = (gen, min, max) => math.abs(int53(gen, min, max))
  * @param {Number} max The upper bound of the allowed return values (inclusive).
  * @return {Number} A random integer on [min, max]
  */
-export const int32 = (gen, min, max) => math.floor(gen.next() * (max + 1 - min) + min)
+export const int32 = (gen, min, max) =>
+  math.floor(gen.next() * (max + 1 - min) + min)
 
 /**
  * Generates a random integer with 53 bit resolution.
@@ -189,11 +191,13 @@ export const uint8Array = (gen, len) => {
  * @param {number} len
  * @return {Uint16Array}
  */
-export const uint16Array = (gen, len) => new Uint16Array(uint8Array(gen, len * 2).buffer)
+export const uint16Array = (gen, len) =>
+  new Uint16Array(uint8Array(gen, len * 2).buffer)
 
 /**
  * @param {PRNG} gen
  * @param {number} len
  * @return {Uint32Array}
  */
-export const uint32Array = (gen, len) => new Uint32Array(uint8Array(gen, len * 4).buffer)
+export const uint32Array = (gen, len) =>
+  new Uint32Array(uint8Array(gen, len * 4).buffer)

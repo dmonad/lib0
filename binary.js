@@ -83,8 +83,8 @@ export const BITS30 = BIT31 - 1
 /**
  * @type {number}
  */
-export const BITS31 = 0x7FFFFFFF
+export const BITS31 = 0x7fffffff
 /**
  * @type {number}
  */
-export const BITS32 = 0xFFFFFFFF
+export const BITS32 = 0xffffffff

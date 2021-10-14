@@ -20,7 +20,7 @@ const messageReconnectTimeout = 30000
 /**
  * @param {WebsocketClient} wsclient
  */
-const setupWS = (wsclient) => {
+const setupWS = wsclient => {
   if (wsclient.shouldConnect && wsclient.ws === null) {
     const websocket = new WebSocket(wsclient.url)
     const binaryType = wsclient.binaryType
@@ -61,7 +61,15 @@ const setupWS = (wsclient) => {
         // log10(wsUnsuccessfulReconnects).
         // The idea is to increase reconnect timeout slowly and have no reconnect
         // timeout at the beginning (log(1) = 0)
-        setTimeout(setupWS, math.min(math.log10(wsclient.unsuccessfulReconnects + 1) * reconnectTimeoutBase, maxReconnectTimeout), wsclient)
+        setTimeout(
+          setupWS,
+          math.min(
+            math.log10(wsclient.unsuccessfulReconnects + 1) *
+              reconnectTimeoutBase,
+            maxReconnectTimeout
+          ),
+          wsclient
+        )
       }
       clearTimeout(pingTimeout)
     }
@@ -95,7 +103,7 @@ export class WebsocketClient extends Observable {
    * @param {object} [opts]
    * @param {'arraybuffer' | 'blob' | null} [opts.binaryType] Set `ws.binaryType`
    */
-  constructor (url, { binaryType } = {}) {
+  constructor(url, { binaryType } = {}) {
     super()
     this.url = url
     /**
@@ -113,10 +121,13 @@ export class WebsocketClient extends Observable {
      */
     this.shouldConnect = true
     this._checkInterval = setInterval(() => {
-      if (this.connected && messageReconnectTimeout < time.getUnixTime() - this.lastMessageReceived) {
+      if (
+        this.connected &&
+        messageReconnectTimeout < time.getUnixTime() - this.lastMessageReceived
+      ) {
         // no message received in a long time - not even your own awareness
         // updates (which are updated every 15 seconds)
-        /** @type {WebSocket} */ (this.ws).close()
+        /** @type {WebSocket} */ this.ws.close()
       }
     }, messageReconnectTimeout / 2)
     setupWS(this)
@@ -125,26 +136,26 @@ export class WebsocketClient extends Observable {
   /**
    * @param {any} message
    */
-  send (message) {
+  send(message) {
     if (this.ws) {
       this.ws.send(JSON.stringify(message))
     }
   }
 
-  destroy () {
+  destroy() {
     clearInterval(this._checkInterval)
     this.disconnect()
     super.destroy()
   }
 
-  disconnect () {
+  disconnect() {
     this.shouldConnect = false
     if (this.ws !== null) {
       this.ws.close()
     }
   }
 
-  connect () {
+  connect() {
     this.shouldConnect = true
     if (!this.connected && this.ws === null) {
       setupWS(this)

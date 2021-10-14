@@ -24,7 +24,9 @@ export const create = () => new Map()
  */
 export const copy = m => {
   const r = create()
-  m.forEach((v, k) => { r.set(k, v) })
+  m.forEach((v, k) => {
+    r.set(k, v)
+  })
   return r
 }
 
@@ -46,7 +48,7 @@ export const copy = m => {
 export const setIfUndefined = (map, key, createT) => {
   let set = map.get(key)
   if (set === undefined) {
-    map.set(key, set = createT())
+    map.set(key, (set = createT()))
   }
   return set
 }

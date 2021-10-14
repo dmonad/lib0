@@ -10,4 +10,4 @@
  * @return {T|null}
  */
 /* istanbul ignore next */
-export const undefinedToNull = v => v === undefined ? null : v
+export const undefinedToNull = v => (v === undefined ? null : v)

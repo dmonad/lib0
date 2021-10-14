@@ -61,7 +61,9 @@ export const testInterval = async tc => {
  */
 export const testAnimationFrame = async tc => {
   let x = false
-  eventloop.animationFrame(() => { x = true })
+  eventloop.animationFrame(() => {
+    x = true
+  })
   await promise.until(0, () => x)
   t.assert(x)
 }

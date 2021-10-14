@@ -12,7 +12,7 @@ export class Pair {
    * @param {L} left
    * @param {R} right
    */
-  constructor (left, right) {
+  constructor(left, right) {
     this.left = left
     this.right = right
   }

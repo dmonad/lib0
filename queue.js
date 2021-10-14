@@ -1,6 +1,5 @@
-
 export class QueueNode {
-  constructor () {
+  constructor() {
     /**
      * @type {QueueNode|null}
      */
@@ -9,7 +8,7 @@ export class QueueNode {
 }
 
 export class Queue {
-  constructor () {
+  constructor() {
     /**
      * @type {QueueNode | null}
      */

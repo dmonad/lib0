@@ -17,10 +17,25 @@ export const testUrlParamQuery = tc => {
   paramTest({ a: '4' })
   paramTest({ a: 'dtrn', b: '0x0' })
 
-  t.compareObjects({ }, url.decodeQueryParams('http://localhost:8080/dtrn?'))
-  t.compareObjects({ a: 'ay' }, url.decodeQueryParams('http://localhost:8080/dtrn?a=ay'))
-  t.compareObjects({ a: '' }, url.decodeQueryParams('http://localhost:8080/dtrn?a='))
-  t.compareObjects({ a: '' }, url.decodeQueryParams('http://localhost:8080/dtrn?a'))
-  t.compareObjects({ a: 'ay' }, url.decodeQueryParams('http://localhost:8080/dtrn?a=ay&'))
-  t.compareObjects({ a: 'ay', b: 'bey' }, url.decodeQueryParams('http://localhost:8080/dtrn?a=ay&b=bey'))
+  t.compareObjects({}, url.decodeQueryParams('http://localhost:8080/dtrn?'))
+  t.compareObjects(
+    { a: 'ay' },
+    url.decodeQueryParams('http://localhost:8080/dtrn?a=ay')
+  )
+  t.compareObjects(
+    { a: '' },
+    url.decodeQueryParams('http://localhost:8080/dtrn?a=')
+  )
+  t.compareObjects(
+    { a: '' },
+    url.decodeQueryParams('http://localhost:8080/dtrn?a')
+  )
+  t.compareObjects(
+    { a: 'ay' },
+    url.decodeQueryParams('http://localhost:8080/dtrn?a=ay&')
+  )
+  t.compareObjects(
+    { a: 'ay', b: 'bey' },
+    url.decodeQueryParams('http://localhost:8080/dtrn?a=ay&b=bey')
+  )
 }

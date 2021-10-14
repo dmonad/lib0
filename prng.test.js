@@ -1,4 +1,3 @@
-
 import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
 import * as prng from './prng.js'
 import { MAX_SAFE_INTEGER } from './number.js'
@@ -59,7 +58,10 @@ const runGenTest = (tc, gen) => {
     const average = count / genTestData
     const expectedAverage = 100 / 2
     t.info(`Average is: ${average}. Expected average is ${expectedAverage}.`)
-    t.assert(math.abs(average - expectedAverage) <= 2, 'Expected average is at most 1 off.')
+    t.assert(
+      math.abs(average - expectedAverage) <= 2,
+      'Expected average is at most 1 off.'
+    )
   })
 
   t.group('int32 - generates integer with 32 bits', () => {
@@ -79,7 +81,9 @@ const runGenTest = (tc, gen) => {
     t.assert(smallest < -1000, 'Smallest number is negative')
     t.assert(largest > 1000, 'Largest number is positive')
     t.info(`Largest number generated is ${largest} (0x${largest.toString(16)})`)
-    t.info(`Smallest number generated is ${smallest} (0x${smallest.toString(16)})`)
+    t.info(
+      `Smallest number generated is ${smallest} (0x${smallest.toString(16)})`
+    )
     t.assert((smallest & binary.BIT32) !== 0, 'Largest number is 32 bits long') // largest.. assuming we convert int to uint
   })
 
@@ -115,8 +119,11 @@ const runGenTest = (tc, gen) => {
     t.assert(largest > 1000, 'Largest number is positive')
     t.info(`Largest number generated is ${largest}`)
     t.info(`Smallest number generated is ${smallest}`)
-    t.assert(largest > (binary.BITS32 >>> 0), 'Largest number exceeds BITS32')
-    t.assert(smallest < binary.BITS32, 'Smallest Number is smaller than BITS32 (negative)')
+    t.assert(largest > binary.BITS32 >>> 0, 'Largest number exceeds BITS32')
+    t.assert(
+      smallest < binary.BITS32,
+      'Smallest Number is smaller than BITS32 (negative)'
+    )
   })
 
   t.group('uint53 - generates integer exceeding 32 bits', () => {
@@ -138,7 +145,7 @@ const runGenTest = (tc, gen) => {
     t.assert(largest > 1000, 'Largest number is positive')
     t.info(`Largest number generated is ${largest}`)
     t.info(`Smallest number generated is ${smallest}`)
-    t.assert(largest > (binary.BITS32 >>> 0), 'Largest number exceeds BITS32')
+    t.assert(largest > binary.BITS32 >>> 0, 'Largest number exceeds BITS32')
   })
 
   t.group('int31 - generates integer with 31 bits', () => {
@@ -166,12 +173,16 @@ const runGenTest = (tc, gen) => {
       }
     }
     t.info(`Largest number generated is ${num}.`)
-    t.assert((MAX_SAFE_INTEGER - num) / MAX_SAFE_INTEGER < 0.01, 'Largest number is close to MAX_SAFE_INTEGER (at most 1% off).')
+    t.assert(
+      (MAX_SAFE_INTEGER - num) / MAX_SAFE_INTEGER < 0.01,
+      'Largest number is close to MAX_SAFE_INTEGER (at most 1% off).'
+    )
   })
 
   t.group('char - generates all ascii characters', () => {
     const charSet = new Set()
-    const chars = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[/]^_`abcdefghijklmnopqrstuvwxyz{|}~"'
+    const chars =
+      ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[/]^_`abcdefghijklmnopqrstuvwxyz{|}~"'
     for (let i = chars.length - 1; i >= 0; i--) {
       charSet.add(chars[i])
     }
@@ -187,7 +198,8 @@ const runGenTest = (tc, gen) => {
 /**
  * @param {t.TestCase} tc
  */
-export const testGeneratorXoroshiro128plus = tc => runGenTest(tc, new Xoroshiro128plus(tc.seed))
+export const testGeneratorXoroshiro128plus = tc =>
+  runGenTest(tc, new Xoroshiro128plus(tc.seed))
 
 /**
  * @param {t.TestCase} tc
@@ -232,7 +244,9 @@ const printDistribution = (gen, tc) => {
  */
 export const testNumberDistributions = tc => {
   t.skip(!isBrowser)
-  t.group('Xoroshiro128plus', () => printDistribution(new Xoroshiro128plus(tc.seed), tc))
+  t.group('Xoroshiro128plus', () =>
+    printDistribution(new Xoroshiro128plus(tc.seed), tc)
+  )
   t.group('Xorshift32', () => printDistribution(new Xorshift32(tc.seed), tc))
   t.group('MT19937', () => printDistribution(new Mt19937(tc.seed), tc))
 }

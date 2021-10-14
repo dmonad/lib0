@@ -36,25 +36,36 @@ class LocalStoragePolyfill {
   /**
    * @param {string} room
    */
-  constructor (room) {
+  constructor(room) {
     this.room = room
     /**
      * @type {null|function({data:ArrayBuffer}):void}
      */
     this.onmessage = null
-    storage.onChange(e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') }))
+    storage.onChange(
+      e =>
+        e.key === room &&
+        this.onmessage !== null &&
+        this.onmessage({ data: buffer.fromBase64(e.newValue || '') })
+    )
   }
 
   /**
    * @param {ArrayBuffer} buf
    */
-  postMessage (buf) {
-    storage.varStorage.setItem(this.room, buffer.toBase64(buffer.createUint8ArrayFromArrayBuffer(buf)))
+  postMessage(buf) {
+    storage.varStorage.setItem(
+      this.room,
+      buffer.toBase64(buffer.createUint8ArrayFromArrayBuffer(buf))
+    )
   }
 }
 
 // Use BroadcastChannel or Polyfill
-const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : BroadcastChannel
+const BC =
+  typeof BroadcastChannel === 'undefined'
+    ? LocalStoragePolyfill
+    : BroadcastChannel
 
 /**
  * @param {string} room
@@ -69,7 +80,8 @@ const getChannel = room =>
      */
     bc.onmessage = e => subs.forEach(sub => sub(e.data))
     return {
-      bc, subs
+      bc,
+      subs
     }
   })
 

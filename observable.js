@@ -14,7 +14,7 @@ import * as array from './array.js'
  * @template N
  */
 export class Observable {
-  constructor () {
+  constructor() {
     /**
      * Some desc.
      * @type {Map<N, any>}
@@ -26,7 +26,7 @@ export class Observable {
    * @param {N} name
    * @param {function} f
    */
-  on (name, f) {
+  on(name, f) {
     map.setIfUndefined(this._observers, name, set.create).add(f)
   }
 
@@ -34,7 +34,7 @@ export class Observable {
    * @param {N} name
    * @param {function} f
    */
-  once (name, f) {
+  once(name, f) {
     /**
      * @param  {...any} args
      */
@@ -49,7 +49,7 @@ export class Observable {
    * @param {N} name
    * @param {function} f
    */
-  off (name, f) {
+  off(name, f) {
     const observers = this._observers.get(name)
     if (observers !== undefined) {
       observers.delete(f)
@@ -68,12 +68,14 @@ export class Observable {
    * @param {N} name The event name.
    * @param {Array<any>} args The arguments that are applied to the event listener.
    */
-  emit (name, args) {
+  emit(name, args) {
     // copy all listeners to an array first to make sure that no event is emitted to listeners that are subscribed while the event handler is called.
-    return array.from((this._observers.get(name) || map.create()).values()).forEach(f => f(...args))
+    return array
+      .from((this._observers.get(name) || map.create()).values())
+      .forEach(f => f(...args))
   }
 
-  destroy () {
+  destroy() {
     this._observers = map.create()
   }
 }

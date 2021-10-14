@@ -146,7 +146,9 @@ const computeNodeLoggingArgs = args => {
 }
 
 /* istanbul ignore next */
-const computeLoggingArgs = env.isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs
+const computeLoggingArgs = env.isNode
+  ? computeNodeLoggingArgs
+  : computeBrowserLoggingArgs
 
 /**
  * @param {Array<string|Symbol|Object|number>} args
@@ -183,7 +185,10 @@ export const printError = err => {
  */
 export const printImg = (url, height) => {
   if (env.isBrowser) {
-    console.log('%c                      ', `font-size: ${height}px; background-size: contain; background-repeat: no-repeat; background-image: url(${url})`)
+    console.log(
+      '%c                      ',
+      `font-size: ${height}px; background-size: contain; background-repeat: no-repeat; background-image: url(${url})`
+    )
     // console.log('%c                ', `font-size: ${height}x; background: url(${url}) no-repeat;`)
   }
   vconsoles.forEach(vc => vc.printImg(url, height))
@@ -194,7 +199,8 @@ export const printImg = (url, height) => {
  * @param {string} base64
  * @param {number} height
  */
-export const printImgBase64 = (base64, height) => printImg(`data:image/gif;base64,${base64}`, height)
+export const printImgBase64 = (base64, height) =>
+  printImg(`data:image/gif;base64,${base64}`, height)
 
 /**
  * @param {Array<string|Symbol|Object|number>} args
@@ -232,7 +238,8 @@ export const printDom = createNode =>
  * @param {HTMLCanvasElement} canvas
  * @param {number} height
  */
-export const printCanvas = (canvas, height) => printImg(canvas.toDataURL(), height)
+export const printCanvas = (canvas, height) =>
+  printImg(canvas.toDataURL(), height)
 
 export const vconsoles = new Set()
 
@@ -255,7 +262,11 @@ const _computeLineSpans = args => {
     } else {
       if (arg.constructor === String || arg.constructor === Number) {
         // @ts-ignore
-        const span = dom.element('span', [pair.create('style', dom.mapToStyleString(currentStyle))], [dom.text(arg)])
+        const span = dom.element(
+          'span',
+          [pair.create('style', dom.mapToStyleString(currentStyle))],
+          [dom.text(arg)]
+        )
         if (span.innerHTML === '') {
           span.innerHTML = '&nbsp;'
         }
@@ -272,20 +283,23 @@ const _computeLineSpans = args => {
       if (content.constructor !== String && content.constructor !== Number) {
         content = ' ' + json.stringify(content) + ' '
       }
-      spans.push(dom.element('span', [], [dom.text(/** @type {string} */ (content))]))
+      spans.push(
+        dom.element('span', [], [dom.text(/** @type {string} */ (content))])
+      )
     }
   }
   return spans
 }
 
-const lineStyle = 'font-family:monospace;border-bottom:1px solid #e2e2e2;padding:2px;'
+const lineStyle =
+  'font-family:monospace;border-bottom:1px solid #e2e2e2;padding:2px;'
 
 /* istanbul ignore next */
 export class VConsole {
   /**
    * @param {Element} dom
    */
-  constructor (dom) {
+  constructor(dom) {
     this.dom = dom
     /**
      * @type {Element}
@@ -299,12 +313,36 @@ export class VConsole {
    * @param {Array<string|Symbol|Object|number>} args
    * @param {boolean} collapsed
    */
-  group (args, collapsed = false) {
+  group(args, collapsed = false) {
     eventloop.enqueue(() => {
-      const triangleDown = dom.element('span', [pair.create('hidden', collapsed), pair.create('style', 'color:grey;font-size:120%;')], [dom.text('▼')])
-      const triangleRight = dom.element('span', [pair.create('hidden', !collapsed), pair.create('style', 'color:grey;font-size:125%;')], [dom.text('▶')])
-      const content = dom.element('div', [pair.create('style', `${lineStyle};padding-left:${this.depth * 10}px`)], [triangleDown, triangleRight, dom.text(' ')].concat(_computeLineSpans(args)))
-      const nextContainer = dom.element('div', [pair.create('hidden', collapsed)])
+      const triangleDown = dom.element(
+        'span',
+        [
+          pair.create('hidden', collapsed),
+          pair.create('style', 'color:grey;font-size:120%;')
+        ],
+        [dom.text('▼')]
+      )
+      const triangleRight = dom.element(
+        'span',
+        [
+          pair.create('hidden', !collapsed),
+          pair.create('style', 'color:grey;font-size:125%;')
+        ],
+        [dom.text('▶')]
+      )
+      const content = dom.element(
+        'div',
+        [
+          pair.create('style', `${lineStyle};padding-left:${this.depth * 10}px`)
+        ],
+        [triangleDown, triangleRight, dom.text(' ')].concat(
+          _computeLineSpans(args)
+        )
+      )
+      const nextContainer = dom.element('div', [
+        pair.create('hidden', collapsed)
+      ])
       const nextLine = dom.element('div', [], [content, nextContainer])
       dom.append(this.ccontainer, [nextLine])
       this.ccontainer = nextContainer
@@ -321,11 +359,11 @@ export class VConsole {
   /**
    * @param {Array<string|Symbol|Object|number>} args
    */
-  groupCollapsed (args) {
+  groupCollapsed(args) {
     this.group(args, true)
   }
 
-  groupEnd () {
+  groupEnd() {
     eventloop.enqueue(() => {
       if (this.depth > 0) {
         this.depth--
@@ -338,16 +376,27 @@ export class VConsole {
   /**
    * @param {Array<string|Symbol|Object|number>} args
    */
-  print (args) {
+  print(args) {
     eventloop.enqueue(() => {
-      dom.append(this.ccontainer, [dom.element('div', [pair.create('style', `${lineStyle};padding-left:${this.depth * 10}px`)], _computeLineSpans(args))])
+      dom.append(this.ccontainer, [
+        dom.element(
+          'div',
+          [
+            pair.create(
+              'style',
+              `${lineStyle};padding-left:${this.depth * 10}px`
+            )
+          ],
+          _computeLineSpans(args)
+        )
+      ])
     })
   }
 
   /**
    * @param {Error} err
    */
-  printError (err) {
+  printError(err) {
     this.print([RED, BOLD, err.toString()])
   }
 
@@ -355,22 +404,27 @@ export class VConsole {
    * @param {string} url
    * @param {number} height
    */
-  printImg (url, height) {
+  printImg(url, height) {
     eventloop.enqueue(() => {
-      dom.append(this.ccontainer, [dom.element('img', [pair.create('src', url), pair.create('height', `${math.round(height * 1.5)}px`)])])
+      dom.append(this.ccontainer, [
+        dom.element('img', [
+          pair.create('src', url),
+          pair.create('height', `${math.round(height * 1.5)}px`)
+        ])
+      ])
     })
   }
 
   /**
    * @param {Node} node
    */
-  printDom (node) {
+  printDom(node) {
     eventloop.enqueue(() => {
       dom.append(this.ccontainer, [node])
     })
   }
 
-  destroy () {
+  destroy() {
     eventloop.enqueue(() => {
       vconsoles.delete(this)
     })
@@ -394,14 +448,31 @@ let lastLoggingTime = time.getUnixTime()
 export const createModuleLogger = moduleName => {
   const color = loggingColors[nextColor]
   const debugRegexVar = env.getVariable('log')
-  const doLogging = debugRegexVar !== null && (debugRegexVar === '*' || debugRegexVar === 'true' || new RegExp(debugRegexVar, 'gi').test(moduleName))
+  const doLogging =
+    debugRegexVar !== null &&
+    (debugRegexVar === '*' ||
+      debugRegexVar === 'true' ||
+      new RegExp(debugRegexVar, 'gi').test(moduleName))
   nextColor = (nextColor + 1) % loggingColors.length
   moduleName += ': '
 
-  return !doLogging ? func.nop : (...args) => {
-    const timeNow = time.getUnixTime()
-    const timeDiff = timeNow - lastLoggingTime
-    lastLoggingTime = timeNow
-    print(color, moduleName, UNCOLOR, ...args.map(arg => (typeof arg === 'string' || typeof arg === 'symbol') ? arg : JSON.stringify(arg)), color, ' +' + timeDiff + 'ms')
-  }
+  return !doLogging
+    ? func.nop
+    : (...args) => {
+        const timeNow = time.getUnixTime()
+        const timeDiff = timeNow - lastLoggingTime
+        lastLoggingTime = timeNow
+        print(
+          color,
+          moduleName,
+          UNCOLOR,
+          ...args.map(arg =>
+            typeof arg === 'string' || typeof arg === 'symbol'
+              ? arg
+              : JSON.stringify(arg)
+          ),
+          color,
+          ' +' + timeDiff + 'ms'
+        )
+      }
 }

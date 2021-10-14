@@ -44,10 +44,18 @@ export const testComparing = tc => {
     t.compare([1], [1, 2]) // childs have different length (array) -- no message
   })
   t.fails(() => {
-    t.compare(buffer.createUint8ArrayFromLen(1), buffer.createUint8ArrayFromLen(2), 'Uint8Arrays have different length')
+    t.compare(
+      buffer.createUint8ArrayFromLen(1),
+      buffer.createUint8ArrayFromLen(2),
+      'Uint8Arrays have different length'
+    )
   })
   t.fails(() => {
-    t.compare(buffer.createUint8ArrayFromLen(1).buffer, buffer.createUint8ArrayFromLen(2).buffer, 'ArrayBuffer have different length')
+    t.compare(
+      buffer.createUint8ArrayFromLen(1).buffer,
+      buffer.createUint8ArrayFromLen(2).buffer,
+      'ArrayBuffer have different length'
+    )
   })
   t.fails(() => {
     t.compareStrings('str1', 'str2', 'Strings comparison can fail')
@@ -70,7 +78,11 @@ export const testComparing = tc => {
     t.compare({ x: undefined }, { y: 1 }, 'compare correctly handles undefined')
   })
   t.fails(() => {
-    t.compareObjects({ x: undefined }, { y: 1 }, 'compare correctly handles undefined')
+    t.compareObjects(
+      { x: undefined },
+      { y: 1 },
+      'compare correctly handles undefined'
+    )
   })
   t.describe('Map fails')
   t.fails(() => {
@@ -127,5 +139,5 @@ export const testRepeatRepetition = () => {
   for (let i = 1; i <= n; i++) {
     arr.push(i)
   }
-  t.assert(arr.reduce(math.add, 0) === (n + 1) * n / 2)
+  t.assert(arr.reduce(math.add, 0) === ((n + 1) * n) / 2)
 }

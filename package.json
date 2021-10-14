@@ -281,6 +281,7 @@
     "jsdoc-api": "^5.0.4",
     "jsdoc-plugin-typescript": "^2.0.6",
     "nyc": "^15.1.0",
+    "prettier": "2.4.1",
     "rollup": "^2.42.1",
     "standard": "^14.3.4",
     "typescript": "^4.2.3"
@@ -294,6 +295,8 @@
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-extensive": "node test.js && npm test -- --repetition-time 30000 --extensive",
     "test-code-coverage": "npm run clean && npm run dist && nyc --reporter html node ./dist/test.cjs --production",
+    "format": "prettier *.js --write",
+    "test-format": "prettier *.js --check",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.cjs",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",
@@ -317,6 +320,12 @@
       "/node_modules",
       "/docs"
     ]
+  },
+  "prettier": {
+    "semi": false,
+    "arrowParens": "avoid",
+    "singleQuote": true,
+    "trailingComma": "none"
   },
   "engines": {
     "node": ">=12"

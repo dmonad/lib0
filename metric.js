@@ -48,9 +48,13 @@ export const prefix = (n, baseMultiplier = 0) => {
     baseMultiplier++
     mult++
   }
-  const prefix = baseMultiplier < 0 ? prefixDown[-baseMultiplier] : prefixUp[baseMultiplier]
+  const prefix =
+    baseMultiplier < 0 ? prefixDown[-baseMultiplier] : prefixUp[baseMultiplier]
   return {
-    n: math.round((mult > 0 ? n / math.exp10(mult * 3) : n * math.exp10(mult * -3)) * 1e12) / 1e12,
+    n:
+      math.round(
+        (mult > 0 ? n / math.exp10(mult * 3) : n * math.exp10(mult * -3)) * 1e12
+      ) / 1e12,
     prefix
   }
 }

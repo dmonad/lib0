@@ -1,4 +1,3 @@
-
 import * as log from './logging.js'
 
 export const testLogging = () => {

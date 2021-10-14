@@ -34,4 +34,9 @@ export const decodeQueryParams = url => {
  * @return {string}
  */
 export const encodeQueryParams = params =>
-  object.map(params, (val, key) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`).join('&')
+  object
+    .map(
+      params,
+      (val, key) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`
+    )
+    .join('&')

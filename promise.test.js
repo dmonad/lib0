@@ -22,14 +22,23 @@ const measureP = (p, min, max) => {
  * @param {Promise<T>} p
  * @return {Promise<T>}
  */
-const failsP = p => promise.create((resolve, reject) => p.then(() => reject(error.create('Promise should fail')), resolve))
+const failsP = p =>
+  promise.create((resolve, reject) =>
+    p.then(() => reject(error.create('Promise should fail')), resolve)
+  )
 
 /**
  * @param {t.TestCase} tc
  */
 export const testRepeatPromise = async tc => {
-  t.assert(promise.createEmpty(r => r()).constructor === Promise, 'p.create() creates a Promise')
-  t.assert(promise.resolve().constructor === Promise, 'p.reject() creates a Promise')
+  t.assert(
+    promise.createEmpty(r => r()).constructor === Promise,
+    'p.create() creates a Promise'
+  )
+  t.assert(
+    promise.resolve().constructor === Promise,
+    'p.reject() creates a Promise'
+  )
   const rejectedP = promise.reject()
   t.assert(rejectedP.constructor === Promise, 'p.reject() creates a Promise')
   rejectedP.catch(() => {})
@@ -39,7 +48,11 @@ export const testRepeatPromise = async tc => {
   await measureP(promise.wait(10), 7, 1000)
   await measureP(failsP(promise.until(15, () => false)), 15, 1000)
   const startTime = time.getUnixTime()
-  await measureP(promise.until(0, () => (time.getUnixTime() - startTime) > 100), 100, 1000)
+  await measureP(
+    promise.until(0, () => time.getUnixTime() - startTime > 100),
+    100,
+    1000
+  )
   await promise.all([promise.wait(5), promise.wait(10)])
 }
 
@@ -53,7 +66,9 @@ export const testispromise = tc => {
   t.assert(promise.isPromise(rej))
   rej.catch(() => {})
   t.assert(promise.isPromise(promise.resolve()))
-  t.assert(promise.isPromise({ then: () => {}, catch: () => {}, finally: () => {} }))
+  t.assert(
+    promise.isPromise({ then: () => {}, catch: () => {}, finally: () => {} })
+  )
   t.fails(() => {
     t.assert(promise.isPromise({ then: () => {}, catch: () => {} }))
   })

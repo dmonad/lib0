@@ -21,7 +21,11 @@ export const createUint8ArrayFromLen = len => new Uint8Array(len)
  * @param {number} byteOffset
  * @param {number} length
  */
-export const createUint8ArrayViewFromArrayBuffer = (buffer, byteOffset, length) => new Uint8Array(buffer, byteOffset, length)
+export const createUint8ArrayViewFromArrayBuffer = (
+  buffer,
+  byteOffset,
+  length
+) => new Uint8Array(buffer, byteOffset, length)
 
 /**
  * Create Uint8Array with initial content from buffer
@@ -48,7 +52,10 @@ const toBase64Browser = bytes => {
  * @param {Uint8Array} bytes
  * @return {string}
  */
-const toBase64Node = bytes => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64')
+const toBase64Node = bytes =>
+  Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString(
+    'base64'
+  )
 
 /* istanbul ignore next */
 /**

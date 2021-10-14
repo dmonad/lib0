@@ -5,7 +5,7 @@ class QueueItem extends queue.QueueNode {
   /**
    * @param {number} v
    */
-  constructor (v) {
+  constructor(v) {
     super()
     this.v = v
   }

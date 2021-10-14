@@ -79,7 +79,8 @@ export const some = (arr, f) => arr.some(f)
  * @param {Array<ELEM>} b
  * @return {boolean}
  */
-export const equalFlat = (a, b) => a.length === b.length && every(a, (item, index) => item === b[index])
+export const equalFlat = (a, b) =>
+  a.length === b.length && every(a, (item, index) => item === b[index])
 
 /**
  * @template ELEM

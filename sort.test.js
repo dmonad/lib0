@@ -20,13 +20,21 @@ const runSortTest = (tc, arr, compare, getVal) => {
     t.measureTime('Insertionsort', () => {
       sort.insertionSort(arrInsertionsort, compare)
     })
-    t.compareArrays(arrSort, arrInsertionsort, 'compare Insertionsort with expected result')
+    t.compareArrays(
+      arrSort,
+      arrInsertionsort,
+      'compare Insertionsort with expected result'
+    )
   }
   t.measureTime('Quicksort', () => {
     sort.quicksort(arrQuicksort, compare)
   })
   // quickSort is not stable
-  t.compareArrays(arrSort.map(getVal), arrQuicksort.map(getVal), 'compare Quicksort with expected result')
+  t.compareArrays(
+    arrSort.map(getVal),
+    arrQuicksort.map(getVal),
+    'compare Quicksort with expected result'
+  )
 }
 
 /**
@@ -83,7 +91,8 @@ export const testSortUint16 = tc => {
    * @param {number} len
    * @return {Array<number>}
    */
-  const createArray = len => Array.from(new Uint16Array(prng.uint8Array(tc.prng, len * 2)))
+  const createArray = len =>
+    Array.from(new Uint16Array(prng.uint8Array(tc.prng, len * 2)))
   createSortTest(tc, createArray, compare, getVal)
 }
 
@@ -130,7 +139,8 @@ export const testSortObjectUint32 = tc => {
    * @param {number} len
    * @return {Array<{index:number}>}
    */
-  const createArray = len => Array.from(prng.uint32Array(tc.prng, len)).map(index => ({ index }))
+  const createArray = len =>
+    Array.from(prng.uint32Array(tc.prng, len)).map(index => ({ index }))
   createSortTest(tc, createArray, compare, getVal)
 }
 

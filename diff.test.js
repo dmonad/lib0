@@ -9,11 +9,14 @@ import * as object from './object.js'
  * @param {string} b
  * @param {{index: number,remove:number,insert:string}} expected
  */
-function runDiffTest (a, b, expected) {
+function runDiffTest(a, b, expected) {
   const result = simpleDiffString(a, b)
   t.compare(result, expected)
   const arrResult = simpleDiffArray(a.split(''), b.split(''))
-  t.compare(arrResult, object.assign({}, result, { insert: result.insert.split('') }))
+  t.compare(
+    arrResult,
+    object.assign({}, result, { insert: result.insert.split('') })
+  )
 }
 
 /**
@@ -37,7 +40,9 @@ export const testRepeatDiffing = tc => {
   const a = prng.word(tc.prng)
   const b = prng.word(tc.prng)
   const change = simpleDiffString(a, b)
-  const recomposed = `${a.slice(0, change.index)}${change.insert}${a.slice(change.index + change.remove)}`
+  const recomposed = `${a.slice(0, change.index)}${change.insert}${a.slice(
+    change.index + change.remove
+  )}`
   t.compareStrings(recomposed, b)
 }
 
@@ -47,7 +52,19 @@ export const testRepeatDiffing = tc => {
 export const testArrayDiffing = tc => {
   const a = [[1, 2], { x: 'x' }]
   const b = [[1, 2], { x: 'x' }]
-  t.compare(simpleDiffArray(a, b, f.equalityFlat), { index: 2, remove: 0, insert: [] })
-  t.compare(simpleDiffArray(a, b, f.equalityStrict), { index: 0, remove: 2, insert: b })
-  t.compare(simpleDiffArray([{ x: 'y' }, []], a, f.equalityFlat), { index: 0, remove: 2, insert: b })
+  t.compare(simpleDiffArray(a, b, f.equalityFlat), {
+    index: 2,
+    remove: 0,
+    insert: []
+  })
+  t.compare(simpleDiffArray(a, b, f.equalityStrict), {
+    index: 0,
+    remove: 2,
+    insert: b
+  })
+  t.compare(simpleDiffArray([{ x: 'y' }, []], a, f.equalityFlat), {
+    index: 0,
+    remove: 2,
+    insert: b
+  })
 }

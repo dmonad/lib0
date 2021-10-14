@@ -28,7 +28,10 @@ const fromCamelCaseRegex = /([A-Z])/g
  * @param {string} separator
  * @return {string}
  */
-export const fromCamelCase = (s, separator) => trimLeft(s.replace(fromCamelCaseRegex, match => `${separator}${toLowerCase(match)}`))
+export const fromCamelCase = (s, separator) =>
+  trimLeft(
+    s.replace(fromCamelCaseRegex, match => `${separator}${toLowerCase(match)}`)
+  )
 
 /**
  * Compute the utf8ByteLength
@@ -52,7 +55,9 @@ export const _encodeUtf8Polyfill = str => {
 }
 
 /* istanbul ignore next */
-export const utf8TextEncoder = /** @type {TextEncoder} */ (typeof TextEncoder !== 'undefined' ? new TextEncoder() : null)
+export const utf8TextEncoder = /** @type {TextEncoder} */ (
+  typeof TextEncoder !== 'undefined' ? new TextEncoder() : null
+)
 
 /**
  * @param {string} str
@@ -65,7 +70,9 @@ export const _encodeUtf8Native = str => utf8TextEncoder.encode(str)
  * @return {Uint8Array}
  */
 /* istanbul ignore next */
-export const encodeUtf8 = utf8TextEncoder ? _encodeUtf8Native : _encodeUtf8Polyfill
+export const encodeUtf8 = utf8TextEncoder
+  ? _encodeUtf8Native
+  : _encodeUtf8Polyfill
 
 /**
  * @param {Uint8Array} buf
@@ -80,14 +87,20 @@ export const _decodeUtf8Polyfill = buf => {
     const bytes = buf.subarray(bufPos, bufPos + nextLen)
     bufPos += nextLen
     // Starting with ES5.1 we can supply a generic array-like object as arguments
-    encodedString += String.fromCodePoint.apply(null, /** @type {any} */ (bytes))
+    encodedString += String.fromCodePoint.apply(
+      null,
+      /** @type {any} */ (bytes)
+    )
     remainingLen -= nextLen
   }
   return decodeURIComponent(escape(encodedString))
 }
 
 /* istanbul ignore next */
-export let utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+export let utf8TextDecoder =
+  typeof TextDecoder === 'undefined'
+    ? null
+    : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
 /* istanbul ignore next */
 if (utf8TextDecoder && utf8TextDecoder.decode(new Uint8Array()).length === 1) {
@@ -104,11 +117,14 @@ if (utf8TextDecoder && utf8TextDecoder.decode(new Uint8Array()).length === 1) {
  * @param {Uint8Array} buf
  * @return {string}
  */
-export const _decodeUtf8Native = buf => /** @type {TextDecoder} */ (utf8TextDecoder).decode(buf)
+export const _decodeUtf8Native = buf =>
+  /** @type {TextDecoder} */ (utf8TextDecoder).decode(buf)
 
 /**
  * @param {Uint8Array} buf
  * @return {string}
  */
 /* istanbul ignore next */
-export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill
+export const decodeUtf8 = utf8TextDecoder
+  ? _decodeUtf8Native
+  : _decodeUtf8Polyfill

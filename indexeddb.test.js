@@ -6,7 +6,8 @@ import { isBrowser } from './environment.js'
 /**
  * @param {IDBDatabase} db
  */
-const initTestDB = db => idb.createStores(db, [['test', { autoIncrement: true }]])
+const initTestDB = db =>
+  idb.createStores(db, [['test', { autoIncrement: true }]])
 const testDBName = 'idb-test'
 
 /* istanbul ignore next */
@@ -32,9 +33,15 @@ export const testRetrieveElements = async () => {
   const store = getStore(transaction)
   await idb.put(store, 0, ['t', 1])
   await idb.put(store, 1, ['t', 2])
-  const expectedKeys = [['t', 1], ['t', 2]]
+  const expectedKeys = [
+    ['t', 1],
+    ['t', 2]
+  ]
   const expectedVals = [0, 1]
-  const expectedKeysVals = [{ v: 0, k: ['t', 1] }, { v: 1, k: ['t', 2] }]
+  const expectedKeysVals = [
+    { v: 0, k: ['t', 1] },
+    { v: 1, k: ['t', 2] }
+  ]
   t.describe('idb.getAll')
   const valsGetAll = await idb.getAll(store)
   t.compare(valsGetAll, expectedVals)

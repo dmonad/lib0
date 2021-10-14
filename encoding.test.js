@@ -12,7 +12,8 @@ import * as number from './number.js'
  * @type {Array<function(prng.PRNG, number, boolean):any>}
  */
 let genAnyLookupTable = [
-  gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
+  gen =>
+    BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
   gen => undefined, // TYPE 127
   gen => null, // TYPE 126
   gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), // TYPE 125
@@ -20,8 +21,13 @@ let genAnyLookupTable = [
   gen => true, // TYPE 121
   gen => false, // TYPE 120
   gen => prng.utf16String(gen), // TYPE 119
-  (gen, depth, toJsonCompatible) => ({ val: genAny(gen, depth + 1, toJsonCompatible) }), // TYPE 118
-  (gen, depth, toJsonCompatible) => Array.from({ length: prng.uint32(gen, 0, 20 - depth) }).map(() => genAny(gen, depth + 1, toJsonCompatible)), // TYPE 117
+  (gen, depth, toJsonCompatible) => ({
+    val: genAny(gen, depth + 1, toJsonCompatible)
+  }), // TYPE 118
+  (gen, depth, toJsonCompatible) =>
+    Array.from({ length: prng.uint32(gen, 0, 20 - depth) }).map(() =>
+      genAny(gen, depth + 1, toJsonCompatible)
+    ), // TYPE 117
   gen => prng.uint8Array(gen, prng.uint32(gen, 0, 50)) // TYPE 116
 ]
 
@@ -35,7 +41,11 @@ if (typeof BigInt === 'undefined') {
  * @param {prng.PRNG} gen
  * @param {number} _depth The current call-depth
  */
-const genAny = (gen, _depth = 0, toJsonCompatible = false) => prng.oneOf(gen, toJsonCompatible ? genAnyLookupTableJsonCompatible : genAnyLookupTable)(gen, _depth, toJsonCompatible)
+const genAny = (gen, _depth = 0, toJsonCompatible = false) =>
+  prng.oneOf(
+    gen,
+    toJsonCompatible ? genAnyLookupTableJsonCompatible : genAnyLookupTable
+  )(gen, _depth, toJsonCompatible)
 
 /**
  * Check if binary encoding is compatible with golang binary encoding - binary.PutVarUint.
@@ -85,7 +95,7 @@ export const testGolangBinaryEncodingCompatibility = () => {
  * @param {T} val
  * @param {boolean} doLog
  */
-function test (testname, write, read, val, doLog = true) {
+function test(testname, write, read, val, doLog = true) {
   const encoder = encoding.createEncoder()
   write(encoder, val)
   const reader = decoding.createDecoder(encoding.toUint8Array(encoder))
@@ -93,7 +103,10 @@ function test (testname, write, read, val, doLog = true) {
   const utf8ByteLength = string.utf8ByteLength(val + '')
   const binaryByteLength = encoding.length(encoder)
   if (doLog) {
-    t.describe(testname, ` utf8 encode: ${utf8ByteLength} bytes / binary encode: ${binaryByteLength} bytes`)
+    t.describe(
+      testname,
+      ` utf8 encode: ${utf8ByteLength} bytes / binary encode: ${binaryByteLength} bytes`
+    )
   }
   t.compare(val, result)
   return {
@@ -119,79 +132,104 @@ export const testStringDecodingPerformance = () => {
   // test if it is faster to read N single characters, or if it is faster to read N characters in one flush.
   // to make the comparison meaningful, we read read N characters in an Array
   const N = 2000000
-  const durationSingleElements = t.measureTime('read / write single elements', () => {
-    const encoder = encoding.createEncoder()
-    t.measureTime('read / write single elements - write', () => {
-      for (let i = 0; i < N; i++) {
-        encoding.writeVarString(encoder, 'i')
-      }
-    })
-    const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
-    t.measureTime('read / write single elements - read', () => {
-      const arr = []
-      for (let i = 0; i < N; i++) {
-        arr.push(decoding.readVarString(decoder))
-      }
-    })
-  })
+  const durationSingleElements = t.measureTime(
+    'read / write single elements',
+    () => {
+      const encoder = encoding.createEncoder()
+      t.measureTime('read / write single elements - write', () => {
+        for (let i = 0; i < N; i++) {
+          encoding.writeVarString(encoder, 'i')
+        }
+      })
+      const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+      t.measureTime('read / write single elements - read', () => {
+        const arr = []
+        for (let i = 0; i < N; i++) {
+          arr.push(decoding.readVarString(decoder))
+        }
+      })
+    }
+  )
 
-  const durationConcatElementsNative = t.measureTime('read / write concatenated string using native encoder/decoder', () => {
-    let stringbuf = new Uint8Array()
-    const encoderLengths = encoding.createEncoder()
-    t.measureTime('read / write concatenated string using native encoder/decoder - write', () => {
-      let s = ''
-      const sArr = []
-      for (let i = 0; i < N; i++) {
-        s += 'i'
-        encoding.writeVarUint(encoderLengths, 1) // we write a single char.
-        if (i % 20 === 0) {
+  const durationConcatElementsNative = t.measureTime(
+    'read / write concatenated string using native encoder/decoder',
+    () => {
+      let stringbuf = new Uint8Array()
+      const encoderLengths = encoding.createEncoder()
+      t.measureTime(
+        'read / write concatenated string using native encoder/decoder - write',
+        () => {
+          let s = ''
+          const sArr = []
+          for (let i = 0; i < N; i++) {
+            s += 'i'
+            encoding.writeVarUint(encoderLengths, 1) // we write a single char.
+            if (i % 20 === 0) {
+              sArr.push(s)
+              s = ''
+            }
+          }
           sArr.push(s)
-          s = ''
+          stringbuf = string.encodeUtf8(sArr.join(''))
         }
-      }
-      sArr.push(s)
-      stringbuf = string.encodeUtf8(sArr.join(''))
-    })
-    const decoderLengths = decoding.createDecoder(encoding.toUint8Array(encoderLengths))
-    t.measureTime('read / write concatenated string using native encoder/decoder - read', () => {
-      const arr = []
-      const concatS = string.decodeUtf8(stringbuf)
-      for (let i = 0; i < N; i++) {
-        const len = decoding.readVarUint(decoderLengths)
-        arr.push(concatS.slice(i, len)) // push using slice
-      }
-    })
-  })
-  const durationConcatElements = t.measureTime('read / write concatenated string', () => {
-    let stringbuf = new Uint8Array()
-    const encoder = encoding.createEncoder()
-    const encoderLengths = encoding.createEncoder()
-    t.measureTime('read / write concatenated string - write', () => {
-      let s = ''
-      for (let i = 0; i < N; i++) {
-        s += 'i'
-        encoding.writeVarUint(encoderLengths, 1) // we write a single char.
-        if (i % 20 === 0) {
-          encoding.writeVarString(encoder, s)
-          s = ''
+      )
+      const decoderLengths = decoding.createDecoder(
+        encoding.toUint8Array(encoderLengths)
+      )
+      t.measureTime(
+        'read / write concatenated string using native encoder/decoder - read',
+        () => {
+          const arr = []
+          const concatS = string.decodeUtf8(stringbuf)
+          for (let i = 0; i < N; i++) {
+            const len = decoding.readVarUint(decoderLengths)
+            arr.push(concatS.slice(i, len)) // push using slice
+          }
         }
-      }
-      encoding.writeVarString(encoder, s)
-      stringbuf = encoding.toUint8Array(encoder)
-    })
-    const decoder = decoding.createDecoder(stringbuf)
-    const decoderLengths = decoding.createDecoder(encoding.toUint8Array(encoderLengths))
-    t.measureTime('read / write concatenated string - read', () => {
-      const arr = []
-      const concatS = decoding.readVarString(decoder)
-      for (let i = 0; i < N; i++) {
-        const len = decoding.readVarUint(decoderLengths)
-        arr.push(concatS.slice(i, len)) // push using slice
-      }
-    })
-  })
-  t.assert(durationConcatElements < durationSingleElements, 'We expect that the second approach is faster. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
-  t.assert(durationConcatElements < durationConcatElementsNative * 1.3, 'We expect that the native approach is slower. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
+      )
+    }
+  )
+  const durationConcatElements = t.measureTime(
+    'read / write concatenated string',
+    () => {
+      let stringbuf = new Uint8Array()
+      const encoder = encoding.createEncoder()
+      const encoderLengths = encoding.createEncoder()
+      t.measureTime('read / write concatenated string - write', () => {
+        let s = ''
+        for (let i = 0; i < N; i++) {
+          s += 'i'
+          encoding.writeVarUint(encoderLengths, 1) // we write a single char.
+          if (i % 20 === 0) {
+            encoding.writeVarString(encoder, s)
+            s = ''
+          }
+        }
+        encoding.writeVarString(encoder, s)
+        stringbuf = encoding.toUint8Array(encoder)
+      })
+      const decoder = decoding.createDecoder(stringbuf)
+      const decoderLengths = decoding.createDecoder(
+        encoding.toUint8Array(encoderLengths)
+      )
+      t.measureTime('read / write concatenated string - read', () => {
+        const arr = []
+        const concatS = decoding.readVarString(decoder)
+        for (let i = 0; i < N; i++) {
+          const len = decoding.readVarUint(decoderLengths)
+          arr.push(concatS.slice(i, len)) // push using slice
+        }
+      })
+    }
+  )
+  t.assert(
+    durationConcatElements < durationSingleElements,
+    'We expect that the second approach is faster. If this fails, our expectantion is not met in your javascript environment. Please report this issue.'
+  )
+  t.assert(
+    durationConcatElements < durationConcatElementsNative * 1.3,
+    'We expect that the native approach is slower. If this fails, our expectantion is not met in your javascript environment. Please report this issue.'
+  )
 }
 
 /**
@@ -213,14 +251,24 @@ export const testAnyEncodeUnknowns = tc => {
  * @param {t.TestCase} tc
  */
 export const testAnyEncodeDate = tc => {
-  test('Encode current date', encoding.writeAny, decoding.readAny, new Date().getTime())
+  test(
+    'Encode current date',
+    encoding.writeAny,
+    decoding.readAny,
+    new Date().getTime()
+  )
 }
 
 /**
  * @param {t.TestCase} tc
  */
 export const testEncodeMax32bitUint = tc => {
-  test('max 32bit uint', encoding.writeVarUint, decoding.readVarUint, binary.BITS32)
+  test(
+    'max 32bit uint',
+    encoding.writeVarUint,
+    decoding.readVarUint,
+    binary.BITS32
+  )
 }
 
 /**
@@ -228,10 +276,30 @@ export const testEncodeMax32bitUint = tc => {
  */
 export const testVarUintEncoding = tc => {
   test('varUint 1 byte', encoding.writeVarUint, decoding.readVarUint, 42)
-  test('varUint 2 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 9 | 3)
-  test('varUint 3 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 17 | 1 << 9 | 3)
-  test('varUint 4 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 25 | 1 << 17 | 1 << 9 | 3)
-  test('varUint of 2839012934', encoding.writeVarUint, decoding.readVarUint, 2839012934)
+  test(
+    'varUint 2 bytes',
+    encoding.writeVarUint,
+    decoding.readVarUint,
+    (1 << 9) | 3
+  )
+  test(
+    'varUint 3 bytes',
+    encoding.writeVarUint,
+    decoding.readVarUint,
+    (1 << 17) | (1 << 9) | 3
+  )
+  test(
+    'varUint 4 bytes',
+    encoding.writeVarUint,
+    decoding.readVarUint,
+    (1 << 25) | (1 << 17) | (1 << 9) | 3
+  )
+  test(
+    'varUint of 2839012934',
+    encoding.writeVarUint,
+    decoding.readVarUint,
+    2839012934
+  )
 }
 
 /**
@@ -239,10 +307,30 @@ export const testVarUintEncoding = tc => {
  */
 export const testVarIntEncoding = tc => {
   test('varInt 1 byte', encoding.writeVarInt, decoding.readVarInt, -42)
-  test('varInt 2 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 9 | 3))
-  test('varInt 3 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 17 | 1 << 9 | 3))
-  test('varInt 4 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 25 | 1 << 17 | 1 << 9 | 3))
-  test('varInt of -691529286', encoding.writeVarInt, decoding.readVarInt, -(691529286))
+  test(
+    'varInt 2 bytes',
+    encoding.writeVarInt,
+    decoding.readVarInt,
+    -((1 << 9) | 3)
+  )
+  test(
+    'varInt 3 bytes',
+    encoding.writeVarInt,
+    decoding.readVarInt,
+    -((1 << 17) | (1 << 9) | 3)
+  )
+  test(
+    'varInt 4 bytes',
+    encoding.writeVarInt,
+    decoding.readVarInt,
+    -((1 << 25) | (1 << 17) | (1 << 9) | 3)
+  )
+  test(
+    'varInt of -691529286',
+    encoding.writeVarInt,
+    decoding.readVarInt,
+    -691529286
+  )
 }
 
 /**
@@ -371,16 +459,76 @@ const strictComparison = (a, b) => a === b
  * @type {Array<EncodingPair>}
  */
 const encodingPairs = [
-  { name: 'uint8Array', read: decoder => decoding.readUint8Array(decoder, defLen), write: encoding.writeUint8Array, gen: gen => prng.uint8Array(gen, defLen), compare: t.compare },
-  { name: 'varUint8Array', read: decoding.readVarUint8Array, write: encoding.writeVarUint8Array, gen: gen => prng.uint8Array(gen, prng.uint32(gen, 0, defLen)), compare: t.compare },
-  { name: 'uint8', read: decoding.readUint8, write: encoding.writeUint8, gen: gen => prng.uint32(gen, 0, binary.BITS8), compare: strictComparison },
-  { name: 'uint16', read: decoding.readUint16, write: encoding.writeUint16, gen: gen => prng.uint32(gen, 0, binary.BITS16), compare: strictComparison },
-  { name: 'uint32', read: decoding.readUint32, write: encoding.writeUint32, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
-  { name: 'uint32bigEndian', read: decoding.readUint32BigEndian, write: encoding.writeUint32BigEndian, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
-  { name: 'varString', read: decoding.readVarString, write: encoding.writeVarString, gen: gen => prng.utf16String(gen, prng.uint32(gen, 0, defLen)), compare: strictComparison },
-  { name: 'varUint', read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS32), compare: strictComparison },
-  { name: 'varInt', read: decoding.readVarInt, write: encoding.writeVarInt, gen: gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), compare: strictComparison },
-  { name: 'Any', read: decoding.readAny, write: encoding.writeAny, gen: genAny, compare: t.compare }
+  {
+    name: 'uint8Array',
+    read: decoder => decoding.readUint8Array(decoder, defLen),
+    write: encoding.writeUint8Array,
+    gen: gen => prng.uint8Array(gen, defLen),
+    compare: t.compare
+  },
+  {
+    name: 'varUint8Array',
+    read: decoding.readVarUint8Array,
+    write: encoding.writeVarUint8Array,
+    gen: gen => prng.uint8Array(gen, prng.uint32(gen, 0, defLen)),
+    compare: t.compare
+  },
+  {
+    name: 'uint8',
+    read: decoding.readUint8,
+    write: encoding.writeUint8,
+    gen: gen => prng.uint32(gen, 0, binary.BITS8),
+    compare: strictComparison
+  },
+  {
+    name: 'uint16',
+    read: decoding.readUint16,
+    write: encoding.writeUint16,
+    gen: gen => prng.uint32(gen, 0, binary.BITS16),
+    compare: strictComparison
+  },
+  {
+    name: 'uint32',
+    read: decoding.readUint32,
+    write: encoding.writeUint32,
+    gen: gen => prng.uint32(gen, 0, binary.BITS32),
+    compare: strictComparison
+  },
+  {
+    name: 'uint32bigEndian',
+    read: decoding.readUint32BigEndian,
+    write: encoding.writeUint32BigEndian,
+    gen: gen => prng.uint32(gen, 0, binary.BITS32),
+    compare: strictComparison
+  },
+  {
+    name: 'varString',
+    read: decoding.readVarString,
+    write: encoding.writeVarString,
+    gen: gen => prng.utf16String(gen, prng.uint32(gen, 0, defLen)),
+    compare: strictComparison
+  },
+  {
+    name: 'varUint',
+    read: decoding.readVarUint,
+    write: encoding.writeVarUint,
+    gen: gen => prng.uint53(gen, 0, binary.BITS32),
+    compare: strictComparison
+  },
+  {
+    name: 'varInt',
+    read: decoding.readVarInt,
+    write: encoding.writeVarInt,
+    gen: gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32),
+    compare: strictComparison
+  },
+  {
+    name: 'Any',
+    read: decoding.readAny,
+    write: encoding.writeAny,
+    gen: genAny,
+    compare: t.compare
+  }
 ]
 
 /**
@@ -430,7 +578,7 @@ export const testWriteUint8ArrayOverflow = tc => {
   const res = encoding.toUint8Array(encoder)
   t.assert(res.length === initialLen * 4 + 1)
   for (let i = 0; i < buf.length - 1; i++) {
-    t.assert(res[i] === (i % 256))
+    t.assert(res[i] === i % 256)
   }
   t.assert(res[initialLen * 4] === 42)
 }
@@ -446,7 +594,9 @@ export const testSetOnOverflow = tc => {
   const buf = encoding.toUint8Array(encoder)
   t.assert(encoding.length(encoder) === initialLen + 2)
   const decoder = decoding.createDecoder(buf)
-  const space = buffer.createUint8ArrayFromArrayBuffer(decoding.readUint8Array(decoder, initialLen - 2))
+  const space = buffer.createUint8ArrayFromArrayBuffer(
+    decoding.readUint8Array(decoder, initialLen - 2)
+  )
   for (let i = 0; i < initialLen - 2; i++) {
     t.assert(space[i] === 0)
   }
@@ -468,7 +618,10 @@ export const testCloneDecoder = tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint8(encoder, 12132)
   encoding.writeVarUint(encoder, 329840128734)
-  encoding.writeVarString(encoder, 'dtrnuiaednudiaendturinaedt nduiaen dturinaed ')
+  encoding.writeVarString(
+    encoder,
+    'dtrnuiaednudiaendturinaedt nduiaen dturinaed '
+  )
   const buf = encoding.toUint8Array(encoder)
   const decoder = decoding.createDecoder(buf)
   decoding.skip8(decoder)
@@ -517,14 +670,19 @@ export const testRleEncoder = tc => {
   const encoder = new encoding.RleEncoder(encoding.writeVarUint)
   for (let i = 0; i < N; i++) {
     encoder.write(i)
-    for (let j = 0; j < i; j++) { // write additional i times
+    for (let j = 0; j < i; j++) {
+      // write additional i times
       encoder.write(i)
     }
   }
-  const decoder = new decoding.RleDecoder(encoding.toUint8Array(encoder), decoding.readVarUint)
+  const decoder = new decoding.RleDecoder(
+    encoding.toUint8Array(encoder),
+    decoding.readVarUint
+  )
   for (let i = 0; i < N; i++) {
     t.assert(i === decoder.read())
-    for (let j = 0; j < i; j++) { // read additional i times
+    for (let j = 0; j < i; j++) {
+      // read additional i times
       t.assert(i === decoder.read())
     }
   }
@@ -538,14 +696,19 @@ export const testRleIntDiffEncoder = tc => {
   const encoder = new encoding.RleIntDiffEncoder(0)
   for (let i = -N; i < N; i++) {
     encoder.write(i)
-    for (let j = 0; j < i; j++) { // write additional i times
+    for (let j = 0; j < i; j++) {
+      // write additional i times
       encoder.write(i)
     }
   }
-  const decoder = new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0)
+  const decoder = new decoding.RleIntDiffDecoder(
+    encoding.toUint8Array(encoder),
+    0
+  )
   for (let i = -N; i < N; i++) {
     t.assert(i === decoder.read())
-    for (let j = 0; j < i; j++) { // read additional i times
+    for (let j = 0; j < i; j++) {
+      // read additional i times
       t.assert(i === decoder.read())
     }
   }
@@ -559,14 +722,16 @@ export const testUintOptRleEncoder = tc => {
   const encoder = new encoding.UintOptRleEncoder()
   for (let i = 0; i < N; i++) {
     encoder.write(i)
-    for (let j = 0; j < i; j++) { // write additional i times
+    for (let j = 0; j < i; j++) {
+      // write additional i times
       encoder.write(i)
     }
   }
   const decoder = new decoding.UintOptRleDecoder(encoder.toUint8Array())
   for (let i = 0; i < N; i++) {
     t.assert(i === decoder.read())
-    for (let j = 0; j < i; j++) { // read additional i times
+    for (let j = 0; j < i; j++) {
+      // read additional i times
       t.assert(i === decoder.read())
     }
   }
@@ -580,14 +745,16 @@ export const testIntDiffRleEncoder = tc => {
   const encoder = new encoding.IntDiffOptRleEncoder()
   for (let i = -N; i < N; i++) {
     encoder.write(i)
-    for (let j = 0; j < i; j++) { // write additional i times
+    for (let j = 0; j < i; j++) {
+      // write additional i times
       encoder.write(i)
     }
   }
   const decoder = new decoding.IntDiffOptRleDecoder(encoder.toUint8Array())
   for (let i = -N; i < N; i++) {
     t.assert(i === decoder.read())
-    for (let j = 0; j < i; j++) { // read additional i times
+    for (let j = 0; j < i; j++) {
+      // read additional i times
       t.assert(i === decoder.read())
     }
   }
@@ -610,10 +777,25 @@ export const testIntEncoders = tc => {
    * @type {Array<{ encoder: any, read: function(any):any }>}
    */
   const intEncoders = [
-    { encoder: new encoding.IntDiffOptRleEncoder(), read: encoder => new decoding.IntDiffOptRleDecoder(encoder.toUint8Array()) },
-    { encoder: new encoding.IntDiffEncoder(0), read: encoder => new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 0) },
-    { encoder: new encoding.IntDiffEncoder(42), read: encoder => new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 42) },
-    { encoder: new encoding.RleIntDiffEncoder(0), read: encoder => new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0) }
+    {
+      encoder: new encoding.IntDiffOptRleEncoder(),
+      read: encoder => new decoding.IntDiffOptRleDecoder(encoder.toUint8Array())
+    },
+    {
+      encoder: new encoding.IntDiffEncoder(0),
+      read: encoder =>
+        new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 0)
+    },
+    {
+      encoder: new encoding.IntDiffEncoder(42),
+      read: encoder =>
+        new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 42)
+    },
+    {
+      encoder: new encoding.RleIntDiffEncoder(0),
+      read: encoder =>
+        new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0)
+    }
   ]
   intEncoders.forEach(({ encoder, read }) => {
     vals.forEach(v => encoder.write(v))
