@@ -1,5 +1,5 @@
-import * as t from './testing.js'
-import * as queue from './queue.js'
+import * as t from './testing'
+import * as queue from './queue'
 
 class QueueItem extends queue.QueueNode {
   /**

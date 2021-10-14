@@ -1,6 +1,6 @@
 
-import * as array from './array.js'
-import * as t from './testing.js'
+import * as array from './array'
+import * as t from './testing'
 
 /**
  * @param {t.TestCase} tc

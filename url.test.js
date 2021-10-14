@@ -1,5 +1,5 @@
-import * as t from './testing.js'
-import * as url from './url.js'
+import * as t from './testing'
+import * as url from './url'
 
 /**
  * @param {Object<string,any>} params

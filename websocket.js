@@ -8,9 +8,9 @@
  * @module websocket
  */
 
-import { Observable } from './observable.js'
-import * as time from './time.js'
-import * as math from './math.js'
+import { Observable } from './observable'
+import * as time from './time'
+import * as math from './math'
 
 const reconnectTimeoutBase = 1200
 const maxReconnectTimeout = 2500

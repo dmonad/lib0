@@ -1,6 +1,6 @@
 
-import * as binary from './binary.js'
-import * as t from './testing.js'
+import * as binary from './binary'
+import * as t from './testing'
 
 /**
  * @param {t.TestCase} tc

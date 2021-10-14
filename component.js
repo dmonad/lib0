@@ -6,14 +6,14 @@
  * @module component
  */
 
-import * as dom from './dom.js'
-import * as diff from './diff.js'
-import * as object from './object.js'
-import * as json from './json.js'
-import * as string from './string.js'
-import * as array from './array.js'
-import * as number from './number.js'
-import * as func from './function.js'
+import * as dom from './dom'
+import * as diff from './diff'
+import * as object from './object'
+import * as json from './json'
+import * as string from './string'
+import * as array from './array'
+import * as number from './number'
+import * as func from './function'
 
 /**
  * @type {CustomElementRegistry}

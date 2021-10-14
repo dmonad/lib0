@@ -3,12 +3,12 @@
  *
  * ```js
  * // test.js template for creating a test executable
- * import { runTests } from 'lib0/testing.js'
- * import * as log from 'lib0/logging.js'
- * import * as mod1 from './mod1.test.js'
- * import * as mod2 from './mod2.test.js'
+ * import { runTests } from 'lib0/testing'
+ * import * as log from 'lib0/logging'
+ * import * as mod1 from './mod1.test'
+ * import * as mod2 from './mod2.test'
 
- * import { isBrowser, isNode } from 'lib0/environment.js'
+ * import { isBrowser, isNode } from 'lib0/environment'
  *
  * if (isBrowser) {
  *   // optional: if this is ran in the browser, attach a virtual console to the dom
@@ -43,23 +43,23 @@
  * @module testing
  */
 
-import * as log from './logging.js'
-import { simpleDiffString } from './diff.js'
-import * as object from './object.js'
-import * as string from './string.js'
-import * as math from './math.js'
-import * as random from './random.js'
-import * as prng from './prng.js'
-import * as statistics from './statistics.js'
-import * as array from './array.js'
-import * as env from './environment.js'
-import * as json from './json.js'
-import * as time from './time.js'
-import * as promise from './promise.js'
+import * as log from './logging'
+import { simpleDiffString } from './diff'
+import * as object from './object'
+import * as string from './string'
+import * as math from './math'
+import * as random from './random'
+import * as prng from './prng'
+import * as statistics from './statistics'
+import * as array from './array'
+import * as env from './environment'
+import * as json from './json'
+import * as time from './time'
+import * as promise from './promise'
 
-import { performance } from './isomorphic.js'
+import { performance } from './isomorphic'
 
-export { production } from './environment.js'
+export { production } from './environment'
 
 export const extensive = env.hasConf('extensive')
 

@@ -7,11 +7,11 @@
  * @module prng
  */
 
-import * as binary from './binary.js'
-import { fromCharCode, fromCodePoint } from './string.js'
-import * as math from './math.js'
-import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
-import * as buffer from './buffer.js'
+import * as binary from './binary'
+import { fromCharCode, fromCodePoint } from './string'
+import * as math from './math'
+import { Xoroshiro128plus } from './prng/Xoroshiro128plus'
+import * as buffer from './buffer'
 
 /**
  * Description of the function

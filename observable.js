@@ -4,9 +4,9 @@
  * @module observable
  */
 
-import * as map from './map.js'
-import * as set from './set.js'
-import * as array from './array.js'
+import * as map from './map'
+import * as set from './set'
+import * as array from './array'
 
 /**
  * Handles named events.

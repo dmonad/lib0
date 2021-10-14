@@ -26,10 +26,10 @@
  * @module encoding
  */
 
-import * as buffer from './buffer.js'
-import * as math from './math.js'
-import * as number from './number.js'
-import * as binary from './binary.js'
+import * as buffer from './buffer'
+import * as math from './math'
+import * as number from './number'
+import * as binary from './binary'
 
 /**
  * A BinaryEncoder handles the encoding to an Uint8Array.

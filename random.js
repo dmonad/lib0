@@ -7,8 +7,8 @@
  * @module random
  */
 
-import * as math from './math.js'
-import { cryptoRandomBuffer } from './isomorphic.js'
+import * as math from './math'
+import { cryptoRandomBuffer } from './isomorphic'
 
 export const rand = Math.random
 

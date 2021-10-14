@@ -1,6 +1,6 @@
-import * as eventloop from './eventloop.js'
-import * as t from './testing.js'
-import * as promise from './promise.js'
+import * as eventloop from './eventloop'
+import * as t from './testing'
+import * as promise from './promise'
 
 /**
  * @param {t.TestCase} tc

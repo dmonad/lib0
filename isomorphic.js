@@ -5,4 +5,4 @@
  */
 
 // @ts-ignore
-export { performance, cryptoRandomBuffer } from 'isomorphic.js'
+export { performance, cryptoRandomBuffer } from 'isomorphic'

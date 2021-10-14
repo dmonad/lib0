@@ -7,7 +7,7 @@
  * @module sort
  */
 
-import * as math from './math.js'
+import * as math from './math'
 
 /**
  * @template T

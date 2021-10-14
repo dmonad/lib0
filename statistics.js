@@ -4,7 +4,7 @@
  * @module statistics
  */
 
-import * as math from './math.js'
+import * as math from './math'
 
 /**
  * @param {Array<number>} arr Array of values

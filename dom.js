@@ -6,8 +6,8 @@
  * @module dom
  */
 
-import * as pair from './pair.js'
-import * as map from './map.js'
+import * as pair from './pair'
+import * as map from './map'
 
 /* istanbul ignore next */
 /**

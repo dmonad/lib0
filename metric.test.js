@@ -1,5 +1,5 @@
-import * as t from './testing.js'
-import * as metric from './metric.js'
+import * as t from './testing'
+import * as metric from './metric'
 
 /**
  * @param {t.TestCase} tc

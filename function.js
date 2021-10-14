@@ -4,8 +4,8 @@
  * @module function
  */
 
-import * as array from './array.js'
-import * as object from './object.js'
+import * as array from './array'
+import * as object from './object'
 
 /**
  * Calls all functions in `fs` with args. Only throws after all functions were called.

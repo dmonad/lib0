@@ -12,7 +12,7 @@ export const stringify = JSON.stringify
 export const parse = JSON.parse
 
 // index.js
-import * as json from 'lib0/json.js'
+import * as json from 'lib0/json'
 export const f = (arg1, arg2) => json.stringify(arg1) + json.stringify(arg2)
 
 // compiled with rollup and uglifyjs:
@@ -68,7 +68,7 @@ require('lib0/[module]') // automatically resolves to lib0/dist/[module].cjs
 Automatically resolving to `commonjs` and `esm modules` is implemented using *conditional exports* which is available in `node>=v12`. If support for older versions is required, then it is recommended to define the location of the module manually:
 
 ```js
-import module from 'lib0/[module].js'
+import module from 'lib0/[module]'
 // require('lib0/dist/[module].cjs')
 ```
 
@@ -1117,11 +1117,11 @@ integrate this algorithm.</p>
 <pre>import * as testing from 'lib0/testing'</pre>
 
 <pre class="prettyprint source lang-js"><code>// test.js template for creating a test executable
-import { runTests } from 'lib0/testing.js'
-import * as log from 'lib0/logging.js'
-import * as mod1 from './mod1.test.js'
-import * as mod2 from './mod2.test.js'
-import { isBrowser, isNode } from 'lib0/environment.js'
+import { runTests } from 'lib0/testing'
+import * as log from 'lib0/logging'
+import * as mod1 from './mod1.test'
+import * as mod2 from './mod2.test'
+import { isBrowser, isNode } from 'lib0/environment'
 
 if (isBrowser) {
   // optional: if this is ran in the browser, attach a virtual console to the dom

@@ -4,10 +4,10 @@
  * @module map
  */
 
-import * as map from './map.js'
-import * as string from './string.js'
-import * as conditions from './conditions.js'
-import * as storage from './storage.js'
+import * as map from './map'
+import * as string from './string'
+import * as conditions from './conditions'
+import * as storage from './storage'
 
 /* istanbul ignore next */
 // @ts-ignore

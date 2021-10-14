@@ -1,7 +1,7 @@
-import * as promise from './promise.js'
-import * as t from './testing.js'
-import * as time from './time.js'
-import * as error from './error.js'
+import * as promise from './promise'
+import * as t from './testing'
+import * as time from './time'
+import * as error from './error'
 
 /**
  * @param {Promise<any>} p

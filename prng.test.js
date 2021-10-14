@@ -1,14 +1,14 @@
 
-import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
-import * as prng from './prng.js'
-import { MAX_SAFE_INTEGER } from './number.js'
-import * as binary from './binary.js'
-import * as t from './testing.js'
-import { Xorshift32 } from './prng/Xorshift32.js'
-import { Mt19937 } from './prng/Mt19937.js'
-import * as dom from './dom.js'
-import { isBrowser, production } from './environment.js'
-import * as math from './math.js'
+import { Xoroshiro128plus } from './prng/Xoroshiro128plus'
+import * as prng from './prng'
+import { MAX_SAFE_INTEGER } from './number'
+import * as binary from './binary'
+import * as t from './testing'
+import { Xorshift32 } from './prng/Xorshift32'
+import { Mt19937 } from './prng/Mt19937'
+import * as dom from './dom'
+import { isBrowser, production } from './environment'
+import * as math from './math'
 
 const genTestData = 5000
 

@@ -4,16 +4,16 @@
  * @module logging
  */
 
-import * as env from './environment.js'
-import * as symbol from './symbol.js'
-import * as pair from './pair.js'
-import * as dom from './dom.js'
-import * as json from './json.js'
-import * as map from './map.js'
-import * as eventloop from './eventloop.js'
-import * as math from './math.js'
-import * as time from './time.js'
-import * as func from './function.js'
+import * as env from './environment'
+import * as symbol from './symbol'
+import * as pair from './pair'
+import * as dom from './dom'
+import * as json from './json'
+import * as map from './map'
+import * as eventloop from './eventloop'
+import * as math from './math'
+import * as time from './time'
+import * as func from './function'
 
 export const BOLD = symbol.create()
 export const UNBOLD = symbol.create()

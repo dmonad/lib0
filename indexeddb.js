@@ -6,8 +6,8 @@
  * @module indexeddb
  */
 
-import * as promise from './promise.js'
-import * as error from './error.js'
+import * as promise from './promise'
+import * as error from './error'
 
 /* istanbul ignore next */
 /**

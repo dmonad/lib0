@@ -1,8 +1,8 @@
 /*
-import { Tree as RedBlackTree } from 'lib0/Tree.js'
-import * as ID from '../utils/ID.js'
+import { Tree as RedBlackTree } from 'lib0/Tree'
+import * as ID from '../utils/ID'
 import { test, proxyConsole } from 'cutest'
-import * as random from 'lib0/prng.js'
+import * as random from 'lib0/prng'
 
 proxyConsole()
 

@@ -2,8 +2,8 @@
  * @module prng
  */
 
-import { Xorshift32 } from './Xorshift32.js'
-import * as binary from '../binary.js'
+import { Xorshift32 } from './Xorshift32'
+import * as binary from '../binary'
 
 /**
  * This is a variant of xoroshiro128plus - the fastest full-period generator passing BigCrush without systematic failures.

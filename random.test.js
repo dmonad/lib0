@@ -1,8 +1,8 @@
-import * as random from './random.js'
-import * as t from './testing.js'
-import * as binary from './binary.js'
-import * as math from './math.js'
-import * as number from './number.js'
+import * as random from './random'
+import * as t from './testing'
+import * as binary from './binary'
+import * as math from './math'
+import * as number from './number'
 
 /**
  * @param {t.TestCase} tc

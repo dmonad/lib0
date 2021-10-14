@@ -4,7 +4,7 @@
  * @module metric
  */
 
-import * as math from './math.js'
+import * as math from './math'
 
 export const yotta = 1e24
 export const zetta = 1e21

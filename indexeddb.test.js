@@ -1,6 +1,6 @@
-import * as t from './testing.js'
-import * as idb from './indexeddb.js'
-import { isBrowser } from './environment.js'
+import * as t from './testing'
+import * as idb from './indexeddb'
+import { isBrowser } from './environment'
 
 /* istanbul ignore next */
 /**

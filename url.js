@@ -4,7 +4,7 @@
  * @module url
  */
 
-import * as object from './object.js'
+import * as object from './object'
 
 /**
  * Parse query parameters from an url.

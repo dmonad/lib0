@@ -1,12 +1,12 @@
 /* global BigInt */
-import * as encoding from './encoding.js'
-import * as decoding from './decoding.js'
-import * as prng from './prng.js'
-import * as t from './testing.js'
-import * as string from './string.js'
-import * as binary from './binary.js'
-import * as buffer from './buffer.js'
-import * as number from './number.js'
+import * as encoding from './encoding'
+import * as decoding from './decoding'
+import * as prng from './prng'
+import * as t from './testing'
+import * as string from './string'
+import * as binary from './binary'
+import * as buffer from './buffer'
+import * as number from './number'
 
 /**
  * @type {Array<function(prng.PRNG, number, boolean):any>}

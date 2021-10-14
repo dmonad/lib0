@@ -26,9 +26,9 @@
  * @module decoding
  */
 
-import * as buffer from './buffer.js'
-import * as binary from './binary.js'
-import * as math from './math.js'
+import * as buffer from './buffer'
+import * as binary from './binary'
+import * as math from './math'
 
 /**
  * A Decoder handles the decoding of an Uint8Array.

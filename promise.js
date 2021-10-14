@@ -4,7 +4,7 @@
  * @module promise
  */
 
-import * as time from './time.js'
+import * as time from './time'
 
 /**
  * @template T

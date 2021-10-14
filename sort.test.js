@@ -1,6 +1,6 @@
-import * as prng from './prng.js'
-import * as t from './testing.js'
-import * as sort from './sort.js'
+import * as prng from './prng'
+import * as t from './testing'
+import * as sort from './sort'
 
 /**
  * @template T

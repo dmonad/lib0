@@ -1,6 +1,6 @@
-import * as prng from './prng.js'
-import * as string from './string.js'
-import * as t from './testing.js'
+import * as prng from './prng'
+import * as string from './string'
+import * as t from './testing'
 
 /**
  * @param {t.TestCase} tc

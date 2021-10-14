@@ -1,6 +1,6 @@
-import * as time from './time.js'
-import * as t from './testing.js'
-import * as math from './math.js'
+import * as time from './time'
+import * as t from './testing'
+import * as math from './math'
 
 /**
  * @param {t.TestCase} tc

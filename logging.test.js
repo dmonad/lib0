@@ -1,5 +1,5 @@
 
-import * as log from './logging.js'
+import * as log from './logging'
 
 export const testLogging = () => {
   log.print(log.BLUE, 'blue ')

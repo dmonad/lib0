@@ -1,5 +1,5 @@
-import * as storage from './storage.js'
-import * as t from './testing.js'
+import * as storage from './storage'
+import * as t from './testing'
 
 /**
  * @param {t.TestCase} tc

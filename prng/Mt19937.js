@@ -1,5 +1,5 @@
-import * as binary from '../binary.js'
-import * as math from '../math.js'
+import * as binary from '../binary'
+import * as math from '../math'
 
 /**
  * @module prng

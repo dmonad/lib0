@@ -5,9 +5,9 @@ import commonjs from '@rollup/plugin-commonjs'
 const files = fs.readdirSync('./').filter(file => /(?<!(test|config))\.js$/.test(file))
 
 export default [{
-  input: './test.js',
+  input: './test',
   output: {
-    file: './dist/test.js',
+    file: './dist/test',
     format: 'iife',
     sourcemap: true
   },
@@ -24,9 +24,9 @@ export default [{
     entryFileNames: '[name].cjs',
     chunkFileNames: '[name]-[hash].cjs'
   },
-  external: ['isomorphic.js']
+  external: ['isomorphic']
 }, {
-  input: './test.js',
+  input: './test',
   output: {
     dir: './dist',
     format: 'cjs',
@@ -34,5 +34,5 @@ export default [{
     entryFileNames: '[name].cjs',
     chunkFileNames: '[name]-[hash].cjs'
   },
-  external: ['isomorphic.js']
+  external: ['isomorphic']
 }]

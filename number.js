@@ -4,8 +4,8 @@
  * @module number
  */
 
-import * as math from './math.js'
-import * as binary from './binary.js'
+import * as math from './math'
+import * as binary from './binary'
 
 export const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER
 export const MIN_SAFE_INTEGER = Number.MIN_SAFE_INTEGER

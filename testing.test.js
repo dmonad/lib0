@@ -1,8 +1,8 @@
-import * as t from './testing.js'
-import * as math from './math.js'
-import * as buffer from './buffer.js'
-import * as map from './map.js'
-import * as promise from './promise.js'
+import * as t from './testing'
+import * as math from './math'
+import * as buffer from './buffer'
+import * as map from './map'
+import * as promise from './promise'
 
 /**
  * @param {t.TestCase} tc

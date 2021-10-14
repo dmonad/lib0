@@ -4,10 +4,10 @@
  * @module buffer
  */
 
-import * as string from './string.js'
-import * as env from './environment.js'
-import * as encoding from './encoding.js'
-import * as decoding from './decoding.js'
+import * as string from './string'
+import * as env from './environment'
+import * as encoding from './encoding'
+import * as decoding from './decoding'
 
 /**
  * @param {number} len

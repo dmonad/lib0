@@ -4,7 +4,7 @@
  * @module diff
  */
 
-import { equalityStrict } from './function.js'
+import { equalityStrict } from './function'
 
 /**
  * A SimpleDiff describes a change on a String.

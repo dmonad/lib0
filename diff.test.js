@@ -1,8 +1,8 @@
-import { simpleDiffString, simpleDiffArray } from './diff.js'
-import * as prng from './prng.js'
-import * as f from './function.js'
-import * as t from './testing.js'
-import * as object from './object.js'
+import { simpleDiffString, simpleDiffArray } from './diff'
+import * as prng from './prng'
+import * as f from './function'
+import * as t from './testing'
+import * as object from './object'
 
 /**
  * @param {string} a
