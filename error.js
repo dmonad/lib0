@@ -4,27 +4,27 @@
  * @module error
  */
 
+/* istanbul ignore next */
 /**
  * @param {string} s
  * @return {Error}
  */
-/* istanbul ignore next */
 export const create = s => new Error(s)
 
+/* istanbul ignore next */
 /**
  * @throws {Error}
  * @return {never}
  */
-/* istanbul ignore next */
 export const methodUnimplemented = () => {
   throw create('Method unimplemented')
 }
 
+/* istanbul ignore next */
 /**
  * @throws {Error}
  * @return {never}
  */
-/* istanbul ignore next */
 export const unexpectedCase = () => {
   throw create('Unexpected case')
 }

@@ -75,7 +75,7 @@ import module from 'lib0/[module].js'
 ## Modules
 
 <details><summary><b>[lib0/array]</b> Utility module to work with Arrays.</summary>
-<pre>import * as array from 'lib0/array.js'</pre>
+<pre>import * as array from 'lib0/array'</pre>
 <dl>
 <b><code>array.last(arr: Array&lt;L&gt;): L</code></b><br>
 <dd><p>Return the last element of an array. The element must exist</p></dd>
@@ -94,7 +94,7 @@ import module from 'lib0/[module].js'
 </dl>
 </details>
 <details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
-<pre>import * as binary from 'lib0/binary.js'</pre>
+<pre>import * as binary from 'lib0/binary'</pre>
 <dl>
 <b><code>binary.BIT1: number</code></b><br>
 <dd><p>n-th bit activated.</p></dd>
@@ -166,7 +166,7 @@ import module from 'lib0/[module].js'
 </dl>
 </details>
 <details><summary><b>[lib0/broadcastchannel]</b> Helpers for cross-tab communication using broadcastchannel with LocalStorage fallback.</summary>
-<pre>import * as broadcastchannel from 'lib0/broadcastchannel.js'</pre>
+<pre>import * as broadcastchannel from 'lib0/broadcastchannel'</pre>
 
 <pre class="prettyprint source lang-js"><code>// In browser window A:
 broadcastchannel.subscribe('my events', data => console.log(data))
@@ -185,7 +185,7 @@ broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from t
 </dl>
 </details>
 <details><summary><b>[lib0/buffer]</b> Utility functions to work with buffers (Uint8Array).</summary>
-<pre>import * as buffer from 'lib0/buffer.js'</pre>
+<pre>import * as buffer from 'lib0/buffer'</pre>
 <dl>
 <b><code>buffer.createUint8ArrayFromLen(len: number)</code></b><br>
 <b><code>buffer.createUint8ArrayViewFromArrayBuffer(buffer: ArrayBuffer, byteOffset: number, length: number)</code></b><br>
@@ -204,11 +204,11 @@ See encoding.writeAny for more information.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/component]</b> Web components.</summary>
-<pre>import * as component from 'lib0/component.js'</pre>
+<pre>import * as component from 'lib0/component'</pre>
 <dl>
-<b><code>component.registry</code></b><br>
+<b><code>component.registry: CustomElementRegistry</code></b><br>
 <b><code>component.define(name: string, constr: any, opts: ElementDefinitionOptions)</code></b><br>
-<b><code>component.whenDefined(name: string): Promise&lt;void&gt;</code></b><br>
+<b><code>component.whenDefined(name: string): Promise&lt;CustomElementConstructor&gt;</code></b><br>
 <b><code>new component.Lib0Component(state: S)</code></b><br>
 <b><code>component.Lib0Component#state: S|null</code></b><br>
 <b><code>component.Lib0Component#setState(state: S, forceStateUpdate: boolean)</code></b><br>
@@ -220,13 +220,13 @@ See encoding.writeAny for more information.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/conditions]</b> Often used conditions.</summary>
-<pre>import * as conditions from 'lib0/conditions.js'</pre>
+<pre>import * as conditions from 'lib0/conditions'</pre>
 <dl>
 <b><code>conditions.undefinedToNull</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/decoding]</b> Efficient schema-less binary decoding with support for variable length encoding.</summary>
-<pre>import * as decoding from 'lib0/decoding.js'</pre>
+<pre>import * as decoding from 'lib0/decoding'</pre>
 
 <p>Use [lib0/decoding] with [lib0/encoding]. Every encoding function has a corresponding decoding function.</p>
 <p>Encodes numbers in little-endian order (least to most significant byte order)
@@ -376,7 +376,7 @@ For effiency reasons we apply a maximum of 10000 characters at once.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/diff]</b> Efficient diffs.</summary>
-<pre>import * as diff from 'lib0/diff.js'</pre>
+<pre>import * as diff from 'lib0/diff'</pre>
 <dl>
 <b><code>diff.simpleDiffString(a: string, b: string): module:diff~SimpleDiff&lt;string&gt;</code></b><br>
 <dd><p>Create a diff between two strings. This diff implementation is highly
@@ -390,7 +390,7 @@ can better optimize these function calls.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/dom]</b> Utility module to work with the DOM.</summary>
-<pre>import * as dom from 'lib0/dom.js'</pre>
+<pre>import * as dom from 'lib0/dom'</pre>
 <dl>
 <b><code>dom.doc: Document</code></b><br>
 <b><code>dom.createElement</code></b><br>
@@ -434,7 +434,7 @@ can better optimize these function calls.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/encoding]</b> Efficient schema-less binary encoding with support for variable length encoding.</summary>
-<pre>import * as encoding from 'lib0/encoding.js'</pre>
+<pre>import * as encoding from 'lib0/encoding'</pre>
 
 <p>Use [lib0/encoding] with [lib0/decoding]. Every encoding function has a corresponding decoding function.</p>
 <p>Encodes numbers in little-endian order (least to most significant byte order)
@@ -677,7 +677,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/map]</b> Isomorphic module to work access the environment (query params, env variables).</summary>
-<pre>import * as map from 'lib0/environment.js'</pre>
+<pre>import * as map from 'lib0/environment'</pre>
 <dl>
 <b><code>map.isNode</code></b><br>
 <b><code>map.isBrowser</code></b><br>
@@ -691,15 +691,15 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/error]</b> Error helpers.</summary>
-<pre>import * as error from 'lib0/error.js'</pre>
+<pre>import * as error from 'lib0/error'</pre>
 <dl>
-<b><code>error.create</code></b><br>
-<b><code>error.methodUnimplemented</code></b><br>
-<b><code>error.unexpectedCase</code></b><br>
+<b><code>error.create(s: string): Error</code></b><br>
+<b><code>error.methodUnimplemented(): never</code></b><br>
+<b><code>error.unexpectedCase(): never</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/eventloop]</b> Utility module to work with EcmaScript's event loop.</summary>
-<pre>import * as eventloop from 'lib0/eventloop.js'</pre>
+<pre>import * as eventloop from 'lib0/eventloop'</pre>
 <dl>
 <b><code>eventloop.enqueue(f: function():void)</code></b><br>
 <b><code>eventloop#destroy()</code></b><br>
@@ -713,7 +713,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/function]</b> Common functions and function call helpers.</summary>
-<pre>import * as function from 'lib0/function.js'</pre>
+<pre>import * as function from 'lib0/function'</pre>
 <dl>
 <b><code>function.callAll(fs: Array&lt;function&gt;, args: Array&lt;any&gt;)</code></b><br>
 <dd><p>Calls all functions in <code>fs</code> with args. Only throws after all functions were called.</p></dd>
@@ -726,47 +726,51 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/lib0]</b> Experimental method to import lib0.</summary>
-<pre>import * as lib0 from 'lib0/index.js'</pre>
+<pre>import * as lib0 from 'lib0/index'</pre>
 
 <p>Not recommended if the module bundler doesn't support dead code elimination.</p>
 <dl>
 </dl>
 </details>
-<details><summary><b>[lib0/idb]</b> Helpers to work with IndexedDB.</summary>
-<pre>import * as idb from 'lib0/indexeddb.js'</pre>
+<details><summary><b>[lib0/indexeddb]</b> Helpers to work with IndexedDB.</summary>
+<pre>import * as indexeddb from 'lib0/indexeddb'</pre>
 <dl>
-<b><code>idb.rtop</code></b><br>
-<b><code>idb.openDB</code></b><br>
-<b><code>idb.deleteDB</code></b><br>
-<b><code>idb.createStores</code></b><br>
-<b><code>idb.transact(db: IDBDatabase, stores: Array&lt;string&gt;, access: "readwrite"|"readonly"): Array&lt;IDBObjectStore&gt;</code></b><br>
-<b><code>idb.count</code></b><br>
-<b><code>idb.get</code></b><br>
-<b><code>idb.del</code></b><br>
-<b><code>idb.put</code></b><br>
-<b><code>idb.add</code></b><br>
-<b><code>idb.addAutoKey</code></b><br>
-<b><code>idb.getAll</code></b><br>
-<b><code>idb.getAllKeys</code></b><br>
-<b><code>idb.queryFirst(store: IDBObjectStore, query: IDBKeyRange|null, direction: 'next'|'prev'|'nextunique'|'prevunique'): Promise&lt;any&gt;</code></b><br>
-<b><code>idb.getLastKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
-<b><code>idb.getFirstKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
-<b><code>idb.getAllKeysValues</code></b><br>
-<b><code>idb.iterate</code></b><br>
-<b><code>idb.iterateKeys</code></b><br>
-<b><code>idb.getStore</code></b><br>
-<b><code>idb.createIDBKeyRangeBound</code></b><br>
-<b><code>idb.createIDBKeyRangeUpperBound</code></b><br>
-<b><code>idb.createIDBKeyRangeLowerBound</code></b><br>
+<b><code>indexeddb.rtop(request: IDBRequest): Promise&lt;any&gt;</code></b><br>
+<dd><p>IDB Request to Promise transformer</p></dd>
+<b><code>indexeddb.openDB(name: string, initDB: function(IDBDatabase):any): Promise&lt;IDBDatabase&gt;</code></b><br>
+<b><code>indexeddb.deleteDB(name: string)</code></b><br>
+<b><code>indexeddb.createStores(db: IDBDatabase, definitions: Array&lt;Array&lt;string&gt;|Array&lt;string|IDBObjectStoreParameters|undefined&gt;&gt;)</code></b><br>
+<b><code>indexeddb.transact(db: IDBDatabase, stores: Array&lt;string&gt;, access: "readwrite"|"readonly"): Array&lt;IDBObjectStore&gt;</code></b><br>
+<b><code>indexeddb.count(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;number&gt;</code></b><br>
+<b><code>indexeddb.get(store: IDBObjectStore, key: String | number | ArrayBuffer | Date | Array&lt;any&gt; ): Promise&lt;String | number | ArrayBuffer | Date | Array&lt;any&gt;&gt;</code></b><br>
+<b><code>indexeddb.del(store: IDBObjectStore, key: String | number | ArrayBuffer | Date | IDBKeyRange | Array&lt;any&gt; )</code></b><br>
+<b><code>indexeddb.put(store: IDBObjectStore, item: String | number | ArrayBuffer | Date | boolean, key: String | number | ArrayBuffer | Date | Array&lt;any&gt;)</code></b><br>
+<b><code>indexeddb.add(store: IDBObjectStore, item: String|number|ArrayBuffer|Date|boolean, key: String|number|ArrayBuffer|Date|Array.&lt;any&gt;): Promise&lt;any&gt;</code></b><br>
+<b><code>indexeddb.addAutoKey(store: IDBObjectStore, item: String|number|ArrayBuffer|Date): Promise&lt;number&gt;</code></b><br>
+<b><code>indexeddb.getAll(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
+<b><code>indexeddb.getAllKeys(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
+<b><code>indexeddb.queryFirst(store: IDBObjectStore, query: IDBKeyRange|null, direction: 'next'|'prev'|'nextunique'|'prevunique'): Promise&lt;any&gt;</code></b><br>
+<b><code>indexeddb.getLastKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
+<b><code>indexeddb.getFirstKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
+<b><code>indexeddb.getAllKeysValues(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;KeyValuePair&gt;&gt;</code></b><br>
+<b><code>indexeddb.iterate(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any,any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
+<dd><p>Iterate on keys and values</p></dd>
+<b><code>indexeddb.iterateKeys(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
+<dd><p>Iterate on the keys (no values)</p></dd>
+<b><code>indexeddb.getStore(t: IDBTransaction, store: String)IDBObjectStore</code></b><br>
+<dd><p>Open store from transaction</p></dd>
+<b><code>indexeddb.createIDBKeyRangeBound(lower: any, upper: any, lowerOpen: boolean, upperOpen: boolean)</code></b><br>
+<b><code>indexeddb.createIDBKeyRangeUpperBound(upper: any, upperOpen: boolean)</code></b><br>
+<b><code>indexeddb.createIDBKeyRangeLowerBound(lower: any, lowerOpen: boolean)</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/isomorphic]</b> Isomorphic library exports from isomorphic.js.</summary>
-<pre>import * as isomorphic from 'lib0/isomorphic.js'</pre>
+<pre>import * as isomorphic from 'lib0/isomorphic'</pre>
 <dl>
 </dl>
 </details>
 <details><summary><b>[lib0/iterator]</b> Utility module to create and manipulate Iterators.</summary>
-<pre>import * as iterator from 'lib0/iterator.js'</pre>
+<pre>import * as iterator from 'lib0/iterator'</pre>
 <dl>
 <b><code>iterator.mapIterator(iterator: Iterator&lt;T&gt;, f: function(T):R): IterableIterator&lt;R&gt;</code></b><br>
 <b><code>iterator.createIterator(next: function():IteratorResult&lt;T&gt;): IterableIterator&lt;T&gt;</code></b><br>
@@ -775,7 +779,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/json]</b> JSON utility functions.</summary>
-<pre>import * as json from 'lib0/json.js'</pre>
+<pre>import * as json from 'lib0/json'</pre>
 <dl>
 <b><code>json.stringify(object: any): string</code></b><br>
 <dd><p>Transform JavaScript object to JSON.</p></dd>
@@ -784,7 +788,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/logging]</b> Isomorphic logging module with support for colors!</summary>
-<pre>import * as logging from 'lib0/logging.js'</pre>
+<pre>import * as logging from 'lib0/logging'</pre>
 <dl>
 <b><code>logging.BOLD</code></b><br>
 <b><code>logging.UNBOLD</code></b><br>
@@ -821,7 +825,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 </dl>
 </details>
 <details><summary><b>[lib0/map]</b> Utility module to work with key-value stores.</summary>
-<pre>import * as map from 'lib0/map.js'</pre>
+<pre>import * as map from 'lib0/map'</pre>
 <dl>
 <b><code>map.create(): Map&lt;any, any&gt;</code></b><br>
 <dd><p>Creates a new Map instance.</p></dd>
@@ -841,7 +845,7 @@ listeners.add(listener)
 </dl>
 </details>
 <details><summary><b>[lib0/math]</b> Common Math expressions.</summary>
-<pre>import * as math from 'lib0/math.js'</pre>
+<pre>import * as math from 'lib0/math'</pre>
 <dl>
 <b><code>math.floor</code></b><br>
 <b><code>math.ceil</code></b><br>
@@ -864,7 +868,7 @@ listeners.add(listener)
 </dl>
 </details>
 <details><summary><b>[lib0/metric]</b> Utility module to convert metric values.</summary>
-<pre>import * as metric from 'lib0/metric.js'</pre>
+<pre>import * as metric from 'lib0/metric'</pre>
 <dl>
 <b><code>metric.yotta</code></b><br>
 <b><code>metric.zetta</code></b><br>
@@ -891,7 +895,7 @@ listeners.add(listener)
 </dl>
 </details>
 <details><summary><b>[lib0/mutex]</b> Mutual exclude for JavaScript.</summary>
-<pre>import * as mutex from 'lib0/mutex.js'</pre>
+<pre>import * as mutex from 'lib0/mutex'</pre>
 <dl>
 <b><code>mutex.createMutex(): mutex</code></b><br>
 <dd><p>Creates a mutual exclude function with the following property:</p>
@@ -906,7 +910,7 @@ mutex(() => {
 </dl>
 </details>
 <details><summary><b>[lib0/number]</b> </summary>
-<pre>import * as number from 'lib0/number.js'</pre>
+<pre>import * as number from 'lib0/number'</pre>
 <dl>
 <b><code>number.MAX_SAFE_INTEGER</code></b><br>
 <b><code>number.MIN_SAFE_INTEGER</code></b><br>
@@ -917,7 +921,7 @@ mutex(() => {
 </dl>
 </details>
 <details><summary><b>[lib0/object]</b> Utility functions for working with EcmaScript objects.</summary>
-<pre>import * as object from 'lib0/object.js'</pre>
+<pre>import * as object from 'lib0/object'</pre>
 <dl>
 <b><code>object.create(): Object&lt;string,any&gt;</code></b><br>
 <b><code>object.assign</code></b><br>
@@ -934,7 +938,7 @@ mutex(() => {
 </dl>
 </details>
 <details><summary><b>[lib0/observable]</b> Observable class prototype.</summary>
-<pre>import * as observable from 'lib0/observable.js'</pre>
+<pre>import * as observable from 'lib0/observable'</pre>
 <dl>
 <b><code>new observable.Observable()</code></b><br>
 <dd><p>Handles named events.</p></dd>
@@ -954,7 +958,7 @@ specified name will receive the event.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/pair]</b> Working with value pairs.</summary>
-<pre>import * as pair from 'lib0/pair.js'</pre>
+<pre>import * as pair from 'lib0/pair'</pre>
 <dl>
 <b><code>new pair.Pair(left: L, right: R)</code></b><br>
 <b><code>pair.create(left: L, right: R): module:pair.Pair&lt;L,R&gt;</code></b><br>
@@ -964,7 +968,7 @@ specified name will receive the event.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/prng]</b> Fast Pseudo Random Number Generators.</summary>
-<pre>import * as prng from 'lib0/prng.js'</pre>
+<pre>import * as prng from 'lib0/prng'</pre>
 
 <p>Given a seed a PRNG generates a sequence of numbers that cannot be reasonably predicted.
 Two PRNGs must generate the same random sequence of numbers if  given the same seed.</p>
@@ -1002,7 +1006,7 @@ But there are more PRNGs available in ./PRNG/.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/promise]</b> Utility helpers to work with promises.</summary>
-<pre>import * as promise from 'lib0/promise.js'</pre>
+<pre>import * as promise from 'lib0/promise'</pre>
 <dl>
 <b><code>promise.create(f: function(PromiseResolve&lt;T&gt;,function(Error):void):any): Promise&lt;T&gt;</code></b><br>
 <b><code>promise.createEmpty(f: function(function():void,function(Error):void):void): Promise&lt;void&gt;</code></b><br>
@@ -1010,6 +1014,7 @@ But there are more PRNGs available in ./PRNG/.</p></dd>
 <dd><p><code>Promise.all</code> wait for all promises in the array to resolve and return the result</p></dd>
 <b><code>promise.reject(reason: Error): Promise&lt;never&gt;</code></b><br>
 <b><code>promise.resolve(res: T|void): Promise&lt;T|void&gt;</code></b><br>
+<b><code>promise.resolveWith(res: T): Promise&lt;T&gt;</code></b><br>
 <b><code>promise.until(timeout: number, check: function():boolean, intervalResolution: number): Promise&lt;void&gt;</code></b><br>
 <b><code>promise.wait(timeout: number): Promise&lt;undefined&gt;</code></b><br>
 <b><code>promise.isPromise(p: any): boolean</code></b><br>
@@ -1019,7 +1024,7 @@ library has some insane environment where global Promise objects are overwritten
 </dl>
 </details>
 <details><summary><b>[lib0/queue]</b> </summary>
-<pre>import * as queue from 'lib0/queue.js'</pre>
+<pre>import * as queue from 'lib0/queue'</pre>
 <dl>
 <b><code>new de#QueueNode()</code></b><br>
 <b><code>de#next: module:queue.QueueNode|null</code></b><br>
@@ -1037,7 +1042,7 @@ library has some insane environment where global Promise objects are overwritten
 </dl>
 </details>
 <details><summary><b>[lib0/random]</b> Isomorphic module for true random numbers / buffers / uuids.</summary>
-<pre>import * as random from 'lib0/random.js'</pre>
+<pre>import * as random from 'lib0/random'</pre>
 
 <p>Attention: falls back to Math.random if the browser does not support crypto.</p>
 <dl>
@@ -1048,14 +1053,14 @@ library has some insane environment where global Promise objects are overwritten
 </dl>
 </details>
 <details><summary><b>[lib0/set]</b> Utility module to work with sets.</summary>
-<pre>import * as set from 'lib0/set.js'</pre>
+<pre>import * as set from 'lib0/set'</pre>
 <dl>
 <b><code>set.create</code></b><br>
 <b><code>set.toArray(set: Set&lt;T&gt;): Array&lt;T&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/sort]</b> Efficient sort implementations.</summary>
-<pre>import * as sort from 'lib0/sort.js'</pre>
+<pre>import * as sort from 'lib0/sort'</pre>
 
 <p>Note: These sort implementations were created to compare different sorting algorithms in JavaScript.
 Don't use them if you don't know what you are doing. Native Array.sort is almost always a better choice.</p>
@@ -1069,14 +1074,14 @@ integrate this algorithm.</p>
 </dl>
 </details>
 <details><summary><b>[lib0/statistics]</b> Utility helpers for generating statistics.</summary>
-<pre>import * as statistics from 'lib0/statistics.js'</pre>
+<pre>import * as statistics from 'lib0/statistics'</pre>
 <dl>
 <b><code>statistics.median(arr: Array&lt;number&gt;): number</code></b><br>
 <b><code>statistics.average(arr: Array&lt;number&gt;): number</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/storage]</b> Isomorphic variable storage.</summary>
-<pre>import * as storage from 'lib0/storage.js'</pre>
+<pre>import * as storage from 'lib0/storage'</pre>
 
 <p>Uses LocalStorage in the browser and falls back to in-memory storage.</p>
 <dl>
@@ -1087,7 +1092,7 @@ integrate this algorithm.</p>
 </dl>
 </details>
 <details><summary><b>[lib0/string]</b> Utility module to work with strings.</summary>
-<pre>import * as string from 'lib0/string.js'</pre>
+<pre>import * as string from 'lib0/string'</pre>
 <dl>
 <b><code>string.fromCharCode</code></b><br>
 <b><code>string.fromCodePoint</code></b><br>
@@ -1101,7 +1106,7 @@ integrate this algorithm.</p>
 </dl>
 </details>
 <details><summary><b>[lib0/symbol]</b> Utility module to work with EcmaScript Symbols.</summary>
-<pre>import * as symbol from 'lib0/symbol.js'</pre>
+<pre>import * as symbol from 'lib0/symbol'</pre>
 <dl>
 <b><code>symbol.create(): Symbol</code></b><br>
 <dd><p>Return fresh symbol.</p></dd>
@@ -1109,7 +1114,7 @@ integrate this algorithm.</p>
 </dl>
 </details>
 <details><summary><b>[lib0/testing]</b> Testing framework with support for generating tests.</summary>
-<pre>import * as testing from 'lib0/testing.js'</pre>
+<pre>import * as testing from 'lib0/testing'</pre>
 
 <pre class="prettyprint source lang-js"><code>// test.js template for creating a test executable
 import { runTests } from 'lib0/testing.js'
@@ -1227,7 +1232,7 @@ export const testMyFirstTest = tc => {
 </dl>
 </details>
 <details><summary><b>[lib0/time]</b> Utility module to work with time.</summary>
-<pre>import * as time from 'lib0/time.js'</pre>
+<pre>import * as time from 'lib0/time'</pre>
 <dl>
 <b><code>time.getDate(): Date</code></b><br>
 <dd><p>Return current time.</p></dd>
@@ -1238,7 +1243,7 @@ export const testMyFirstTest = tc => {
 </dl>
 </details>
 <details><summary><b>[lib0/tree]</b> Red-black-tree implementation.</summary>
-<pre>import * as tree from 'lib0/tree.js'</pre>
+<pre>import * as tree from 'lib0/tree'</pre>
 <dl>
 <b><code>new tree.Tree()</code></b><br>
 <dd><p>This is a Red Black Tree implementation</p></dd>
@@ -1257,7 +1262,7 @@ export const testMyFirstTest = tc => {
 </dl>
 </details>
 <details><summary><b>[lib0/url]</b> Utility module to work with urls.</summary>
-<pre>import * as url from 'lib0/url.js'</pre>
+<pre>import * as url from 'lib0/url'</pre>
 <dl>
 <b><code>url.decodeQueryParams(url: string): Object&lt;string,string&gt;</code></b><br>
 <dd><p>Parse query parameters from an url.</p></dd>
@@ -1265,7 +1270,7 @@ export const testMyFirstTest = tc => {
 </dl>
 </details>
 <details><summary><b>[lib0/websocket]</b> Tiny websocket connection handler.</summary>
-<pre>import * as websocket from 'lib0/websocket.js'</pre>
+<pre>import * as websocket from 'lib0/websocket'</pre>
 
 <p>Implements exponential backoff reconnects, ping/pong, and a nice event system using [lib0/observable].</p>
 <dl>

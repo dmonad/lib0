@@ -39,7 +39,7 @@ jsdoc.explain({
     const descHead = desc ? desc[1] : ''
     const descRest = desc ? desc[2] : ''
     strBuilder.push(`<details><summary><b>[lib0/${mod.name}]</b> ${descHead}</summary>`)
-    strBuilder.push(`<pre>import * as ${mod.name} from 'lib0/${fileName}'</pre>`)
+    strBuilder.push(`<pre>import * as ${mod.name} from 'lib0/${fileName.slice(0, -3)}'</pre>`)
     if (descRest.length > 0) {
       strBuilder.push(descRest)
     }

@@ -44,7 +44,7 @@
  */
 
 import * as log from './logging.js'
-import { simpleDiff } from './diff.js'
+import { simpleDiffString } from './diff.js'
 import * as object from './object.js'
 import * as string from './string.js'
 import * as math from './math.js'
@@ -151,6 +151,9 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   const times = []
   const start = performance.now()
   let lastTime = start
+  /**
+   * @type {any}
+   */
   let err = null
   performance.mark(`${name}-start`)
   do {
@@ -373,7 +376,7 @@ export const compareArrays = (as, bs, m = 'Arrays match') => {
  */
 export const compareStrings = (a, b, m = 'Strings match') => {
   if (a !== b) {
-    const diff = simpleDiff(a, b)
+    const diff = simpleDiffString(a, b)
     log.print(log.GREY, a.slice(0, diff.index), log.RED, a.slice(diff.index, diff.remove), log.GREEN, diff.insert, log.GREY, a.slice(diff.index + diff.remove))
     fail(m)
   }

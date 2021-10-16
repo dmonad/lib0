@@ -15,6 +15,9 @@ import * as array from './array.js'
 import * as number from './number.js'
 import * as func from './function.js'
 
+/**
+ * @type {CustomElementRegistry}
+ */
 export const registry = customElements
 
 /**
@@ -26,7 +29,7 @@ export const define = (name, constr, opts) => registry.define(name, constr, opts
 
 /**
  * @param {string} name
- * @return {Promise<void>}
+ * @return {Promise<CustomElementConstructor>}
  */
 export const whenDefined = name => registry.whenDefined(name)
 

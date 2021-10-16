@@ -3,19 +3,19 @@
 /**
  * Helpers to work with IndexedDB.
  *
- * @module idb
+ * @module indexeddb
  */
 
 import * as promise from './promise.js'
 import * as error from './error.js'
 
+/* istanbul ignore next */
 /**
  * IDB Request to Promise transformer
  *
  * @param {IDBRequest} request
  * @return {Promise<any>}
  */
-/* istanbul ignore next */
 export const rtop = request => promise.create((resolve, reject) => {
   /* istanbul ignore next */
   // @ts-ignore
@@ -27,12 +27,12 @@ export const rtop = request => promise.create((resolve, reject) => {
   request.onsuccess = event => resolve(event.target.result)
 })
 
+/* istanbul ignore next */
 /**
  * @param {string} name
  * @param {function(IDBDatabase):any} initDB Called when the database is first created
  * @return {Promise<IDBDatabase>}
  */
-/* istanbul ignore next */
 export const openDB = (name, initDB) => promise.create((resolve, reject) => {
   const request = indexedDB.open(name)
   /**
@@ -64,17 +64,17 @@ export const openDB = (name, initDB) => promise.create((resolve, reject) => {
   }
 })
 
+/* istanbul ignore next */
 /**
  * @param {string} name
  */
-/* istanbul ignore next */
 export const deleteDB = name => rtop(indexedDB.deleteDatabase(name))
 
+/* istanbul ignore next */
 /**
  * @param {IDBDatabase} db
  * @param {Array<Array<string>|Array<string|IDBObjectStoreParameters|undefined>>} definitions
  */
-/* istanbul ignore next */
 export const createStores = (db, definitions) => definitions.forEach(d =>
   // @ts-ignore
   db.createObjectStore.apply(db, d)
@@ -91,75 +91,75 @@ export const transact = (db, stores, access = 'readwrite') => {
   return stores.map(store => getStore(transaction, store))
 }
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
  * @return {Promise<number>}
  */
-/* istanbul ignore next */
 export const count = (store, range) =>
   rtop(store.count(range))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date | Array<any> } key
  * @return {Promise<String | number | ArrayBuffer | Date | Array<any>>}
  */
-/* istanbul ignore next */
 export const get = (store, key) =>
   rtop(store.get(key))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date | IDBKeyRange | Array<any> } key
  */
-/* istanbul ignore next */
 export const del = (store, key) =>
   rtop(store.delete(key))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date | boolean} item
  * @param {String | number | ArrayBuffer | Date | Array<any>} [key]
  */
-/* istanbul ignore next */
 export const put = (store, item, key) =>
   rtop(store.put(item, key))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date | boolean}  item
  * @param {String | number | ArrayBuffer | Date | Array<any>}  key
  * @return {Promise<any>}
  */
-/* istanbul ignore next */
 export const add = (store, item, key) =>
   rtop(store.add(item, key))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {String | number | ArrayBuffer | Date}  item
  * @return {Promise<number>} Returns the generated key
  */
-/* istanbul ignore next */
 export const addAutoKey = (store, item) =>
   rtop(store.add(item))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
  * @return {Promise<Array<any>>}
  */
-/* istanbul ignore next */
 export const getAll = (store, range) =>
   rtop(store.getAll(range))
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
  * @return {Promise<Array<any>>}
  */
-/* istanbul ignore next */
 export const getAllKeys = (store, range) =>
   rtop(store.getAllKeys(range))
 
@@ -199,22 +199,22 @@ export const getFirstKey = store => queryFirst(store, null, 'prev')
  * @property {any} v Value
  */
 
+/* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
  * @return {Promise<Array<KeyValuePair>>}
  */
-/* istanbul ignore next */
 export const getAllKeysValues = (store, range) =>
   // @ts-ignore
   promise.all([getAllKeys(store, range), getAll(store, range)]).then(([ks, vs]) => ks.map((k, i) => ({ k, v: vs[i] })))
 
+/* istanbul ignore next */
 /**
  * @param {any} request
  * @param {function(IDBCursorWithValue):void|boolean} f
  * @return {Promise<void>}
  */
-/* istanbul ignore next */
 const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
   /* istanbul ignore next */
   request.onerror = reject
@@ -230,6 +230,7 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
   }
 })
 
+/* istanbul ignore next */
 /**
  * Iterate on keys and values
  * @param {IDBObjectStore} store
@@ -237,10 +238,10 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
  * @param {function(any,any):void|boolean} f Callback that receives (value, key)
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
-/* istanbul ignore next */
 export const iterate = (store, keyrange, f, direction = 'next') =>
   iterateOnRequest(store.openCursor(keyrange, direction), cursor => f(cursor.value, cursor.key))
 
+/* istanbul ignore next */
 /**
  * Iterate on the keys (no values)
  *
@@ -249,38 +250,37 @@ export const iterate = (store, keyrange, f, direction = 'next') =>
  * @param {function(any):void|boolean} f callback that receives the key
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
-/* istanbul ignore next */
 export const iterateKeys = (store, keyrange, f, direction = 'next') =>
   iterateOnRequest(store.openKeyCursor(keyrange, direction), cursor => f(cursor.key))
 
+/* istanbul ignore next */
 /**
  * Open store from transaction
  * @param {IDBTransaction} t
  * @param {String} store
  * @returns {IDBObjectStore}
  */
-/* istanbul ignore next */
 export const getStore = (t, store) => t.objectStore(store)
 
+/* istanbul ignore next */
 /**
  * @param {any} lower
  * @param {any} upper
  * @param {boolean} lowerOpen
  * @param {boolean} upperOpen
  */
-/* istanbul ignore next */
 export const createIDBKeyRangeBound = (lower, upper, lowerOpen, upperOpen) => IDBKeyRange.bound(lower, upper, lowerOpen, upperOpen)
 
+/* istanbul ignore next */
 /**
  * @param {any} upper
  * @param {boolean} upperOpen
  */
-/* istanbul ignore next */
 export const createIDBKeyRangeUpperBound = (upper, upperOpen) => IDBKeyRange.upperBound(upper, upperOpen)
 
+/* istanbul ignore next */
 /**
  * @param {any} lower
  * @param {boolean} lowerOpen
  */
-/* istanbul ignore next */
 export const createIDBKeyRangeLowerBound = (lower, lowerOpen) => IDBKeyRange.lowerBound(lower, lowerOpen)
