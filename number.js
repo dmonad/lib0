@@ -23,3 +23,4 @@ export const HIGHEST_INT32 = binary.BITS31
 /* istanbul ignore next */
 export const isInteger = Number.isInteger || (num => typeof num === 'number' && isFinite(num) && math.floor(num) === num)
 export const isNaN = Number.isNaN
+export const parseInt = Number.parseInt

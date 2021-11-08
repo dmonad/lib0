@@ -182,15 +182,17 @@ export const queryFirst = (store, query, direction) => {
 
 /**
  * @param {IDBObjectStore} store
+ * @param {IDBKeyRange?} [range]
  * @return {Promise<any>}
  */
-export const getLastKey = store => queryFirst(store, null, 'prev')
+export const getLastKey = (store, range = null) => queryFirst(store, range, 'prev')
 
 /**
  * @param {IDBObjectStore} store
+ * @param {IDBKeyRange?} [range]
  * @return {Promise<any>}
  */
-export const getFirstKey = store => queryFirst(store, null, 'prev')
+export const getFirstKey = (store, range = null) => queryFirst(store, range, 'next')
 
 /**
  * @typedef KeyValuePair
