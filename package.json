@@ -47,8 +47,8 @@
       "import": "./component.js",
       "require": "./dist/component.cjs"
     },
-    "./condititons.js": "./condititons.js",
-    "./dist/condititons.cjs": "./dist/condititons.cjs",
+    "./conditions.js": "./conditions.js",
+    "./dist/conditions.cjs": "./dist/conditions.cjs",
     "./conditions": {
       "import": "./condititons.js",
       "require": "./dist/conditions.cjs"
