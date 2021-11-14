@@ -750,8 +750,8 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>indexeddb.getAll(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
 <b><code>indexeddb.getAllKeys(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
 <b><code>indexeddb.queryFirst(store: IDBObjectStore, query: IDBKeyRange|null, direction: 'next'|'prev'|'nextunique'|'prevunique'): Promise&lt;any&gt;</code></b><br>
-<b><code>indexeddb.getLastKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
-<b><code>indexeddb.getFirstKey(store: IDBObjectStore): Promise&lt;any&gt;</code></b><br>
+<b><code>indexeddb.getLastKey(store: IDBObjectStore, range: IDBKeyRange?): Promise&lt;any&gt;</code></b><br>
+<b><code>indexeddb.getFirstKey(store: IDBObjectStore, range: IDBKeyRange?): Promise&lt;any&gt;</code></b><br>
 <b><code>indexeddb.getAllKeysValues(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;KeyValuePair&gt;&gt;</code></b><br>
 <b><code>indexeddb.iterate(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any,any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
 <dd><p>Iterate on keys and values</p></dd>
@@ -918,6 +918,7 @@ mutex(() => {
 <b><code>number.HIGHEST_INT32: number</code></b><br>
 <b><code>number.isInteger</code></b><br>
 <b><code>number.isNaN</code></b><br>
+<b><code>number.parseInt</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/object]</b> Utility functions for working with EcmaScript objects.</summary>
