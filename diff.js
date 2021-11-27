@@ -44,11 +44,8 @@ export const simpleDiffString = (a, b) => {
   while (left < a.length && left < b.length && a[left] === b[left]) {
     left++
   }
-  if (left !== a.length || left !== b.length) {
-    // Only check right if a !== b
-    while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
-      right++
-    }
+  while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
+    right++
   }
   return {
     index: left,
@@ -84,11 +81,51 @@ export const simpleDiffArray = (a, b, compare = equalityStrict) => {
   while (left < a.length && left < b.length && compare(a[left], b[left])) {
     left++
   }
-  if (left !== a.length || left !== b.length) {
-    // Only check right if a !== b
-    while (right + left < a.length && right + left < b.length && compare(a[a.length - right - 1], b[b.length - right - 1])) {
-      right++
-    }
+  while (right + left < a.length && right + left < b.length && compare(a[a.length - right - 1], b[b.length - right - 1])) {
+    right++
+  }
+  return {
+    index: left,
+    remove: a.length - left - right,
+    insert: b.slice(left, b.length - right)
+  }
+}
+
+/**
+ * Diff text and try to diff at the current cursor position.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @param {number} cursor This should refer to the current left cursor-range position
+ */
+export const simpleDiffStringWithCursor = (a, b, cursor) => {
+  let left = 0 // number of same characters counting from left
+  let right = 0 // number of same characters counting from right
+  // Iterate left to the right until we find a changed character
+  // First iteration considers the current cursor position
+  while (
+    left < a.length &&
+    left < b.length &&
+    a[left] === b[left] &&
+    left < cursor
+  ) {
+    left++
+  }
+  // Iterate right to the left until we find a changed character
+  while (
+    right + left < a.length &&
+    right + left < b.length &&
+    a[a.length - right - 1] === b[b.length - right - 1]
+  ) {
+    right++
+  }
+  // Try to iterate left further to the right without caring about the current cursor position
+  while (
+    right + left < a.length &&
+    right + left < b.length &&
+    a[left] === b[left]
+  ) {
+    left++
   }
   return {
     index: left,

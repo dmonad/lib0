@@ -112,3 +112,11 @@ export const _decodeUtf8Native = buf => /** @type {TextDecoder} */ (utf8TextDeco
  */
 /* istanbul ignore next */
 export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill
+
+/**
+ * @param {string} str The initial string
+ * @param {number} index Starting position
+ * @param {number} remove Number of characters to remove
+ * @param {string} insert New content to insert
+ */
+export const splice = (str, index, remove, insert = '') => str.slice(0, index) + insert + str.slice(index + remove)

@@ -1,8 +1,9 @@
-import { simpleDiffString, simpleDiffArray } from './diff.js'
+import { simpleDiffString, simpleDiffArray, simpleDiffStringWithCursor } from './diff.js'
 import * as prng from './prng.js'
 import * as f from './function.js'
 import * as t from './testing.js'
 import * as object from './object.js'
+import * as str from './string.js'
 
 /**
  * @param {string} a
@@ -12,6 +13,7 @@ import * as object from './object.js'
 function runDiffTest (a, b, expected) {
   const result = simpleDiffString(a, b)
   t.compare(result, expected)
+  t.compare(result, simpleDiffStringWithCursor(a, b, a.length)) // check that the withCursor approach returns the same result
   const arrResult = simpleDiffArray(a.split(''), b.split(''))
   t.compare(arrResult, object.assign({}, result, { insert: result.insert.split('') }))
 }
@@ -37,8 +39,41 @@ export const testRepeatDiffing = tc => {
   const a = prng.word(tc.prng)
   const b = prng.word(tc.prng)
   const change = simpleDiffString(a, b)
-  const recomposed = `${a.slice(0, change.index)}${change.insert}${a.slice(change.index + change.remove)}`
+  const recomposed = str.splice(a, change.index, change.remove, change.insert)
   t.compareStrings(recomposed, b)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testSimpleDiffWithCursor = tc => {
+  const initial = 'Hello WorldHello World'
+  const expected = 'Hello World'
+  {
+    const change = simpleDiffStringWithCursor(initial, 'Hello World', 0) // should delete the first hello world
+    t.compare(change, { insert: '', remove: 11, index: 0 })
+    const recomposed = str.splice(initial, change.index, change.remove, change.insert)
+    t.compareStrings(expected, recomposed)
+  }
+  {
+    const change = simpleDiffStringWithCursor(initial, 'Hello World', 11) // should delete the second hello world
+    t.compare(change, { insert: '', remove: 11, index: 11 })
+    const recomposedSecond = str.splice(initial, change.index, change.remove, change.insert)
+    t.compareStrings(recomposedSecond, expected)
+  }
+  {
+    const change = simpleDiffStringWithCursor(initial, 'Hello World', 5) // should delete in the midst of Hello World
+    t.compare(change, { insert: '', remove: 11, index: 5 })
+    const recomposed = str.splice(initial, change.index, change.remove, change.insert)
+    t.compareStrings(expected, recomposed)
+  }
+  {
+    const initial = 'Hello my World'
+    const change = simpleDiffStringWithCursor(initial, 'Hello World', 0) // Should delete after the current cursor position
+    t.compare(change, { insert: '', remove: 3, index: 5 })
+    const recomposed = str.splice(initial, change.index, change.remove, change.insert)
+    t.compareStrings(expected, recomposed)
+  }
 }
 
 /**

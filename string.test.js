@@ -58,3 +58,12 @@ export const testBomEncodingDecoding = tc => {
     t.assert(nativeResult === polyfilledResult)
   }
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testSplice = tc => {
+  const initial = 'xyz'
+  t.compareStrings(string.splice(initial, 0, 2), 'z')
+  t.compareStrings(string.splice(initial, 0, 2, 'u'), 'uz')
+}
