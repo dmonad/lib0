@@ -21,6 +21,7 @@ import * as object from './object.test.js'
 import * as math from './math.test.js'
 import * as number from './number.test.js'
 import * as buffer from './buffer.test.js'
+import * as set from './set.test.js'
 import * as sort from './sort.test.js'
 import * as url from './url.test.js'
 import * as metric from './metric.test.js'
@@ -56,6 +57,7 @@ runTests({
   math,
   number,
   buffer,
+  set,
   sort,
   url,
   metric,
