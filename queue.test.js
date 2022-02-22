@@ -30,5 +30,16 @@ export const testEnqueueDequeue = tc => {
     const item = /** @type {QueueItem} */ (queue.dequeue(q))
     t.assert(item !== null && item.v === i)
   }
+  t.assert(queue.isEmpty(q))
+  t.assert(queue.dequeue(q) === null)
+  for (let i = 0; i < N; i++) {
+    queue.enqueue(q, new QueueItem(i))
+    t.assert(!queue.isEmpty(q))
+  }
+  for (let i = 0; i < N; i++) {
+    const item = /** @type {QueueItem} */ (queue.dequeue(q))
+    t.assert(item !== null && item.v === i)
+  }
+  t.assert(queue.isEmpty(q))
   t.assert(queue.dequeue(q) === null)
 }

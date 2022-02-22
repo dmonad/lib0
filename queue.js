@@ -57,6 +57,9 @@ export const dequeue = queue => {
   if (n !== null) {
     // @ts-ignore
     queue.start = n.next
+    if (queue.start === null) {
+      queue.end = null
+    }
     return n
   }
   return null
