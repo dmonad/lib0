@@ -27,6 +27,7 @@ import * as url from './url.test.js'
 import * as metric from './metric.test.js'
 import * as func from './function.test.js'
 import * as storage from './storage.test.js'
+import * as list from './list.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
@@ -62,7 +63,8 @@ runTests({
   url,
   metric,
   func,
-  storage
+  storage,
+  list
 }).then(success => {
   /* istanbul ignore next */
   if (isNode) {
