@@ -41,6 +41,12 @@
       "import": "./buffer.js",
       "require": "./dist/buffer.cjs"
     },
+    "./cache.js": "./cache.js",
+    "./dist/cache.cjs": "./dist/cache.cjs",
+    "./cache": {
+      "import": "./cache.js",
+      "require": "./dist/cache.cjs"
+    },
     "./component.js": "./component.js",
     "./dist/component.cjs": "./dist/component.cjs",
     "./component": {
@@ -124,6 +130,12 @@
     "./json": {
       "import": "./json.js",
       "require": "./dist/json.cjs"
+    },
+    "./list.js": "./list.js",
+    "./dist/list.cjs": "./dist/list.cjs",
+    "./list": {
+      "import": "./list.js",
+      "require": "./dist/list.cjs"
     },
     "./logging.js": "./logging.js",
     "./dist/logging.cjs": "./dist/logging.cjs",
