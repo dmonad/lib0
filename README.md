@@ -203,6 +203,20 @@ See encoding.writeAny for more information.</p></dd>
 <dd><p>Decode an any-encoded value.</p></dd>
 </dl>
 </details>
+<details><summary><b>[lib0/cached-map]</b> An implementation of a map which has keys that expire.</summary>
+<pre>import * as cached-map from 'lib0/cache'</pre>
+<dl>
+<b><code>new cached-map.Cache(timeout: number)</code></b><br>
+<b><code>cached-map.removeStale(cache: module:cache.Cache&lt;K, V&gt;): number</code></b><br>
+<b><code>cached-map.set(cache: module:cache.Cache&lt;K, V&gt;, key: K, value: V)</code></b><br>
+<b><code>cached-map.get(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | undefined</code></b><br>
+<b><code>cached-map.getAsync(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | Promise&lt;V&gt; | undefined</code></b><br>
+<dd><p>Works well in conjunktion with setIfUndefined which has an async init function.
+Using getAsync &amp; setIfUndefined ensures that the init function is only called once.</p></dd>
+<b><code>cached-map.setIfUndefined(cache: module:cache.Cache&lt;K, V&gt;, key: K, init: function():Promise&lt;V&gt;): Promise&lt;V&gt; | V</code></b><br>
+<b><code>cached-map.create(timeout: number)</code></b><br>
+</dl>
+</details>
 <details><summary><b>[lib0/component]</b> Web components.</summary>
 <pre>import * as component from 'lib0/component'</pre>
 <dl>
@@ -387,6 +401,8 @@ efficient, but not very sophisticated.</p></dd>
 efficient, but not very sophisticated.</p>
 <p>Note: This is basically the same function as above. Another function was created so that the runtime
 can better optimize these function calls.</p></dd>
+<b><code>diff.simpleDiffStringWithCursor(a: string, b: string, cursor: number)</code></b><br>
+<dd><p>Diff text and try to diff at the current cursor position.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/dom]</b> Utility module to work with the DOM.</summary>
@@ -787,6 +803,36 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <dd><p>Parse JSON object.</p></dd>
 </dl>
 </details>
+<details><summary><b>[lib0/list]</b> </summary>
+<pre>import * as list from 'lib0/list'</pre>
+<dl>
+<b><code>new e#ListNode()</code></b><br>
+<b><code>e#next: this|null</code></b><br>
+<b><code>e#prev: this|null</code></b><br>
+<b><code>new st()</code></b><br>
+<b><code>art: N | null</code></b><br>
+<b><code>d: N | null</code></b><br>
+<b><code>(): module:list.List&lt;N&gt;</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(queue: module:list.List&lt;N&gt;)</code></b><br>
+<b><code>()</code></b><br>
+<b><code>ode(queue: module:list.List&lt;N&gt;, node: N)</code></b><br>
+<dd><p>Remove a single node from the queue. Only works with Queues that operate on Doubly-linked lists of nodes.</p></dd>
+<b><code>ode()</code></b><br>
+<b><code>etween(queue: module:list.List&lt;N&gt;, left: N| null, right: N| null, node: N)</code></b><br>
+<b><code>etween()</code></b><br>
+<b><code>(queue: module:list.List&lt;N&gt;, n: N)</code></b><br>
+<b><code>()</code></b><br>
+<b><code>nt(queue: module:list.List&lt;N&gt;, n: N)</code></b><br>
+<b><code>nt()</code></b><br>
+<b><code>t(list: module:list.List&lt;N&gt;): N| null</code></b><br>
+<b><code>t()</code></b><br>
+<b><code>(list: module:list.List&lt;N&gt;): N| null</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(list: module:list.List&lt;N&gt;, f: function(N):M): Array&lt;M&gt;</code></b><br>
+<b><code>()</code></b><br>
+</dl>
+</details>
 <details><summary><b>[lib0/logging]</b> Isomorphic logging module with support for colors!</summary>
 <pre>import * as logging from 'lib0/logging'</pre>
 <dl>
@@ -1058,6 +1104,8 @@ library has some insane environment where global Promise objects are overwritten
 <dl>
 <b><code>set.create</code></b><br>
 <b><code>set.toArray(set: Set&lt;T&gt;): Array&lt;T&gt;</code></b><br>
+<b><code>set.first(set: Set&lt;T&gt;): T</code></b><br>
+<b><code>set.from(entries: Iterable&lt;T&gt;): Set&lt;T&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/sort]</b> Efficient sort implementations.</summary>
@@ -1104,6 +1152,7 @@ integrate this algorithm.</p>
 <b><code>string.utf8TextEncoder</code></b><br>
 <b><code>string.encodeUtf8</code></b><br>
 <b><code>string.decodeUtf8</code></b><br>
+<b><code>string.splice(str: string, index: number, remove: number, insert: string)</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/symbol]</b> Utility module to work with EcmaScript Symbols.</summary>
