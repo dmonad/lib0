@@ -3,3 +3,5 @@ tsconfig.json
 rollup.config.js
 .nyc_output
 .travis.yml
+.git
+node_modules
