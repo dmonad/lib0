@@ -4,7 +4,7 @@
 /**
  * An implementation of a map which has keys that expire.
  *
- * @module cached-map
+ * @module cache
  */
 
 import * as list from './list.js'
