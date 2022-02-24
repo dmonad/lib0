@@ -52,4 +52,11 @@ export const testCache = async tc => {
 
   t.assert(c._map.size === 0)
   t.assert(c._q.start === null && c._q.end === null)
+
+  // test edge case of setIfUndefined
+  const xp = cache.setIfUndefined(c, 'a', () => promise.resolve('x'))
+  cache.set(c, 'a', 'y')
+  await xp
+  // we override the Entry.val property in cache when p resolves. However, we must prevent that when the value is overriden before p is resolved.
+  t.assert(cache.get(c, 'a') === 'y')
 }
