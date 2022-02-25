@@ -146,10 +146,26 @@ export const getAsync = (cache, key) => {
  *
  * @param {Cache<K, V>} cache
  * @param {K} key
+ */
+export const remove = (cache, key) => {
+  const n = cache._map.get(key)
+  if (n) {
+    list.removeNode(cache._q, n)
+    cache._map.delete(key)
+    return n.val && !(n.val instanceof Promise) ? n.val : undefined
+  }
+}
+
+/**
+ * @template K, V
+ *
+ * @param {Cache<K, V>} cache
+ * @param {K} key
  * @param {function():Promise<V>} init
+ * @param {boolean} removeNull Optional argument that automatically removes values that resolve to null/undefined from the cache.
  * @return {Promise<V> | V}
  */
-export const setIfUndefined = (cache, key, init) => {
+export const setIfUndefined = (cache, key, init, removeNull = false) => {
   const now = removeStale(cache)
   const q = cache._q
   const n = cache._map.get(key)
@@ -166,6 +182,9 @@ export const setIfUndefined = (cache, key, init) => {
     p.then(v => {
       if (p === node.val) {
         node.val = v
+      }
+      if (removeNull && v == null) {
+        remove(cache, key)
       }
     })
     return p

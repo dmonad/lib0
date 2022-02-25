@@ -59,4 +59,14 @@ export const testCache = async tc => {
   await xp
   // we override the Entry.val property in cache when p resolves. However, we must prevent that when the value is overriden before p is resolved.
   t.assert(cache.get(c, 'a') === 'y')
+
+  // test that we can remove properties
+  cache.remove(c, 'a')
+  cache.remove(c, 'does not exist') // remove a non-existent property to achieve full test-coverage
+  t.assert(cache.get(c, 'a') === undefined)
+
+  // test that the optional property in setifUndefined works
+  const yp = cache.setIfUndefined(c, 'a', () => promise.resolveWith(null), true)
+  t.assert(await yp === null)
+  t.assert(cache.get(c, 'a') === undefined)
 }
