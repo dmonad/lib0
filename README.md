@@ -210,6 +210,7 @@ See encoding.writeAny for more information.</p></dd>
 <b><code>cache.removeStale(cache: module:cache.Cache&lt;K, V&gt;): number</code></b><br>
 <b><code>cache.set(cache: module:cache.Cache&lt;K, V&gt;, key: K, value: V)</code></b><br>
 <b><code>cache.get(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | undefined</code></b><br>
+<b><code>cache.refreshTimeout(cache: module:cache.Cache&lt;K, V&gt;, key: K)</code></b><br>
 <b><code>cache.getAsync(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | Promise&lt;V&gt; | undefined</code></b><br>
 <dd><p>Works well in conjunktion with setIfUndefined which has an async init function.
 Using getAsync &amp; setIfUndefined ensures that the init function is only called once.</p></dd>
