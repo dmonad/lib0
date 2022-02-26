@@ -36,11 +36,13 @@ export const testCache = async tc => {
 
   // write new values and check later if the creation-timestamp was updated
   cache.set(c, 'a', '11')
-  await cache.setIfUndefined(c, 'b', () => promise.resolveWith('22')) // this shouldn't override, but update the timestamp
+  cache.set(c, 'b', '22')
 
   await promise.wait(5) // keys should be updated and not timed out. Hence the creation time should be updated
   t.assert(cache.get(c, 'a') === '11')
-  t.assert(cache.get(c, 'b') === '2')
+  t.assert(cache.get(c, 'b') === '22')
+  cache.set(c, 'a', '11')
+  cache.set(c, 'b', '22')
   // timestamps should be updated
   t.assert(aTimestamp1 !== m.get('a').created)
   t.assert(bTimestamp1 !== m.get('b').created)
@@ -69,4 +71,14 @@ export const testCache = async tc => {
   const yp = cache.setIfUndefined(c, 'a', () => promise.resolveWith(null), true)
   t.assert(await yp === null)
   t.assert(cache.get(c, 'a') === undefined)
+
+  // check manual updating of timeout
+  cache.set(c, 'a', '3')
+  const ts1 = m.get('a').created
+  await promise.wait(30)
+  cache.refreshTimeout(c, 'a')
+  const ts2 = m.get('a').created
+  t.assert(ts1 !== ts2)
+  cache.refreshTimeout(c, 'x') // for full test coverage
+  t.assert(m.get('x') == null)
 }

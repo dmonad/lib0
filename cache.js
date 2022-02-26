@@ -103,13 +103,9 @@ export const set = (cache, key, value) => {
  * @return {Entry<K, V> | undefined}
  */
 const getNode = (cache, key) => {
-  const now = removeStale(cache)
-  const q = cache._q
+  removeStale(cache)
   const n = cache._map.get(key)
   if (n) {
-    list.removeNode(q, n)
-    list.pushEnd(q, n)
-    n.created = now
     return n
   }
 }
@@ -124,6 +120,23 @@ const getNode = (cache, key) => {
 export const get = (cache, key) => {
   const n = getNode(cache, key)
   return n && !(n.val instanceof Promise) ? n.val : undefined
+}
+
+/**
+ * @template K, V
+ *
+ * @param {Cache<K, V>} cache
+ * @param {K} key
+ */
+export const refreshTimeout = (cache, key) => {
+  const now = time.getUnixTime()
+  const q = cache._q
+  const n = cache._map.get(key)
+  if (n) {
+    list.removeNode(q, n)
+    list.pushEnd(q, n)
+    n.created = now
+  }
 }
 
 /**
@@ -166,13 +179,10 @@ export const remove = (cache, key) => {
  * @return {Promise<V> | V}
  */
 export const setIfUndefined = (cache, key, init, removeNull = false) => {
-  const now = removeStale(cache)
+  removeStale(cache)
   const q = cache._q
   const n = cache._map.get(key)
   if (n) {
-    list.removeNode(q, n)
-    list.pushEnd(q, n)
-    n.created = now
     return n.val
   } else {
     const p = init()
