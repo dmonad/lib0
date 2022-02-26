@@ -203,18 +203,19 @@ See encoding.writeAny for more information.</p></dd>
 <dd><p>Decode an any-encoded value.</p></dd>
 </dl>
 </details>
-<details><summary><b>[lib0/cached-map]</b> An implementation of a map which has keys that expire.</summary>
-<pre>import * as cached-map from 'lib0/cache'</pre>
+<details><summary><b>[lib0/cache]</b> An implementation of a map which has keys that expire.</summary>
+<pre>import * as cache from 'lib0/cache'</pre>
 <dl>
-<b><code>new cached-map.Cache(timeout: number)</code></b><br>
-<b><code>cached-map.removeStale(cache: module:cache.Cache&lt;K, V&gt;): number</code></b><br>
-<b><code>cached-map.set(cache: module:cache.Cache&lt;K, V&gt;, key: K, value: V)</code></b><br>
-<b><code>cached-map.get(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | undefined</code></b><br>
-<b><code>cached-map.getAsync(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | Promise&lt;V&gt; | undefined</code></b><br>
+<b><code>new cache.Cache(timeout: number)</code></b><br>
+<b><code>cache.removeStale(cache: module:cache.Cache&lt;K, V&gt;): number</code></b><br>
+<b><code>cache.set(cache: module:cache.Cache&lt;K, V&gt;, key: K, value: V)</code></b><br>
+<b><code>cache.get(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | undefined</code></b><br>
+<b><code>cache.getAsync(cache: module:cache.Cache&lt;K, V&gt;, key: K): V | Promise&lt;V&gt; | undefined</code></b><br>
 <dd><p>Works well in conjunktion with setIfUndefined which has an async init function.
 Using getAsync &amp; setIfUndefined ensures that the init function is only called once.</p></dd>
-<b><code>cached-map.setIfUndefined(cache: module:cache.Cache&lt;K, V&gt;, key: K, init: function():Promise&lt;V&gt;): Promise&lt;V&gt; | V</code></b><br>
-<b><code>cached-map.create(timeout: number)</code></b><br>
+<b><code>cache.remove(cache: module:cache.Cache&lt;K, V&gt;, key: K)</code></b><br>
+<b><code>cache.setIfUndefined(cache: module:cache.Cache&lt;K, V&gt;, key: K, init: function():Promise&lt;V&gt;, removeNull: boolean): Promise&lt;V&gt; | V</code></b><br>
+<b><code>cache.create(timeout: number)</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/component]</b> Web components.</summary>
