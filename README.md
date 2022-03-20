@@ -91,6 +91,7 @@ import module from 'lib0/[module].js'
 <dd><p>True iff condition holds on some element in the Array.</p></dd>
 <b><code>array.equalFlat(a: Array&lt;ELEM&gt;, b: Array&lt;ELEM&gt;): boolean</code></b><br>
 <b><code>array.flatten(arr: Array&lt;Array&lt;ELEM&gt;&gt;): Array&lt;ELEM&gt;</code></b><br>
+<b><code>array.isArray</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
