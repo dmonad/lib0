@@ -18,3 +18,15 @@ export const testflatten = tc => {
   const arr = [[1, 2, 3], [4]]
   t.compareArrays(array.flatten(arr), [1, 2, 3, 4])
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testIsArray = tc => {
+  t.assert(array.isArray([]))
+  t.assert(array.isArray([1]))
+  t.assert(array.isArray(Array.from(new Set([3]))))
+  t.assert(!array.isArray(1))
+  t.assert(!array.isArray(0))
+  t.assert(!array.isArray(''))
+}

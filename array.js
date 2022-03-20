@@ -87,3 +87,5 @@ export const equalFlat = (a, b) => a.length === b.length && every(a, (item, inde
  * @return {Array<ELEM>}
  */
 export const flatten = arr => arr.reduce((acc, val) => acc.concat(val), [])
+
+export const isArray = Array.isArray
