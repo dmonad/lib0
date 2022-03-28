@@ -11,9 +11,6 @@
  * @return {IterableIterator<R>}
  */
 export const mapIterator = (iterator, f) => ({
-  /**
-   * @param {function(T):R} f
-   */
   [Symbol.iterator] () {
     return this
   },
