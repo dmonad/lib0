@@ -18,8 +18,15 @@ const rotate = (tree, parent, newParent, n) => {
   }
 }
 
+/**
+ * @template V
+ */
 class N {
-  // A created node is always red!
+  /**
+   * A created node is always red!
+   *
+   * @param {V} val
+   */
   constructor (val) {
     this.val = val
     this.color = true
