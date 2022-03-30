@@ -450,7 +450,7 @@ export const writeAny = (encoder, data) => {
       writeVarString(encoder, data)
       break
     case 'number':
-      if (number.isInteger(data) && data <= binary.BITS31) {
+      if (number.isInteger(data) && math.abs(data) <= binary.BITS31) {
         // TYPE 125: INTEGER
         write(encoder, 125)
         writeVarInt(encoder, data)

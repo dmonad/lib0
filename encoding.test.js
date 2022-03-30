@@ -671,3 +671,15 @@ export const testStringDecoder = tc => {
     t.assert(decoder.read() === words[i])
   }
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testLargeNumberAnyEncoding = tc => {
+  const encoder = encoding.createEncoder()
+  const num = -2.2062063918362897e+50
+  encoding.writeAny(encoder, num)
+  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const readNum = decoding.readAny(decoder)
+  t.assert(readNum === num)
+}
