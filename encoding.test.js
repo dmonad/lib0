@@ -190,8 +190,8 @@ export const testStringDecodingPerformance = () => {
       }
     })
   })
+  t.assert(durationConcatElements < durationConcatElementsNative * 1.3, '1.3x faster. We expect that the native approach is slower. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
   t.assert(durationConcatElements < durationSingleElements, 'We expect that the second approach is faster. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
-  t.assert(durationConcatElements < durationConcatElementsNative * 1.3, 'We expect that the native approach is slower. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
 }
 
 /**
