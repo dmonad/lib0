@@ -243,7 +243,7 @@ export const readVarUint = decoder => {
       return num >>> 0 // return unsigned number!
     }
     /* istanbul ignore if */
-    if (len > 35) {
+    if (len > 53) {
       throw new Error('Integer out of range!')
     }
   }
@@ -277,7 +277,7 @@ export const readVarInt = decoder => {
       return sign * (num >>> 0)
     }
     /* istanbul ignore if */
-    if (len > 41) {
+    if (len > 53) {
       throw new Error('Integer out of range!')
     }
   }
