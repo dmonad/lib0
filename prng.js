@@ -16,7 +16,7 @@ import * as buffer from './buffer.js'
 /**
  * Description of the function
  *  @callback generatorNext
- *  @return {number} A 32bit integer
+ *  @return {number} A random float in the cange of [0,1)
  */
 
 /**

@@ -8,12 +8,17 @@
  */
 
 import * as math from './math.js'
+import * as binary from './binary.js'
 import { cryptoRandomBuffer } from './isomorphic.js'
 
 export const rand = Math.random
 
-/* istanbul ignore next */
 export const uint32 = () => new Uint32Array(cryptoRandomBuffer(4))[0]
+
+export const uint53 = () => {
+  const arr = new Uint32Array(cryptoRandomBuffer(8))
+  return (arr[0] & binary.BITS21) * (binary.BITS32 + 1) + (arr[1] >>> 0)
+}
 
 /**
  * @template T
