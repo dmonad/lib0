@@ -181,7 +181,7 @@ broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from t
 <dd><p>Subscribe to global <code>publish</code> events.</p></dd>
 <b><code>broadcastchannel.unsubscribe(room: string, f: function(any):any)</code></b><br>
 <dd><p>Unsubscribe from <code>publish</code> global events.</p></dd>
-<b><code>broadcastchannel.publish(room: string, data: any)</code></b><br>
+<b><code>broadcastchannel.publish(room: string, data: any, origin: any)</code></b><br>
 <dd><p>Publish data to all subscribers (including subscribers on this tab)</p></dd>
 </dl>
 </details>
@@ -1098,6 +1098,7 @@ library has some insane environment where global Promise objects are overwritten
 <dl>
 <b><code>random.rand</code></b><br>
 <b><code>random.uint32</code></b><br>
+<b><code>random.uint53</code></b><br>
 <b><code>random.oneOf(arr: Array&lt;T&gt;): T</code></b><br>
 <b><code>random.uuidv4</code></b><br>
 </dl>
