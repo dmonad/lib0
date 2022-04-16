@@ -23,7 +23,7 @@ import * as storage from './storage.js'
 
 /**
  * @typedef {Object} Channel
- * @property {Set<Function>} Channel.subs
+ * @property {Set<function(any, any):any>} Channel.subs
  * @property {any} Channel.bc
  */
 
@@ -67,7 +67,7 @@ const getChannel = room =>
     /**
      * @param {{data:ArrayBuffer}} e
      */
-    bc.onmessage = e => subs.forEach(sub => sub(e.data))
+    bc.onmessage = e => subs.forEach(sub => sub(e.data, 'broadcastchannel'))
     return {
       bc, subs
     }
@@ -97,9 +97,10 @@ export const unsubscribe = (room, f) => getChannel(room).subs.delete(f)
  * @function
  * @param {string} room
  * @param {any} data
+ * @param {any} [origin]
  */
-export const publish = (room, data) => {
+export const publish = (room, data, origin = null) => {
   const c = getChannel(room)
   c.bc.postMessage(data)
-  c.subs.forEach(sub => sub(data))
+  c.subs.forEach(sub => sub(data, origin))
 }
