@@ -177,9 +177,9 @@ broadcastchannel.publish('my events', 'Hello world!') // => A: 'Hello world!' fi
 broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from tab B'
 </code></pre>
 <dl>
-<b><code>broadcastchannel.subscribe(room: string, f: function(any):any)</code></b><br>
+<b><code>broadcastchannel.subscribe(room: string, f: function(any, any):any)</code></b><br>
 <dd><p>Subscribe to global <code>publish</code> events.</p></dd>
-<b><code>broadcastchannel.unsubscribe(room: string, f: function(any):any)</code></b><br>
+<b><code>broadcastchannel.unsubscribe(room: string, f: function(any, any):any)</code></b><br>
 <dd><p>Unsubscribe from <code>publish</code> global events.</p></dd>
 <b><code>broadcastchannel.publish(room: string, data: any, origin: any)</code></b><br>
 <dd><p>Publish data to all subscribers (including subscribers on this tab)</p></dd>
