@@ -78,7 +78,7 @@ const getChannel = room =>
  *
  * @function
  * @param {string} room
- * @param {function(any):any} f
+ * @param {function(any, any):any} f
  */
 export const subscribe = (room, f) => getChannel(room).subs.add(f)
 
@@ -87,7 +87,7 @@ export const subscribe = (room, f) => getChannel(room).subs.add(f)
  *
  * @function
  * @param {string} room
- * @param {function(any):any} f
+ * @param {function(any, any):any} f
  */
 export const unsubscribe = (room, f) => getChannel(room).subs.delete(f)
 
