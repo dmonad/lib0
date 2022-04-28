@@ -7,6 +7,7 @@ import * as string from './string.js'
 import * as binary from './binary.js'
 import * as buffer from './buffer.js'
 import * as number from './number.js'
+import * as math from './math.js'
 
 /**
  * @type {Array<function(prng.PRNG, number, boolean):any>}
@@ -15,7 +16,7 @@ let genAnyLookupTable = [
   gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
   gen => undefined, // TYPE 127
   gen => null, // TYPE 126
-  gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), // TYPE 125
+  gen => prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER), // TYPE 125
   gen => prng.real53(gen), // TYPE 124 and 123
   gen => true, // TYPE 121
   gen => false, // TYPE 120
@@ -232,6 +233,7 @@ export const testVarUintEncoding = tc => {
   test('varUint 3 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 17 | 1 << 9 | 3)
   test('varUint 4 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 25 | 1 << 17 | 1 << 9 | 3)
   test('varUint of 2839012934', encoding.writeVarUint, decoding.readVarUint, 2839012934)
+  test('varUint of 2^53', encoding.writeVarUint, decoding.readVarUint, number.MAX_SAFE_INTEGER)
 }
 
 /**
@@ -243,13 +245,23 @@ export const testVarIntEncoding = tc => {
   test('varInt 3 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 17 | 1 << 9 | 3))
   test('varInt 4 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 25 | 1 << 17 | 1 << 9 | 3))
   test('varInt of -691529286', encoding.writeVarInt, decoding.readVarInt, -(691529286))
+  test('varInt of 2^53', encoding.writeVarInt, decoding.readVarInt, number.MAX_SAFE_INTEGER)
+  test('varInt of -2^53', encoding.writeVarInt, decoding.readVarInt, number.MIN_SAFE_INTEGER)
 }
 
 /**
  * @param {t.TestCase} tc
  */
 export const testRepeatVarUintEncoding = tc => {
-  const n = prng.int32(tc.prng, 0, (1 << 28) - 1)
+  const n = prng.uint32(tc.prng, 0, (1 << 28) - 1)
+  test(`varUint of ${n}`, encoding.writeVarUint, decoding.readVarUint, n, false)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatVarUintEncoding53bit = tc => {
+  const n = prng.uint53(tc.prng, 0, number.MAX_SAFE_INTEGER)
   test(`varUint of ${n}`, encoding.writeVarUint, decoding.readVarUint, n, false)
 }
 
@@ -257,14 +269,22 @@ export const testRepeatVarUintEncoding = tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatVarIntEncoding = tc => {
-  const n = prng.uint32(tc.prng, 0, binary.BITS32)
+  const n = prng.int32(tc.prng, number.LOWEST_INT32, binary.BITS32)
   test(`varInt of ${n}`, encoding.writeVarInt, decoding.readVarInt, n, false)
 }
 
 /**
  * @param {t.TestCase} tc
  */
-export const testRepeatAnyEncoding = tc => {
+export const testRepeatVarIntEncoding53bit = tc => {
+  const n = prng.int32(tc.prng, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)
+  test(`varInt of ${n}`, encoding.writeVarInt, decoding.readVarInt, n, false)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeanntAnyEncoding = tc => {
   const n = genAny(tc.prng)
   test('any encoding', encoding.writeAny, decoding.readAny, n, false)
 }
@@ -281,7 +301,7 @@ export const testRepeatPeekVarUintEncoding = tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatPeekVarIntEncoding = tc => {
-  const n = prng.uint32(tc.prng, 0, binary.BITS32)
+  const n = prng.int53(tc.prng, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)
   test(`varInt of ${n}`, encoding.writeVarInt, decoding.peekVarInt, n, false)
 }
 
@@ -378,8 +398,8 @@ const encodingPairs = [
   { name: 'uint32', read: decoding.readUint32, write: encoding.writeUint32, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
   { name: 'uint32bigEndian', read: decoding.readUint32BigEndian, write: encoding.writeUint32BigEndian, gen: gen => prng.uint32(gen, 0, binary.BITS32), compare: strictComparison },
   { name: 'varString', read: decoding.readVarString, write: encoding.writeVarString, gen: gen => prng.utf16String(gen, prng.uint32(gen, 0, defLen)), compare: strictComparison },
-  { name: 'varUint', read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, binary.BITS32), compare: strictComparison },
-  { name: 'varInt', read: decoding.readVarInt, write: encoding.writeVarInt, gen: gen => prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_INT32), compare: strictComparison },
+  { name: 'varUint', read: decoding.readVarUint, write: encoding.writeVarUint, gen: gen => prng.uint53(gen, 0, number.MAX_SAFE_INTEGER), compare: strictComparison },
+  { name: 'varInt', read: decoding.readVarInt, write: encoding.writeVarInt, gen: gen => prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER), compare: strictComparison },
   { name: 'Any', read: decoding.readAny, write: encoding.writeAny, gen: genAny, compare: t.compare }
 ]
 
@@ -604,7 +624,11 @@ export const testIntEncoders = tc => {
    */
   const vals = []
   for (let i = 0; i < arrLen; i++) {
-    vals.push(prng.int32(gen, -10, 10))
+    if (prng.bool(gen)) {
+      vals.push(prng.int53(gen, math.floor(number.MIN_SAFE_INTEGER / 2), math.floor(number.MAX_SAFE_INTEGER / 2)))
+    } else {
+      vals.push(prng.int32(gen, -10, 10))
+    }
   }
   /**
    * @type {Array<{ encoder: any, read: function(any):any }>}

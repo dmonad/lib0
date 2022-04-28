@@ -29,6 +29,7 @@
 import * as buffer from './buffer.js'
 import * as binary from './binary.js'
 import * as math from './math.js'
+import * as number from './number.js'
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -234,16 +235,17 @@ export const peekUint32 = decoder => (
  */
 export const readVarUint = decoder => {
   let num = 0
-  let len = 0
+  let mult = 1
   while (true) {
     const r = decoder.arr[decoder.pos++]
-    num = num | ((r & binary.BITS7) << len)
-    len += 7
+    // num = num | ((r & binary.BITS7) << len)
+    num = num + (r & binary.BITS7) * mult // shift $r << (7*#iterations) and add it to num
+    mult *= 128 // next iteration, shift 7 "more" to the left
     if (r < binary.BIT8) {
-      return num >>> 0 // return unsigned number!
+      return num
     }
     /* istanbul ignore if */
-    if (len > 53) {
+    if (num > number.MAX_SAFE_INTEGER) {
       throw new Error('Integer out of range!')
     }
   }
@@ -263,7 +265,7 @@ export const readVarUint = decoder => {
 export const readVarInt = decoder => {
   let r = decoder.arr[decoder.pos++]
   let num = r & binary.BITS6
-  let len = 6
+  let mult = 64
   const sign = (r & binary.BIT7) > 0 ? -1 : 1
   if ((r & binary.BIT8) === 0) {
     // don't continue reading
@@ -271,13 +273,14 @@ export const readVarInt = decoder => {
   }
   while (true) {
     r = decoder.arr[decoder.pos++]
-    num = num | ((r & binary.BITS7) << len)
-    len += 7
+    // num = num | ((r & binary.BITS7) << len)
+    num = num + (r & binary.BITS7) * mult
+    mult *= 128
     if (r < binary.BIT8) {
-      return sign * (num >>> 0)
+      return sign * num
     }
     /* istanbul ignore if */
-    if (len > 53) {
+    if (num > number.MAX_SAFE_INTEGER) {
       throw new Error('Integer out of range!')
     }
   }
@@ -608,7 +611,7 @@ export class IntDiffOptRleDecoder extends Decoder {
       const diff = readVarInt(this)
       // if the first bit is set, we read more data
       const hasCount = diff & 1
-      this.diff = diff >> 1
+      this.diff = math.floor(diff / 2) // shift >> 1
       this.count = 1
       if (hasCount) {
         this.count = readVarUint(this) + 2

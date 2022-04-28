@@ -232,9 +232,7 @@ export const setUint32 = (encoder, pos, num) => {
 }
 
 /**
- * Write a variable length unsigned integer.
- *
- * Encodes integers in the range from [0, 4294967295] / [0, 0xffffffff]. (max 32 bit unsigned integer)
+ * Write a variable length unsigned integer. Max encodable integer is 2^53.
  *
  * @function
  * @param {Encoder} encoder
@@ -243,18 +241,13 @@ export const setUint32 = (encoder, pos, num) => {
 export const writeVarUint = (encoder, num) => {
   while (num > binary.BITS7) {
     write(encoder, binary.BIT8 | (binary.BITS7 & num))
-    num >>>= 7
+    num = math.floor(num / 128) // shift >>> 7
   }
   write(encoder, binary.BITS7 & num)
 }
 
 /**
  * Write a variable length integer.
- *
- * Encodes integers in the range from [-2147483648, -2147483647].
- *
- * We don't use zig-zag encoding because we want to keep the option open
- * to use the same function for BigInt and 53bit integers (doubles).
  *
  * We use the 7th bit instead for signaling that this is a negative number.
  *
@@ -269,12 +262,12 @@ export const writeVarInt = (encoder, num) => {
   }
   //             |- whether to continue reading         |- whether is negative     |- number
   write(encoder, (num > binary.BITS6 ? binary.BIT8 : 0) | (isNegative ? binary.BIT7 : 0) | (binary.BITS6 & num))
-  num >>>= 6
+  num = math.floor(num / 64) // shift >>> 6
   // We don't need to consider the case of num === 0 so we can use a different
   // pattern here than above.
   while (num > 0) {
     write(encoder, (num > binary.BITS7 ? binary.BIT8 : 0) | (binary.BITS7 & num))
-    num >>>= 7
+    num = math.floor(num / 128) // shift >>> 7
   }
 }
 
@@ -721,7 +714,8 @@ export class IncUintOptRleEncoder {
 const flushIntDiffOptRleEncoder = encoder => {
   if (encoder.count > 0) {
     //          31 bit making up the diff | wether to write the counter
-    const encodedDiff = encoder.diff << 1 | (encoder.count === 1 ? 0 : 1)
+    // const encodedDiff = encoder.diff << 1 | (encoder.count === 1 ? 0 : 1)
+    const encodedDiff = encoder.diff * 2 + (encoder.count === 1 ? 0 : 1)
     // flush counter, unless this is the first value (count = 0)
     // case 1: just a single value. set first bit to positive
     // case 2: write several values. set first bit to negative to indicate that there is a length coming
