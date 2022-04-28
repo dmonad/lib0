@@ -48,9 +48,11 @@ export const testShiftVsDivision = tc => {
   })
 
   t.measureTime('shift', () => {
+    let x = 0
     for (let i = 0; i < numbers.length; i++) {
-      const x = numbers[i] >>> 7
+      x = numbers[i] >>> 7
     }
+    t.info('' + x)
   })
 
   t.measureTime('division', () => {
