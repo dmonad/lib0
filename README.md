@@ -501,13 +501,9 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <b><code>encoding.setUint32(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
 <dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeVarUint(encoder: module:encoding.Encoder, num: number)</code></b><br>
-<dd><p>Write a variable length unsigned integer.</p>
-<p>Encodes integers in the range from [0, 4294967295] / [0, 0xffffffff]. (max 32 bit unsigned integer)</p></dd>
+<dd><p>Write a variable length unsigned integer. Max encodable integer is 2^53.</p></dd>
 <b><code>encoding.writeVarInt(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write a variable length integer.</p>
-<p>Encodes integers in the range from [-2147483648, -2147483647].</p>
-<p>We don't use zig-zag encoding because we want to keep the option open
-to use the same function for BigInt and 53bit integers (doubles).</p>
 <p>We use the 7th bit instead for signaling that this is a negative number.</p></dd>
 <b><code>encoding.writeVarString(encoder: module:encoding.Encoder, str: String)</code></b><br>
 <dd><p>Write a variable length string.</p></dd>

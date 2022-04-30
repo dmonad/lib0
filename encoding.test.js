@@ -116,6 +116,49 @@ const testVarString = s => {
   t.compareStrings(s, peeked)
 }
 
+export const testStringEncodingPerformanceNativeVsCustom = () => {
+  const largeRepetitions = 20
+  let bigstr = ''
+  for (let i = 0; i < 10000; i++) {
+    bigstr += i
+  }
+
+  const customTime = t.measureTime('large dataset: custom encoding', () => {
+    const encoder = encoding.createEncoder()
+    for (let i = 0; i < largeRepetitions; i++) {
+      encoding._writeVarStringCustom(encoder, 'i')
+      encoding._writeVarStringCustom(encoder, bigstr)
+    }
+  })
+  const nativeTime = t.measureTime('large dataset: native encoding', () => {
+    const encoder = encoding.createEncoder()
+    for (let i = 0; i < largeRepetitions; i++) {
+      encoding._writeVarStringNative(encoder, 'i')
+      encoding._writeVarStringNative(encoder, bigstr)
+    }
+  })
+  t.assert(nativeTime < customTime, 'We expect native encoding to be more performant for large data sets')
+
+  const smallRepetitions = 100000
+  const customTimeSmall = t.measureTime('small dataset: custom encoding', () => {
+    const encoder = encoding.createEncoder()
+    for (let i = 0; i < smallRepetitions; i++) {
+      encoding._writeVarStringCustom(encoder, 'i')
+      encoding._writeVarStringCustom(encoder, 'bb')
+      encoding._writeVarStringCustom(encoder, 'ccc')
+    }
+  })
+  const nativeTimeSmall = t.measureTime('small dataset: native encoding', () => {
+    const encoder = encoding.createEncoder()
+    for (let i = 0; i < smallRepetitions; i++) {
+      encoding._writeVarStringNative(encoder, 'i')
+      encoding._writeVarStringNative(encoder, 'bb')
+      encoding._writeVarStringNative(encoder, 'ccc')
+    }
+  })
+  t.assert(nativeTimeSmall < customTimeSmall * 2, 'We expect native encoding to be not much worse than custom encoding for small data sets')
+}
+
 export const testStringDecodingPerformance = () => {
   // test if it is faster to read N single characters, or if it is faster to read N characters in one flush.
   // to make the comparison meaningful, we read read N characters in an Array
@@ -136,33 +179,6 @@ export const testStringDecodingPerformance = () => {
     })
   })
 
-  const durationConcatElementsNative = t.measureTime('read / write concatenated string using native encoder/decoder', () => {
-    let stringbuf = new Uint8Array()
-    const encoderLengths = encoding.createEncoder()
-    t.measureTime('read / write concatenated string using native encoder/decoder - write', () => {
-      let s = ''
-      const sArr = []
-      for (let i = 0; i < N; i++) {
-        s += 'i'
-        encoding.writeVarUint(encoderLengths, 1) // we write a single char.
-        if (i % 20 === 0) {
-          sArr.push(s)
-          s = ''
-        }
-      }
-      sArr.push(s)
-      stringbuf = string.encodeUtf8(sArr.join(''))
-    })
-    const decoderLengths = decoding.createDecoder(encoding.toUint8Array(encoderLengths))
-    t.measureTime('read / write concatenated string using native encoder/decoder - read', () => {
-      const arr = []
-      const concatS = string.decodeUtf8(stringbuf)
-      for (let i = 0; i < N; i++) {
-        const len = decoding.readVarUint(decoderLengths)
-        arr.push(concatS.slice(i, len)) // push using slice
-      }
-    })
-  })
   const durationConcatElements = t.measureTime('read / write concatenated string', () => {
     let stringbuf = new Uint8Array()
     const encoder = encoding.createEncoder()
@@ -191,7 +207,6 @@ export const testStringDecodingPerformance = () => {
       }
     })
   })
-  t.assert(durationConcatElements < durationConcatElementsNative * 1.3, '1.3x faster. We expect that the native approach is slower. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
   t.assert(durationConcatElements < durationSingleElements, 'We expect that the second approach is faster. If this fails, our expectantion is not met in your javascript environment. Please report this issue.')
 }
 

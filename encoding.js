@@ -30,6 +30,7 @@ import * as buffer from './buffer.js'
 import * as math from './math.js'
 import * as number from './number.js'
 import * as binary from './binary.js'
+import * as string from './string.js'
 
 /**
  * A BinaryEncoder handles the encoding to an Uint8Array.
@@ -272,13 +273,40 @@ export const writeVarInt = (encoder, num) => {
 }
 
 /**
+ * A cache to store strings temporarily
+ */
+const _strBuffer = new Uint8Array(30000)
+const _maxStrBSize = _strBuffer.length / 3
+
+/**
  * Write a variable length string.
  *
  * @function
  * @param {Encoder} encoder
  * @param {String} str The string that is to be encoded.
  */
-export const writeVarString = (encoder, str) => {
+export const _writeVarStringNative = (encoder, str) => {
+  if (str.length < _maxStrBSize) {
+    // We can encode the string into the existing buffer
+    /* istanbul ignore else */
+    const written = string.utf8TextEncoder.encodeInto(str, _strBuffer).written || 0 // @todo why is written optional?
+    writeVarUint(encoder, written)
+    for (let i = 0; i < written; i++) {
+      write(encoder, _strBuffer[i])
+    }
+  } else {
+    writeVarUint8Array(encoder, string.encodeUtf8(str))
+  }
+}
+
+/**
+ * Write a variable length string.
+ *
+ * @function
+ * @param {Encoder} encoder
+ * @param {String} str The string that is to be encoded.
+ */
+export const _writeVarStringCustom = (encoder, str) => {
   const encodedString = unescape(encodeURIComponent(str))
   const len = encodedString.length
   writeVarUint(encoder, len)
@@ -286,6 +314,16 @@ export const writeVarString = (encoder, str) => {
     write(encoder, /** @type {number} */ (encodedString.codePointAt(i)))
   }
 }
+
+/**
+ * Write a variable length string.
+ *
+ * @function
+ * @param {Encoder} encoder
+ * @param {String} str The string that is to be encoded.
+ */
+/* istanbul ignore next */
+export const writeVarString = string.utf8TextEncoder ? _writeVarStringNative : _writeVarStringCustom
 
 /**
  * Write the content of another Encoder.
