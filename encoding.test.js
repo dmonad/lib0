@@ -116,7 +116,7 @@ const testVarString = s => {
   t.compareStrings(s, peeked)
 }
 
-export const testStringEncodingPerformanceNativeVsCustom = () => {
+export const testStringEncodingPerformanceNativeVsPolyfill = () => {
   const largeRepetitions = 20
   let bigstr = ''
   for (let i = 0; i < 10000; i++) {
@@ -126,8 +126,8 @@ export const testStringEncodingPerformanceNativeVsCustom = () => {
   const customTime = t.measureTime('large dataset: custom encoding', () => {
     const encoder = encoding.createEncoder()
     for (let i = 0; i < largeRepetitions; i++) {
-      encoding._writeVarStringCustom(encoder, 'i')
-      encoding._writeVarStringCustom(encoder, bigstr)
+      encoding._writeVarStringPolyfill(encoder, 'i')
+      encoding._writeVarStringPolyfill(encoder, bigstr)
     }
   })
   const nativeTime = t.measureTime('large dataset: native encoding', () => {
@@ -143,9 +143,9 @@ export const testStringEncodingPerformanceNativeVsCustom = () => {
   const customTimeSmall = t.measureTime('small dataset: custom encoding', () => {
     const encoder = encoding.createEncoder()
     for (let i = 0; i < smallRepetitions; i++) {
-      encoding._writeVarStringCustom(encoder, 'i')
-      encoding._writeVarStringCustom(encoder, 'bb')
-      encoding._writeVarStringCustom(encoder, 'ccc')
+      encoding._writeVarStringPolyfill(encoder, 'i')
+      encoding._writeVarStringPolyfill(encoder, 'bb')
+      encoding._writeVarStringPolyfill(encoder, 'ccc')
     }
   })
   const nativeTimeSmall = t.measureTime('small dataset: native encoding', () => {
@@ -157,6 +157,58 @@ export const testStringEncodingPerformanceNativeVsCustom = () => {
     }
   })
   t.assert(nativeTimeSmall < customTimeSmall * 2, 'We expect native encoding to be not much worse than custom encoding for small data sets')
+}
+
+export const testDecodingPerformanceNativeVsPolyfill = () => {
+  const iterationsSmall = 10000
+  const iterationsLarge = 1000
+  let bigstr = ''
+  for (let i = 0; i < 10000; i++) {
+    bigstr += i
+  }
+  const encoder = encoding.createEncoder()
+  const encoderLarge = encoding.createEncoder()
+  for (let i = 0; i < iterationsSmall; i++) {
+    encoding.writeVarString(encoder, 'i')
+    encoding.writeVarString(encoder, 'bb')
+    encoding.writeVarString(encoder, 'ccc')
+  }
+  for (let i = 0; i < iterationsLarge; i++) {
+    encoding.writeVarString(encoderLarge, bigstr)
+  }
+  const buf = encoding.toUint8Array(encoder)
+  const bufLarge = encoding.toUint8Array(encoderLarge)
+
+  const nativeTimeSmall = t.measureTime('small dataset: native encoding', () => {
+    const decoder = decoding.createDecoder(buf)
+    while (decoding.hasContent(decoder)) {
+      decoding._readVarStringNative(decoder)
+    }
+  })
+
+  const polyfillTimeSmall = t.measureTime('small dataset: polyfill encoding', () => {
+    const decoder = decoding.createDecoder(buf)
+    while (decoding.hasContent(decoder)) {
+      decoding.readVarString(decoder)
+    }
+  })
+
+  const nativeTimeLarge = t.measureTime('large dataset: native encoding', () => {
+    const decoder = decoding.createDecoder(bufLarge)
+    while (decoding.hasContent(decoder)) {
+      decoding._readVarStringNative(decoder)
+    }
+  })
+
+  const polyfillTimeLarge = t.measureTime('large dataset: polyfill encoding', () => {
+    const decoder = decoding.createDecoder(bufLarge)
+    while (decoding.hasContent(decoder)) {
+      decoding._readVarStringPolyfill(decoder)
+    }
+  })
+
+  t.assert(nativeTimeSmall < polyfillTimeSmall * 1.5, 'Small dataset: We expect native decoding to be not much worse than')
+  t.assert(nativeTimeLarge < polyfillTimeLarge, 'Large dataset: We expect native decoding to be much better than polyfill decoding')
 }
 
 export const testStringDecodingPerformance = () => {

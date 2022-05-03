@@ -289,7 +289,7 @@ export const _writeVarStringNative = (encoder, str) => {
   if (str.length < _maxStrBSize) {
     // We can encode the string into the existing buffer
     /* istanbul ignore else */
-    const written = string.utf8TextEncoder.encodeInto(str, _strBuffer).written || 0 // @todo why is written optional?
+    const written = string.utf8TextEncoder.encodeInto(str, _strBuffer).written || 0
     writeVarUint(encoder, written)
     for (let i = 0; i < written; i++) {
       write(encoder, _strBuffer[i])
@@ -306,7 +306,7 @@ export const _writeVarStringNative = (encoder, str) => {
  * @param {Encoder} encoder
  * @param {String} str The string that is to be encoded.
  */
-export const _writeVarStringCustom = (encoder, str) => {
+export const _writeVarStringPolyfill = (encoder, str) => {
   const encodedString = unescape(encodeURIComponent(str))
   const len = encodedString.length
   writeVarUint(encoder, len)
@@ -323,7 +323,7 @@ export const _writeVarStringCustom = (encoder, str) => {
  * @param {String} str The string that is to be encoded.
  */
 /* istanbul ignore next */
-export const writeVarString = string.utf8TextEncoder ? _writeVarStringNative : _writeVarStringCustom
+export const writeVarString = string.utf8TextEncoder ? _writeVarStringNative : _writeVarStringPolyfill
 
 /**
  * Write the content of another Encoder.

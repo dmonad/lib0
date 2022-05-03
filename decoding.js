@@ -30,6 +30,7 @@ import * as buffer from './buffer.js'
 import * as binary from './binary.js'
 import * as math from './math.js'
 import * as number from './number.js'
+import * as string from './string.js'
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -327,7 +328,8 @@ export const peekVarInt = decoder => {
  * @param {Decoder} decoder
  * @return {String} The read String.
  */
-export const readVarString = decoder => {
+/* istanbul ignore next */
+export const _readVarStringPolyfill = decoder => {
   let remainingLen = readVarUint(decoder)
   if (remainingLen === 0) {
     return ''
@@ -351,6 +353,17 @@ export const readVarString = decoder => {
     return decodeURIComponent(escape(encodedString))
   }
 }
+
+/**
+ * @function
+ * @param {Decoder} decoder
+ * @return {String} The read String
+ */
+export const _readVarStringNative = decoder =>
+  /** @type any */ (string.utf8TextDecoder).decode(readVarUint8Array(decoder))
+
+/* istanbul ignore next */
+export const readVarString = string.utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill
 
 /**
  * Look ahead and read varString without incrementing position
