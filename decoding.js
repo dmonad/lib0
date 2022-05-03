@@ -316,8 +316,8 @@ export const peekVarInt = decoder => {
 }
 
 /**
- * Read string of variable length
- * * varUint is used to store the length of the string
+ * We don't test this function anymore as we use native decoding/encoding by default now.
+ * Better not modify this anymore..
  *
  * Transforming utf8 to a string is pretty expensive. The code performs 10x better
  * when String.fromCodePoint is fed with all characters as arguments.
@@ -362,6 +362,15 @@ export const _readVarStringPolyfill = decoder => {
 export const _readVarStringNative = decoder =>
   /** @type any */ (string.utf8TextDecoder).decode(readVarUint8Array(decoder))
 
+/**
+ * Read string of variable length
+ * * varUint is used to store the length of the string
+ *
+ * @function
+ * @param {Decoder} decoder
+ * @return {String} The read String
+ *
+ */
 /* istanbul ignore next */
 export const readVarString = string.utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill
 
