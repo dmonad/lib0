@@ -3,8 +3,8 @@
  *
  * ```js
  * // test.js template for creating a test executable
- * import { runTests } from 'lib0/testing.js'
- * import * as log from 'lib0/logging.js'
+ * import { runTests } from 'lib0/testing'
+ * import * as log from 'lib0/logging'
  * import * as mod1 from './mod1.test.js'
  * import * as mod2 from './mod2.test.js'
 

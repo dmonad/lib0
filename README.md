@@ -12,7 +12,7 @@ export const stringify = JSON.stringify
 export const parse = JSON.parse
 
 // index.js
-import * as json from 'lib0/json.js'
+import * as json from 'lib0/json'
 export const f = (arg1, arg2) => json.stringify(arg1) + json.stringify(arg2)
 
 // compiled with rollup and uglifyjs:
