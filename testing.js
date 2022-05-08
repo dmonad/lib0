@@ -186,7 +186,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   times.sort((a, b) => a - b)
   /* istanbul ignore next */
   const againMessage = env.isBrowser
-    ? `     - ${window.location.href}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
+    ? `     - ${window.location.host + window.location.pathname}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
     : `\nrepeat: npm run test -- --filter "\\[${i + 1}/" ${tc._seed === null ? '' : `--seed ${tc._seed}`}`
   const timeInfo = (repeat && err === null)
     ? ` - ${times.length} repetitions in ${time.humanizeDuration(duration)} (best: ${time.humanizeDuration(times[0])}, worst: ${time.humanizeDuration(array.last(times))}, median: ${time.humanizeDuration(statistics.median(times))}, average: ${time.humanizeDuration(statistics.average(times))})`
