@@ -1,3 +1,4 @@
+import { id } from './function.js'
 import * as error from './error.js'
 
 export class ListNode {
@@ -26,6 +27,7 @@ export class List {
      * @type {N | null}
      */
     this.end = null
+    this.len = 0
   }
 }
 
@@ -54,7 +56,7 @@ export const isEmpty = queue => queue.start === null
  * @param {List<N>} queue
  * @param {N} node
  */
-export const removeNode = (queue, node) => {
+export const remove = (queue, node) => {
   const prev = node.prev
   const next = node.next
   if (prev) {
@@ -67,8 +69,14 @@ export const removeNode = (queue, node) => {
   } else {
     queue.end = prev
   }
+  queue.len--
   return node
 }
+
+/**
+ * @deprecated @todo remove in next major release
+ */
+export const removeNode = remove
 
 /**
  * @template {ListNode} N
@@ -95,6 +103,21 @@ export const insertBetween = (queue, left, right, node) => {
   }
   node.prev = left
   node.next = right
+  queue.len++
+}
+
+/**
+ * Remove a single node from the queue. Only works with Queues that operate on Doubly-linked lists of nodes.
+ *
+ * @template {ListNode} N
+ *
+ * @param {List<N>} queue
+ * @param {N} node
+ * @param {N} newNode
+ */
+export const replace = (queue, node, newNode) => {
+  insertBetween(queue, node, node.next, newNode)
+  remove(queue, node)
 }
 
 /**
@@ -152,4 +175,26 @@ export const map = (list, f) => {
     n = n.next
   }
   return arr
+}
+
+/**
+ * @template {ListNode} N
+ *
+ * @param {List<N>} list
+ */
+export const toArray = list => map(list, id)
+
+/**
+ * @template {ListNode} N
+ * @template M
+ *
+ * @param {List<N>} list
+ * @param {function(N):M} f
+ */
+export const forEach = (list, f) => {
+  let n = list.start
+  while (n) {
+    f(n)
+    n = n.next
+  }
 }
