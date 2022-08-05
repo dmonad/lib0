@@ -93,7 +93,7 @@ export const toUint8Array = encoder => {
  * @param {Encoder} encoder
  * @param {number} len
  */
-const verifyLen = (encoder, len) => {
+export const verifyLen = (encoder, len) => {
   const bufferLen = encoder.cbuf.length
   if (bufferLen - encoder.cpos < len) {
     encoder.bufs.push(buffer.createUint8ArrayViewFromArrayBuffer(encoder.cbuf.buffer, 0, encoder.cpos))

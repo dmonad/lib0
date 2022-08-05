@@ -116,6 +116,15 @@ const testVarString = s => {
   t.compareStrings(s, peeked)
 }
 
+export const testVerifyLen = () => {
+  const encoder = encoding.createEncoder()
+  const vLen = encoder.cbuf.length + 1
+  const bufsLen = encoder.bufs.length
+  encoding.verifyLen(encoder, vLen)
+  t.assert(encoder.cbuf.length >= vLen)
+  t.assert(encoder.bufs.length >= bufsLen)
+}
+
 export const testStringEncodingPerformanceNativeVsPolyfill = () => {
   const largeRepetitions = 20
   let bigstr = ''
