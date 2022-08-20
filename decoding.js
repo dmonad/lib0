@@ -237,7 +237,8 @@ export const peekUint32 = decoder => (
 export const readVarUint = decoder => {
   let num = 0
   let mult = 1
-  while (true) {
+  const len = decoder.arr.length;
+  while (decoder.pos < len) {
     const r = decoder.arr[decoder.pos++]
     // num = num | ((r & binary.BITS7) << len)
     num = num + (r & binary.BITS7) * mult // shift $r << (7*#iterations) and add it to num
@@ -250,6 +251,8 @@ export const readVarUint = decoder => {
       throw new Error('Integer out of range!')
     }
   }
+  
+  throw new Error('Unexpected end of array');
 }
 
 /**
@@ -272,7 +275,8 @@ export const readVarInt = decoder => {
     // don't continue reading
     return sign * num
   }
-  while (true) {
+  const len = decoder.arr.length;
+  while (decoder.pos < len) {
     r = decoder.arr[decoder.pos++]
     // num = num | ((r & binary.BITS7) << len)
     num = num + (r & binary.BITS7) * mult
@@ -285,6 +289,8 @@ export const readVarInt = decoder => {
       throw new Error('Integer out of range!')
     }
   }
+  
+  throw new Error('Unexpected end of array');
 }
 
 /**
