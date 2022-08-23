@@ -138,3 +138,13 @@ export const equalityDeep = (a, b) => {
   }
   return true
 }
+
+/**
+ * @template V
+ * @template {V} OPTS
+ *
+ * @param {V} value
+ * @param {Array<OPTS>} options
+ */
+// @ts-ignore
+export const isOneOf = (value, options) => options.includes(value)
