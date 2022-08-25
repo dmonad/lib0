@@ -68,7 +68,7 @@ export class Observable {
    * @param {N} name The event name.
    * @param {Array<any>} args The arguments that are applied to the event listener.
    */
-  emit (name, args) {
+  emit (name, args = []) {
     // copy all listeners to an array first to make sure that no event is emitted to listeners that are subscribed while the event handler is called.
     return array.from((this._observers.get(name) || map.create()).values()).forEach(f => f(...args))
   }
