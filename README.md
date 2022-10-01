@@ -34,6 +34,7 @@ Each function in this library is tested thoroughly and is not deoptimized by v8 
 
 The code style might be a bit different from what you are used to. Stay open. Most of the design choices have been thought through. The purpose of this code style is to create code that is optimized by the compiler and that results in small code bundles when used with common module bundlers. Keep that in mind when reading the library.
 
+* No polymorphism!
 * Modules should only export pure functions and constants. This way the module bundler can eliminate dead code. The statement `const x = someCondition ? A : B` cannot be eleminated, because it is tied to a condition.
 * Use Classes for structuring data. Classes are well supported by jsdoc and are immediately optimized by the compiler. I.e. prefer `class Coord { constructor (x, y) {  this.x = x; this.y = y} }` instead of `{ x: x, y: y }`, because the compiler needs to be assured that the order of properties does not change. `{ y: y, x: x }` has a different hidden class than `{ x: x, y: y }`, which will lead to code deoptimizations if their use is alternated.
 * The user of your module should never create data objects with the `new` keyword. Prefer exporting factory functions like `const createCoordinate = (x, y) => new Coord(x, y)`.
