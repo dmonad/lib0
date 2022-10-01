@@ -489,12 +489,12 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <b><code>encoding.setUint16(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
 <dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeUint32(encoder: module:encoding.Encoder, num: number)</code></b><br>
-<dd><p>Write two bytes as an unsigned integer</p></dd>
+<dd><p>Write four bytes as an unsigned integer</p></dd>
 <b><code>encoding.writeUint32BigEndian(encoder: module:encoding.Encoder, num: number)</code></b><br>
-<dd><p>Write two bytes as an unsigned integer in big endian order.
+<dd><p>Write four bytes as an unsigned integer in big endian order.
 (most significant byte first)</p></dd>
 <b><code>encoding.setUint32(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
-<dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
+<dd><p>Write four bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeVarUint(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write a variable length unsigned integer. Max encodable integer is 2^53.</p></dd>
 <b><code>encoding.writeVarInt(encoder: module:encoding.Encoder, num: number)</code></b><br>
