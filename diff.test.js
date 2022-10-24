@@ -33,8 +33,8 @@ export const testDiffing = tc => {
   runDiffTest('abc', 'xyz', { index: 0, remove: 3, insert: 'xyz' })
   runDiffTest('axz', 'au', { index: 1, remove: 2, insert: 'u' })
   runDiffTest('ax', 'axy', { index: 2, remove: 0, insert: 'y' })
-  runDiffTest('\u{d83d}\u{dc77}'/* '👷‍♀️' */, '\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷‍♀️' */, { index: 0, remove: 0, insert: '🚧' })
-  runDiffTest('\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷‍♀️' */, '\u{d83d}\u{dc77}'/* '👷‍♀️' */, { index: 0, remove: 2, insert: '' })
+  runDiffTest('\u{d83d}\u{dc77}'/* '👷' */, '\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, { index: 0, remove: 0, insert: '🚧' })
+  runDiffTest('\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, '\u{d83d}\u{dc77}'/* '👷' */, { index: 0, remove: 2, insert: '' })
 }
 
 /**
