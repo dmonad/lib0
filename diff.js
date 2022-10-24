@@ -39,18 +39,20 @@ import { equalityStrict } from './function.js'
  * @return {SimpleDiff<string>} The diff description.
  */
 export const simpleDiffString = (a, b) => {
+  const aArr = Array.from(a)
+  const bArr = Array.from(b)
   let left = 0 // number of same characters counting from left
   let right = 0 // number of same characters counting from right
-  while (left < a.length && left < b.length && a[left] === b[left]) {
+  while (left < aArr.length && left < bArr.length && aArr[left] === bArr[left]) {
     left++
   }
-  while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
+  while (right + left < aArr.length && right + left < bArr.length && aArr[aArr.length - right - 1] === bArr[bArr.length - right - 1]) {
     right++
   }
   return {
-    index: left,
-    remove: a.length - left - right,
-    insert: b.slice(left, b.length - right)
+    index: aArr.slice(0, left).reduce((acc, c) => acc + c.length, 0),
+    remove: aArr.slice(left, aArr.length - right).reduce((acc, c) => acc + c.length, 0),
+    insert: bArr.slice(left, bArr.length - right).join('')
   }
 }
 
@@ -99,37 +101,42 @@ export const simpleDiffArray = (a, b, compare = equalityStrict) => {
  * @param {number} cursor This should refer to the current left cursor-range position
  */
 export const simpleDiffStringWithCursor = (a, b, cursor) => {
+  const aArr = Array.from(a)
+  const bArr = Array.from(b)
   let left = 0 // number of same characters counting from left
   let right = 0 // number of same characters counting from right
   // Iterate left to the right until we find a changed character
   // First iteration considers the current cursor position
   while (
-    left < a.length &&
-    left < b.length &&
-    a[left] === b[left] &&
-    left < cursor
+    left < aArr.length &&
+    left < bArr.length &&
+    aArr[left] === bArr[left]
   ) {
+    if (aArr[left].length === 2 && cursor > 0) {
+      cursor-- // Adjust cursor position for surrogate pairs
+    }
+    if (left >= cursor) break
     left++
   }
   // Iterate right to the left until we find a changed character
   while (
-    right + left < a.length &&
-    right + left < b.length &&
-    a[a.length - right - 1] === b[b.length - right - 1]
+    right + left < aArr.length &&
+    right + left < bArr.length &&
+    aArr[aArr.length - right - 1] === bArr[bArr.length - right - 1]
   ) {
     right++
   }
   // Try to iterate left further to the right without caring about the current cursor position
   while (
-    right + left < a.length &&
-    right + left < b.length &&
-    a[left] === b[left]
+    right + left < aArr.length &&
+    right + left < bArr.length &&
+    aArr[left] === bArr[left]
   ) {
     left++
   }
   return {
-    index: left,
-    remove: a.length - left - right,
-    insert: b.slice(left, b.length - right)
+    index: aArr.slice(0, left).reduce((acc, c) => acc + c.length, 0),
+    remove: aArr.slice(left, aArr.length - right).reduce((acc, c) => acc + c.length, 0),
+    insert: bArr.slice(left, bArr.length - right).join('')
   }
 }
