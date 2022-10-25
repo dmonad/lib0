@@ -2,7 +2,6 @@ import { simpleDiffString, simpleDiffArray, simpleDiffStringWithCursor } from '.
 import * as prng from './prng.js'
 import * as f from './function.js'
 import * as t from './testing.js'
-import * as object from './object.js'
 import * as str from './string.js'
 
 /**
@@ -14,8 +13,12 @@ function runDiffTest (a, b, expected) {
   const result = simpleDiffString(a, b)
   t.compare(result, expected)
   t.compare(result, simpleDiffStringWithCursor(a, b, a.length)) // check that the withCursor approach returns the same result
-  const arrResult = simpleDiffArray(a.split(''), b.split(''))
-  t.compare(arrResult, object.assign({}, result, { insert: result.insert.split('') }))
+  const recomposed = str.splice(a, result.index, result.remove, result.insert)
+  t.compareStrings(recomposed, b)
+  const arrResult = simpleDiffArray(Array.from(a), Array.from(b))
+  const arrRecomposed = Array.from(a)
+  arrRecomposed.splice(arrResult.index, arrResult.remove, ...arrResult.insert)
+  t.compareStrings(arrRecomposed.join(''), b)
 }
 
 /**
@@ -30,6 +33,8 @@ export const testDiffing = tc => {
   runDiffTest('abc', 'xyz', { index: 0, remove: 3, insert: 'xyz' })
   runDiffTest('axz', 'au', { index: 1, remove: 2, insert: 'u' })
   runDiffTest('ax', 'axy', { index: 2, remove: 0, insert: 'y' })
+  runDiffTest('\u{d83d}\u{dc77}'/* '👷' */, '\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, { index: 0, remove: 0, insert: '🚧' })
+  runDiffTest('\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, '\u{d83d}\u{dc77}'/* '👷' */, { index: 0, remove: 2, insert: '' })
 }
 
 /**
@@ -73,6 +78,13 @@ export const testSimpleDiffWithCursor = tc => {
     t.compare(change, { insert: '', remove: 3, index: 5 })
     const recomposed = str.splice(initial, change.index, change.remove, change.insert)
     t.compareStrings(expected, recomposed)
+  }
+  {
+    const initial = '🚧🚧🚧'
+    const change = simpleDiffStringWithCursor(initial, '🚧🚧', 2) // Should delete after the midst of 🚧
+    t.compare(change, { insert: '', remove: 2, index: 2 })
+    const recomposed = str.splice(initial, change.index, change.remove, change.insert)
+    t.compareStrings('🚧🚧', recomposed)
   }
 }
 

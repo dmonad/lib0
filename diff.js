@@ -28,6 +28,9 @@ import { equalityStrict } from './function.js'
  * @template T
  */
 
+const highSurrogateRegex = /[\uD800-\uDBFF]/
+const lowSurrogateRegex = /[\uDC00-\uDFFF]/
+
 /**
  * Create a diff between two strings. This diff implementation is highly
  * efficient, but not very sophisticated.
@@ -41,12 +44,18 @@ import { equalityStrict } from './function.js'
 export const simpleDiffString = (a, b) => {
   let left = 0 // number of same characters counting from left
   let right = 0 // number of same characters counting from right
+  let inSurrogate = false
   while (left < a.length && left < b.length && a[left] === b[left]) {
+    inSurrogate = highSurrogateRegex.test(a[left])
     left++
   }
+  if (inSurrogate) left--
+  inSurrogate = false
   while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
+    inSurrogate = lowSurrogateRegex.test(a[a.length - right - 1])
     right++
   }
+  if (inSurrogate) right--
   return {
     index: left,
     remove: a.length - left - right,
@@ -103,30 +112,39 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
   let right = 0 // number of same characters counting from right
   // Iterate left to the right until we find a changed character
   // First iteration considers the current cursor position
+  let inSurrogate = false
   while (
     left < a.length &&
     left < b.length &&
     a[left] === b[left] &&
     left < cursor
   ) {
+    inSurrogate = highSurrogateRegex.test(a[left])
     left++
   }
+  if (inSurrogate) left--
+  inSurrogate = false
   // Iterate right to the left until we find a changed character
   while (
     right + left < a.length &&
     right + left < b.length &&
     a[a.length - right - 1] === b[b.length - right - 1]
   ) {
+    inSurrogate = lowSurrogateRegex.test(a[a.length - right - 1])
     right++
   }
+  if (inSurrogate) right--
+  inSurrogate = false
   // Try to iterate left further to the right without caring about the current cursor position
   while (
     right + left < a.length &&
     right + left < b.length &&
     a[left] === b[left]
   ) {
+    inSurrogate = highSurrogateRegex.test(a[left])
     left++
   }
+  if (inSurrogate) left--
   return {
     index: left,
     remove: a.length - left - right,
