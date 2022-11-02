@@ -323,7 +323,7 @@ export const _writeVarStringPolyfill = (encoder, str) => {
  * @param {String} str The string that is to be encoded.
  */
 /* istanbul ignore next */
-export const writeVarString = string.utf8TextEncoder ? _writeVarStringNative : _writeVarStringPolyfill
+export const writeVarString = (string.utf8TextEncoder && string.utf8TextEncoder.encodeInto) ? _writeVarStringNative : _writeVarStringPolyfill
 
 /**
  * Write the content of another Encoder.
