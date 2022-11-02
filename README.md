@@ -490,12 +490,12 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <b><code>encoding.setUint16(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
 <dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeUint32(encoder: module:encoding.Encoder, num: number)</code></b><br>
-<dd><p>Write four bytes as an unsigned integer</p></dd>
+<dd><p>Write two bytes as an unsigned integer</p></dd>
 <b><code>encoding.writeUint32BigEndian(encoder: module:encoding.Encoder, num: number)</code></b><br>
-<dd><p>Write four bytes as an unsigned integer in big endian order.
+<dd><p>Write two bytes as an unsigned integer in big endian order.
 (most significant byte first)</p></dd>
 <b><code>encoding.setUint32(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
-<dd><p>Write four bytes as an unsigned integer at a specific location.</p></dd>
+<dd><p>Write two bytes as an unsigned integer at a specific location.</p></dd>
 <b><code>encoding.writeVarUint(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write a variable length unsigned integer. Max encodable integer is 2^53.</p></dd>
 <b><code>encoding.writeVarInt(encoder: module:encoding.Encoder, num: number)</code></b><br>
@@ -698,6 +698,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>map.getConf(name: string): string|null</code></b><br>
 <b><code>map.hasConf</code></b><br>
 <b><code>map.production</code></b><br>
+<b><code>map.supportsColor</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/error]</b> Error helpers.</summary>
@@ -733,6 +734,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>function.equalityStrict(a: T, b: T): boolean</code></b><br>
 <b><code>function.equalityFlat(a: Array&lt;T&gt;|object, b: Array&lt;T&gt;|object): boolean</code></b><br>
 <b><code>function.equalityDeep(a: any, b: any): boolean</code></b><br>
+<b><code>function.isOneOf(value: V, options: Array&lt;OPTS&gt;)</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/lib0]</b> Experimental method to import lib0.</summary>
