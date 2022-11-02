@@ -146,6 +146,7 @@ const computeNoColorLoggingArgs = args => {
   return logArgs
 }
 
+/* istanbul ignore next */
 /**
  * @param {Array<string|Symbol|Object|number>} args
  * @return {Array<string|object|number>}
