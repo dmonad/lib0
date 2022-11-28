@@ -31,6 +31,10 @@ import * as binary from './binary.js'
 import * as math from './math.js'
 import * as number from './number.js'
 import * as string from './string.js'
+import * as error from './error.js'
+
+const errorUnexpectedEndOfArray = error.create('Unexpected end of array')
+const errorIntegerOutOfRange = error.create('Integer out of Range')
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -237,7 +241,7 @@ export const peekUint32 = decoder => (
 export const readVarUint = decoder => {
   let num = 0
   let mult = 1
-  const len = decoder.arr.length;
+  const len = decoder.arr.length
   while (decoder.pos < len) {
     const r = decoder.arr[decoder.pos++]
     // num = num | ((r & binary.BITS7) << len)
@@ -248,11 +252,10 @@ export const readVarUint = decoder => {
     }
     /* istanbul ignore if */
     if (num > number.MAX_SAFE_INTEGER) {
-      throw new Error('Integer out of range!')
+      throw errorIntegerOutOfRange
     }
   }
-  
-  throw new Error('Unexpected end of array');
+  throw errorUnexpectedEndOfArray
 }
 
 /**
@@ -275,7 +278,7 @@ export const readVarInt = decoder => {
     // don't continue reading
     return sign * num
   }
-  const len = decoder.arr.length;
+  const len = decoder.arr.length
   while (decoder.pos < len) {
     r = decoder.arr[decoder.pos++]
     // num = num | ((r & binary.BITS7) << len)
@@ -286,11 +289,10 @@ export const readVarInt = decoder => {
     }
     /* istanbul ignore if */
     if (num > number.MAX_SAFE_INTEGER) {
-      throw new Error('Integer out of range!')
+      throw errorIntegerOutOfRange
     }
   }
-  
-  throw new Error('Unexpected end of array');
+  throw errorUnexpectedEndOfArray
 }
 
 /**

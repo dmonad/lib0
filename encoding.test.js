@@ -14,12 +14,12 @@ import * as math from './math.js'
  */
 let genAnyLookupTable = [
   gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
-  gen => undefined, // TYPE 127
-  gen => null, // TYPE 126
+  _gen => undefined, // TYPE 127
+  _gen => null, // TYPE 126
   gen => prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER), // TYPE 125
   gen => prng.real53(gen), // TYPE 124 and 123
-  gen => true, // TYPE 121
-  gen => false, // TYPE 120
+  _gen => true, // TYPE 121
+  _gen => false, // TYPE 120
   gen => prng.utf16String(gen), // TYPE 119
   (gen, depth, toJsonCompatible) => ({ val: genAny(gen, depth + 1, toJsonCompatible) }), // TYPE 118
   (gen, depth, toJsonCompatible) => Array.from({ length: prng.uint32(gen, 0, 20 - depth) }).map(() => genAny(gen, depth + 1, toJsonCompatible)), // TYPE 117
@@ -272,9 +272,9 @@ export const testStringDecodingPerformance = () => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testAnyEncodeUnknowns = tc => {
+export const testAnyEncodeUnknowns = _tc => {
   const encoder = encoding.createEncoder()
   // @ts-ignore
   encoding.writeAny(encoder, Symbol('a'))
@@ -287,23 +287,23 @@ export const testAnyEncodeUnknowns = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testAnyEncodeDate = tc => {
+export const testAnyEncodeDate = _tc => {
   test('Encode current date', encoding.writeAny, decoding.readAny, new Date().getTime())
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testEncodeMax32bitUint = tc => {
+export const testEncodeMax32bitUint = _tc => {
   test('max 32bit uint', encoding.writeVarUint, decoding.readVarUint, binary.BITS32)
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testVarUintEncoding = tc => {
+export const testVarUintEncoding = _tc => {
   test('varUint 1 byte', encoding.writeVarUint, decoding.readVarUint, 42)
   test('varUint 2 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 9 | 3)
   test('varUint 3 bytes', encoding.writeVarUint, decoding.readVarUint, 1 << 17 | 1 << 9 | 3)
@@ -313,9 +313,9 @@ export const testVarUintEncoding = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testVarIntEncoding = tc => {
+export const testVarIntEncoding = _tc => {
   test('varInt 1 byte', encoding.writeVarInt, decoding.readVarInt, -42)
   test('varInt 2 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 9 | 3))
   test('varInt 3 bytes', encoding.writeVarInt, decoding.readVarInt, -(1 << 17 | 1 << 9 | 3))
@@ -403,9 +403,9 @@ export const testAnyVsJsonEncoding = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testStringEncoding = tc => {
+export const testStringEncoding = _tc => {
   testVarString('hello')
   testVarString('test!')
   testVarString('☺☺☺')
@@ -423,9 +423,9 @@ export const testRepeatStringEncoding = tc =>
   testVarString(prng.utf16String(tc.prng))
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testSetMethods = tc => {
+export const testSetMethods = _tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint8(encoder, 1)
   encoding.writeUint16(encoder, 33)
@@ -512,9 +512,9 @@ export const testRepeatRandomWrites = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testWriteUint8ArrayOverflow = tc => {
+export const testWriteUint8ArrayOverflow = _tc => {
   const encoder = encoding.createEncoder()
   const initialLen = encoder.cbuf.byteLength
   const buf = buffer.createUint8ArrayFromLen(initialLen * 4)
@@ -532,9 +532,9 @@ export const testWriteUint8ArrayOverflow = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testSetOnOverflow = tc => {
+export const testSetOnOverflow = _tc => {
   const encoder = encoding.createEncoder()
   const initialLen = encoder.cbuf.byteLength
   encoder.cpos = initialLen - 2
@@ -558,9 +558,9 @@ export const testSetOnOverflow = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testCloneDecoder = tc => {
+export const testCloneDecoder = _tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint8(encoder, 12132)
   encoding.writeVarUint(encoder, 329840128734)
@@ -575,9 +575,9 @@ export const testCloneDecoder = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testWriteBinaryEncoder = tc => {
+export const testWriteBinaryEncoder = _tc => {
   const encoder = encoding.createEncoder()
   encoding.writeUint16(encoder, 4)
   const encoder2 = encoding.createEncoder()
@@ -606,9 +606,9 @@ export const testOverflowStringDecoding = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testRleEncoder = tc => {
+export const testRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.RleEncoder(encoding.writeVarUint)
   for (let i = 0; i < N; i++) {
@@ -627,9 +627,9 @@ export const testRleEncoder = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testRleIntDiffEncoder = tc => {
+export const testRleIntDiffEncoder = _tc => {
   const N = 100
   const encoder = new encoding.RleIntDiffEncoder(0)
   for (let i = -N; i < N; i++) {
@@ -648,9 +648,9 @@ export const testRleIntDiffEncoder = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testUintOptRleEncoder = tc => {
+export const testUintOptRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.UintOptRleEncoder()
   for (let i = 0; i < N; i++) {
@@ -669,9 +669,9 @@ export const testUintOptRleEncoder = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testIntDiffRleEncoder = tc => {
+export const testIntDiffRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.IntDiffOptRleEncoder()
   for (let i = -N; i < N; i++) {
@@ -730,9 +730,9 @@ export const testIntEncoders = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testIntDiffEncoder = tc => {
+export const testIntDiffEncoder = _tc => {
   const N = 100
   const encoder = new encoding.IntDiffEncoder(0)
   for (let i = -N; i < N; i++) {
@@ -773,13 +773,29 @@ export const testStringDecoder = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testLargeNumberAnyEncoding = tc => {
+export const testLargeNumberAnyEncoding = _tc => {
   const encoder = encoding.createEncoder()
   const num = -2.2062063918362897e+50
   encoding.writeAny(encoder, num)
   const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
   const readNum = decoding.readAny(decoder)
   t.assert(readNum === num)
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testInvalidVarIntEncoding = _tc => {
+  const encoded = new Uint8Array(1)
+  encoded[0] = 255
+  const decoder = decoding.createDecoder(encoded)
+  t.fails(() => {
+    decoding.readVarInt(decoder)
+  })
+  decoder.pos = 0
+  t.fails(() => {
+    decoding.readVarUint(decoder)
+  })
 }
