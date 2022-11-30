@@ -539,7 +539,11 @@ export const fails = f => {
  * @param {Object<string, Object<string, function(TestCase):void|Promise<any>>>} tests
  */
 export const runTests = async tests => {
-  const numberOfTests = object.map(tests, mod => object.map(mod, f => /* istanbul ignore next */ f ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
+  /**
+   * @param {string} testname
+   */
+  const filterTest = testname => testname.startsWith('test') || testname.startsWith('benchmark')
+  const numberOfTests = object.map(tests, mod => object.map(mod, (f, fname) => /* istanbul ignore next */ f && filterTest(fname) ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
   let successfulTests = 0
   let testnumber = 0
   const start = performance.now()
@@ -548,7 +552,7 @@ export const runTests = async tests => {
     for (const fname in mod) {
       const f = mod[fname]
       /* istanbul ignore else */
-      if (f) {
+      if (f && filterTest(fname)) {
         const repeatEachTest = 1
         let success = true
         for (let i = 0; success && i < repeatEachTest; i++) {

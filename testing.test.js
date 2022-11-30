@@ -4,6 +4,11 @@ import * as buffer from './buffer.js'
 import * as map from './map.js'
 import * as promise from './promise.js'
 
+/* istanbul ignore next */
+export const nottestingNotTested = () => {
+  t.assert(false, 'This test should not be executed because the name doesnt start with "test"')
+}
+
 /**
  * @param {t.TestCase} tc
  */
