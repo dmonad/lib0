@@ -149,19 +149,21 @@ export const addAutoKey = (store, item) =>
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
+ * @param {number} [limit]
  * @return {Promise<Array<any>>}
  */
-export const getAll = (store, range) =>
-  rtop(store.getAll(range))
+export const getAll = (store, range, limit) =>
+  rtop(store.getAll(range, limit))
 
 /* istanbul ignore next */
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
+ * @param {number} [limit]
  * @return {Promise<Array<any>>}
  */
-export const getAllKeys = (store, range) =>
-  rtop(store.getAllKeys(range))
+export const getAllKeys = (store, range, limit) =>
+  rtop(store.getAllKeys(range, limit))
 
 /**
  * @param {IDBObjectStore} store
@@ -205,11 +207,12 @@ export const getFirstKey = (store, range = null) => queryFirst(store, range, 'ne
 /**
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange} [range]
+ * @param {number} [limit]
  * @return {Promise<Array<KeyValuePair>>}
  */
-export const getAllKeysValues = (store, range) =>
+export const getAllKeysValues = (store, range, limit) =>
   // @ts-ignore
-  promise.all([getAllKeys(store, range), getAll(store, range)]).then(([ks, vs]) => ks.map((k, i) => ({ k, v: vs[i] })))
+  promise.all([getAllKeys(store, range, limit), getAll(store, range, limit)]).then(([ks, vs]) => ks.map((k, i) => ({ k, v: vs[i] })))
 
 /* istanbul ignore next */
 /**
