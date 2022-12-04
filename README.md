@@ -759,12 +759,12 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>indexeddb.put(store: IDBObjectStore, item: String | number | ArrayBuffer | Date | boolean, key: String | number | ArrayBuffer | Date | Array&lt;any&gt;)</code></b><br>
 <b><code>indexeddb.add(store: IDBObjectStore, item: String|number|ArrayBuffer|Date|boolean, key: String|number|ArrayBuffer|Date|Array.&lt;any&gt;): Promise&lt;any&gt;</code></b><br>
 <b><code>indexeddb.addAutoKey(store: IDBObjectStore, item: String|number|ArrayBuffer|Date): Promise&lt;number&gt;</code></b><br>
-<b><code>indexeddb.getAll(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
-<b><code>indexeddb.getAllKeys(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
+<b><code>indexeddb.getAll(store: IDBObjectStore, range: IDBKeyRange, limit: number): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
+<b><code>indexeddb.getAllKeys(store: IDBObjectStore, range: IDBKeyRange, limit: number): Promise&lt;Array&lt;any&gt;&gt;</code></b><br>
 <b><code>indexeddb.queryFirst(store: IDBObjectStore, query: IDBKeyRange|null, direction: 'next'|'prev'|'nextunique'|'prevunique'): Promise&lt;any&gt;</code></b><br>
 <b><code>indexeddb.getLastKey(store: IDBObjectStore, range: IDBKeyRange?): Promise&lt;any&gt;</code></b><br>
 <b><code>indexeddb.getFirstKey(store: IDBObjectStore, range: IDBKeyRange?): Promise&lt;any&gt;</code></b><br>
-<b><code>indexeddb.getAllKeysValues(store: IDBObjectStore, range: IDBKeyRange): Promise&lt;Array&lt;KeyValuePair&gt;&gt;</code></b><br>
+<b><code>indexeddb.getAllKeysValues(store: IDBObjectStore, range: IDBKeyRange, limit: number): Promise&lt;Array&lt;KeyValuePair&gt;&gt;</code></b><br>
 <b><code>indexeddb.iterate(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any,any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
 <dd><p>Iterate on keys and values</p></dd>
 <b><code>indexeddb.iterateKeys(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
