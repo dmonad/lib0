@@ -228,8 +228,7 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
    */
   request.onsuccess = async event => {
     const cursor = event.target.result
-    const res = await f(cursor)
-    if (cursor === null || res === false) {
+    if (cursor === null || (await f(cursor)) === false) {
       return resolve()
     }
     cursor.continue()
