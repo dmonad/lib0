@@ -765,9 +765,9 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>indexeddb.getLastKey(store: IDBObjectStore, range: IDBKeyRange?): Promise&lt;any&gt;</code></b><br>
 <b><code>indexeddb.getFirstKey(store: IDBObjectStore, range: IDBKeyRange?): Promise&lt;any&gt;</code></b><br>
 <b><code>indexeddb.getAllKeysValues(store: IDBObjectStore, range: IDBKeyRange, limit: number): Promise&lt;Array&lt;KeyValuePair&gt;&gt;</code></b><br>
-<b><code>indexeddb.iterate(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any,any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
+<b><code>indexeddb.iterate(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any,any):void|boolean|Promise&lt;void|boolean&gt;, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
 <dd><p>Iterate on keys and values</p></dd>
-<b><code>indexeddb.iterateKeys(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any):void|boolean, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
+<b><code>indexeddb.iterateKeys(store: IDBObjectStore, keyrange: IDBKeyRange|null, f: function(any):void|boolean|Promise&lt;void|boolean&gt;, direction: 'next'|'prev'|'nextunique'|'prevunique')</code></b><br>
 <dd><p>Iterate on the keys (no values)</p></dd>
 <b><code>indexeddb.getStore(t: IDBTransaction, store: String)IDBObjectStore</code></b><br>
 <dd><p>Open store from transaction</p></dd>
