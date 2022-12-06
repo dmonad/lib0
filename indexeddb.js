@@ -217,7 +217,7 @@ export const getAllKeysValues = (store, range, limit) =>
 /* istanbul ignore next */
 /**
  * @param {any} request
- * @param {function(IDBCursorWithValue):void|boolean} f
+ * @param {function(IDBCursorWithValue):void|boolean|Promise<void|boolean>} f
  * @return {Promise<void>}
  */
 const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
@@ -226,9 +226,10 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
   /**
    * @param {any} event
    */
-  request.onsuccess = event => {
+  request.onsuccess = async event => {
     const cursor = event.target.result
-    if (cursor === null || f(cursor) === false) {
+    const res = await f(cursor)
+    if (cursor === null || res === false) {
       return resolve()
     }
     cursor.continue()
@@ -240,7 +241,7 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
  * Iterate on keys and values
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange|null} keyrange
- * @param {function(any,any):void|boolean} f Callback that receives (value, key)
+ * @param {function(any,any):void|boolean|Promise<void|boolean>} f Callback that receives (value, key)
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 export const iterate = (store, keyrange, f, direction = 'next') =>
@@ -252,7 +253,7 @@ export const iterate = (store, keyrange, f, direction = 'next') =>
  *
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange|null} keyrange
- * @param {function(any):void|boolean} f callback that receives the key
+ * @param {function(any):void|boolean|Promise<void|boolean>} f callback that receives the key
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 export const iterateKeys = (store, keyrange, f, direction = 'next') =>
