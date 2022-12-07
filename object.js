@@ -64,6 +64,16 @@ export const some = (obj, f) => {
 }
 
 /**
+ * @param {Object|undefined} obj
+ */
+export const isEmpty = obj => {
+  for (const _k in obj) {
+    return false
+  }
+  return true
+}
+
+/**
  * @param {Object<string,any>} obj
  * @param {function(any,string):boolean} f
  * @return {boolean}

@@ -31,4 +31,6 @@ export const testObject = tc => {
   t.describe('object.length')
   t.assert(object.length({}) === 0)
   t.assert(object.length({ x: 1 }) === 1)
+  t.assert(object.isEmpty({}))
+  t.assert(!object.isEmpty({ a: 3 }))
 }
