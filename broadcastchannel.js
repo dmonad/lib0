@@ -32,6 +32,7 @@ import * as storage from './storage.js'
  */
 const channels = new Map()
 
+/* istanbul ignore next */
 class LocalStoragePolyfill {
   /**
    * @param {string} room
@@ -53,6 +54,7 @@ class LocalStoragePolyfill {
   }
 }
 
+/* istanbul ignore next */
 // Use BroadcastChannel or Polyfill
 const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : BroadcastChannel
 
@@ -64,6 +66,7 @@ const getChannel = room =>
   map.setIfUndefined(channels, room, () => {
     const subs = new Set()
     const bc = new BC(room)
+    /* istanbul ignore next */
     /**
      * @param {{data:ArrayBuffer}} e
      */
@@ -80,7 +83,10 @@ const getChannel = room =>
  * @param {string} room
  * @param {function(any, any):any} f
  */
-export const subscribe = (room, f) => getChannel(room).subs.add(f)
+export const subscribe = (room, f) => {
+  getChannel(room).subs.add(f)
+  return f
+}
 
 /**
  * Unsubscribe from `publish` global events.

@@ -1,5 +1,6 @@
 import { runTests } from './testing.js'
 import * as array from './array.test.js'
+import * as broadcastchannel from './broadcastchannel.test.js'
 import * as logging from './logging.test.js'
 import * as string from './string.test.js'
 import * as encoding from './encoding.test.js'
@@ -39,6 +40,7 @@ if (isBrowser) {
 
 runTests({
   array,
+  broadcastchannel,
   logging,
   string,
   encoding,
