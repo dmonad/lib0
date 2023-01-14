@@ -95,7 +95,15 @@ export const subscribe = (room, f) => {
  * @param {string} room
  * @param {function(any, any):any} f
  */
-export const unsubscribe = (room, f) => getChannel(room).subs.delete(f)
+export const unsubscribe = (room, f) => {
+  const channel = getChannel(room)
+  const unsubscribed = channel.subs.delete(f)
+  if (unsubscribed && channel.subs.size === 0) {
+    channel.bc.close()
+    channels.delete(room)
+  }
+  return unsubscribed;
+}
 
 /**
  * Publish data to all subscribers (including subscribers on this tab)
