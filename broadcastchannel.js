@@ -102,7 +102,7 @@ export const unsubscribe = (room, f) => {
     channel.bc.close()
     channels.delete(room)
   }
-  return unsubscribed;
+  return unsubscribed
 }
 
 /**
