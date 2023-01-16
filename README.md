@@ -983,6 +983,7 @@ mutex(() => {
 <b><code>object.map(obj: Object&lt;string,any&gt;, f: function(any,string):R): Array&lt;R&gt;</code></b><br>
 <b><code>object.length(obj: Object&lt;string,any&gt;): number</code></b><br>
 <b><code>object.some(obj: Object&lt;string,any&gt;, f: function(any,string):boolean): boolean</code></b><br>
+<b><code>object.isEmpty(obj: Object|undefined)</code></b><br>
 <b><code>object.every(obj: Object&lt;string,any&gt;, f: function(any,string):boolean): boolean</code></b><br>
 <b><code>object.hasProperty(obj: any, key: string|symbol): boolean</code></b><br>
 <dd><p>Calls <code>Object.prototype.hasOwnProperty</code>.</p></dd>
