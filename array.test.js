@@ -30,3 +30,13 @@ export const testIsArray = tc => {
   t.assert(!array.isArray(0))
   t.assert(!array.isArray(''))
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testUnique = tc => {
+  t.compare([1, 2], array.unique([1, 2, 1, 2, 2, 1]))
+  t.compare([], array.unique([]))
+  t.compare([{ el: 1 }], array.uniqueBy([{ el: 1 }, { el: 1 }], o => o.el))
+  t.compare([], array.uniqueBy([], o => o))
+}

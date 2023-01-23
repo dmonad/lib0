@@ -4,6 +4,8 @@
  * @module array
  */
 
+import * as set from './set.js'
+
 /**
  * Return the last element of an array. The element must exist
  *
@@ -89,3 +91,37 @@ export const equalFlat = (a, b) => a.length === b.length && every(a, (item, inde
 export const flatten = arr => arr.reduce((acc, val) => acc.concat(val), [])
 
 export const isArray = Array.isArray
+
+/**
+ * @template T
+ * @param {Array<T>} arr
+ * @return {Array<T>}
+ */
+export const unique = arr => from(set.from(arr))
+
+/**
+ * @template T
+ * @template M
+ * @param {Array<T>} arr
+ * @param {function(T):M} mapper
+ * @return {Array<T>}
+ */
+export const uniqueBy = (arr, mapper) => {
+  /**
+   * @type {Set<M>}
+   */
+  const happened = set.create()
+  /**
+   * @type {Array<T>}
+   */
+  const result = []
+  for (let i = 0; i < arr.length; i++) {
+    const el = arr[i]
+    const mapped = mapper(el)
+    if (!happened.has(mapped)) {
+      happened.add(mapped)
+      result.push(el)
+    }
+  }
+  return result
+}

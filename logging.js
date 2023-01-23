@@ -5,6 +5,7 @@
  */
 
 import * as env from './environment.js'
+import * as set from './set.js'
 import * as symbol from './symbol.js'
 import * as pair from './pair.js'
 import * as dom from './dom.js'
@@ -284,7 +285,7 @@ export const printDom = (createNode) =>
 export const printCanvas = (canvas, height) =>
   printImg(canvas.toDataURL(), height)
 
-export const vconsoles = new Set()
+export const vconsoles = set.create()
 
 /* istanbul ignore next */
 /**

@@ -18,6 +18,7 @@
 // @todo before next major: use Uint8Array instead as buffer object
 
 import * as map from './map.js'
+import * as set from './set.js'
 import * as buffer from './buffer.js'
 import * as storage from './storage.js'
 
@@ -64,7 +65,7 @@ const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : Broa
  */
 const getChannel = room =>
   map.setIfUndefined(channels, room, () => {
-    const subs = new Set()
+    const subs = set.create()
     const bc = new BC(room)
     /* istanbul ignore next */
     /**
