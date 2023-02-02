@@ -3,6 +3,7 @@ import * as math from './math.js'
 import * as buffer from './buffer.js'
 import * as map from './map.js'
 import * as promise from './promise.js'
+import * as error from './error.js'
 
 /* istanbul ignore next */
 export const nottestingNotTested = () => {
@@ -10,9 +11,9 @@ export const nottestingNotTested = () => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testComparing = tc => {
+export const testComparing = _tc => {
   t.compare({}, {})
   t.compare({ a: 4 }, { a: 4 }, 'simple compare (object)')
   t.compare([1, 2], [1, 2], 'simple compare (array)')
@@ -107,10 +108,17 @@ export const testComparing = tc => {
   })
 }
 
-export const testFailing = () => {
+export const testFailing = async () => {
   t.fails(() => {
     t.fail('This fail is expected')
   })
+  await t.promiseRejected(() => promise.reject(error.create('should be rejected')))
+  t.fails(() => {
+    t.fails(() => {})
+  })
+  await t.promiseRejected(() =>
+    t.promiseRejected(() => promise.resolve())
+  )
 }
 
 export const testSkipping = () => {
@@ -124,6 +132,7 @@ export const testSkipping = () => {
 export const testAsync = async () => {
   await t.measureTimeAsync('time', () => promise.create(r => setTimeout(r)))
   await t.groupAsync('some description', () => promise.wait(1))
+  await t.promiseRejected(() => promise.reject(error.create('should be rejected')))
 }
 
 export const testRepeatRepetition = () => {

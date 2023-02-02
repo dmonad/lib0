@@ -392,13 +392,13 @@ export const compareStrings = (a, b, m = 'Strings match') => {
 export const compareObjects = (a, b, m = 'Objects match') => { object.equalFlat(a, b) || fail(m) }
 
 /**
- * @param {any} constructor
+ * @param {any} _constructor
  * @param {any} a
  * @param {any} b
  * @param {string} path
  * @throws {TestError}
  */
-const compareValues = (constructor, a, b, path) => {
+const compareValues = (_constructor, a, b, path) => {
   if (a !== b) {
     fail(`Values ${json.stringify(a)} and ${json.stringify(b)} don't match (${path})`)
   }
@@ -518,21 +518,29 @@ export const compare = (a, b, message = null, customCompare = compareValues) => 
 export const assert = (condition, message = null) => condition || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`)
 
 /**
+ * @param {function():Promise<any>} f
+ */
+export const promiseRejected = async f => {
+  try {
+    await f()
+  } catch (err) {
+    return
+  }
+  fail('Expected promise to fail')
+}
+
+/**
  * @param {function():void} f
  * @throws {TestError}
  */
 export const fails = f => {
-  let err = null
   try {
     f()
   } catch (_err) {
-    err = _err
     log.print(log.GREEN, '⇖ This Error was expected')
+    return
   }
-  /* istanbul ignore if */
-  if (err === null) {
-    fail('Expected this to fail')
-  }
+  fail('Expected this to fail')
 }
 
 /**
