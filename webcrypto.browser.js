@@ -1,3 +1,4 @@
 /* eslint-env browser */
 
-export default crypto
+export const subtle = crypto.subtle
+export const getRandomValues = crypto.getRandomValues.bind(crypto)

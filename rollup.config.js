@@ -24,7 +24,7 @@ export default [{
     entryFileNames: '[name].cjs',
     chunkFileNames: '[name]-[hash].cjs'
   },
-  external: ['isomorphic.js']
+  external: ['isomorphic.js', 'node:crypto', 'lib0/webcrypto']
 }, {
   input: './test.js',
   output: {
@@ -34,5 +34,9 @@ export default [{
     entryFileNames: '[name].cjs',
     chunkFileNames: '[name]-[hash].cjs'
   },
-  external: ['isomorphic.js']
+  external: ['isomorphic.js', 'node:crypto', 'lib0/webcrypto'],
+  plugins: [
+    resolve({ mainFields: ['node', 'main'] }),
+    commonjs()
+  ]
 }]

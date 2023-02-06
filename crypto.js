@@ -3,8 +3,9 @@
 import * as encoding from './encoding.js'
 import * as decoding from './decoding.js'
 import * as string from './string.js'
-import webcrypto from 'lib0/webcrypto'
+import * as webcrypto from 'lib0/webcrypto'
 
+/* istanbul ignore next */
 /**
  * @param {string | Uint8Array} data
  * @return {Uint8Array}
