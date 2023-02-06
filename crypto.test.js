@@ -53,3 +53,19 @@ export const testConsistentKeyGeneration = async _tc => {
   const jwk = await cryptutils.exportKey('jwk', key)
   t.compare(jwk, expectedJwk)
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testSigning = async tc => {
+  await t.measureTimeAsync('time to sign & verify 2 messages', async () => {
+    const keypair = await cryptutils.generateAsymmetricKey({ extractable: true })
+    const keypair2 = await cryptutils.generateAsymmetricKey({ extractable: true })
+    const data = prng.uint8Array(tc.prng, 100)
+    const signature = await cryptutils.sign(data, keypair.privateKey)
+    const result = await cryptutils.verify(signature, data, keypair.publicKey)
+    const result2 = await cryptutils.verify(signature, data, keypair2.publicKey)
+    t.assert(result, 'verification works using the correct key')
+    t.assert(!result2, 'verification fails using the incorrect key')
+  })
+}

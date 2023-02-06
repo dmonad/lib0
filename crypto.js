@@ -19,11 +19,12 @@ const toBinary = data => typeof data === 'string' ? string.encodeUtf8(data) : da
  *
  * @param {string | Uint8Array} secret
  * @param {string | Uint8Array} salt
- * @param {Object} options
- * @param {boolean} [options.extractable]
+ * @param {Object} opts
+ * @param {boolean} [opts.extractable]
+ * @param {Array<'sign'|'verify'|'encrypt'|'decrypt'>} [opts.usages]
  * @return {PromiseLike<CryptoKey>}
  */
-export const deriveSymmetricKey = (secret, salt, { extractable = false } = {}) => {
+export const deriveSymmetricKey = (secret, salt, { extractable = false, usages = ['encrypt', 'decrypt'] } = {}) => {
   const binSecret = toBinary(secret)
   const binSalt = toBinary(salt)
   return webcrypto.subtle.importKey(
@@ -46,10 +47,25 @@ export const deriveSymmetricKey = (secret, salt, { extractable = false } = {}) =
         length: 256
       },
       extractable,
-      ['encrypt', 'decrypt']
+      usages
     )
   )
 }
+
+/**
+ * @param {Object} opts
+ * @param {boolean} [opts.extractable]
+ * @param {Array<'sign'|'verify'|'encrypt'|'decrypt'>} [opts.usages]
+ */
+export const generateAsymmetricKey = ({ extractable = false, usages = ['sign', 'verify'] } = {}) =>
+  webcrypto.subtle.generateKey(
+    {
+      name: 'ECDSA',
+      namedCurve: 'P-384'
+    },
+    extractable,
+    usages
+  )
 
 /**
  * @experimental The API is not final!
@@ -102,3 +118,43 @@ export const decrypt = (data, key) => {
 }
 
 export const exportKey = webcrypto.subtle.exportKey.bind(webcrypto.subtle)
+
+/**
+ * @experimental The API is not final!
+ *
+ * Sign a message
+ *
+ * @param {Uint8Array} data
+ * @param {CryptoKey} privateKey
+ * @return {PromiseLike<Uint8Array>} signature
+ */
+export const sign = (data, privateKey) =>
+  webcrypto.subtle.sign(
+    {
+      name: 'ECDSA',
+      hash: { name: 'SHA-384' }
+    },
+    privateKey,
+    data
+  ).then(signature => new Uint8Array(signature))
+
+/**
+ * @experimental The API is not final!
+ *
+ * Sign a message
+ *
+ * @param {Uint8Array} signature
+ * @param {Uint8Array} data
+ * @param {CryptoKey} publicKey
+ * @return {PromiseLike<boolean>} signature
+ */
+export const verify = (signature, data, publicKey) =>
+  webcrypto.subtle.verify(
+    {
+      name: 'ECDSA',
+      hash: { name: 'SHA-384' }
+    },
+    publicKey,
+    signature,
+    data
+  )
