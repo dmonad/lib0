@@ -93,6 +93,8 @@ import module from 'lib0/[module].js'
 <b><code>array.equalFlat(a: Array&lt;ELEM&gt;, b: Array&lt;ELEM&gt;): boolean</code></b><br>
 <b><code>array.flatten(arr: Array&lt;Array&lt;ELEM&gt;&gt;): Array&lt;ELEM&gt;</code></b><br>
 <b><code>array.isArray</code></b><br>
+<b><code>array.unique(arr: Array&lt;T&gt;): Array&lt;T&gt;</code></b><br>
+<b><code>array.uniqueBy(arr: Array&lt;T&gt;, mapper: function(T):M): Array&lt;T&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
@@ -1282,6 +1284,7 @@ export const testMyFirstTest = tc => {
 <b><code>testing.compareObjects(a: Object&lt;K,V&gt;, b: Object&lt;K,V&gt;, m: string)</code></b><br>
 <b><code>testing.compare(a: T, b: T, message: string?, customCompare: function(any,T,T,string,any):boolean)</code></b><br>
 <b><code>testing.assert(condition: boolean, message: string?)</code></b><br>
+<b><code>testing.promiseRejected(f: function():Promise&lt;any&gt;)</code></b><br>
 <b><code>testing.fails(f: function():void)</code></b><br>
 <b><code>testing.runTests(tests: Object&lt;string, Object&lt;string, function(module:testing.TestCase):void|Promise&lt;any&gt;&gt;&gt;)</code></b><br>
 <b><code>testing.fail(reason: string)</code></b><br>
