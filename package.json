@@ -75,6 +75,12 @@
       "import": "./condititons.js",
       "require": "./dist/conditions.cjs"
     },
+    "./crypto": {
+      "types": "./crypto.d.ts",
+      "module": "./crypto.js",
+      "import": "./crypto.js",
+      "require": "./dist/crypto.cjs"
+    },
     "./decoding.js": "./decoding.js",
     "./dist/decoding.cjs": "./dist/decoding.cjs",
     "./decoding": {
@@ -370,6 +376,18 @@
       "module": "./websocket.js",
       "import": "./websocket.js",
       "require": "./dist/websocket.cjs"
+    },
+    "./webcrypto": {
+      "types": "./webcrypto.browser.d.ts",
+      "node": {
+        "import": "./webcrypto.node.js",
+        "require": "./dist/webcrypto.node.cjs"
+      },
+      "browser": {
+        "import": "./webcrypto.browser.js",
+        "require": "./dist/webcrypto.browser.cjs"
+      },
+      "module": "./webcrypto.browser.js"
     }
   },
   "dependencies": {
