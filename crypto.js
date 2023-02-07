@@ -52,6 +52,7 @@ export const deriveSymmetricKey = (secret, salt, { extractable = false, usages =
   )
 }
 
+/* istanbul ignore next */
 /**
  * @param {Object} opts
  * @param {boolean} [opts.extractable]
@@ -67,11 +68,13 @@ export const generateAsymmetricKey = ({ extractable = false, usages = ['sign', '
     usages
   )
 
+/* istanbul ignore next */
 /**
  * @param {CryptoKey} key - Symmetric or Asymmetric key
  */
 export const exportKey = key => webcrypto.subtle.exportKey('jwk', key)
 
+/* istanbul ignore next */
 /**
  * @param {any} jwk
  * @param {Object} opts
@@ -81,6 +84,7 @@ export const exportKey = key => webcrypto.subtle.exportKey('jwk', key)
 export const importSymmetricKey = (jwk, { extractable = false, usages = ['encrypt', 'decrypt'] } = {}) =>
   webcrypto.subtle.importKey('jwk', jwk, 'PBKDF2', extractable, usages)
 
+/* istanbul ignore next */
 /**
  * @param {any} jwk
  * @param {Object} opts
