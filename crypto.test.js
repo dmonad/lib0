@@ -40,18 +40,45 @@ export const testReapeatEncryption = async tc => {
  * @param {t.TestCase} _tc
  */
 export const testConsistentKeyGeneration = async _tc => {
-  const secret = 'qfycncpxhjktawlqkhc'
-  const salt = 'my nonce'
-  const expectedJwk = {
-    key_ops: ['encrypt', 'decrypt'],
-    ext: true,
-    kty: 'oct',
-    k: 'psAqoMh9apefdr8y1tdbNMVTLxb-tFekEFipYIOX5n8',
-    alg: 'A256GCM'
-  }
-  const key = await cryptutils.deriveSymmetricKey(secret, salt, { extractable: true })
-  const jwk = await cryptutils.exportKey('jwk', key)
-  t.compare(jwk, expectedJwk)
+  await t.groupAsync('Symmetric key generation', async () => {
+    const secret = 'qfycncpxhjktawlqkhc'
+    const salt = 'my nonce'
+    const expectedJwk = {
+      key_ops: ['encrypt', 'decrypt'],
+      ext: true,
+      kty: 'oct',
+      k: 'psAqoMh9apefdr8y1tdbNMVTLxb-tFekEFipYIOX5n8',
+      alg: 'A256GCM'
+    }
+    const key = await cryptutils.deriveSymmetricKey(secret, salt, { extractable: true })
+    const jwk = await cryptutils.exportKey(key)
+    t.compare(jwk, expectedJwk)
+  })
+  await t.groupAsync('Asymmetric key generation', async () => {
+    const jwkPublic = {
+      key_ops: ['verify'],
+      ext: true,
+      kty: 'EC',
+      x: 'zfklq8SI_XEZlBawiRmkuv1vwPqGXd456SAHvv_aH4_4v17qcnmFkChaRqCGgXKo',
+      y: 'YAt3r7fiB6j_RVKpcnokpEXE6r7XTcOzUxb3VmvkYcC5WfqDi6S7E3HzifOjeYjI',
+      crv: 'P-384'
+    }
+    const jwkPrivate = {
+      key_ops: ['sign'],
+      ext: true,
+      kty: 'EC',
+      x: 'zfklq8SI_XEZlBawiRmkuv1vwPqGXd456SAHvv_aH4_4v17qcnmFkChaRqCGgXKo',
+      y: 'YAt3r7fiB6j_RVKpcnokpEXE6r7XTcOzUxb3VmvkYcC5WfqDi6S7E3HzifOjeYjI',
+      crv: 'P-384',
+      d: 'z1bahlvHj7dWLYGr_oGGSNT_o01JdmnOoG79vLEm2LCG5Arl-4UZPFKpIWhmnZZU'
+    }
+    const privateKey = await cryptutils.importAsymmetricKey(jwkPrivate, { extractable: true, usages: ['sign'] })
+    const publicKey = await cryptutils.importAsymmetricKey(jwkPublic, { extractable: true, usages: ['verify'] })
+    const exportedPublic = await cryptutils.exportKey(publicKey)
+    const exportedPrivate = await cryptutils.exportKey(privateKey)
+    t.compare(jwkPublic, /** @type {any} */ (exportedPublic))
+    t.compare(jwkPrivate, /** @type {any} */ (exportedPrivate))
+  })
 }
 
 /**

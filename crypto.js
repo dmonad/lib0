@@ -68,6 +68,29 @@ export const generateAsymmetricKey = ({ extractable = false, usages = ['sign', '
   )
 
 /**
+ * @param {CryptoKey} key - Symmetric or Asymmetric key
+ */
+export const exportKey = key => webcrypto.subtle.exportKey('jwk', key)
+
+/**
+ * @param {any} jwk
+ * @param {Object} opts
+ * @param {boolean} [opts.extractable]
+ * @param {Array<'sign'|'verify'|'encrypt'|'decrypt'>} [opts.usages]
+ */
+export const importSymmetricKey = (jwk, { extractable = false, usages = ['encrypt', 'decrypt'] } = {}) =>
+  webcrypto.subtle.importKey('jwk', jwk, 'PBKDF2', extractable, usages)
+
+/**
+ * @param {any} jwk
+ * @param {Object} opts
+ * @param {boolean} [opts.extractable]
+ * @param {Array<'sign'|'verify'|'encrypt'|'decrypt'>} [opts.usages]
+ */
+export const importAsymmetricKey = (jwk, { extractable = false, usages = ['encrypt', 'decrypt'] } = {}) =>
+  webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-384' }, extractable, usages)
+
+/**
  * @experimental The API is not final!
  *
  * Encrypt some data using AES-GCM method.
@@ -116,8 +139,6 @@ export const decrypt = (data, key) => {
     cipher
   ).then(data => new Uint8Array(data))
 }
-
-export const exportKey = webcrypto.subtle.exportKey.bind(webcrypto.subtle)
 
 /**
  * @experimental The API is not final!
