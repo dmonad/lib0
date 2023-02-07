@@ -245,6 +245,30 @@ Using getAsync &amp; setIfUndefined ensures that the init function is only calle
 <b><code>conditions.undefinedToNull</code></b><br>
 </dl>
 </details>
+<details><summary><b>[lib0/crypto]</b> </summary>
+<pre>import * as crypto from 'lib0/crypto'</pre>
+<dl>
+<b><code>y(data: string | Uint8Array): Uint8Array</code></b><br>
+<b><code>ymmetricKey(secret: string | Uint8Array, salt: string | Uint8Array, opts: Object, opts.extractable: boolean, opts.usages: Array&lt;'sign'|'verify'|'encrypt'|'decrypt'&gt;): PromiseLike&lt;CryptoKey&gt;</code></b><br>
+<b><code>ymmetricKey()</code></b><br>
+<b><code>eAsymmetricKey(opts: Object, opts.extractable: boolean, opts.usages: Array&lt;'sign'|'verify'|'encrypt'|'decrypt'&gt;)</code></b><br>
+<b><code>eAsymmetricKey()</code></b><br>
+<b><code>ey(key: CryptoKey)</code></b><br>
+<b><code>ey()</code></b><br>
+<b><code>ymmetricKey(jwk: any, opts: Object, opts.extractable: boolean, opts.usages: Array&lt;'sign'|'verify'|'encrypt'|'decrypt'&gt;)</code></b><br>
+<b><code>ymmetricKey()</code></b><br>
+<b><code>symmetricKey(jwk: any, opts: Object, opts.extractable: boolean, opts.usages: Array&lt;'sign'|'verify'|'encrypt'|'decrypt'&gt;)</code></b><br>
+<b><code>symmetricKey()</code></b><br>
+<b><code>(data: Uint8Array, key: CryptoKey): PromiseLike&lt;Uint8Array&gt;</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(data: Uint8Array, key: CryptoKey): PromiseLike&lt;Uint8Array&gt;</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(data: Uint8Array, privateKey: CryptoKey): PromiseLike&lt;Uint8Array&gt;</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(signature: Uint8Array, data: Uint8Array, publicKey: CryptoKey): PromiseLike&lt;boolean&gt;</code></b><br>
+<b><code>()</code></b><br>
+</dl>
+</details>
 <details><summary><b>[lib0/decoding]</b> Efficient schema-less binary decoding with support for variable length encoding.</summary>
 <pre>import * as decoding from 'lib0/decoding'</pre>
 
@@ -1327,6 +1351,25 @@ export const testMyFirstTest = tc => {
 <b><code>url.decodeQueryParams(url: string): Object&lt;string,string&gt;</code></b><br>
 <dd><p>Parse query parameters from an url.</p></dd>
 <b><code>url.encodeQueryParams(params: Object&lt;string,string&gt;): string</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/webcrypto.browser]</b> </summary>
+<pre>import * as webcrypto.browser from 'lib0/webcrypto.browser'</pre>
+<dl>
+<b><code></code></b><br>
+<b><code>()</code></b><br>
+<b><code>omValues</code></b><br>
+<b><code>omValues()</code></b><br>
+</dl>
+</details>
+<details><summary><b>[lib0/webcrypto.node]</b> </summary>
+<pre>import * as webcrypto.node from 'lib0/webcrypto.node'</pre>
+<dl>
+<b><code></code></b><br>
+<b><code>()</code></b><br>
+<b><code>to.subtle: any</code></b><br>
+<b><code>omValues</code></b><br>
+<b><code>omValues()</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/websocket]</b> Tiny websocket connection handler.</summary>
