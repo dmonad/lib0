@@ -1,6 +1,7 @@
 import * as cryptutils from 'lib0/crypto'
 import * as t from './testing.js'
 import * as prng from './prng.js'
+import * as webcrypto from 'lib0/webcrypto'
 
 /**
  * @param {t.TestCase} tc
@@ -34,6 +35,47 @@ export const testReapeatEncryption = async tc => {
     decrypted = await cryptutils.decrypt(encrypted, key)
   })
   t.compare(data, decrypted)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testEncryptionPerformance = async tc => {
+  const secret = prng.word(tc.prng)
+  const salt = prng.word(tc.prng)
+  /**
+   * @type {any}
+   */
+  let key
+  await t.measureTimeAsync('Key generation', async () => {
+    key = await cryptutils.deriveSymmetricKey(secret, salt)
+  })
+  /**
+   * @type {Array<Uint8Array>}
+   */
+  const data = []
+  for (let i = 0; i < 1000; i++) {
+    data.push(webcrypto.getRandomValues(new Uint8Array(1000)))
+  }
+  /**
+   * @type {Array<Uint8Array>}
+   */
+  const encryptedData = []
+  await t.measureTimeAsync('Encrypt 1k blocks of size 1kb', async () => {
+    for (let i = 0; i < data.length; i++) {
+      encryptedData.push(await cryptutils.encrypt(data[i], key))
+    }
+  })
+  /**
+   * @type {Array<Uint8Array>}
+   */
+  const decryptedData = []
+  await t.measureTimeAsync('Decrypt 1k blocks of size 1kb', async () => {
+    for (let i = 0; i < encryptedData.length; i++) {
+      decryptedData.push(await cryptutils.decrypt(encryptedData[i], key))
+    }
+  })
+  t.compare(data, decryptedData)
 }
 
 /**
