@@ -78,7 +78,7 @@ import module from 'lib0/[module].js'
 <details><summary><b>[lib0/array]</b> Utility module to work with Arrays.</summary>
 <pre>import * as array from 'lib0/array'</pre>
 <dl>
-<b><code>array.last(arr: Array&lt;L&gt;): L</code></b><br>
+<b><code>array.last(arr: ArrayLike&lt;L&gt;): L</code></b><br>
 <dd><p>Return the last element of an array. The element must exist</p></dd>
 <b><code>array.create(): Array&lt;C&gt;</code></b><br>
 <b><code>array.copy(a: Array&lt;D&gt;): Array&lt;D&gt;</code></b><br>
@@ -86,15 +86,15 @@ import module from 'lib0/[module].js'
 <dd><p>Append elements from src to dest</p></dd>
 <b><code>array.from(arraylike: ArrayLike&lt;T&gt;|Iterable&lt;T&gt;): T</code></b><br>
 <dd><p>Transforms something array-like to an actual Array.</p></dd>
-<b><code>array.every(arr: Array&lt;ITEM&gt;, f: function(ITEM, number, Array&lt;ITEM&gt;):boolean): boolean</code></b><br>
+<b><code>array.every(arr: ARR, f: function(ITEM, number, ARR):boolean): boolean</code></b><br>
 <dd><p>True iff condition holds on every element in the Array.</p></dd>
-<b><code>array.some(arr: Array&lt;S&gt;, f: function(S, number, Array&lt;S&gt;):boolean): boolean</code></b><br>
+<b><code>array.some(arr: ARR, f: function(S, number, ARR):boolean): boolean</code></b><br>
 <dd><p>True iff condition holds on some element in the Array.</p></dd>
-<b><code>array.equalFlat(a: Array&lt;ELEM&gt;, b: Array&lt;ELEM&gt;): boolean</code></b><br>
+<b><code>array.equalFlat(a: ArrayLike&lt;ELEM&gt;, b: ArrayLike&lt;ELEM&gt;): boolean</code></b><br>
 <b><code>array.flatten(arr: Array&lt;Array&lt;ELEM&gt;&gt;): Array&lt;ELEM&gt;</code></b><br>
 <b><code>array.isArray</code></b><br>
 <b><code>array.unique(arr: Array&lt;T&gt;): Array&lt;T&gt;</code></b><br>
-<b><code>array.uniqueBy(arr: Array&lt;T&gt;, mapper: function(T):M): Array&lt;T&gt;</code></b><br>
+<b><code>array.uniqueBy(arr: ArrayLike&lt;T&gt;, mapper: function(T):M): Array&lt;T&gt;</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/binary]</b> Binary data constants.</summary>
