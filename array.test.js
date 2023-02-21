@@ -22,6 +22,17 @@ export const testflatten = tc => {
 /**
  * @param {t.TestCase} tc
  */
+export const testEvery = tc => {
+  const arr = [1, 2, 3]
+  t.assert(array.every(arr, x => x <= 3))
+  t.assert(!array.every(arr, x => x < 3))
+  t.assert(array.some(arr, x => x === 2))
+  t.assert(!array.some(arr, x => x === 42))
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testIsArray = tc => {
   t.assert(array.isArray([]))
   t.assert(array.isArray([1]))

@@ -10,7 +10,7 @@ import * as set from './set.js'
  * Return the last element of an array. The element must exist
  *
  * @template L
- * @param {Array<L>} arr
+ * @param {ArrayLike<L>} arr
  * @return {L}
  */
 export const last = arr => arr[arr.length - 1]
@@ -56,29 +56,45 @@ export const from = Array.from
  *
  * @function
  * @template ITEM
+ * @template {ArrayLike<ITEM>} ARR
  *
- * @param {Array<ITEM>} arr
- * @param {function(ITEM, number, Array<ITEM>):boolean} f
+ * @param {ARR} arr
+ * @param {function(ITEM, number, ARR):boolean} f
  * @return {boolean}
  */
-export const every = (arr, f) => arr.every(f)
+export const every = (arr, f) => {
+  for (let i = 0; i < arr.length; i++) {
+    if (!f(arr[i], i, arr)) {
+      return false
+    }
+  }
+  return true
+}
 
 /**
  * True iff condition holds on some element in the Array.
  *
  * @function
  * @template S
- * @param {Array<S>} arr
- * @param {function(S, number, Array<S>):boolean} f
+ * @template {ArrayLike<S>} ARR
+ * @param {ARR} arr
+ * @param {function(S, number, ARR):boolean} f
  * @return {boolean}
  */
-export const some = (arr, f) => arr.some(f)
+export const some = (arr, f) => {
+  for (let i = 0; i < arr.length; i++) {
+    if (f(arr[i], i, arr)) {
+      return true
+    }
+  }
+  return false
+}
 
 /**
  * @template ELEM
  *
- * @param {Array<ELEM>} a
- * @param {Array<ELEM>} b
+ * @param {ArrayLike<ELEM>} a
+ * @param {ArrayLike<ELEM>} b
  * @return {boolean}
  */
 export const equalFlat = (a, b) => a.length === b.length && every(a, (item, index) => item === b[index])
@@ -102,7 +118,7 @@ export const unique = arr => from(set.from(arr))
 /**
  * @template T
  * @template M
- * @param {Array<T>} arr
+ * @param {ArrayLike<T>} arr
  * @param {function(T):M} mapper
  * @return {Array<T>}
  */
