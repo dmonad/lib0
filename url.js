@@ -19,7 +19,7 @@ export const decodeQueryParams = url => {
   const query = {}
   const urlQuerySplit = url.split('?')
   const pairs = urlQuerySplit[urlQuerySplit.length - 1].split('&')
-  for (var i = 0; i < pairs.length; i++) {
+  for (let i = 0; i < pairs.length; i++) {
     const item = pairs[i]
     if (item.length > 0) {
       const pair = item.split('=')

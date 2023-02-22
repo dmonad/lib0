@@ -5,7 +5,7 @@ import * as map from './map.js'
 import * as promise from './promise.js'
 import * as error from './error.js'
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const nottestingNotTested = () => {
   t.assert(false, 'This test should not be executed because the name doesnt start with "test"')
 }
@@ -125,7 +125,7 @@ export const testSkipping = () => {
   t.skip(false)
   t.assert(true)
   t.skip()
-  /* istanbul ignore next */
+  /* c8 ignore next */
   t.fail('should have skipped')
 }
 

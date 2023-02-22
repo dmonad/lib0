@@ -30,7 +30,7 @@ export const createUint8ArrayViewFromArrayBuffer = (buffer, byteOffset, length) 
  */
 export const createUint8ArrayFromArrayBuffer = buffer => new Uint8Array(buffer)
 
-/* istanbul ignore next */
+/* c8 ignore start */
 /**
  * @param {Uint8Array} bytes
  * @return {string}
@@ -43,6 +43,7 @@ const toBase64Browser = bytes => {
   // eslint-disable-next-line no-undef
   return btoa(s)
 }
+/* c8 ignore stop */
 
 /**
  * @param {Uint8Array} bytes
@@ -50,7 +51,7 @@ const toBase64Browser = bytes => {
  */
 const toBase64Node = bytes => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64')
 
-/* istanbul ignore next */
+/* c8 ignore start */
 /**
  * @param {string} s
  * @return {Uint8Array}
@@ -64,6 +65,7 @@ const fromBase64Browser = s => {
   }
   return bytes
 }
+/* c8 ignore stop */
 
 /**
  * @param {string} s
@@ -73,10 +75,10 @@ const fromBase64Node = s => {
   return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const fromBase64 = env.isBrowser ? fromBase64Browser : fromBase64Node
 
 /**

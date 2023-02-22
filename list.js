@@ -87,10 +87,11 @@ export const removeNode = remove
  * @param {N} node
  */
 export const insertBetween = (queue, left, right, node) => {
-  /* istanbul ignore if */
+  /* c8 ignore start */
   if (left != null && left.next !== right) {
     throw error.unexpectedCase()
   }
+  /* c8 ignore stop */
   if (left) {
     left.next = node
   } else {

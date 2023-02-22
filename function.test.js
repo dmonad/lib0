@@ -2,9 +2,46 @@ import * as f from './function.js'
 import * as t from './testing.js'
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testDeepEquality = tc => {
+export const testBasics = _tc => {
+  let calls = 0
+  f.apply(() => calls++)
+  t.assert(calls === 1)
+  t.assert(f.isOneOf(1, [3, 2, 1]))
+  t.assert(!f.isOneOf(0, [3, 2, 1]))
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testCallAll = _tc => {
+  const err = new Error()
+  let calls = 0
+  try {
+    f.callAll([
+      () => {
+        calls++
+      },
+      () => {
+        throw err
+      },
+      f.nop,
+      () => {
+        calls++
+      }
+    ], [])
+  } catch (e) {
+    t.assert(calls === 2)
+    return
+  }
+  t.fail('Expected callAll to throw error')
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testDeepEquality = _tc => {
   t.assert(f.equalityDeep(1, 1))
   t.assert(!f.equalityDeep(1, 2))
   t.assert(!f.equalityDeep(1, '1'))

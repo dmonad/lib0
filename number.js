@@ -20,7 +20,7 @@ export const HIGHEST_INT32 = binary.BITS31
  * @module number
  */
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const isInteger = Number.isInteger || (num => typeof num === 'number' && isFinite(num) && math.floor(num) === num)
 export const isNaN = Number.isNaN
 export const parseInt = Number.parseInt

@@ -37,11 +37,12 @@ export const copy = m => {
  * ```
  *
  * @function
- * @template T,K
- * @param {Map<K, T>} map
+ * @template V,K
+ * @template {Map<K,V>} MAP
+ * @param {MAP} map
  * @param {K} key
- * @param {function():T} createT
- * @return {T}
+ * @param {function():V} createT
+ * @return {V}
  */
 export const setIfUndefined = (map, key, createT) => {
   let set = map.get(key)

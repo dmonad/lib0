@@ -5,11 +5,11 @@ import * as decoding from './decoding.js'
 import * as string from './string.js'
 import * as webcrypto from 'lib0/webcrypto'
 
-/* istanbul ignore next */
 /**
  * @param {string | Uint8Array} data
  * @return {Uint8Array}
  */
+/* c8 ignore next */
 const toBinary = data => typeof data === 'string' ? string.encodeUtf8(data) : data
 
 /**
@@ -52,7 +52,7 @@ export const deriveSymmetricKey = (secret, salt, { extractable = false, usages =
   )
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {Object} opts
  * @param {boolean} [opts.extractable]
@@ -68,13 +68,13 @@ export const generateAsymmetricKey = ({ extractable = false, usages = ['sign', '
     usages
   )
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {CryptoKey} key - Symmetric or Asymmetric key
  */
 export const exportKey = key => webcrypto.subtle.exportKey('jwk', key)
 
-/* istanbul ignore next */
+/* c8 ignore start */
 /**
  * @param {any} jwk
  * @param {Object} opts
@@ -83,8 +83,9 @@ export const exportKey = key => webcrypto.subtle.exportKey('jwk', key)
  */
 export const importSymmetricKey = (jwk, { extractable = false, usages = ['encrypt', 'decrypt'] } = {}) =>
   webcrypto.subtle.importKey('jwk', jwk, 'PBKDF2', extractable, usages)
+/* c8 ignore stop */
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {any} jwk
  * @param {Object} opts

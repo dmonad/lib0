@@ -33,7 +33,7 @@ import * as storage from './storage.js'
  */
 const channels = new Map()
 
-/* istanbul ignore next */
+/* c8 ignore start */
 class LocalStoragePolyfill {
   /**
    * @param {string} room
@@ -54,9 +54,10 @@ class LocalStoragePolyfill {
     storage.varStorage.setItem(this.room, buffer.toBase64(buffer.createUint8ArrayFromArrayBuffer(buf)))
   }
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
 // Use BroadcastChannel or Polyfill
+/* c8 ignore next */
 const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : BroadcastChannel
 
 /**
@@ -67,7 +68,6 @@ const getChannel = room =>
   map.setIfUndefined(channels, room, () => {
     const subs = set.create()
     const bc = new BC(room)
-    /* istanbul ignore next */
     /**
      * @param {{data:ArrayBuffer}} e
      */
@@ -99,7 +99,7 @@ export const subscribe = (room, f) => {
 export const unsubscribe = (room, f) => {
   const channel = getChannel(room)
   const unsubscribed = channel.subs.delete(f)
-  /* istanbul ignore else */
+  /* c8 ignore else */
   if (unsubscribed && channel.subs.size === 0) {
     channel.bc.close()
     channels.delete(room)

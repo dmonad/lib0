@@ -31,10 +31,11 @@ import * as func from './function.test.js'
 import * as storage from './storage.test.js'
 import * as list from './list.test.js'
 import * as cache from './cache.test.js'
+import * as symbol from './symbol.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
-/* istanbul ignore if */
+/* c8 ignore next */
 if (isBrowser) {
   log.createVConsole(document.body)
 }
@@ -70,9 +71,10 @@ runTests({
   func,
   storage,
   list,
-  cache
+  cache,
+  symbol
 }).then(success => {
-  /* istanbul ignore next */
+  /* c8 ignore next */
   if (isNode) {
     process.exit(success ? 0 : 1)
   }

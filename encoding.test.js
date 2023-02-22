@@ -671,6 +671,27 @@ export const testUintOptRleEncoder = _tc => {
 /**
  * @param {t.TestCase} _tc
  */
+export const testIncUintOptRleEncoder = _tc => {
+  const N = 100
+  const encoder = new encoding.IncUintOptRleEncoder()
+  for (let i = 0; i < N; i++) {
+    encoder.write(i)
+    for (let j = 0; j < i; j++) { // write additional i times
+      encoder.write(i)
+    }
+  }
+  const decoder = new decoding.IncUintOptRleDecoder(encoder.toUint8Array())
+  for (let i = 0; i < N; i++) {
+    t.assert(i === decoder.read())
+    for (let j = 0; j < i; j++) { // read additional i times
+      t.assert(i === decoder.read())
+    }
+  }
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
 export const testIntDiffRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.IntDiffOptRleEncoder()
@@ -773,15 +794,31 @@ export const testStringDecoder = tc => {
 }
 
 /**
- * @param {t.TestCase} _tc
+ * @param {t.TestCase} tc
  */
-export const testLargeNumberAnyEncoding = _tc => {
+export const testLargeNumberEncoding = tc => {
   const encoder = encoding.createEncoder()
-  const num = -2.2062063918362897e+50
-  encoding.writeAny(encoder, num)
+  const num1 = -2.2062063918362897e+50
+  const num2 = BigInt(prng.int53(tc.prng, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER))
+  const num3 = BigInt(prng.uint53(tc.prng, 0, number.MAX_SAFE_INTEGER))
+  const num4 = prng.real53(tc.prng)
+  const num5 = 0.5
+  encoding.writeAny(encoder, num1)
+  encoding.writeBigInt64(encoder, num2)
+  encoding.writeBigUint64(encoder, num3)
+  encoding.writeFloat64(encoder, num4)
+  encoding.writeFloat32(encoder, num5)
   const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
-  const readNum = decoding.readAny(decoder)
-  t.assert(readNum === num)
+  const readNum1 = decoding.readAny(decoder)
+  t.assert(readNum1 === num1)
+  const readNum2 = decoding.readBigInt64(decoder)
+  t.assert(readNum2 === num2)
+  const readNum3 = decoding.readBigUint64(decoder)
+  t.assert(readNum3 === num3)
+  const readNum4 = decoding.readFloat64(decoder)
+  t.assert(readNum4 === num4)
+  const readNum5 = decoding.readFloat32(decoder)
+  t.assert(readNum5 === num5)
 }
 
 /**

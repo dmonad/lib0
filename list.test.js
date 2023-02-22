@@ -60,6 +60,11 @@ export const testSelectivePop = tc => {
   list.replace(l, q3, new QueueItem(4))
   t.compare(list.map(l, n => n.v), [1, 2, 4])
   t.compare(list.toArray(l).map(n => n.v), [1, 2, 4])
+  {
+    let cnt = 0
+    list.forEach(l, () => cnt++)
+    t.assert(cnt === l.len)
+  }
   t.assert(l.len === 3)
   t.assert(list.remove(l, middleNode) === middleNode)
   t.assert(l.len === 2)

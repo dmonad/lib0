@@ -9,5 +9,5 @@
  * @param {T|null|undefined} v
  * @return {T|null}
  */
-/* istanbul ignore next */
+/* c8 ignore next */
 export const undefinedToNull = v => v === undefined ? null : v

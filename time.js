@@ -41,7 +41,7 @@ export const humanizeDuration = d => {
     return days + 'd' + ((hours > 0 || minutes > 30) ? ' ' + (minutes > 30 ? hours + 1 : hours) + 'h' : '')
   }
   if (hours > 0) {
-    /* istanbul ignore next */
+    /* c8 ignore next */
     return hours + 'h' + ((minutes > 0 || seconds > 30) ? ' ' + (seconds > 30 ? minutes + 1 : minutes) + 'min' : '')
   }
   return minutes + 'min' + (seconds > 0 ? ' ' + seconds + 's' : '')

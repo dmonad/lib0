@@ -53,11 +53,11 @@ const _nodeStyleMap = {
   [UNCOLOR]: '\x1b[0m'
 }
 
-/* istanbul ignore next */
 /**
  * @param {Array<string|Symbol|Object|number>} args
  * @return {Array<string|object|number>}
  */
+/* c8 ignore start */
 const computeBrowserLoggingArgs = (args) => {
   const strBuilder = []
   const styles = []
@@ -68,7 +68,6 @@ const computeBrowserLoggingArgs = (args) => {
   let logArgs = []
   // try with formatting until we find something unsupported
   let i = 0
-
   for (; i < args.length; i++) {
     const arg = args[i]
     // @ts-ignore
@@ -89,7 +88,6 @@ const computeBrowserLoggingArgs = (args) => {
       }
     }
   }
-
   if (i > 0) {
     // create logArgs with what we have so far
     logArgs = styles
@@ -104,8 +102,9 @@ const computeBrowserLoggingArgs = (args) => {
   }
   return logArgs
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
+/* c8 ignore start */
 /**
  * @param {Array<string|Symbol|Object|number>} args
  * @return {Array<string|object|number>}
@@ -113,10 +112,8 @@ const computeBrowserLoggingArgs = (args) => {
 const computeNoColorLoggingArgs = args => {
   const strBuilder = []
   const logArgs = []
-
   // try with formatting until we find something unsupported
   let i = 0
-
   for (; i < args.length; i++) {
     const arg = args[i]
     // @ts-ignore
@@ -135,7 +132,6 @@ const computeNoColorLoggingArgs = args => {
   // append the rest
   for (; i < args.length; i++) {
     const arg = args[i]
-    /* istanbul ignore else */
     if (!(arg instanceof Symbol)) {
       if (arg.constructor === Object) {
         logArgs.push(JSON.stringify(arg))
@@ -146,8 +142,9 @@ const computeNoColorLoggingArgs = args => {
   }
   return logArgs
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
+/* c8 ignore start */
 /**
  * @param {Array<string|Symbol|Object|number>} args
  * @return {Array<string|object|number>}
@@ -155,10 +152,8 @@ const computeNoColorLoggingArgs = args => {
 const computeNodeLoggingArgs = (args) => {
   const strBuilder = []
   const logArgs = []
-
   // try with formatting until we find something unsupported
   let i = 0
-
   for (; i < args.length; i++) {
     const arg = args[i]
     // @ts-ignore
@@ -181,29 +176,30 @@ const computeNodeLoggingArgs = (args) => {
   // append the rest
   for (; i < args.length; i++) {
     const arg = args[i]
-    /* istanbul ignore else */
     if (!(arg instanceof Symbol)) {
       logArgs.push(arg)
     }
   }
   return logArgs
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
+/* c8 ignore start */
 const computeLoggingArgs = env.supportsColor
   ? (env.isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs)
   : computeNoColorLoggingArgs
+/* c8 ignore stop */
 
 /**
  * @param {Array<string|Symbol|Object|number>} args
  */
 export const print = (...args) => {
   console.log(...computeLoggingArgs(args))
-  /* istanbul ignore next */
+  /* c8 ignore next */
   vconsoles.forEach((vc) => vc.print(args))
 }
 
-/* istanbul ignore next */
+/* c8 ignore start */
 /**
  * @param {Array<string|Symbol|Object|number>} args
  */
@@ -212,21 +208,23 @@ export const warn = (...args) => {
   args.unshift(ORANGE)
   vconsoles.forEach((vc) => vc.print(args))
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
 /**
  * @param {Error} err
  */
+/* c8 ignore start */
 export const printError = (err) => {
   console.error(err)
   vconsoles.forEach((vc) => vc.printError(err))
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
 /**
  * @param {string} url image location
  * @param {number} height height of the image in pixel
  */
+/* c8 ignore start */
 export const printImg = (url, height) => {
   if (env.isBrowser) {
     console.log(
@@ -237,12 +235,13 @@ export const printImg = (url, height) => {
   }
   vconsoles.forEach((vc) => vc.printImg(url, height))
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
 /**
  * @param {string} base64
  * @param {number} height
  */
+/* c8 ignore next 2 */
 export const printImgBase64 = (base64, height) =>
   printImg(`data:image/gif;base64,${base64}`, height)
 
@@ -251,7 +250,7 @@ export const printImgBase64 = (base64, height) =>
  */
 export const group = (...args) => {
   console.group(...computeLoggingArgs(args))
-  /* istanbul ignore next */
+  /* c8 ignore next */
   vconsoles.forEach((vc) => vc.group(args))
 }
 
@@ -260,38 +259,38 @@ export const group = (...args) => {
  */
 export const groupCollapsed = (...args) => {
   console.groupCollapsed(...computeLoggingArgs(args))
-  /* istanbul ignore next */
+  /* c8 ignore next */
   vconsoles.forEach((vc) => vc.groupCollapsed(args))
 }
 
 export const groupEnd = () => {
   console.groupEnd()
-  /* istanbul ignore next */
+  /* c8 ignore next */
   vconsoles.forEach((vc) => vc.groupEnd())
 }
 
-/* istanbul ignore next */
 /**
  * @param {function():Node} createNode
  */
+/* c8 ignore next 2 */
 export const printDom = (createNode) =>
   vconsoles.forEach((vc) => vc.printDom(createNode()))
 
-/* istanbul ignore next */
 /**
  * @param {HTMLCanvasElement} canvas
  * @param {number} height
  */
+/* c8 ignore next 2 */
 export const printCanvas = (canvas, height) =>
   printImg(canvas.toDataURL(), height)
 
 export const vconsoles = set.create()
 
-/* istanbul ignore next */
 /**
  * @param {Array<string|Symbol|Object|number>} args
  * @return {Array<Element>}
  */
+/* c8 ignore start */
 const _computeLineSpans = (args) => {
   const spans = []
   const currentStyle = new Map()
@@ -332,11 +331,12 @@ const _computeLineSpans = (args) => {
   }
   return spans
 }
+/* c8 ignore stop */
 
 const lineStyle =
   'font-family:monospace;border-bottom:1px solid #e2e2e2;padding:2px;'
 
-/* istanbul ignore next */
+/* c8 ignore start */
 export class VConsole {
   /**
    * @param {Element} dom
@@ -461,17 +461,19 @@ export class VConsole {
     })
   }
 }
+/* c8 ignore stop */
 
-/* istanbul ignore next */
 /**
  * @param {Element} dom
  */
+/* c8 ignore next */
 export const createVConsole = (dom) => new VConsole(dom)
 
 const loggingColors = [GREEN, PURPLE, ORANGE, BLUE]
 let nextColor = 0
 let lastLoggingTime = time.getUnixTime()
 
+/* c8 ignore start */
 /**
  * @param {string} moduleName
  * @return {function(...any):void}
@@ -485,21 +487,24 @@ export const createModuleLogger = (moduleName) => {
   nextColor = (nextColor + 1) % loggingColors.length
   moduleName += ': '
 
-  return !doLogging ? func.nop : (...args) => {
-    const timeNow = time.getUnixTime()
-    const timeDiff = timeNow - lastLoggingTime
-    lastLoggingTime = timeNow
-    print(
-      color,
-      moduleName,
-      UNCOLOR,
-      ...args.map((arg) =>
-        (typeof arg === 'string' || typeof arg === 'symbol')
-          ? arg
-          : JSON.stringify(arg)
-      ),
-      color,
-      ' +' + timeDiff + 'ms'
-    )
-  }
+  return !doLogging
+    ? func.nop
+    : (...args) => {
+      const timeNow = time.getUnixTime()
+      const timeDiff = timeNow - lastLoggingTime
+      lastLoggingTime = timeNow
+      print(
+        color,
+        moduleName,
+        UNCOLOR,
+        ...args.map((arg) =>
+          (typeof arg === 'string' || typeof arg === 'symbol')
+            ? arg
+            : JSON.stringify(arg)
+        ),
+        color,
+        ' +' + timeDiff + 'ms'
+      )
+    }
 }
+/* c8 ignore stop */

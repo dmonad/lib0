@@ -250,10 +250,11 @@ export const readVarUint = decoder => {
     if (r < binary.BIT8) {
       return num
     }
-    /* istanbul ignore if */
+    /* c8 ignore start */
     if (num > number.MAX_SAFE_INTEGER) {
       throw errorIntegerOutOfRange
     }
+    /* c8 ignore stop */
   }
   throw errorUnexpectedEndOfArray
 }
@@ -287,10 +288,11 @@ export const readVarInt = decoder => {
     if (r < binary.BIT8) {
       return sign * num
     }
-    /* istanbul ignore if */
+    /* c8 ignore start */
     if (num > number.MAX_SAFE_INTEGER) {
       throw errorIntegerOutOfRange
     }
+    /* c8 ignore stop */
   }
   throw errorUnexpectedEndOfArray
 }
@@ -336,7 +338,7 @@ export const peekVarInt = decoder => {
  * @param {Decoder} decoder
  * @return {String} The read String.
  */
-/* istanbul ignore next */
+/* c8 ignore start */
 export const _readVarStringPolyfill = decoder => {
   let remainingLen = readVarUint(decoder)
   if (remainingLen === 0) {
@@ -361,6 +363,7 @@ export const _readVarStringPolyfill = decoder => {
     return decodeURIComponent(escape(encodedString))
   }
 }
+/* c8 ignore stop */
 
 /**
  * @function
@@ -379,7 +382,7 @@ export const _readVarStringNative = decoder =>
  * @return {String} The read String
  *
  */
-/* istanbul ignore next */
+/* c8 ignore next */
 export const readVarString = string.utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill
 
 /**

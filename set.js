@@ -18,15 +18,12 @@ export const toArray = set => Array.from(set)
  * @param {Set<T>} set
  * @return {T}
  */
-export const first = set => {
-  return set.values().next().value || undefined
-}
+export const first = set =>
+  set.values().next().value || undefined
 
 /**
  * @template T
  * @param {Iterable<T>} entries
  * @return {Set<T>}
  */
-export const from = entries => {
-  return new Set(entries)
-}
+export const from = entries => new Set(entries)

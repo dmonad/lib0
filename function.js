@@ -60,6 +60,8 @@ export const equalityStrict = (a, b) => a === b
  */
 export const equalityFlat = (a, b) => a === b || (a != null && b != null && a.constructor === b.constructor && ((a instanceof Array && array.equalFlat(a, /** @type {Array<T>} */ (b))) || (typeof a === 'object' && object.equalFlat(a, b))))
 
+/* c8 ignore start */
+
 /**
  * @param {any} a
  * @param {any} b
@@ -148,3 +150,4 @@ export const equalityDeep = (a, b) => {
  */
 // @ts-ignore
 export const isOneOf = (value, options) => options.includes(value)
+/* c8 ignore stop */

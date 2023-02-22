@@ -2,27 +2,27 @@ import * as t from './testing.js'
 import * as idb from './indexeddb.js'
 import { isBrowser } from './environment.js'
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {IDBDatabase} db
  */
 const initTestDB = db => idb.createStores(db, [['test', { autoIncrement: true }]])
 const testDBName = 'idb-test'
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {IDBDatabase} db
  */
 const createTransaction = db => db.transaction(['test'], 'readwrite')
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {IDBTransaction} t
  * @return {IDBObjectStore}
  */
 const getStore = t => idb.getStore(t, 'test')
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const testRetrieveElements = async () => {
   t.skip(!isBrowser)
   t.describe('create, then iterate some keys')

@@ -10,13 +10,13 @@ import * as conditions from './conditions.js'
 import * as storage from './storage.js'
 import * as f from './function.js'
 
-/* istanbul ignore next */
+/* c8 ignore next */
 // @ts-ignore
 export const isNode = typeof process !== 'undefined' && process.release &&
   /node|io\.js/.test(process.release.name)
-/* istanbul ignore next */
+/* c8 ignore next */
 export const isBrowser = typeof window !== 'undefined' && !isNode
-/* istanbul ignore next */
+/* c8 ignore next 3 */
 export const isMac = typeof navigator !== 'undefined'
   ? /Mac/.test(navigator.platform)
   : false
@@ -27,14 +27,13 @@ export const isMac = typeof navigator !== 'undefined'
 let params
 const args = []
 
-/* istanbul ignore next */
+/* c8 ignore start */
 const computeParams = () => {
   if (params === undefined) {
     if (isNode) {
       params = map.create()
       const pargs = process.argv
       let currParamName = null
-      /* istanbul ignore next */
       for (let i = 0; i < pargs.length; i++) {
         const parg = pargs[i]
         if (parg[0] === '-') {
@@ -70,12 +69,13 @@ const computeParams = () => {
   }
   return params
 }
+/* c8 ignore stop */
 
 /**
  * @param {string} name
  * @return {boolean}
  */
-/* istanbul ignore next */
+/* c8 ignore next */
 export const hasParam = (name) => computeParams().has(name)
 
 /**
@@ -83,16 +83,15 @@ export const hasParam = (name) => computeParams().has(name)
  * @param {string} defaultVal
  * @return {string}
  */
-/* istanbul ignore next */
+/* c8 ignore next 2 */
 export const getParam = (name, defaultVal) =>
   computeParams().get(name) || defaultVal
-// export const getArgs = name => computeParams() && args
 
 /**
  * @param {string} name
  * @return {string|null}
  */
-/* istanbul ignore next */
+/* c8 ignore next 4 */
 export const getVariable = (name) =>
   isNode
     ? conditions.undefinedToNull(process.env[name.toUpperCase()])
@@ -102,6 +101,7 @@ export const getVariable = (name) =>
  * @param {string} name
  * @return {string|null}
  */
+/* c8 ignore next 2 */
 export const getConf = (name) =>
   computeParams().get('--' + name) || getVariable(name)
 
@@ -109,21 +109,22 @@ export const getConf = (name) =>
  * @param {string} name
  * @return {boolean}
  */
-/* istanbul ignore next */
+/* c8 ignore next 2 */
 export const hasConf = (name) =>
   hasParam('--' + name) || getVariable(name) !== null
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const production = hasConf('production')
 
-/* istanbul ignore next */
+/* c8 ignore next 2 */
 const forceColor = isNode &&
   f.isOneOf(process.env.FORCE_COLOR, ['true', '1', '2'])
 
-/* istanbul ignore next */
+/* c8 ignore start */
 export const supportsColor = !hasParam('no-colors') &&
   (!isNode || process.stdout.isTTY || forceColor) && (
   !isNode || hasParam('color') || forceColor ||
     getVariable('COLORTERM') !== null ||
     (getVariable('TERM') || '').includes('color')
 )
+/* c8 ignore stop */

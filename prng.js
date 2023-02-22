@@ -25,7 +25,6 @@ import * as buffer from './buffer.js'
  * @typedef {Object} PRNG
  * @property {generatorNext} next Generate new number
  */
-
 export const DefaultPRNG = Xoroshiro128plus
 
 /**
@@ -184,6 +183,7 @@ export const uint8Array = (gen, len) => {
   return buf
 }
 
+/* c8 ignore start */
 /**
  * @param {PRNG} gen
  * @param {number} len
@@ -197,3 +197,4 @@ export const uint16Array = (gen, len) => new Uint16Array(uint8Array(gen, len * 2
  * @return {Uint32Array}
  */
 export const uint32Array = (gen, len) => new Uint32Array(uint8Array(gen, len * 4).buffer)
+/* c8 ignore stop */

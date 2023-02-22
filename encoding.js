@@ -288,7 +288,7 @@ const _maxStrBSize = _strBuffer.length / 3
 export const _writeVarStringNative = (encoder, str) => {
   if (str.length < _maxStrBSize) {
     // We can encode the string into the existing buffer
-    /* istanbul ignore else */
+    /* c8 ignore next */
     const written = string.utf8TextEncoder.encodeInto(str, _strBuffer).written || 0
     writeVarUint(encoder, written)
     for (let i = 0; i < written; i++) {
@@ -322,7 +322,7 @@ export const _writeVarStringPolyfill = (encoder, str) => {
  * @param {Encoder} encoder
  * @param {String} str The string that is to be encoded.
  */
-/* istanbul ignore next */
+/* c8 ignore next */
 export const writeVarString = (string.utf8TextEncoder && string.utf8TextEncoder.encodeInto) ? _writeVarStringNative : _writeVarStringPolyfill
 
 /**
@@ -589,6 +589,7 @@ export class RleEncoder extends Encoder {
   }
 }
 
+
 /**
  * Basic diff decoder using variable length encoding.
  *
@@ -660,7 +661,6 @@ export class RleIntDiffEncoder extends Encoder {
  * @param {UintOptRleEncoder} encoder
  */
 const flushUintOptRleEncoder = encoder => {
-  /* istanbul ignore else */
   if (encoder.count > 0) {
     // flush counter, unless this is the first value (count = 0)
     // case 1: just a single value. set sign to positive

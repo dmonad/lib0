@@ -396,11 +396,11 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.1.0",
     "@rollup/plugin-node-resolve": "^11.2.0",
+    "c8": "^7.13.0",
     "concurrently": "^5.3.0",
     "http-server": "^0.12.3",
     "jsdoc-api": "^5.0.4",
     "jsdoc-plugin-typescript": "^2.0.6",
-    "nyc": "^15.1.0",
     "rollup": "^2.42.1",
     "standard": "^14.3.4",
     "typescript": "^4.2.3"
@@ -410,15 +410,14 @@
     "types": "tsc --outDir .",
     "dist": "rollup -c",
     "debug": "rollup -c && concurrently 'rollup -wc' 'http-server -o test.html'",
-    "test": "npm run clean && npm run lint && npm run dist && nyc --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./dist/test.cjs --repetition-time 50 --production",
+    "test": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-extensive": "node test.js && npm test -- --repetition-time 30000 --extensive",
-    "test-code-coverage": "npm run clean && npm run dist && nyc --reporter html node ./dist/test.cjs --production",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.cjs",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",
     "gendocs": "node ./bin/gendocs.js",
-    "preversion": "npm run clean && npm run test && npm run types && npm run dist && npm run gendocs && git add README.md",
+    "preversion": "npm run clean && npm run lint && npm run test && npm run types && npm run dist && npm run gendocs && git add README.md",
     "postpublish": "npm run clean"
   },
   "repository": {

@@ -129,7 +129,7 @@ const runGenTest = (tc, gen) => {
       if (newNum > largest) {
         largest = newNum
       }
-      /* istanbul ignore if */
+      /* c8 ignore next */
       if (newNum < smallest) {
         smallest = newNum
       }
@@ -205,7 +205,7 @@ export const testGeneratorMt19937 = tc => {
   runGenTest(tc, new Mt19937(tc.seed))
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {prng.PRNG} gen
  * @param {t.TestCase} tc
@@ -226,7 +226,7 @@ const printDistribution = (gen, tc) => {
   t.printCanvas(canvas, DIAMETER)
 }
 
-/* istanbul ignore next */
+/* c8 ignore next */
 /**
  * @param {t.TestCase} tc
  */

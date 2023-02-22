@@ -7,6 +7,14 @@ import * as number from './number.js'
 /**
  * @param {t.TestCase} tc
  */
+export const testRandom = tc => {
+  const res = random.oneOf([1, 2, 3])
+  t.assert(res > 0)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testUint32 = tc => {
   const iterations = 10000
   let largest = 0

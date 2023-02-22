@@ -49,7 +49,8 @@ class N {
 
   get sibling () {
     return (this === this.parent.left)
-      ? this.parent.right : this.parent.left
+      ? this.parent.right
+      : this.parent.left
   }
 
   get left () {
@@ -86,13 +87,13 @@ class N {
   next () {
     if (this.right !== null) {
       // search the most left node in the right tree
-      var o = this.right
+      let o = this.right
       while (o.left !== null) {
         o = o.left
       }
       return o
     } else {
-      var p = this
+      let p = this
       while (p.parent !== null && p !== p.parent.left) {
         p = p.parent
       }
@@ -103,13 +104,13 @@ class N {
   prev () {
     if (this.left !== null) {
       // search the most right node in the left tree
-      var o = this.left
+      let o = this.left
       while (o.right !== null) {
         o = o.right
       }
       return o
     } else {
-      var p = this
+      let p = this
       while (p.parent !== null && p !== p.parent.right) {
         p = p.parent
       }
@@ -157,7 +158,7 @@ export class Tree {
    * @param {K} id
    */
   findNext (id) {
-    var nextID = id.clone()
+    const nextID = id.clone()
     nextID.clock += 1
     return this.findWithLowerBound(nextID)
   }
@@ -175,7 +176,7 @@ export class Tree {
    * @param {K} from
    */
   findNodeWithLowerBound (from) {
-    var o = this.root
+    let o = this.root
     if (o === null) {
       return null
     } else {
@@ -207,7 +208,7 @@ export class Tree {
     if (to === undefined) {
       throw new Error('You must define from!')
     }
-    var o = this.root
+    let o = this.root
     if (o === null) {
       return null
     } else {
@@ -236,7 +237,7 @@ export class Tree {
    * @return {V}
    */
   findSmallestNode () {
-    var o = this.root
+    let o = this.root
     while (o != null && o.left != null) {
       o = o.left
     }
@@ -248,7 +249,7 @@ export class Tree {
    * @return {V}
    */
   findWithLowerBound (from) {
-    var n = this.findNodeWithLowerBound(from)
+    const n = this.findNodeWithLowerBound(from)
     return n == null ? null : n.val
   }
 
@@ -257,7 +258,7 @@ export class Tree {
    * @return {V}
    */
   findWithUpperBound (to) {
-    var n = this.findNodeWithUpperBound(to)
+    const n = this.findNodeWithUpperBound(to)
     return n == null ? null : n.val
   }
 
@@ -267,7 +268,7 @@ export class Tree {
    * @param {function(V):void} f
    */
   iterate (from, to, f) {
-    var o
+    let o
     if (from === null) {
       o = this.findSmallestNode()
     } else {
@@ -304,7 +305,7 @@ export class Tree {
    * @return {N<V>|null}
    */
   findNode (id) {
-    var o = this.root
+    let o = this.root
     if (o === null) {
       return null
     } else {
@@ -327,7 +328,7 @@ export class Tree {
    * @param {K} id
    */
   delete (id) {
-    var d = this.findNode(id)
+    let d = this.findNode(id)
     if (d == null) {
       // throw new Error('Element does not exist!')
       return
@@ -336,7 +337,7 @@ export class Tree {
     if (d.left !== null && d.right !== null) {
       // switch d with the greates element in the left subtree.
       // o should have at most one child.
-      var o = d.left
+      let o = d.left
       // find
       while (o.right !== null) {
         o = o.right
@@ -347,8 +348,8 @@ export class Tree {
     }
     // d has at most one child
     // let n be the node that replaces d
-    var isFakeChild
-    var child = d.left || d.right
+    let isFakeChild
+    let child = d.left || d.right
     if (child === null) {
       isFakeChild = true
       child = new N(null)
@@ -401,7 +402,7 @@ export class Tree {
     // d was already replaced by the child
     // d is not the root
     // d and child are black
-    var sibling = n.sibling
+    let sibling = n.sibling
     if (isRed(sibling)) {
       // make sibling the grandfather
       n.parent.redden()
@@ -463,9 +464,9 @@ export class Tree {
   }
 
   put (v) {
-    var node = new N(v)
+    const node = new N(v)
     if (this.root !== null) {
-      var p = this.root // p abbrev. parent
+      let p = this.root // p abbrev. parent
       while (true) {
         if (node.val._id.lessThan(p.val._id)) {
           if (p.left === null) {
@@ -502,7 +503,7 @@ export class Tree {
     } else if (n.parent.isBlack()) {
       return
     }
-    var uncle = n.getUncle()
+    const uncle = n.getUncle()
     if (uncle !== null && uncle.isRed()) {
       // Note: parent: red, uncle: red
       n.parent.blacken()

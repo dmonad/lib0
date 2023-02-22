@@ -63,7 +63,7 @@ export { production } from './environment.js'
 
 export const extensive = env.hasConf('extensive')
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed', '0')) : null
 
 export class TestCase {
@@ -92,11 +92,11 @@ export class TestCase {
   /**
    * @type {number}
    */
-  /* istanbul ignore next */
+  /* c8 ignore next */
   get seed () {
-    /* istanbul ignore else */
+    /* c8 ignore else */
     if (this._seed === null) {
-      /* istanbul ignore next */
+      /* c8 ignore next */
       this._seed = envSeed === null ? random.uint32() : envSeed
     }
     return this._seed
@@ -108,7 +108,7 @@ export class TestCase {
    * @type {prng.PRNG}
    */
   get prng () {
-    /* istanbul ignore else */
+    /* c8 ignore else */
     if (this._prng === null) {
       this._prng = prng.create(this.seed)
     }
@@ -117,10 +117,10 @@ export class TestCase {
 }
 
 export const repetitionTime = Number(env.getParam('--repetition-time', '50'))
-/* istanbul ignore next */
+/* c8 ignore next */
 const testFilter = env.hasParam('--filter') ? env.getParam('--filter', '') : null
 
-/* istanbul ignore next */
+/* c8 ignore next */
 const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : new RegExp('.*')
 
 const repeatTestRegex = /^(repeat|repeating)\s/
@@ -135,14 +135,14 @@ const repeatTestRegex = /^(repeat|repeating)\s/
 export const run = async (moduleName, name, f, i, numberOfTests) => {
   const uncamelized = string.fromCamelCase(name.slice(4), ' ')
   const filtered = !testFilterRegExp.test(`[${i + 1}/${numberOfTests}] ${moduleName}: ${uncamelized}`)
-  /* istanbul ignore if */
+  /* c8 ignore next 3 */
   if (filtered) {
     return true
   }
   const tc = new TestCase(moduleName, name)
   const repeat = repeatTestRegex.test(uncamelized)
   const groupArgs = [log.GREY, `[${i + 1}/${numberOfTests}] `, log.PURPLE, `${moduleName}: `, log.BLUE, uncamelized]
-  /* istanbul ignore next */
+  /* c8 ignore next 5 */
   if (testFilter === null) {
     log.groupCollapsed(...groupArgs)
   } else {
@@ -175,7 +175,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     }
   } while (err === null && (lastTime - start) < repetitionTime)
   performance.mark(`${name}-end`)
-  /* istanbul ignore if */
+  /* c8 ignore next 3 */
   if (err !== null && err.constructor !== SkipError) {
     log.printError(err)
   }
@@ -184,7 +184,7 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
   const duration = lastTime - start
   let success = true
   times.sort((a, b) => a - b)
-  /* istanbul ignore next */
+  /* c8 ignore next 3 */
   const againMessage = env.isBrowser
     ? `     - ${window.location.host + window.location.pathname}?filter=\\[${i + 1}/${tc._seed === null ? '' : `&seed=${tc._seed}`}`
     : `\nrepeat: npm run test -- --filter "\\[${i + 1}/" ${tc._seed === null ? '' : `--seed ${tc._seed}`}`
@@ -192,13 +192,14 @@ export const run = async (moduleName, name, f, i, numberOfTests) => {
     ? ` - ${times.length} repetitions in ${time.humanizeDuration(duration)} (best: ${time.humanizeDuration(times[0])}, worst: ${time.humanizeDuration(array.last(times))}, median: ${time.humanizeDuration(statistics.median(times))}, average: ${time.humanizeDuration(statistics.average(times))})`
     : ` in ${time.humanizeDuration(duration)}`
   if (err !== null) {
-    /* istanbul ignore else */
+    /* c8 ignore start */
     if (err.constructor === SkipError) {
       log.print(log.GREY, log.BOLD, 'Skipped: ', log.UNBOLD, uncamelized)
     } else {
       success = false
       log.print(log.RED, log.BOLD, 'Failure: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo, againMessage)
     }
+    /* c8 ignore stop */
   } else {
     log.print(log.GREEN, log.BOLD, 'Success: ', log.UNBOLD, log.UNCOLOR, uncamelized, log.GREY, timeInfo, againMessage)
   }
@@ -490,7 +491,7 @@ const _compare = (a, b, path, message, customCompare) => {
       // @ts-ignore
       a.forEach((value, i) => _compare(value, b[i], `${path}[${i}]`, message, customCompare))
       break
-    /* istanbul ignore next */
+    /* c8 ignore next 4 */
     default:
       if (!customCompare(a.constructor, a, b, path, compareValues)) {
         _failMessage(message, `Values ${json.stringify(a)} and ${json.stringify(b)} don't match`, path)
@@ -509,12 +510,12 @@ const _compare = (a, b, path, message, customCompare) => {
  */
 export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
-/* istanbul ignore next */
 /**
  * @param {boolean} condition
  * @param {string?} [message]
  * @throws {TestError}
  */
+/* c8 ignore next */
 export const assert = (condition, message = null) => condition || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`)
 
 /**
@@ -551,7 +552,7 @@ export const runTests = async tests => {
    * @param {string} testname
    */
   const filterTest = testname => testname.startsWith('test') || testname.startsWith('benchmark')
-  const numberOfTests = object.map(tests, mod => object.map(mod, (f, fname) => /* istanbul ignore next */ f && filterTest(fname) ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
+  const numberOfTests = object.map(tests, mod => object.map(mod, (f, fname) => /* c8 ignore next */ f && filterTest(fname) ? 1 : 0).reduce(math.add, 0)).reduce(math.add, 0)
   let successfulTests = 0
   let testnumber = 0
   const start = performance.now()
@@ -559,7 +560,7 @@ export const runTests = async tests => {
     const mod = tests[modName]
     for (const fname in mod) {
       const f = mod[fname]
-      /* istanbul ignore else */
+      /* c8 ignore else */
       if (f && filterTest(fname)) {
         const repeatEachTest = 1
         let success = true
@@ -567,7 +568,7 @@ export const runTests = async tests => {
           success = await run(modName, fname, f, testnumber, numberOfTests)
         }
         testnumber++
-        /* istanbul ignore else */
+        /* c8 ignore else */
         if (success) {
           successfulTests++
         }
@@ -577,16 +578,15 @@ export const runTests = async tests => {
   const end = performance.now()
   log.print('')
   const success = successfulTests === numberOfTests
-  /* istanbul ignore next */
+  /* c8 ignore start */
   if (success) {
-    /* istanbul ignore next */
     log.print(log.GREEN, log.BOLD, 'All tests successful!', log.GREY, log.UNBOLD, ` in ${time.humanizeDuration(end - start)}`)
-    /* istanbul ignore next */
     log.printImgBase64(nyanCatImage, 50)
   } else {
     const failedTests = numberOfTests - successfulTests
     log.print(log.RED, log.BOLD, `> ${failedTests} test${failedTests > 1 ? 's' : ''} failed`)
   }
+  /* c8 ignore stop */
   return success
 }
 

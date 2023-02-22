@@ -67,27 +67,27 @@ const Interval = createTimeoutClass(clearInterval)
  */
 export const interval = (timeout, callback) => new Interval(setInterval(callback, timeout))
 
-/* istanbul ignore next */
+/* c8 ignore next */
 export const Animation = createTimeoutClass(arg => typeof requestAnimationFrame !== 'undefined' && cancelAnimationFrame(arg))
 
-/* istanbul ignore next */
 /**
  * @param {function(number):void} cb
  * @return {TimeoutObject}
  */
+/* c8 ignore next */
 export const animationFrame = cb => typeof requestAnimationFrame === 'undefined' ? timeout(0, cb) : new Animation(requestAnimationFrame(cb))
 
-/* istanbul ignore next */
+/* c8 ignore next */
 // @ts-ignore
 const Idle = createTimeoutClass(arg => typeof cancelIdleCallback !== 'undefined' && cancelIdleCallback(arg))
 
-/* istanbul ignore next */
 /**
  * Note: this is experimental and is probably only useful in browsers.
  *
  * @param {function} cb
  * @return {TimeoutObject}
  */
+/* c8 ignore next 2 */
 // @ts-ignore
 export const idleCallback = cb => typeof requestIdleCallback !== 'undefined' ? new Idle(requestIdleCallback(cb)) : timeout(1000, cb)
 
