@@ -71,6 +71,7 @@ const getChannel = room =>
     /**
      * @param {{data:ArrayBuffer}} e
      */
+    /* c8 ignore next */
     bc.onmessage = e => subs.forEach(sub => sub(e.data, 'broadcastchannel'))
     return {
       bc, subs
@@ -99,7 +100,6 @@ export const subscribe = (room, f) => {
 export const unsubscribe = (room, f) => {
   const channel = getChannel(room)
   const unsubscribed = channel.subs.delete(f)
-  /* c8 ignore else */
   if (unsubscribed && channel.subs.size === 0) {
     channel.bc.close()
     channels.delete(room)
