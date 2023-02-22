@@ -2,8 +2,17 @@
 <html>
 <head>
   <title>Testing lib0</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "isomorphic.js": "./node_modules/isomorphic.js/browser.mjs",
+        "lib0/crypto": "./crypto.js",
+        "lib0/webcrypto": "./webcrypto.browser.js"
+      }
+    }
+  </script>
 </head>
 <body>
-  <script type="module" src="./dist/test.js"></script>
+  <script type="module" src="./test.js"></script>
 </body>
 </html>
