@@ -24,7 +24,8 @@ export const testObject = _tc => {
   t.assert(!object.some({ a: 1, b: 5 }, (_v, _k) => false))
   t.describe('object.forEach')
   let forEachSum = 0
-  object.forEach({ x: 1, y: 3 }, (v, _k) => { forEachSum += v })
+  const r = { x: 1, y: 3 }
+  object.forEach(r, (v, _k) => { forEachSum += v })
   t.assert(forEachSum === 4)
   t.describe('object.map')
   t.assert(object.map({ x: 1, z: 5 }, (v, _k) => v).reduce(math.add) === 6)

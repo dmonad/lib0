@@ -118,6 +118,8 @@ export const testConsistentKeyGeneration = async _tc => {
     const publicKey = await cryptutils.importAsymmetricKey(jwkPublic, { extractable: true, usages: ['verify'] })
     const exportedPublic = await cryptutils.exportKey(publicKey)
     const exportedPrivate = await cryptutils.exportKey(privateKey)
+    delete exportedPublic.alg // for firefox compat
+    delete exportedPrivate.alg // for firefox compat
     t.compare(jwkPublic, /** @type {any} */ (exportedPublic))
     t.compare(jwkPrivate, /** @type {any} */ (exportedPrivate))
   })

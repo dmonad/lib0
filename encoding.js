@@ -589,7 +589,6 @@ export class RleEncoder extends Encoder {
   }
 }
 
-
 /**
  * Basic diff decoder using variable length encoding.
  *

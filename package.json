@@ -11,6 +11,9 @@
     "type": "GitHub Sponsors ❤",
     "url": "https://github.com/sponsors/dmonad"
   },
+  "bin": {
+    "0gentesthtml": "./bin/gentesthtml.js"
+  },
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -394,6 +397,7 @@
     "isomorphic.js": "^0.2.4"
   },
   "devDependencies": {
+    "@types/node": "^18.14.0",
     "c8": "^7.13.0",
     "http-server": "^0.12.3",
     "jsdoc-api": "^5.0.4",
@@ -406,7 +410,7 @@
     "clean": "rm -rf dist *.d.ts */*.d.ts *.d.ts.map */*.d.ts.map",
     "types": "tsc --outDir .",
     "dist": "rollup -c",
-    "debug": "http-server -o test.html",
+    "debug": "npm run gentesthtml && http-server -o test.html",
     "test": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-extensive": "node test.js && npm test -- --repetition-time 30000 --extensive",
@@ -415,7 +419,8 @@
     "lint": "standard && tsc",
     "gendocs": "node ./bin/gendocs.js",
     "preversion": "npm run clean && npm run lint && npm run test && npm run types && npm run dist && npm run gendocs && git add README.md",
-    "postpublish": "npm run clean"
+    "postpublish": "npm run clean",
+    "gentesthtml": "node ./bin/gentesthtml.js > test.html"
   },
   "repository": {
     "type": "git",

@@ -20,8 +20,9 @@ export const assign = Object.assign
 export const keys = Object.keys
 
 /**
- * @param {Object<string,any>} obj
- * @param {function(any,string):any} f
+ * @template V
+ * @param {{ [key:string]: V }} obj
+ * @param {function(V,string):any} f
  */
 export const forEach = (obj, f) => {
   for (const key in obj) {
@@ -30,6 +31,8 @@ export const forEach = (obj, f) => {
 }
 
 /**
+ * @todo implement mapToArray & map
+ *
  * @template R
  * @param {Object<string,any>} obj
  * @param {function(any,string):R} f
