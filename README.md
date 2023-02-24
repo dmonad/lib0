@@ -707,7 +707,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>encoding.RleEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
 <b><code>encoding.IntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
 <b><code>encoding.RleIntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
-<b><code>buffer.encodeAny(data: any): Uint8Array</code></b><br>
+<b><code>encoding.encodeAny(data: any): Uint8Array</code></b><br>
 <dd><p>Encode anything as a UInt8Array. It's a pun on typescripts's <code>any</code> type.
 See encoding.writeAny for more information.</p></dd>
 </dl>
