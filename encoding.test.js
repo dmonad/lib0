@@ -840,3 +840,12 @@ export const testInvalidVarIntEncoding = _tc => {
     decoding.readVarUint(decoder)
   })
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testAnyEncoding = tc => {
+  const obj = { val: 1, arr: [1, 2], str: '409231dtrnä' }
+  const res = decoding.decodeAny(encoding.encodeAny(obj))
+  t.compare(obj, res)
+}

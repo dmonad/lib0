@@ -853,3 +853,16 @@ export class StringEncoder {
     return toUint8Array(encoder)
   }
 }
+
+/**
+ * Encode anything as a UInt8Array. It's a pun on typescripts's `any` type.
+ * See encoding.writeAny for more information.
+ *
+ * @param {any} data
+ * @return {Uint8Array}
+ */
+export const encodeAny = data => {
+  const encoder = createEncoder()
+  writeAny(encoder, data)
+  return toUint8Array(encoder)
+}

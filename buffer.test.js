@@ -19,12 +19,3 @@ export const testRepeatBase64Encoding = tc => {
   }
   t.compare(copied, decoded)
 }
-
-/**
- * @param {t.TestCase} tc
- */
-export const testAnyEncoding = tc => {
-  const obj = { val: 1, arr: [1, 2], str: '409231dtrnä' }
-  const res = buffer.decodeAny(buffer.encodeAny(obj))
-  t.compare(obj, res)
-}

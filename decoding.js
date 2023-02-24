@@ -679,3 +679,11 @@ export class StringDecoder {
     return res
   }
 }
+
+/**
+ * Decode an any-encoded value.
+ *
+ * @param {Uint8Array} buf
+ * @return {any}
+ */
+export const decodeAny = buf => readAny(createDecoder(buf))

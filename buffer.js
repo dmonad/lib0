@@ -6,8 +6,6 @@
 
 import * as string from './string.js'
 import * as env from './environment.js'
-import * as encoding from './encoding.js'
-import * as decoding from './decoding.js'
 
 /**
  * @param {number} len
@@ -92,24 +90,3 @@ export const copyUint8Array = uint8Array => {
   newBuf.set(uint8Array)
   return newBuf
 }
-
-/**
- * Encode anything as a UInt8Array. It's a pun on typescripts's `any` type.
- * See encoding.writeAny for more information.
- *
- * @param {any} data
- * @return {Uint8Array}
- */
-export const encodeAny = data => {
-  const encoder = encoding.createEncoder()
-  encoding.writeAny(encoder, data)
-  return encoding.toUint8Array(encoder)
-}
-
-/**
- * Decode an any-encoded value.
- *
- * @param {Uint8Array} buf
- * @return {any}
- */
-export const decodeAny = buf => decoding.readAny(decoding.createDecoder(buf))

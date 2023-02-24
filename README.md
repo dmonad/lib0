@@ -200,11 +200,6 @@ broadcastchannel.publish('my events', 'hello from tab B') // => A: 'hello from t
 <b><code>buffer.fromBase64</code></b><br>
 <b><code>buffer.copyUint8Array(uint8Array: Uint8Array): Uint8Array</code></b><br>
 <dd><p>Copy the content of an Uint8Array view to a new ArrayBuffer.</p></dd>
-<b><code>buffer.encodeAny(data: any): Uint8Array</code></b><br>
-<dd><p>Encode anything as a UInt8Array. It's a pun on typescripts's <code>any</code> type.
-See encoding.writeAny for more information.</p></dd>
-<b><code>buffer.decodeAny(buf: Uint8Array): any</code></b><br>
-<dd><p>Decode an any-encoded value.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/cache]</b> An implementation of a map which has keys that expire.</summary>
@@ -409,6 +404,8 @@ to the next byte and read it as unsigned integer.</p></dd>
 <dd><p>Decoding target.</p></dd>
 <b><code>decoding.IntDiffOptRleDecoder#pos: number</code></b><br>
 <dd><p>Current decoding position.</p></dd>
+<b><code>decoding.decodeAny(buf: Uint8Array): any</code></b><br>
+<dd><p>Decode an any-encoded value.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/diff]</b> Efficient diffs.</summary>
@@ -710,6 +707,9 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>encoding.RleEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
 <b><code>encoding.IntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
 <b><code>encoding.RleIntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
+<b><code>buffer.encodeAny(data: any): Uint8Array</code></b><br>
+<dd><p>Encode anything as a UInt8Array. It's a pun on typescripts's <code>any</code> type.
+See encoding.writeAny for more information.</p></dd>
 </dl>
 </details>
 <details><summary><b>[lib0/map]</b> Isomorphic module to work access the environment (query params, env variables).</summary>
