@@ -92,3 +92,17 @@ export const testRetrieveElements = async () => {
   const retrieved = await idb.get(store, key)
   t.assert(retrieved === 1234)
 }
+
+/* c8 ignore next */
+export const testBlocked = async () => {
+  t.skip(!isBrowser)
+  t.describe('ignore blocked event')
+  await idb.deleteDB(testDBName)
+  const db = await idb.openDB(testDBName, initTestDB)
+  const transaction = createTransaction(db)
+  const store = getStore(transaction)
+  await idb.put(store, 0, ['t', 1])
+  await idb.put(store, 1, ['t', 2])
+  db.close()
+  idb.deleteDB(testDBName)
+}
