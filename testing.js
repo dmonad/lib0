@@ -511,12 +511,14 @@ const _compare = (a, b, path, message, customCompare) => {
 export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
 /**
- * @param {boolean} condition
+ * @template T
+ * @param {T} property
  * @param {string?} [message]
+ * @return {asserts property is NonNullable<T>}
  * @throws {TestError}
  */
 /* c8 ignore next */
-export const assert = (condition, message = null) => condition || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`)
+export const assert = (property, message = null) => { property || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`) }
 
 /**
  * @param {function():Promise<any>} f

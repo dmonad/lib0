@@ -489,6 +489,9 @@ const encodingPairs = [
 export const testRepeatRandomWrites = tc => {
   t.describe(`Writing ${loops} random values`, `defLen=${defLen}`)
   const gen = tc.prng
+  /**
+   * @type {any}
+   */
   const ops = []
   const encoder = encoding.createEncoder()
   for (let i = 0; i < 10000; i++) {

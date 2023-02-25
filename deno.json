@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "isomorphic.js": "./node_modules/isomorphic.js/node.mjs",
+    "lib0/crypto": "./crypto.js",
+    "lib0/webcrypto": "./webcrypto.deno.js"
+  }
+}

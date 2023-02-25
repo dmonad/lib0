@@ -10,6 +10,14 @@ export const nottestingNotTested = () => {
   t.assert(false, 'This test should not be executed because the name doesnt start with "test"')
 }
 
+export const testAssertTyping = () => {
+  const q = Math.random()
+  const x = q === 0.3 ? { a: 4 } : null
+  // t.assert(x.a === 4) - this will give a type error because the type is uncertain
+  t.assert(x)
+  t.assert(x.a === 4) // this works because x is asserted
+}
+
 /**
  * @param {t.TestCase} _tc
  */

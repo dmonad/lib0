@@ -12,9 +12,9 @@ class QueueItem extends list.ListNode {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testEnqueueDequeue = tc => {
+export const testEnqueueDequeue = _tc => {
   const N = 30
   /**
    * @type {list.List<QueueItem>}
@@ -45,9 +45,9 @@ export const testEnqueueDequeue = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testSelectivePop = tc => {
+export const testSelectivePop = _tc => {
   /**
    * @type {list.List<QueueItem>}
    */
