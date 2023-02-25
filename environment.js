@@ -15,7 +15,7 @@ import * as f from './function.js'
 export const isNode = typeof process !== 'undefined' && process.release &&
   /node|io\.js/.test(process.release.name)
 /* c8 ignore next */
-export const isBrowser = typeof window !== 'undefined' && !isNode
+export const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined' && !isNode
 /* c8 ignore next 3 */
 export const isMac = typeof navigator !== 'undefined'
   ? /Mac/.test(navigator.platform)

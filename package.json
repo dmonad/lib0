@@ -382,6 +382,9 @@
     },
     "./webcrypto": {
       "types": "./webcrypto.browser.d.ts",
+      "deno": {
+        "import": "./webcrypto.deno.js"
+      },
       "node": {
         "import": "./webcrypto.node.js",
         "require": "./dist/webcrypto.node.cjs"
