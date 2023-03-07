@@ -12,7 +12,7 @@ export const nottestingNotTested = () => {
 
 export const testAssertTyping = () => {
   const q = Math.random()
-  const x = q === 0.3 ? { a: 4 } : null
+  const x = q === 0.3 ? null : { a: 4 } // this should always be an object
   // t.assert(x.a === 4) - this will give a type error because the type is uncertain
   t.assert(x)
   t.assert(x.a === 4) // this works because x is asserted
