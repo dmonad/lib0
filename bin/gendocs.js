@@ -1,4 +1,3 @@
-
 import jsdoc from 'jsdoc-api'
 import fs from 'fs'
 

@@ -21,7 +21,7 @@ export const keys = Object.keys
 
 /**
  * @template V
- * @param {{ [key:string]: V }} obj
+ * @param {{[k:string]:V}} obj
  * @param {function(V,string):any} f
  */
 export const forEach = (obj, f) => {

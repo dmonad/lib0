@@ -403,8 +403,8 @@
     "@types/node": "^18.14.0",
     "c8": "^7.13.0",
     "http-server": "^0.12.3",
-    "jsdoc-api": "^5.0.4",
-    "jsdoc-plugin-typescript": "^2.0.6",
+    "jsdoc-api": "^8.0.0",
+    "jsdoc-plugin-typescript": "^2.2.1",
     "rollup": "^2.42.1",
     "standard": "^14.3.4",
     "typescript": "^4.2.3"
@@ -421,7 +421,7 @@
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",
     "gendocs": "node ./bin/gendocs.js",
-    "preversion": "npm run clean && npm run lint && npm run test && npm run types && npm run dist && npm run gendocs && git add README.md",
+    "preversion": "npm run clean && npm run lint && npm run test && npm run types && npm run dist && git add README.md",
     "postpublish": "npm run clean",
     "gentesthtml": "node ./bin/gentesthtml.js > test.html"
   },
