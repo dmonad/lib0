@@ -78,11 +78,23 @@
       "import": "./condititons.js",
       "require": "./dist/conditions.cjs"
     },
-    "./crypto": {
-      "types": "./crypto.d.ts",
-      "module": "./crypto.js",
-      "import": "./crypto.js",
-      "require": "./dist/crypto.cjs"
+    "./crypto/aes-gcm": {
+      "types": "./crypto/aes-gcm.d.ts",
+      "module": "./crypto/aes-gcm.js",
+      "import": "./crypto/aes-gcm.js",
+      "require": "./dist/crypto/aes-gcm.cjs"
+    },
+    "./crypto/ecdsa": {
+      "types": "./crypto/ecdsa.d.ts",
+      "module": "./crypto/ecdsa.js",
+      "import": "./crypto/ecdsa.js",
+      "require": "./dist/crypto/ecdsa.cjs"
+    },
+    "./crypto/rsa-oaep": {
+      "types": "./crypto/rsa-oaep.d.ts",
+      "module": "./crypto/rsa-oaep.js",
+      "import": "./crypto/rsa-oaep.js",
+      "require": "./dist/crypto/rsa-oaep.cjs"
     },
     "./decoding.js": "./decoding.js",
     "./dist/decoding.cjs": "./dist/decoding.cjs",

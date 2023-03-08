@@ -124,6 +124,9 @@ export const testFailing = async () => {
   t.fails(() => {
     t.fails(() => {})
   })
+  await t.failsAsync(async () => {
+    await t.failsAsync(async () => { })
+  })
   await t.promiseRejected(() =>
     t.promiseRejected(() => promise.resolve())
   )

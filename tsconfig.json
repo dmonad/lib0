@@ -22,6 +22,6 @@
       "lib0/webcrypto": ["./webcrypto.browser.js"]
     }
   },
-  "include": ["./*.js"],
+  "include": ["./*.js", "./crypto/*.js"],
   "exclude": ["./dist"]
 }

@@ -547,6 +547,20 @@ export const fails = f => {
 }
 
 /**
+ * @param {function():Promise<any>} f
+ * @throws {TestError}
+ */
+export const failsAsync = async f => {
+  try {
+    await f()
+  } catch (_err) {
+    log.print(log.GREEN, '⇖ This Error was expected')
+    return
+  }
+  fail('Expected this to fail')
+}
+
+/**
  * @param {Object<string, Object<string, function(TestCase):void|Promise<any>>>} tests
  */
 export const runTests = async tests => {
