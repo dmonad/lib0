@@ -143,7 +143,7 @@ export const testEncryptionPerformance = async tc => {
       encryptedData.push(await aes.encrypt(key, data[i]))
     }
   })
-  /**560
+  /**
    * @type {Array<Uint8Array>}
    */
   const decryptedData = []
