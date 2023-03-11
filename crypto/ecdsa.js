@@ -3,6 +3,7 @@
  */
 
 import * as webcrypto from 'lib0/webcrypto'
+export { exportKey } from './common.js'
 
 /**
  * @typedef {Array<'sign'|'verify'>} Usages
@@ -12,13 +13,6 @@ import * as webcrypto from 'lib0/webcrypto'
  * @type {Usages}
  */
 const defaultUsages = ['sign', 'verify']
-
-/**
- * @param {CryptoKey} key
- */
-export const exportKey = key => {
-  return webcrypto.subtle.exportKey('jwk', key)
-}
 
 /**
  * @experimental The API is not final!

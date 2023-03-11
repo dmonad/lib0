@@ -6,6 +6,7 @@ import * as encoding from '../encoding.js'
 import * as decoding from '../decoding.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as string from '../string.js'
+export { exportKey } from './common.js'
 
 /**
  * @typedef {Array<'encrypt'|'decrypt'>} Usages
@@ -60,12 +61,6 @@ export const decrypt = (key, data) => {
     cipher
   ).then(data => new Uint8Array(data))
 }
-
-/**
- * @param {CryptoKey} key
- */
-export const exportKey = key =>
-  webcrypto.subtle.exportKey('jwk', key)
 
 /**
  * @param {any} jwk
