@@ -92,7 +92,7 @@ const setupWS = (wsclient) => {
 export class WebsocketClient extends Observable {
   /**
    * @param {string} url
-   * @param {object} [opts]
+   * @param {object} opts
    * @param {'arraybuffer' | 'blob' | null} [opts.binaryType] Set `ws.binaryType`
    */
   constructor (url, { binaryType } = {}) {

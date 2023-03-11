@@ -18,6 +18,7 @@ const defaultUsages = ['encrypt', 'decrypt']
  *
  * @param {CryptoKey} key
  * @param {Uint8Array} data
+ * @return {PromiseLike<Uint8Array>}
  */
 export const encrypt = (key, data) =>
   webcrypto.subtle.encrypt(
@@ -26,7 +27,7 @@ export const encrypt = (key, data) =>
     },
     key,
     data
-  )
+  ).then(buf => new Uint8Array(buf))
 
 /**
  * @experimental The API is not final!

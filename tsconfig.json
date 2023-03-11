@@ -1,22 +1,19 @@
 {
   "compilerOptions": {
-    /* Basic Options */
-    "target": "es2022",
-    "lib": ["es2022", "dom"],                             /* Specify library files to be included in the compilation. */
-    "allowJs": true,                       /* Allow javascript files to be compiled. */
-    "checkJs": true,                       /* Report errors in .js files. */
-    // "jsx": "preserve",                     /* Specify JSX code generation: 'preserve', 'react-native', or 'react'. */
-    "declaration": true,                   /* Generates corresponding '.d.ts' file. */
-    "declarationMap": true,                /* Generates a sourcemap for each corresponding '.d.ts' file. */
-    // "outFile": "./index.js",                       /* Concatenate and emit output to single file. */
-    "outDir": "dist", // this is overritten by `npm run types`
-    "baseUrl": "./",                       /* Base directory to resolve non-absolute module names. */
-    // "rootDir": "./",                       /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */
+    "target": "ES2021",
+    "lib": ["ES2021", "dom"],
+    "module": "node16",
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "rootDir": "./",
     "emitDeclarationOnly": true,
     "strict": true,
     "noImplicitAny": true,
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "nodenext",
     "paths": {
       "lib0/*": ["./*"],
       "lib0/webcrypto": ["./webcrypto.browser.js"]
