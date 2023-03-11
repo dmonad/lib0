@@ -21,8 +21,6 @@ export const rtop = request => promise.create((resolve, reject) => {
   // @ts-ignore
   request.onerror = event => reject(new Error(event.target.error))
   // @ts-ignore
-  // request.onblocked = () => location.reload()
-  // @ts-ignore
   request.onsuccess = event => resolve(event.target.result)
 })
 
@@ -41,7 +39,6 @@ export const openDB = (name, initDB) => promise.create((resolve, reject) => {
    * @param {any} event
    */
   request.onerror = event => reject(error.create(event.target.error))
-  // request.onblocked = () => location.reload()
   /**
    * @param {any} event
    */
