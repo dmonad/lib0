@@ -19,7 +19,7 @@ export const testEncryption = async tc => {
     t.compare(data, dec)
   })
   await t.groupAsync('RSA', async () => {
-    const keypair = await rsa.generateKey()
+    const keypair = await rsa.generateKeyPair()
     const enc = await rsa.encrypt(keypair.publicKey, data)
     const dec = await rsa.decrypt(keypair.privateKey, enc)
     t.compare(data, dec)
@@ -35,8 +35,8 @@ export const testEncryption = async tc => {
   })
   await t.groupAsync('asymmetric can fail', async () => {
     await t.failsAsync(async () => {
-      const keypair = await rsa.generateKey()
-      const keypair2 = await rsa.generateKey()
+      const keypair = await rsa.generateKeyPair()
+      const keypair2 = await rsa.generateKeyPair()
       const enc = await rsa.encrypt(keypair.privateKey, data)
       const dec = await rsa.decrypt(keypair2.publicKey, enc)
       t.compare(data, dec)
@@ -102,7 +102,7 @@ export const testImportExport = async tc => {
     t.compare(jwkPublic, ejwkPublic)
   })
   await t.groupAsync('rsa-oaep', async () => {
-    const keypair = await rsa.generateKey({ extractable: true })
+    const keypair = await rsa.generateKeyPair({ extractable: true })
     const jwkPrivate = await rsa.exportKey(keypair.privateKey)
     const jwkPublic = await rsa.exportKey(keypair.publicKey)
     const ekeyPrivate = await rsa.importKey(jwkPrivate, { extractable: true })

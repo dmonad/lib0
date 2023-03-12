@@ -52,8 +52,9 @@ export const decrypt = (key, data) =>
  * @param {Object} opts
  * @param {boolean} [opts.extractable]
  * @param {Usages} [opts.usages]
+ * @return {Promise<CryptoKeyPair>}
  */
-export const generateKey = ({ extractable = false, usages = defaultUsages } = {}) =>
+export const generateKeyPair = ({ extractable = false, usages = defaultUsages } = {}) =>
   webcrypto.subtle.generateKey(
     {
       name: 'RSA-OAEP',
