@@ -1,3 +1,4 @@
+// @ts-ignore
 import jsdoc from 'jsdoc-api'
 import fs from 'fs'
 
@@ -9,6 +10,9 @@ const files = fs.readdirSync('./').filter(file => /(?<!(test|config))\.js$/.test
 
 const _ltregex = /</g
 const _rtregex = />/g
+/**
+ * @param {string} s
+ */
 const toSafeHtml = s => s.replace(_ltregex, '&lt;').replace(_rtregex, '&gt;')
 
 const READMEcontent = fs.readFileSync('./README.md', 'utf8')
@@ -16,8 +20,11 @@ const READMEcontent = fs.readFileSync('./README.md', 'utf8')
 jsdoc.explain({
   files,
   configure: '.jsdoc.json'
-}).then(json => {
+}).then(/** @param {Array<any>} json */ json => {
   const strBuilder = []
+  /**
+   * @type {Object<string, { items: Array<any>, name: string, description: string }>}
+   */
   const modules = {}
   json.forEach(item => {
     if (item.meta && item.meta.filename) {
@@ -30,6 +37,9 @@ jsdoc.explain({
       }
     }
   })
+  /**
+   * @type {Object<string,string>}
+   */
   const classDescriptions = {}
   for (const fileName in modules) {
     const mod = modules[fileName]
@@ -67,6 +77,9 @@ jsdoc.explain({
           }
           // eslint-disable-next-line
           case 'function': {
+            /**
+             * @param {string} name
+             */
             const getOriginalParamTypeDecl = name => {
               const regval = new RegExp('@param {(.*)} \\[?' + name + '\\]?[^\\w]*').exec(item.comment)
               return regval ? regval[1] : null
@@ -74,9 +87,9 @@ jsdoc.explain({
             if (item.params == null && item.returns == null) {
               break
             }
-            const paramVal = (item.params || []).map(ret => `${ret.name}: ${getOriginalParamTypeDecl(ret.name) || ret.type.names.join('|')}`).join(', ')
+            const paramVal = (item.params || []).map(/** @param {any} ret */ ret => `${ret.name}: ${getOriginalParamTypeDecl(ret.name) || ret.type.names.join('|')}`).join(', ')
             const evalReturnRegex = jsdocReturnRegex.exec(item.comment)
-            const returnVal = evalReturnRegex ? `: ${evalReturnRegex[1]}` : (item.returns ? item.returns.map(r => r.type.names.join('|')).join('|') : '')
+            const returnVal = evalReturnRegex ? `: ${evalReturnRegex[1]}` : (item.returns ? item.returns.map(/** @param {any} r */ r => r.type.names.join('|')).join('|') : '')
             strBuilder.push(`<b><code>${item.kind === 'class' ? 'new ' : ''}${item.longname.slice(7)}(${toSafeHtml(paramVal)})${toSafeHtml(returnVal)}</code></b><br>`)
             const desc = item.description || item.classdesc || classDescriptions[item.longname] || null
             if (desc) {
@@ -86,7 +99,7 @@ jsdoc.explain({
           }
           case 'member': {
             if (item.type) {
-              strBuilder.push(`<b><code>${item.longname.slice(7)}: ${toSafeHtml(jsdocTypeRegex.exec(item.comment)[1])}</code></b><br>`)
+              strBuilder.push(`<b><code>${item.longname.slice(7)}: ${toSafeHtml(/** @type {RegExpExecArray} */ (jsdocTypeRegex.exec(item.comment))[1])}</code></b><br>`)
               if (item.description) {
                 strBuilder.push(`<dd>${item.description}</dd>`)
               }

@@ -435,7 +435,7 @@
     "gendocs": "node ./bin/gendocs.js",
     "preversion": "npm run clean && npm run lint && npm run test && npm run types && npm run dist && git add README.md",
     "postpublish": "npm run clean",
-    "gentesthtml": "node ./bin/gentesthtml.js > test.html"
+    "gentesthtml": "node ./bin/gentesthtml.js --script test.js > test.html"
   },
   "repository": {
     "type": "git",
