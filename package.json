@@ -12,7 +12,8 @@
     "url": "https://github.com/sponsors/dmonad"
   },
   "bin": {
-    "0gentesthtml": "./bin/gentesthtml.js"
+    "0gentesthtml": "./bin/gentesthtml.js",
+    "0serve": "./bin/0serve.js"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -414,7 +415,6 @@
   "devDependencies": {
     "@types/node": "^18.14.0",
     "c8": "^7.13.0",
-    "http-server": "^0.12.3",
     "jsdoc-api": "^8.0.0",
     "jsdoc-plugin-typescript": "^2.2.1",
     "rollup": "^2.42.1",
@@ -425,7 +425,7 @@
     "clean": "rm -rf dist *.d.ts */*.d.ts *.d.ts.map */*.d.ts.map",
     "types": "tsc --outDir .",
     "dist": "rollup -c",
-    "debug": "npm run gentesthtml && http-server -o test.html",
+    "debug": "npm run gentesthtml && npx 0serve -o test.html",
     "test": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-extensive": "node test.js && npm test -- --repetition-time 30000 --extensive",
