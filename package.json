@@ -410,18 +410,18 @@
     },
     "./performance": {
       "types": "./performance.browser.d.ts",
-      "deno": {
-        "import": "./performance.node.js"
-      },
+      "deno": "./performance.node.js",
+      "bun": "./performance.node.js",
       "node": {
-        "import": "./performance.node.js",
-        "require": "./dist/performance.node.cjs"
+        "require": "./dist/performance.node.cjs",
+        "module": "./performance.node.js",
+        "default": "./performance.node.js"
       },
       "browser": {
-        "import": "./performance.browser.js",
-        "require": "./dist/performance.browser.cjs"
-      },
-      "module": "./performance.browser.js"
+        "require": "./dist/performance.browser.cjs",
+        "module": "./performance.browser.js",
+        "default": "./performance.browser.js"
+      }
     }
   },
   "dependencies": {
