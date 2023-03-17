@@ -48,12 +48,12 @@ export const simpleDiffString = (a, b) => {
     left++
   }
   // If the last same character is a high surrogate, we need to rollback to the previous character
-  if (highSurrogateRegex.test(a[left - 1])) left--
+  if (left > 0 && highSurrogateRegex.test(a[left - 1])) left--
   while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
     right++
   }
   // If the last same character is a low surrogate, we need to rollback to the previous character
-  if (lowSurrogateRegex.test(a[a.length - right])) right--
+  if (right > 0 && lowSurrogateRegex.test(a[a.length - right])) right--
   return {
     index: left,
     remove: a.length - left - right,
