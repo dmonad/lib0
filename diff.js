@@ -44,18 +44,16 @@ const lowSurrogateRegex = /[\uDC00-\uDFFF]/
 export const simpleDiffString = (a, b) => {
   let left = 0 // number of same characters counting from left
   let right = 0 // number of same characters counting from right
-  let inSurrogate = false
   while (left < a.length && left < b.length && a[left] === b[left]) {
-    inSurrogate = highSurrogateRegex.test(a[left])
     left++
   }
-  if (inSurrogate) left--
-  inSurrogate = false
+  // If the last same character is a high surrogate, we need to rollback to the previous character
+  if (highSurrogateRegex.test(a[left - 1])) left--
   while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
-    inSurrogate = lowSurrogateRegex.test(a[a.length - right - 1])
     right++
   }
-  if (inSurrogate) right--
+  // If the last same character is a low surrogate, we need to rollback to the previous character
+  if (lowSurrogateRegex.test(a[a.length - right])) right--
   return {
     index: left,
     remove: a.length - left - right,
@@ -112,39 +110,35 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
   let right = 0 // number of same characters counting from right
   // Iterate left to the right until we find a changed character
   // First iteration considers the current cursor position
-  let inSurrogate = false
   while (
     left < a.length &&
     left < b.length &&
     a[left] === b[left] &&
     left < cursor
   ) {
-    inSurrogate = highSurrogateRegex.test(a[left])
     left++
   }
-  if (inSurrogate) left--
-  inSurrogate = false
+  // If the last same character is a high surrogate, we need to rollback to the previous character
+  if (highSurrogateRegex.test(a[left - 1])) left--
   // Iterate right to the left until we find a changed character
   while (
     right + left < a.length &&
     right + left < b.length &&
     a[a.length - right - 1] === b[b.length - right - 1]
   ) {
-    inSurrogate = lowSurrogateRegex.test(a[a.length - right - 1])
     right++
   }
-  if (inSurrogate) right--
-  inSurrogate = false
+  // If the last same character is a low surrogate, we need to rollback to the previous character
+  if (lowSurrogateRegex.test(a[a.length - right])) right--
   // Try to iterate left further to the right without caring about the current cursor position
   while (
     right + left < a.length &&
     right + left < b.length &&
     a[left] === b[left]
   ) {
-    inSurrogate = highSurrogateRegex.test(a[left])
     left++
   }
-  if (inSurrogate) left--
+  if (highSurrogateRegex.test(a[left - 1])) left--
   return {
     index: left,
     remove: a.length - left - right,

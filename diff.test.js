@@ -33,8 +33,11 @@ export const testDiffing = tc => {
   runDiffTest('abc', 'xyz', { index: 0, remove: 3, insert: 'xyz' })
   runDiffTest('axz', 'au', { index: 1, remove: 2, insert: 'u' })
   runDiffTest('ax', 'axy', { index: 2, remove: 0, insert: 'y' })
+  // These strings share high-surrogate characters
   runDiffTest('\u{d83d}\u{dc77}'/* '👷' */, '\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, { index: 0, remove: 0, insert: '🚧' })
   runDiffTest('\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, '\u{d83d}\u{dc77}'/* '👷' */, { index: 0, remove: 2, insert: '' })
+  // These strings share low-surrogate characters
+  runDiffTest('\u{d83d}\u{dfe6}\u{d83d}\u{dfe6}'/* '🟦🟦' */, '\u{d83c}\u{dfe6}\u{d83d}\u{dfe6}'/* '🏦🟦' */, { index: 0, remove: 2, insert: '🏦' })
 }
 
 /**
@@ -83,6 +86,13 @@ export const testSimpleDiffWithCursor = tc => {
     const initial = '🚧🚧🚧'
     const change = simpleDiffStringWithCursor(initial, '🚧🚧', 2) // Should delete after the midst of 🚧
     t.compare(change, { insert: '', remove: 2, index: 2 })
+    const recomposed = str.splice(initial, change.index, change.remove, change.insert)
+    t.compareStrings('🚧🚧', recomposed)
+  }
+  {
+    const initial = '🚧👷🚧👷'
+    const change = simpleDiffStringWithCursor(initial, '🚧🚧', 2) // Should delete after the first 🚧 and insert 🚧
+    t.compare(change, { insert: '🚧', remove: 6, index: 2 })
     const recomposed = str.splice(initial, change.index, change.remove, change.insert)
     t.compareStrings('🚧🚧', recomposed)
   }
