@@ -119,7 +119,7 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
     left++
   }
   // If the last same character is a high surrogate, we need to rollback to the previous character
-  if (highSurrogateRegex.test(a[left - 1])) left--
+  if (left > 0 && highSurrogateRegex.test(a[left - 1])) left--
   // Iterate right to the left until we find a changed character
   while (
     right + left < a.length &&
@@ -129,7 +129,7 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
     right++
   }
   // If the last same character is a low surrogate, we need to rollback to the previous character
-  if (lowSurrogateRegex.test(a[a.length - right])) right--
+  if (right > 0 && lowSurrogateRegex.test(a[a.length - right])) right--
   // Try to iterate left further to the right without caring about the current cursor position
   while (
     right + left < a.length &&
@@ -138,7 +138,7 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
   ) {
     left++
   }
-  if (highSurrogateRegex.test(a[left - 1])) left--
+  if (left > 0 && highSurrogateRegex.test(a[left - 1])) left--
   return {
     index: left,
     remove: a.length - left - right,

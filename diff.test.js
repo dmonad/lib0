@@ -38,7 +38,9 @@ export const testDiffing = tc => {
   runDiffTest('\u{d83d}\u{dea7}\u{d83d}\u{dc77}'/* '🚧👷' */, '\u{d83d}\u{dc77}'/* '👷' */, { index: 0, remove: 2, insert: '' })
   // These strings share low-surrogate characters
   runDiffTest('\u{d83d}\u{dfe6}\u{d83d}\u{dfe6}'/* '🟦🟦' */, '\u{d83c}\u{dfe6}\u{d83d}\u{dfe6}'/* '🏦🟦' */, { index: 0, remove: 2, insert: '🏦' })
+  // check 4-character unicode symbols
   runDiffTest('🇦🇨', '🇦🇩', { index: 2, remove: 2, insert: '🇩' })
+  runDiffTest('a🇧🇩', '🇦🇩', { index: 0, remove: 3, insert: '🇦' })
 }
 
 /**
