@@ -407,6 +407,21 @@
         "require": "./dist/webcrypto.browser.cjs"
       },
       "module": "./webcrypto.browser.js"
+    },
+    "./performance": {
+      "types": "./performance.browser.d.ts",
+      "deno": {
+        "import": "./performance.node.js"
+      },
+      "node": {
+        "import": "./performance.node.js",
+        "require": "./dist/performance.node.cjs"
+      },
+      "browser": {
+        "import": "./performance.browser.js",
+        "require": "./dist/performance.browser.cjs"
+      },
+      "module": "./performance.browser.js"
     }
   },
   "dependencies": {

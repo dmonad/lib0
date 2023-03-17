@@ -11,5 +11,5 @@ export default [{
     entryFileNames: '[name].cjs',
     chunkFileNames: '[name]-[hash].cjs'
   },
-  external: ['isomorphic.js', 'node:crypto', 'lib0/webcrypto']
+  external: ['isomorphic.js', 'node:crypto', 'lib0/webcrypto', 'lib0/performance', 'perf_hooks']
 }]

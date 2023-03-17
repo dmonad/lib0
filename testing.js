@@ -56,8 +56,7 @@ import * as env from './environment.js'
 import * as json from './json.js'
 import * as time from './time.js'
 import * as promise from './promise.js'
-
-import { performance } from './isomorphic.js'
+import * as performance from 'lib0/performance'
 
 export { production } from './environment.js'
 
