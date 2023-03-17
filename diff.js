@@ -28,6 +28,9 @@ import { equalityStrict } from './function.js'
  * @template T
  */
 
+const highSurrogateRegex = /[\uD800-\uDBFF]/
+const lowSurrogateRegex = /[\uDC00-\uDFFF]/
+
 /**
  * Create a diff between two strings. This diff implementation is highly
  * efficient, but not very sophisticated.
@@ -44,9 +47,13 @@ export const simpleDiffString = (a, b) => {
   while (left < a.length && left < b.length && a[left] === b[left]) {
     left++
   }
+  // If the last same character is a high surrogate, we need to rollback to the previous character
+  if (highSurrogateRegex.test(a[left - 1])) left--
   while (right + left < a.length && right + left < b.length && a[a.length - right - 1] === b[b.length - right - 1]) {
     right++
   }
+  // If the last same character is a low surrogate, we need to rollback to the previous character
+  if (lowSurrogateRegex.test(a[a.length - right])) right--
   return {
     index: left,
     remove: a.length - left - right,
@@ -111,6 +118,8 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
   ) {
     left++
   }
+  // If the last same character is a high surrogate, we need to rollback to the previous character
+  if (highSurrogateRegex.test(a[left - 1])) left--
   // Iterate right to the left until we find a changed character
   while (
     right + left < a.length &&
@@ -119,6 +128,8 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
   ) {
     right++
   }
+  // If the last same character is a low surrogate, we need to rollback to the previous character
+  if (lowSurrogateRegex.test(a[a.length - right])) right--
   // Try to iterate left further to the right without caring about the current cursor position
   while (
     right + left < a.length &&
@@ -127,6 +138,7 @@ export const simpleDiffStringWithCursor = (a, b, cursor) => {
   ) {
     left++
   }
+  if (highSurrogateRegex.test(a[left - 1])) left--
   return {
     index: left,
     remove: a.length - left - right,
