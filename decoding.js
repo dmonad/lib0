@@ -9,7 +9,7 @@
  *
  * ```js
  * // encoding step
- * const encoder = new encoding.createEncoder()
+ * const encoder = encoding.createEncoder()
  * encoding.writeVarUint(encoder, 256)
  * encoding.writeVarString(encoder, 'Hello world!')
  * const buf = encoding.toUint8Array(encoder)
@@ -17,7 +17,7 @@
  *
  * ```js
  * // decoding step
- * const decoder = new decoding.createDecoder(buf)
+ * const decoder = decoding.createDecoder(buf)
  * decoding.readVarUint(decoder) // => 256
  * decoding.readVarString(decoder) // => 'Hello world!'
  * decoding.hasContent(decoder) // => false - all data is read
