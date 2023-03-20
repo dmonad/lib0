@@ -17,7 +17,7 @@
     "paths": {
       "lib0/*": ["./*"],
       "lib0/webcrypto": ["./webcrypto.browser.js"],
-      "lib0/performance": ["./performance.browser.js"],
+      "lib0/performance": ["./performance.node.js"],
       "lib0/logging": ["./logging.node.js"]
     }
   },

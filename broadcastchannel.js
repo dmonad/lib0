@@ -44,7 +44,11 @@ class LocalStoragePolyfill {
      * @type {null|function({data:ArrayBuffer}):void}
      */
     this.onmessage = null
-    storage.onChange(e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') }))
+    /**
+     * @param {any} e
+     */
+    this._onChange = e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') })
+    storage.onChange(this._onChange)
   }
 
   /**
@@ -52,6 +56,10 @@ class LocalStoragePolyfill {
    */
   postMessage (buf) {
     storage.varStorage.setItem(this.room, buffer.toBase64(buffer.createUint8ArrayFromArrayBuffer(buf)))
+  }
+
+  close () {
+    storage.offChange(this._onChange)
   }
 }
 /* c8 ignore stop */
