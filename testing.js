@@ -43,7 +43,7 @@
  * @module testing
  */
 
-import * as log from './logging.js'
+import * as log from 'lib0/logging'
 import { simpleDiffString } from './diff.js'
 import * as object from './object.js'
 import * as string from './string.js'

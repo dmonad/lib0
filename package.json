@@ -201,13 +201,20 @@
       "import": "./list.js",
       "require": "./dist/list.cjs"
     },
-    "./logging.js": "./logging.js",
-    "./dist/logging.cjs": "./dist/logging.cjs",
     "./logging": {
-      "types": "./logging.d.ts",
-      "module": "./logging.js",
-      "import": "./logging.js",
-      "require": "./dist/logging.cjs"
+      "types": "./logging.node.d.ts",
+      "deno": "./logging.node.js",
+      "bun": "./logging.browser.js",
+      "node": {
+        "require": "./dist/logging.node.cjs",
+        "module": "./logging.node.js",
+        "default": "./logging.node.js"
+      },
+      "browser": {
+        "require": "./dist/logging.browser.cjs",
+        "module": "./logging.browser.js",
+        "default": "./logging.browser.js"
+      }
     },
     "./map.js": "./map.js",
     "./dist/map.cjs": "./dist/map.cjs",

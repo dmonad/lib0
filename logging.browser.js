@@ -6,51 +6,29 @@
 
 import * as env from './environment.js'
 import * as set from './set.js'
-import * as symbol from './symbol.js'
 import * as pair from './pair.js'
 import * as dom from './dom.js'
 import * as json from './json.js'
 import * as map from './map.js'
 import * as eventloop from './eventloop.js'
 import * as math from './math.js'
-import * as time from './time.js'
-import * as func from './function.js'
+import * as common from './logging.common.js'
 
-export const BOLD = symbol.create()
-export const UNBOLD = symbol.create()
-export const BLUE = symbol.create()
-export const GREY = symbol.create()
-export const GREEN = symbol.create()
-export const RED = symbol.create()
-export const PURPLE = symbol.create()
-export const ORANGE = symbol.create()
-export const UNCOLOR = symbol.create()
+export { BOLD, UNBOLD, BLUE, GREY, GREEN, RED, PURPLE, ORANGE, UNCOLOR } from './logging.common.js'
 
 /**
  * @type {Object<Symbol,pair.Pair<string,string>>}
  */
 const _browserStyleMap = {
-  [BOLD]: pair.create('font-weight', 'bold'),
-  [UNBOLD]: pair.create('font-weight', 'normal'),
-  [BLUE]: pair.create('color', 'blue'),
-  [GREEN]: pair.create('color', 'green'),
-  [GREY]: pair.create('color', 'grey'),
-  [RED]: pair.create('color', 'red'),
-  [PURPLE]: pair.create('color', 'purple'),
-  [ORANGE]: pair.create('color', 'orange'), // not well supported in chrome when debugging node with inspector - TODO: deprecate
-  [UNCOLOR]: pair.create('color', 'black')
-}
-
-const _nodeStyleMap = {
-  [BOLD]: '\u001b[1m',
-  [UNBOLD]: '\u001b[2m',
-  [BLUE]: '\x1b[34m',
-  [GREEN]: '\x1b[32m',
-  [GREY]: '\u001b[37m',
-  [RED]: '\x1b[31m',
-  [PURPLE]: '\x1b[35m',
-  [ORANGE]: '\x1b[38;5;208m',
-  [UNCOLOR]: '\x1b[0m'
+  [common.BOLD]: pair.create('font-weight', 'bold'),
+  [common.UNBOLD]: pair.create('font-weight', 'normal'),
+  [common.BLUE]: pair.create('color', 'blue'),
+  [common.GREEN]: pair.create('color', 'green'),
+  [common.GREY]: pair.create('color', 'grey'),
+  [common.RED]: pair.create('color', 'red'),
+  [common.PURPLE]: pair.create('color', 'purple'),
+  [common.ORANGE]: pair.create('color', 'orange'), // not well supported in chrome when debugging node with inspector - TODO: deprecate
+  [common.UNCOLOR]: pair.create('color', 'black')
 }
 
 /**
@@ -105,89 +83,9 @@ const computeBrowserLoggingArgs = (args) => {
 /* c8 ignore stop */
 
 /* c8 ignore start */
-/**
- * @param {Array<string|Symbol|Object|number>} args
- * @return {Array<string|object|number>}
- */
-const computeNoColorLoggingArgs = args => {
-  const strBuilder = []
-  const logArgs = []
-  // try with formatting until we find something unsupported
-  let i = 0
-  for (; i < args.length; i++) {
-    const arg = args[i]
-    // @ts-ignore
-    const style = _nodeStyleMap[arg]
-    if (style === undefined) {
-      if (arg.constructor === String || arg.constructor === Number) {
-        strBuilder.push(arg)
-      } else {
-        break
-      }
-    }
-  }
-  if (i > 0) {
-    logArgs.push(strBuilder.join(''))
-  }
-  // append the rest
-  for (; i < args.length; i++) {
-    const arg = args[i]
-    if (!(arg instanceof Symbol)) {
-      if (arg.constructor === Object) {
-        logArgs.push(JSON.stringify(arg))
-      } else {
-        logArgs.push(arg)
-      }
-    }
-  }
-  return logArgs
-}
-/* c8 ignore stop */
-
-/* c8 ignore start */
-/**
- * @param {Array<string|Symbol|Object|number>} args
- * @return {Array<string|object|number>}
- */
-const computeNodeLoggingArgs = (args) => {
-  const strBuilder = []
-  const logArgs = []
-  // try with formatting until we find something unsupported
-  let i = 0
-  for (; i < args.length; i++) {
-    const arg = args[i]
-    // @ts-ignore
-    const style = _nodeStyleMap[arg]
-    if (style !== undefined) {
-      strBuilder.push(style)
-    } else {
-      if (arg.constructor === String || arg.constructor === Number) {
-        strBuilder.push(arg)
-      } else {
-        break
-      }
-    }
-  }
-  if (i > 0) {
-    // create logArgs with what we have so far
-    strBuilder.push('\x1b[0m')
-    logArgs.push(strBuilder.join(''))
-  }
-  // append the rest
-  for (; i < args.length; i++) {
-    const arg = args[i]
-    if (!(arg instanceof Symbol)) {
-      logArgs.push(arg)
-    }
-  }
-  return logArgs
-}
-/* c8 ignore stop */
-
-/* c8 ignore start */
 const computeLoggingArgs = env.supportsColor
-  ? (env.isNode ? computeNodeLoggingArgs : computeBrowserLoggingArgs)
-  : computeNoColorLoggingArgs
+  ? computeBrowserLoggingArgs
+  : common.computeNoColorLoggingArgs
 /* c8 ignore stop */
 
 /**
@@ -205,7 +103,7 @@ export const print = (...args) => {
  */
 export const warn = (...args) => {
   console.warn(...computeLoggingArgs(args))
-  args.unshift(ORANGE)
+  args.unshift(common.ORANGE)
   vconsoles.forEach((vc) => vc.print(args))
 }
 /* c8 ignore stop */
@@ -428,7 +326,7 @@ export class VConsole {
    * @param {Error} err
    */
   printError (err) {
-    this.print([RED, BOLD, err.toString()])
+    this.print([common.RED, common.BOLD, err.toString()])
   }
 
   /**
@@ -469,42 +367,8 @@ export class VConsole {
 /* c8 ignore next */
 export const createVConsole = (dom) => new VConsole(dom)
 
-const loggingColors = [GREEN, PURPLE, ORANGE, BLUE]
-let nextColor = 0
-let lastLoggingTime = time.getUnixTime()
-
-/* c8 ignore start */
 /**
  * @param {string} moduleName
  * @return {function(...any):void}
  */
-export const createModuleLogger = (moduleName) => {
-  const color = loggingColors[nextColor]
-  const debugRegexVar = env.getVariable('log')
-  const doLogging = debugRegexVar !== null &&
-    (debugRegexVar === '*' || debugRegexVar === 'true' ||
-      new RegExp(debugRegexVar, 'gi').test(moduleName))
-  nextColor = (nextColor + 1) % loggingColors.length
-  moduleName += ': '
-
-  return !doLogging
-    ? func.nop
-    : (...args) => {
-      const timeNow = time.getUnixTime()
-      const timeDiff = timeNow - lastLoggingTime
-      lastLoggingTime = timeNow
-      print(
-        color,
-        moduleName,
-        UNCOLOR,
-        ...args.map((arg) =>
-          (typeof arg === 'string' || typeof arg === 'symbol')
-            ? arg
-            : JSON.stringify(arg)
-        ),
-        color,
-        ' +' + timeDiff + 'ms'
-      )
-    }
-}
-/* c8 ignore stop */
+export const createModuleLogger = (moduleName) => common.createModuleLogger(print, moduleName)
