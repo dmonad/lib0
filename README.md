@@ -277,13 +277,13 @@ Using getAsync &amp; setIfUndefined ensures that the init function is only calle
 and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
 which is also used in Protocol Buffers.</p>
 <pre class="prettyprint source lang-js"><code>// encoding step
-const encoder = new encoding.createEncoder()
+const encoder = encoding.createEncoder()
 encoding.writeVarUint(encoder, 256)
 encoding.writeVarString(encoder, 'Hello world!')
 const buf = encoding.toUint8Array(encoder)
 </code></pre>
 <pre class="prettyprint source lang-js"><code>// decoding step
-const decoder = new decoding.createDecoder(buf)
+const decoder = decoding.createDecoder(buf)
 decoding.readVarUint(decoder) // => 256
 decoding.readVarString(decoder) // => 'Hello world!'
 decoding.hasContent(decoder) // => false - all data is read
@@ -479,13 +479,13 @@ can better optimize these function calls.</p></dd>
 and is compatible with Golang's binary encoding (https://golang.org/pkg/encoding/binary/)
 which is also used in Protocol Buffers.</p>
 <pre class="prettyprint source lang-js"><code>// encoding step
-const encoder = new encoding.createEncoder()
+const encoder = encoding.createEncoder()
 encoding.writeVarUint(encoder, 256)
 encoding.writeVarString(encoder, 'Hello world!')
 const buf = encoding.toUint8Array(encoder)
 </code></pre>
 <pre class="prettyprint source lang-js"><code>// decoding step
-const decoder = new decoding.createDecoder(buf)
+const decoder = decoding.createDecoder(buf)
 decoding.readVarUint(decoder) // => 256
 decoding.readVarString(decoder) // => 'Hello world!'
 decoding.hasContent(decoder) // => false - all data is read
