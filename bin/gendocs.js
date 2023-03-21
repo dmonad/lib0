@@ -1,6 +1,6 @@
 // @ts-ignore
 import jsdoc from 'jsdoc-api'
-import fs from 'fs'
+import * as fs from 'fs'
 
 const firstTagContentRegex = /<\w>([^<]+)<\/\w>([^]*)/
 const jsdocReturnRegex = /\* @return {(.*)}/

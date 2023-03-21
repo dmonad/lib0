@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import fs from 'fs'
+import * as fs from 'fs'
 import * as object from '../object.js'
 import * as env from '../environment.js'
 

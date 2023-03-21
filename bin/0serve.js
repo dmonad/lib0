@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import http from 'http'
-import path from 'path'
-import fs from 'fs'
+import * as http from 'http'
+import * as path from 'path'
+import * as fs from 'fs'
 import * as env from '../environment.js'
 import * as number from '../number.js'
 import * as logging from 'lib0/logging'

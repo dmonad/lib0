@@ -1,4 +1,4 @@
-import fs from 'fs'
+import * as fs from 'fs'
 
 const files = fs.readdirSync('./').filter(file => /(?<!(test|config))\.js$/.test(file))
 
