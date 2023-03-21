@@ -210,7 +210,7 @@
         "module": "./logging.node.js",
         "default": "./logging.node.js"
       },
-      "browser": {
+      "default": {
         "require": "./dist/logging.browser.cjs",
         "module": "./logging.browser.js",
         "default": "./logging.browser.js"
@@ -424,7 +424,7 @@
         "module": "./performance.node.js",
         "default": "./performance.node.js"
       },
-      "browser": {
+      "default": {
         "require": "./dist/performance.browser.cjs",
         "module": "./performance.browser.js",
         "default": "./performance.browser.js"
