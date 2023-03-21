@@ -9,7 +9,7 @@ import * as webcrypto from 'lib0/webcrypto'
  * @param {t.TestCase} tc
  */
 export const testEncryption = async tc => {
-  const secret = prng.word(tc.prng)
+  const secret = prng.word(tc.prng, 1, 30)
   const salt = tc.testName
   const data = prng.uint8Array(tc.prng, 400)
   await t.groupAsync('symmetric', async () => {
@@ -48,7 +48,7 @@ export const testEncryption = async tc => {
  * @param {t.TestCase} tc
  */
 export const testReapeatEncryption = async tc => {
-  const secret = prng.word(tc.prng)
+  const secret = prng.word(tc.prng, 1, 30)
   const salt = prng.word(tc.prng)
   const data = prng.uint8Array(tc.prng, 1000000)
   /**
@@ -81,7 +81,7 @@ export const testReapeatEncryption = async tc => {
  * @param {t.TestCase} tc
  */
 export const testImportExport = async tc => {
-  const secret = prng.word(tc.prng)
+  const secret = prng.word(tc.prng, 1, 30)
   const salt = prng.word(tc.prng)
   await t.groupAsync('aes-gcm', async () => {
     const key = await aes.deriveKey(secret, salt, { extractable: true })
@@ -118,7 +118,7 @@ export const testImportExport = async tc => {
  * @param {t.TestCase} tc
  */
 export const testEncryptionPerformance = async tc => {
-  const secret = prng.word(tc.prng)
+  const secret = prng.word(tc.prng, 1, 30)
   const salt = prng.word(tc.prng)
   /**
    * @type {CryptoKey}
