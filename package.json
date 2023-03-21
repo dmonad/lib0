@@ -201,6 +201,8 @@
       "import": "./list.js",
       "require": "./dist/list.cjs"
     },
+    "./logging.js": "./logging.browser.js",
+    "./dist/logging.cjs": "./dist/logging.node.cjs",
     "./logging": {
       "types": "./logging.node.d.ts",
       "deno": "./logging.node.js",
@@ -415,6 +417,8 @@
       },
       "module": "./webcrypto.browser.js"
     },
+    "./performance.js": "./performance.browser.js",
+    "./dist/performance.cjs": "./dist/performance.node.cjs",
     "./performance": {
       "types": "./performance.browser.d.ts",
       "deno": "./performance.node.js",
