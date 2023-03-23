@@ -201,21 +201,21 @@
       "import": "./list.js",
       "require": "./dist/list.cjs"
     },
-    "./logging.js": "./logging.browser.js",
+    "./logging.js": "./logging.js",
     "./dist/logging.cjs": "./dist/logging.node.cjs",
     "./logging": {
       "types": "./logging.node.d.ts",
       "deno": "./logging.node.js",
-      "bun": "./logging.browser.js",
+      "bun": "./logging.js",
       "node": {
-        "require": "./dist/logging.node.cjs",
         "module": "./logging.node.js",
+        "require": "./dist/logging.node.cjs",
         "default": "./logging.node.js"
       },
       "default": {
-        "require": "./dist/logging.browser.cjs",
-        "module": "./logging.browser.js",
-        "default": "./logging.browser.js"
+        "module": "./logging.js",
+        "require": "./dist/logging.cjs",
+        "default": "./logging.js"
       }
     },
     "./map.js": "./map.js",
@@ -403,35 +403,35 @@
       "require": "./dist/websocket.cjs"
     },
     "./webcrypto": {
-      "types": "./webcrypto.browser.d.ts",
-      "deno": {
-        "import": "./webcrypto.deno.js"
-      },
+      "types": "./webcrypto.d.ts",
+      "deno": "./webcrypto.deno.js",
+      "bun": "./webcrypto.js",
       "node": {
-        "import": "./webcrypto.node.js",
-        "require": "./dist/webcrypto.node.cjs"
+        "module": "./webcrypto.node.js",
+        "require": "./dist/webcrypto.node.cjs",
+        "default": "./webcrypto.node.js"
       },
-      "browser": {
-        "import": "./webcrypto.browser.js",
-        "require": "./dist/webcrypto.browser.cjs"
-      },
-      "module": "./webcrypto.browser.js"
+      "default": {
+        "module": "./webcrypto.js",
+        "require": "./dist/webcrypto.cjs",
+        "default": "./webcrypto.js"
+      }
     },
-    "./performance.js": "./performance.browser.js",
+    "./performance.js": "./performance.js",
     "./dist/performance.cjs": "./dist/performance.node.cjs",
     "./performance": {
-      "types": "./performance.browser.d.ts",
+      "types": "./performance.d.ts",
       "deno": "./performance.node.js",
       "bun": "./performance.node.js",
       "node": {
-        "require": "./dist/performance.node.cjs",
         "module": "./performance.node.js",
+        "require": "./dist/performance.node.cjs",
         "default": "./performance.node.js"
       },
       "default": {
-        "require": "./dist/performance.browser.cjs",
-        "module": "./performance.browser.js",
-        "default": "./performance.browser.js"
+        "module": "./performance.js",
+        "require": "./dist/performance.cjs",
+        "default": "./performance.js"
       }
     }
   },

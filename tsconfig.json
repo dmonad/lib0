@@ -22,5 +22,5 @@
     }
   },
   "include": ["./*.js", "./crypto/*.js", "./bin/*.js"],
-  "exclude": ["./dist"]
+  "exclude": ["./dist/**/*"]
 }
