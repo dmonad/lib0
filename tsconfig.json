@@ -16,7 +16,7 @@
     "moduleResolution": "nodenext",
     "paths": {
       "lib0/*": ["./*"],
-      "lib0/webcrypto": ["./webcrypto.browser.js"],
+      "lib0/webcrypto": ["./webcrypto.js"],
       "lib0/performance": ["./performance.node.js"],
       "lib0/logging": ["./logging.node.js"]
     }
