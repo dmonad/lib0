@@ -72,6 +72,7 @@ export const testGolangBinaryEncodingCompatibility = () => {
     const buffer = encoding.toUint8Array(encoder)
     t.assert(buffer.byteLength === test.out.length)
     t.assert(buffer.length > 0)
+    t.assert(encoding.hasContent(encoder))
     for (let j = 0; j < buffer.length; j++) {
       t.assert(buffer[j] === test.out[j])
     }
@@ -89,7 +90,9 @@ export const testGolangBinaryEncodingCompatibility = () => {
 function test (testname, write, read, val, doLog = true) {
   const encoder = encoding.createEncoder()
   write(encoder, val)
-  const reader = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const buffer = encoding.toUint8Array(encoder)
+  t.assert((buffer.length > 0) === encoding.hasContent(encoder))
+  const reader = decoding.createDecoder(buffer)
   const result = read(reader)
   const utf8ByteLength = string.utf8ByteLength(val + '')
   const binaryByteLength = encoding.length(encoder)
@@ -123,6 +126,7 @@ export const testVerifyLen = () => {
   encoding.verifyLen(encoder, vLen)
   t.assert(encoder.cbuf.length >= vLen)
   t.assert(encoder.bufs.length >= bufsLen)
+  t.assert(encoding.hasContent(encoder))
 }
 
 export const testStringEncodingPerformanceNativeVsPolyfill = () => {

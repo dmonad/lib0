@@ -68,6 +68,15 @@ export const length = encoder => {
 }
 
 /**
+ * Check whether encoder is empty.
+ *
+ * @function
+ * @param {Encoder} encoder
+ * @return {boolean}
+ */
+export const hasContent = encoder => encoder.cpos > 0 || encoder.bufs.length > 0
+
+/**
  * Transform to Uint8Array.
  *
  * @function
