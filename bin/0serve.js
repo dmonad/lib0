@@ -29,7 +29,7 @@ const types = {
 const root = path.normalize(path.resolve('./'))
 
 const server = http.createServer((req, res) => {
-  const url = req.url || '/index.html'
+  const url = (req.url || '/index.html').split('?')[0]
   logging.print(logging.ORANGE, logging.BOLD, req.method || '', ' ', logging.GREY, logging.UNBOLD, url)
   const extension = path.extname(url).slice(1)
   /**
