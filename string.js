@@ -1,3 +1,5 @@
+import * as array from './array.js'
+
 /**
  * Utility module to work with strings.
  *
@@ -121,3 +123,9 @@ export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyf
  * @param {string} insert New content to insert
  */
 export const splice = (str, index, remove, insert = '') => str.slice(0, index) + insert + str.slice(index + remove)
+
+/**
+ * @param {string} source
+ * @param {number} n
+ */
+export const repeat = (source, n) => array.unfold(n, () => source).join('')

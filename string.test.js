@@ -5,6 +5,15 @@ import * as t from './testing.js'
 /**
  * @param {t.TestCase} tc
  */
+export const testUtilities = tc => {
+  t.assert(string.repeat('1', 3) === '111')
+  t.assert(string.repeat('1', 0) === '')
+  t.assert(string.repeat('1', 1) === '1')
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testLowercaseTransformation = tc => {
   t.compareStrings(string.fromCamelCase('ThisIsATest', ' '), 'this is a test')
   t.compareStrings(string.fromCamelCase('Testing', ' '), 'testing')
