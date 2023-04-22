@@ -67,6 +67,27 @@ export const testflatten = _tc => {
 /**
  * @param {t.TestCase} _tc
  */
+export const testFolding = _tc => {
+  /**
+   * @param {number} n
+   */
+  const testcase = n => {
+    // We mess with the seed (+/-1) to catch some edge cases without changing the result
+    const result = -1 + array.fold(array.unfold(n, i => i), 1, (accumulator, item, index) => {
+      t.assert(accumulator === index + 1)
+      t.assert(accumulator === item + 1)
+      return accumulator + 1
+    })
+    t.assert(result === n)
+  }
+  testcase(0)
+  testcase(1)
+  testcase(100)
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
 export const testEvery = _tc => {
   const arr = [1, 2, 3]
   t.assert(array.every(arr, x => x <= 3))

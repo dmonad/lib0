@@ -1,5 +1,6 @@
 import * as t from './testing.js'
 import * as math from './math.js'
+import * as array from './array.js'
 
 /**
  * @param {t.TestCase} tc
@@ -10,7 +11,7 @@ export const testMath = tc => {
   t.assert(math.abs(Number.MIN_SAFE_INTEGER) === Number.MAX_SAFE_INTEGER)
   t.assert(math.abs(Number.MAX_SAFE_INTEGER) === Number.MAX_SAFE_INTEGER)
   t.describe('math.add')
-  t.assert([1, 2, 3, 4, 5].reduce(math.add) === 15)
+  t.assert(array.fold([1, 2, 3, 4, 5], 0, math.add) === 15)
   t.describe('math.ceil')
   t.assert(math.ceil(1.5) === 2)
   t.assert(math.ceil(-1.5) === -1)

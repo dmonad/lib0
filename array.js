@@ -104,7 +104,30 @@ export const equalFlat = (a, b) => a.length === b.length && every(a, (item, inde
  * @param {Array<Array<ELEM>>} arr
  * @return {Array<ELEM>}
  */
-export const flatten = arr => arr.reduce((acc, val) => acc.concat(val), [])
+export const flatten = arr => fold(arr, /** @type {Array<ELEM>} */ ([]), (acc, val) => acc.concat(val))
+
+/**
+ * @template T
+ * @param {number} len
+ * @param {function(number, Array<T>):T} f
+ * @return {Array<T>}
+ */
+export const unfold = (len, f) => {
+  const array = new Array(len)
+  for (let i = 0; i < len; i++) {
+    array[i] = f(i, array)
+  }
+  return array
+}
+
+/**
+ * @template T
+ * @template RESULT
+ * @param {Array<T>} arr
+ * @param {RESULT} seed
+ * @param {function(RESULT, T, number):RESULT} folder
+ */
+export const fold = (arr, seed, folder) => arr.reduce(folder, seed)
 
 export const isArray = Array.isArray
 
