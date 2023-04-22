@@ -4,6 +4,43 @@ import * as t from './testing.js'
 /**
  * @param {t.TestCase} _tc
  */
+export const testIsarrayPerformance = _tc => {
+  const N = 100000
+  /**
+   * @type {Array<any>}
+   */
+  const objects = []
+  for (let i = 0; i < N; i++) {
+    if (i % 2 === 0) {
+      objects.push([i])
+    } else {
+      objects.push({ i })
+    }
+  }
+  const timeConstructor = t.measureTime('constructor check', () => {
+    let collectedArrays = 0
+    objects.forEach(obj => {
+      if (obj.constructor === Array) {
+        collectedArrays++
+      }
+    })
+    t.assert(collectedArrays === N / 2)
+  })
+  const timeIsarray = t.measureTime('Array.isArray', () => {
+    let collectedArrays = 0
+    objects.forEach(obj => {
+      if (array.isArray(obj)) {
+        collectedArrays++
+      }
+    })
+    t.assert(collectedArrays === N / 2)
+  })
+  t.assert(timeIsarray < timeConstructor * 1.3, 'Expecting that isArray is not much worse than a constructor check')
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
 export const testAppend = _tc => {
   const arr = [1, 2, 3]
   array.appendTo(arr, array.copy(arr))

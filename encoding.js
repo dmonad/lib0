@@ -31,6 +31,7 @@ import * as math from './math.js'
 import * as number from './number.js'
 import * as binary from './binary.js'
 import * as string from './string.js'
+import * as array from './array.js'
 
 /**
  * A BinaryEncoder handles the encoding to an Uint8Array.
@@ -513,7 +514,7 @@ export const writeAny = (encoder, data) => {
       if (data === null) {
         // TYPE 126: null
         write(encoder, 126)
-      } else if (data instanceof Array) {
+      } else if (array.isArray(data)) {
         // TYPE 117: Array
         write(encoder, 117)
         writeVarUint(encoder, data.length)
