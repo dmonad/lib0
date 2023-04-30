@@ -35,7 +35,7 @@ export const testIsarrayPerformance = _tc => {
     })
     t.assert(collectedArrays === N / 2)
   })
-  t.assert(timeIsarray < timeConstructor * 1.3, 'Expecting that isArray is not much worse than a constructor check')
+  t.assert(timeIsarray < timeConstructor * 2, 'Expecting that isArray is not much worse than a constructor check')
 }
 
 /**

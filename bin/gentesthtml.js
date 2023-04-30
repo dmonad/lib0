@@ -45,13 +45,14 @@ const readPkg = (pkgJson, pathPrefix, importMap) => {
   })
 }
 
-readPkg(JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' })), '.', exports)
+const rootPkgJson = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }))
+readPkg(rootPkgJson, '.', exports)
 
 const testHtml = `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Testing lib0</title>
+  <title>Testing ${rootPkgJson.name}</title>
   <script type="importmap">
     {
       "imports": ${JSON.stringify(exports, null, 2)},
