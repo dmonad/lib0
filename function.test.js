@@ -10,6 +10,45 @@ export const testBasics = _tc => {
   t.assert(calls === 1)
   t.assert(f.isOneOf(1, [3, 2, 1]))
   t.assert(!f.isOneOf(0, [3, 2, 1]))
+  // test is*
+  const arr = [1, 'two', [1], { one: 1 }]
+  arr.forEach(val => {
+    if (f.isArray(val)) {
+      /**
+       * @type {Array<any>}
+       */
+      const yy = val
+      t.assert(yy)
+    }
+    if (f.isString(val)) {
+      /**
+       * @type {string}
+       */
+      const yy = val
+      t.assert(yy)
+    }
+    if (f.isNumber(val)) {
+      /**
+       * @type {number}
+       */
+      const yy = val
+      t.assert(yy)
+    }
+    if (f.is(val, String)) {
+      /**
+       * @type {string}
+       */
+      const yy = val
+      t.assert(yy)
+    }
+    if (f.isTemplate(Number)(val)) {
+      /**
+       * @type {number}
+       */
+      const yy = val
+      t.assert(yy)
+    }
+  })
 }
 
 /**

@@ -151,3 +151,36 @@ export const equalityDeep = (a, b) => {
 // @ts-ignore
 export const isOneOf = (value, options) => options.includes(value)
 /* c8 ignore stop */
+
+export const isArray = array.isArray
+
+/**
+ * @param {any} s
+ * @return {s is String}
+ */
+export const isString = (s) => s && s.constructor === String
+
+/**
+ * @param {any} n
+ * @return {n is Number}
+ */
+export const isNumber = n => n != null && n.constructor === Number
+
+/**
+ * @template TYPE
+ * @param {any} n
+ * @param {TYPE} T
+ * @return {n is InstanceType<TYPE>}
+ */
+export const is = (n, T) => n && n.constructor === T
+
+/**
+ * @template TYPE
+ * @param {TYPE} T
+ */
+export const isTemplate = (T) =>
+  /**
+   * @param {any} n
+   * @return {n is InstanceType<TYPE>}
+   **/
+  n => n && n.constructor === T
