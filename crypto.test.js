@@ -118,6 +118,8 @@ export const testImportExport = async tc => {
  * @param {t.TestCase} tc
  */
 export const testEncryptionPerformance = async tc => {
+  const N = 1000
+  const BLen = 1000
   const secret = prng.word(tc.prng, 1, 30)
   const salt = prng.word(tc.prng)
   /**
@@ -131,14 +133,14 @@ export const testEncryptionPerformance = async tc => {
    * @type {Array<Uint8Array>}
    */
   const data = []
-  for (let i = 0; i < 1000; i++) {
-    data.push(webcrypto.getRandomValues(new Uint8Array(1000)))
+  for (let i = 0; i < N; i++) {
+    data.push(webcrypto.getRandomValues(new Uint8Array(BLen)))
   }
   /**
    * @type {Array<Uint8Array>}
    */
   const encryptedData = []
-  await t.measureTimeAsync('Encrypt 1k blocks of size 1kb', async () => {
+  await t.measureTimeAsync(`Encrypt ${N / 1000}k blocks of size ${BLen}byte`, async () => {
     for (let i = 0; i < data.length; i++) {
       encryptedData.push(await aes.encrypt(key, data[i]))
     }
@@ -147,7 +149,7 @@ export const testEncryptionPerformance = async tc => {
    * @type {Array<Uint8Array>}
    */
   const decryptedData = []
-  await t.measureTimeAsync('Decrypt 1k blocks of size 1kb', async () => {
+  await t.measureTimeAsync(`Decrypt ${N / 1000}k blocks of size ${BLen}byte`, async () => {
     for (let i = 0; i < encryptedData.length; i++) {
       decryptedData.push(await aes.decrypt(key, encryptedData[i]))
     }
