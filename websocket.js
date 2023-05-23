@@ -14,8 +14,7 @@ import * as math from './math.js'
 
 const reconnectTimeoutBase = 1200
 const maxReconnectTimeout = 2500
-// @todo - this should depend on awareness.outdatedTime
-const messageReconnectTimeout = 30000
+const defaultMessageReconnectTimeout = 30000
 
 /**
  * @param {WebsocketClient} wsclient
@@ -40,7 +39,7 @@ const setupWS = (wsclient) => {
       const message = typeof data === 'string' ? JSON.parse(data) : data
       if (message && message.type === 'pong') {
         clearTimeout(pingTimeout)
-        pingTimeout = setTimeout(sendPing, messageReconnectTimeout / 2)
+        pingTimeout = setTimeout(sendPing, wsclient.messageReconnectTimeout / 2)
       }
       wsclient.emit('message', [message, wsclient])
     }
@@ -81,7 +80,7 @@ const setupWS = (wsclient) => {
       wsclient.unsuccessfulReconnects = 0
       wsclient.emit('connect', [{ type: 'connect' }, wsclient])
       // set ping
-      pingTimeout = setTimeout(sendPing, messageReconnectTimeout / 2)
+      pingTimeout = setTimeout(sendPing, wsclient.messageReconnectTimeout / 2)
     }
   }
 }
@@ -94,8 +93,9 @@ export class WebsocketClient extends Observable {
    * @param {string} url
    * @param {object} opts
    * @param {'arraybuffer' | 'blob' | null} [opts.binaryType] Set `ws.binaryType`
+   * @param {number | null} [opts.messageReconnectTimeout] Set `ws.messageReconnectTimeout`
    */
-  constructor (url, { binaryType } = {}) {
+  constructor (url, { binaryType, messageReconnectTimeout } = {}) {
     super()
     this.url = url
     /**
@@ -107,18 +107,21 @@ export class WebsocketClient extends Observable {
     this.connecting = false
     this.unsuccessfulReconnects = 0
     this.lastMessageReceived = 0
+    this.messageReconnectTimeout = messageReconnectTimeout && messageReconnectTimeout > 0
+      ? messageReconnectTimeout
+      : defaultMessageReconnectTimeout;
     /**
      * Whether to connect to other peers or not
      * @type {boolean}
      */
     this.shouldConnect = true
     this._checkInterval = setInterval(() => {
-      if (this.connected && messageReconnectTimeout < time.getUnixTime() - this.lastMessageReceived) {
+      if (this.connected && this.messageReconnectTimeout < time.getUnixTime() - this.lastMessageReceived) {
         // no message received in a long time - not even your own awareness
         // updates (which are updated every 15 seconds)
         /** @type {WebSocket} */ (this.ws).close()
       }
-    }, messageReconnectTimeout / 2)
+    }, this.messageReconnectTimeout / 2)
     setupWS(this)
   }
 
