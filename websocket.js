@@ -107,9 +107,7 @@ export class WebsocketClient extends Observable {
     this.connecting = false
     this.unsuccessfulReconnects = 0
     this.lastMessageReceived = 0
-    this.messageReconnectTimeout = messageReconnectTimeout && messageReconnectTimeout > 0
-      ? messageReconnectTimeout
-      : defaultMessageReconnectTimeout;
+    this.messageReconnectTimeout = messageReconnectTimeout || defaultMessageReconnectTimeout
     /**
      * Whether to connect to other peers or not
      * @type {boolean}
