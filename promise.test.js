@@ -25,9 +25,9 @@ const measureP = (p, min, max) => {
 const failsP = p => promise.create((resolve, reject) => p.then(() => reject(error.create('Promise should fail')), resolve))
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testRepeatPromise = async tc => {
+export const testRepeatPromise = async _tc => {
   t.assert(promise.createEmpty(r => r()).constructor === Promise, 'p.create() creates a Promise')
   t.assert(promise.resolve().constructor === Promise, 'p.reject() creates a Promise')
   const rejectedP = promise.reject()
@@ -44,9 +44,9 @@ export const testRepeatPromise = async tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testispromise = tc => {
+export const testispromise = _tc => {
   t.assert(promise.isPromise(new Promise(() => {})))
   t.assert(promise.isPromise(promise.create(() => {})))
   const rej = promise.reject()
@@ -57,4 +57,20 @@ export const testispromise = tc => {
   t.fails(() => {
     t.assert(promise.isPromise({ then: () => {}, catch: () => {} }))
   })
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testTypings = async _tc => {
+  const ps = await promise.all([promise.resolveWith(4), 'string'])
+  /**
+   * @type {number}
+   */
+  const a = ps[0]
+  /**
+   * @type {string}
+   */
+  const b = ps[1]
+  t.assert(typeof a === 'number' && typeof b === 'string')
 }

@@ -27,11 +27,12 @@ export const createEmpty = f => new Promise(f)
 
 /**
  * `Promise.all` wait for all promises in the array to resolve and return the result
- * @template T
- * @param {Array<Promise<T>>} arrp
- * @return {Promise<Array<T>>}
+ * @template {unknown[] | []} PS
+ *
+ * @param {PS} ps
+ * @return {Promise<{ -readonly [P in keyof PS]: Awaited<PS[P]> }>}
  */
-export const all = arrp => Promise.all(arrp)
+export const all = Promise.all.bind(Promise)
 
 /**
  * @param {Error} [reason]
