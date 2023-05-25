@@ -110,9 +110,7 @@ function test (testname, write, read, val, doLog = true) {
  * @param {string} s
  */
 const testVarString = s => {
-  const encoder = encoding.createEncoder()
-  encoding.writeVarString(encoder, s)
-  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const decoder = decoding.createDecoder(encoding.encode(encoder => { encoding.writeVarString(encoder, s) }))
   const peeked = decoding.peekVarString(decoder)
   const result = decoding.readVarString(decoder)
   t.compareStrings(s, result)

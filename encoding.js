@@ -54,6 +54,15 @@ export class Encoder {
 export const createEncoder = () => new Encoder()
 
 /**
+ * @param {function(Encoder):void} f
+ */
+export const encode = (f) => {
+  const encoder = createEncoder()
+  f(encoder)
+  return toUint8Array(encoder)
+}
+
+/**
  * The current length of the encoded data.
  *
  * @function
