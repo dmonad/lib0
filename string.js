@@ -10,6 +10,12 @@ export const fromCharCode = String.fromCharCode
 export const fromCodePoint = String.fromCodePoint
 
 /**
+ * The largest utf16 character.
+ * Corresponds to Uint8Array([255, 255]) or charcodeof(2x2^8)
+ */
+export const MAX_UTF16_CHARACTER = fromCharCode(65535)
+
+/**
  * @param {string} s
  * @return {string}
  */
