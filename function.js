@@ -167,7 +167,7 @@ export const isString = (s) => s && s.constructor === String
 export const isNumber = n => n != null && n.constructor === Number
 
 /**
- * @template TYPE
+ * @template {abstract new (...args: any) => any} TYPE
  * @param {any} n
  * @param {TYPE} T
  * @return {n is InstanceType<TYPE>}
@@ -175,7 +175,7 @@ export const isNumber = n => n != null && n.constructor === Number
 export const is = (n, T) => n && n.constructor === T
 
 /**
- * @template TYPE
+ * @template {abstract new (...args: any) => any} TYPE
  * @param {TYPE} T
  */
 export const isTemplate = (T) =>
