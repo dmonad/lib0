@@ -345,6 +345,48 @@ export const _writeVarStringPolyfill = (encoder, str) => {
 export const writeVarString = (string.utf8TextEncoder && /** @type {any} */ (string.utf8TextEncoder).encodeInto) ? _writeVarStringNative : _writeVarStringPolyfill
 
 /**
+ * Write a string terminated by a special byte sequence. This is not very performant and is
+ * generally discouraged. However, the resulting byte arrays are lexiographically ordered which
+ * makes this a nice feature for databases.
+ *
+ * The string will be encoded using utf8 and then terminated and escaped using writeTerminatingUint8Array.
+ *
+ * @function
+ * @param {Encoder} encoder
+ * @param {String} str The string that is to be encoded.
+ */
+export const writeTerminatedString = (encoder, str) =>
+  writeTerminatedUint8Array(encoder, string.encodeUtf8(str))
+
+/**
+ * Write a terminating Uint8Array. Note that this is not performant and is generally
+ * discouraged. There are few situations when this is needed.
+ *
+ * We use 0x0 as a terminating character. 0x1 serves as an escape character for 0x0 and 0x1.
+ *
+ * Example: [0,1,2] is encoded to [1,0,1,1,2,0]. 0x0, and 0x1 needed to be escaped using 0x1. Then
+ * the result is terminated using the 0x0 character.
+ *
+ * This is basically how many systems implement null terminated strings. However, we use an escape
+ * character 0x1 to avoid issues and potenial attacks on our database (if this is used as a key
+ * encoder for NoSql databases).
+ *
+ * @function
+ * @param {Encoder} encoder
+ * @param {Uint8Array} buf The string that is to be encoded.
+ */
+export const writeTerminatedUint8Array = (encoder, buf) => {
+  for (let i = 0; i < buf.length; i++) {
+    const b = buf[i]
+    if (b === 0 || b === 1) {
+      write(encoder, 1)
+    }
+    write(encoder, buf[i])
+  }
+  write(encoder, 0)
+}
+
+/**
  * Write the content of another Encoder.
  *
  * @TODO: can be improved!

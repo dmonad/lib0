@@ -32,6 +32,7 @@ import * as math from './math.js'
 import * as number from './number.js'
 import * as string from './string.js'
 import * as error from './error.js'
+import * as encoding from './encoding.js'
 
 const errorUnexpectedEndOfArray = error.create('Unexpected end of array')
 const errorIntegerOutOfRange = error.create('Integer out of Range')
@@ -384,6 +385,31 @@ export const _readVarStringNative = decoder =>
  */
 /* c8 ignore next */
 export const readVarString = string.utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill
+
+/**
+ * @param {Decoder} decoder
+ * @return {Uint8Array}
+ */
+export const readTerminatedUint8Array = decoder => {
+  const encoder = encoding.createEncoder()
+  let b
+  while (true) {
+    b = readUint8(decoder)
+    if (b === 0) {
+      return encoding.toUint8Array(encoder)
+    }
+    if (b === 1) {
+      b = readUint8(decoder)
+    }
+    encoding.write(encoder, b)
+  }
+}
+
+/**
+ * @param {Decoder} decoder
+ * @return {string}
+ */
+export const readTerminatedString = decoder => string.decodeUtf8(readTerminatedUint8Array(decoder))
 
 /**
  * Look ahead and read varString without incrementing position

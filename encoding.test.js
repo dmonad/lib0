@@ -845,3 +845,27 @@ export const testInvalidVarIntEncoding = _tc => {
     decoding.readVarUint(decoder)
   })
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testTerminatedEncodering = _tc => {
+  const str1 = 'basic test'
+  const str2 = 'hello\0world' // can handle escaped sequences in string
+  const buf1 = new Uint8Array([0, 1, 2, 255, 4, 5])
+  const buf2 = new Uint8Array([255, 255, 0, 0, 0, 1, 0, 0])
+  const encoder = encoding.createEncoder()
+  encoding.writeTerminatedString(encoder, str1)
+  encoding.writeTerminatedString(encoder, str2)
+  encoding.writeTerminatedUint8Array(encoder, buf1)
+  encoding.writeTerminatedUint8Array(encoder, buf2)
+  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const readStr1 = decoding.readTerminatedString(decoder)
+  const readStr2 = decoding.readTerminatedString(decoder)
+  const readBuf1 = decoding.readTerminatedUint8Array(decoder)
+  const readBuf2 = decoding.readTerminatedUint8Array(decoder)
+  t.assert(readStr1 === str1)
+  t.assert(readStr2 === str2)
+  t.compare(readBuf1, buf1)
+  t.compare(readBuf2, buf2)
+}
