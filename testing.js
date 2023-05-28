@@ -251,7 +251,7 @@ export const printCanvas = log.printCanvas
  * ```
  *
  * @param {string} description
- * @param {function(void):void} f
+ * @param {function(...any):void} f
  */
 export const group = (description, f) => {
   log.group(log.BLUE, description)
@@ -278,7 +278,7 @@ export const group = (description, f) => {
  * ```
  *
  * @param {string} description
- * @param {function(void):Promise<any>} f
+ * @param {function(...any):Promise<any>} f
  */
 export const groupAsync = async (description, f) => {
   log.group(log.BLUE, description)
@@ -304,7 +304,7 @@ export const groupAsync = async (description, f) => {
  * ```
  *
  * @param {string} message
- * @param {function():void} f
+ * @param {function(...any):void} f
  * @return {number} Returns a promise that resolves the measured duration to apply f
  */
 export const measureTime = (message, f) => {
@@ -334,7 +334,7 @@ export const measureTime = (message, f) => {
  * ```
  *
  * @param {string} message
- * @param {function():Promise<any>} f
+ * @param {function(...any):Promise<any>} f
  * @return {Promise<number>} Returns a promise that resolves the measured duration to apply f
  */
 export const measureTimeAsync = async (message, f) => {
@@ -520,7 +520,7 @@ export const compare = (a, b, message = null, customCompare = compareValues) => 
 export const assert = (property, message = null) => { property || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`) }
 
 /**
- * @param {function():Promise<any>} f
+ * @param {function(...any):Promise<any>} f
  */
 export const promiseRejected = async f => {
   try {
@@ -532,7 +532,7 @@ export const promiseRejected = async f => {
 }
 
 /**
- * @param {function():void} f
+ * @param {function(...any):void} f
  * @throws {TestError}
  */
 export const fails = f => {
@@ -546,7 +546,7 @@ export const fails = f => {
 }
 
 /**
- * @param {function():Promise<any>} f
+ * @param {function(...any):Promise<any>} f
  * @throws {TestError}
  */
 export const failsAsync = async f => {
