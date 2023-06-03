@@ -79,6 +79,12 @@ export class TestCase {
      * @type {string}
      */
     this.testName = testName
+    /**
+     * This type can store custom information related to the TestCase
+     *
+     * @type {Map<string,any>}
+     */
+    this.meta = new Map()
     this._seed = null
     this._prng = null
   }
