@@ -1,9 +1,8 @@
 import * as math from '../math.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as array from '../array.js'
-import * as number from '../number.js'
-import * as binary from '../binary.js'
 import * as buffer from '../buffer.js'
+import * as error from '../error.js'
 
 /**
  * This is a GC2 Polynomial abstraction that is not meant for production!
@@ -378,7 +377,7 @@ export const createIrreducible = degree => {
  * @param {Uint8Array} buf
  * @param {GC2Polynomial} m
  */
-export const fingerprint = (buf, m) => toUint8ArrayLsb(mod(createFromBytes(buf), m))
+export const fingerprint = (buf, m) => toUint8Array(mod(createFromBytes(buf), m))
 
 export class FingerprintEncoder {
   /**
@@ -400,6 +399,82 @@ export class FingerprintEncoder {
   }
 
   getFingerprint () {
-    return toUint8ArrayLsb(this.fingerprint)
+    return toUint8Array(this.fingerprint)
+  }
+}
+
+/**
+ * Shift modulo polynomial i bits to the left. Expect that bs[0] === 1.
+ *
+ * @param {Uint8Array} bs
+ * @param {number} lshift
+ */
+const _shiftBsLeft = (bs, lshift) => {
+  if (lshift === 0) return bs
+  bs = new Uint8Array(bs)
+  bs[0] <<= lshift
+  for (let i = 1; i < bs.length; i++) {
+    bs[i - 1] |= bs[i] >>> (8 - lshift)
+    bs[i] <<= lshift
+  }
+  return bs
+}
+
+export class EfficientFingerprintEncoder {
+  /**
+   * @param {Uint8Array} m assert(m[0] === 1)
+   */
+  constructor (m) {
+    this.m = m
+    this.blen = m.byteLength
+    this.bs = new Uint8Array(this.blen)
+    /**
+     * This describes the position of the most significant byte (starts with 0 and increases with
+     * shift)
+     */
+    this.bpos = 0
+  }
+
+  /**
+   * Add/Xor/Substract bytes.
+   *
+   * Discards bytes that are out of range.
+   * @todo put this in function or inline
+   *
+   * @param {Uint8Array} cs
+   */
+  add (cs) {
+    const copyLen = math.min(this.blen, cs.byteLength)
+    // copy from right to left until max is reached
+    for (let i = 0; i < copyLen; i++) {
+      this.bs[(this.bpos + this.blen - i - 1) % this.blen] ^= cs[cs.byteLength - i - 1]
+    }
+  }
+
+  /**
+   * @param {number} byte
+   */
+  write (byte) {
+    // [0,m1,m2,b]
+    //  x            <- bpos
+    // Shift one byte to the left, add b
+    this.bs[this.bpos] = byte
+    this.bpos = (this.bpos + 1) % this.blen
+    // mod
+    for (let i = 7; i >= 0; i--) {
+      if (((this.bs[this.bpos] >>> i) & 1) === 1) {
+        this.add(_shiftBsLeft(this.m, i))
+      }
+    }
+    if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
+    // assert(this.bs[this.bpos] === 0)
+  }
+
+  getFingerprint () {
+    const result = new Uint8Array(this.blen - 1)
+    for (let i = 0; i < result.byteLength; i++) {
+      result[i] = this.bs[(this.bpos + i + 1) % this.blen]
+    }
+    return result
   }
 }

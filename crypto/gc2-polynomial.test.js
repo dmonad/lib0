@@ -72,11 +72,17 @@ export const testFingerprint = tc => {
    * @type {Array<Uint8Array>}
    */
   const dataObjects = []
-  const N = 3000
-  const K = 53
+  const N = 1 // 3000
+  const K = 32
   const MSIZE = 130
-  const irreducible = gc2.createIrreducible(K)
   t.info(`N=${N} K=${K} MSIZE=${MSIZE}`)
+  /**
+   * @type {gc2.GC2Polynomial}
+   */
+  let irreducible
+  t.measureTime(`find irreducible of ${K}`, () => {
+    irreducible = gc2.createIrreducible(K)
+  })
   for (let i = 0; i < N; i++) {
     dataObjects.push(prng.uint8Array(tc.prng, MSIZE))
   }
@@ -103,4 +109,18 @@ export const testFingerprint = tc => {
     })
   })
   t.compare(fingerprints1, fingerprints2)
+  /**
+   * @type {Array<Uint8Array>}
+   */
+  let fingerprints3 = []
+  t.measureTime('polynomial incremental (efficent))', () => {
+    fingerprints3 = dataObjects.map((o, _index) => {
+      const encoder = new gc2.EfficientFingerprintEncoder(gc2.toUint8Array(irreducible))
+      for (let i = 0; i < o.byteLength; i++) {
+        encoder.write(o[i])
+      }
+      return encoder.getFingerprint()
+    })
+  })
+  t.compare(fingerprints1, fingerprints3)
 }
