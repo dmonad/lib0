@@ -1,3 +1,14 @@
+/**
+ * The idea of the Rabin fingerprint algorithm is to represent the binary as a polynomial in a
+ * finite field (Galois Field G(2)). The polynomial will then be taken "modulo" by an irreducible
+ * polynomial of the desired size.
+ *
+ * This implementation is inefficient and is solely used to verify the actually performant
+ * implementation in `./rabin.js`.
+ *
+ * @module rabin-gf2-polynomial
+ */
+
 import * as math from '../math.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as array from '../array.js'

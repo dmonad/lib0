@@ -1,3 +1,10 @@
+/**
+ * @module rabin
+ *
+ * Very efficient & versatile fingerprint/hashing algorithm. However, it is not cryptographically
+ * secure.
+ */
+
 import * as buffer from '../buffer.js'
 import * as map from '../map.js'
 

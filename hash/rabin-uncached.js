@@ -1,3 +1,10 @@
+/**
+ * It is not recommended to use this package. This is the uncached implementation of the rabin
+ * fingerprint algorithm. However, it can be used to verify the `rabin.js` implementation.
+ *
+ * @module rabin-uncached
+ */
+
 import * as math from '../math.js'
 import * as buffer from '../buffer.js'
 
