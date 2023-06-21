@@ -2,7 +2,6 @@ import * as math from '../math.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as array from '../array.js'
 import * as buffer from '../buffer.js'
-import * as map from '../map.js'
 
 /**
  * @param {number} degree
@@ -91,7 +90,6 @@ export const createRandom = degree => {
   bs[0] = ((firstByte << zeros) & 0xff) >>> zeros
   return createFromBytes(bs)
 }
-
 
 /**
  * @param {GC2Polynomial} p
@@ -345,7 +343,7 @@ export const createIrreducible = degree => {
  */
 export const fingerprint = (buf, m) => toUint8Array(mod(createFromBytes(buf), m), _degreeToMinByteLength(getHighestDegree(m) - 1))
 
-export class FingerprintEncoder {
+export class RabinPolynomialEncoder {
   /**
    * @param {GC2Polynomial} m The irreducible polynomial
    */
@@ -368,162 +366,3 @@ export class FingerprintEncoder {
     return toUint8Array(this.fingerprint, _degreeToMinByteLength(getHighestDegree(this.m) - 1))
   }
 }
-
-/**
- * Shift modulo polynomial i bits to the left. Expect that bs[0] === 1.
- *
- * @param {Uint8Array} bs
- * @param {number} lshift
- */
-const _shiftBsLeft = (bs, lshift) => {
-  if (lshift === 0) return bs
-  bs = new Uint8Array(bs)
-  bs[0] <<= lshift
-  for (let i = 1; i < bs.length; i++) {
-    bs[i - 1] |= bs[i] >>> (8 - lshift)
-    bs[i] <<= lshift
-  }
-  return bs
-}
-
-export class EfficientFingerprintEncoder {
-  /**
-   * @param {Uint8Array} m assert(m[0] === 1)
-   */
-  constructor (m) {
-    this.m = m
-    this.blen = m.byteLength
-    this.bs = new Uint8Array(this.blen)
-    /**
-     * This describes the position of the most significant byte (starts with 0 and increases with
-     * shift)
-     */
-    this.bpos = 0
-  }
-
-  /**
-   * Add/Xor/Substract bytes.
-   *
-   * Discards bytes that are out of range.
-   * @todo put this in function or inline
-   *
-   * @param {Uint8Array} cs
-   */
-  add (cs) {
-    const copyLen = math.min(this.blen, cs.byteLength)
-    // copy from right to left until max is reached
-    for (let i = 0; i < copyLen; i++) {
-      this.bs[(this.bpos + this.blen - i - 1) % this.blen] ^= cs[cs.byteLength - i - 1]
-    }
-  }
-
-  /**
-   * @param {number} byte
-   */
-  write (byte) {
-    // [0,m1,m2,b]
-    //  x            <- bpos
-    // Shift one byte to the left, add b
-    this.bs[this.bpos] = byte
-    this.bpos = (this.bpos + 1) % this.blen
-    // mod
-    for (let i = 7; i >= 0; i--) {
-      if (((this.bs[this.bpos] >>> i) & 1) === 1) {
-        this.add(_shiftBsLeft(this.m, i))
-      }
-    }
-    // if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
-    // assert(this.bs[this.bpos] === 0)
-  }
-
-  getFingerprint () {
-    const result = new Uint8Array(this.blen - 1)
-    for (let i = 0; i < result.byteLength; i++) {
-      result[i] = this.bs[(this.bpos + i + 1) % this.blen]
-    }
-    return result
-  }
-}
-
-/**
- * Maps from a modulo to the precomputed values.
- *
- * @type {Map<string,Uint8Array>}
- */
-const _precomputedFingerprintCache = new Map()
-
-/**
- * @param {Uint8Array} m
- */
-const ensureCache = m => map.setIfUndefined(_precomputedFingerprintCache, buffer.toBase64(m), () => {
-  const byteLen = m.byteLength
-  const cache = new Uint8Array(256 * byteLen)
-  // Use dynamic computing to compute the cached results.
-  // Starting values: cache(0) = 0; cache(1) = m
-  cache.set(m, byteLen)
-  for (let bit = 1; bit < 8; bit++) {
-    const mBitShifted = _shiftBsLeft(m, bit)
-    const bitShifted = 1 << bit
-    for (let j = 0; j < bitShifted; j++) {
-      // rest is already precomputed
-      const msb = bitShifted | j
-      const rest = msb ^ mBitShifted[0]
-      for (let i = 0; i < byteLen; i++) {
-        cache[msb * byteLen + i] = cache[rest * byteLen + i] ^ mBitShifted[i]
-      }
-      // if (cache[(bitShifted | j) * byteLen] !== (bitShifted | j)) { error.unexpectedCase() }
-    }
-  }
-  return cache
-})
-
-export class CachedEfficientFingerprintEncoder {
-  /**
-   * @param {Uint8Array} m assert(m[0] === 1)
-   */
-  constructor (m) {
-    this.m = m
-    this.blen = m.byteLength
-    this.bs = new Uint8Array(this.blen)
-    this.cache = ensureCache(m)
-    /**
-     * This describes the position of the most significant byte (starts with 0 and increases with
-     * shift)
-     */
-    this.bpos = 0
-  }
-
-  /**
-   * @param {number} byte
-   */
-  write (byte) {
-    // [0,m1,m2,b]
-    //  x            <- bpos
-    // Shift one byte to the left, add b
-    this.bs[this.bpos] = byte
-    this.bpos = (this.bpos + 1) % this.blen
-    const msb = this.bs[this.bpos]
-    for (let i = 0; i < this.blen; i++) {
-      this.bs[(this.bpos + i) % this.blen] ^= this.cache[msb * this.blen + i]
-    }
-    // if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
-  }
-
-  getFingerprint () {
-    const result = new Uint8Array(this.blen - 1)
-    for (let i = 0; i < result.byteLength; i++) {
-      result[i] = this.bs[(this.bpos + i + 1) % this.blen]
-    }
-    return result
-  }
-}
-
-export const StandardIrreducible8 = new Uint8Array([1, 189])
-
-export const StandardIrreducible16 = new Uint8Array([1, 244, 157])
-
-export const StandardIrreducible32 = new Uint8Array([1, 149, 183, 205, 191])
-
-export const StandardIrreducible64 = new Uint8Array([1, 133, 250, 114, 193, 250, 28, 193, 231])
-
-export const StandardIrreducible128 = new Uint8Array([1, 94, 109, 166, 228, 6, 222, 102, 239, 27, 128, 184, 13, 50, 112, 169, 199])

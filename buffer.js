@@ -113,3 +113,20 @@ export const encodeAny = data => {
  * @return {any}
  */
 export const decodeAny = buf => decoding.readAny(decoding.createDecoder(buf))
+
+/**
+ * Shift Byte Array {N} bits to the left. Does not expand byte array.
+ *
+ * @param {Uint8Array} bs
+ * @param {number} N should be in the range of [0-7]
+ */
+export const shiftNBitsLeft = (bs, N) => {
+  if (N === 0) return bs
+  bs = new Uint8Array(bs)
+  bs[0] <<= N
+  for (let i = 1; i < bs.length; i++) {
+    bs[i - 1] |= bs[i] >>> (8 - N)
+    bs[i] <<= N
+  }
+  return bs
+}

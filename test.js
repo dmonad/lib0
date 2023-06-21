@@ -2,7 +2,7 @@ import { runTests } from './testing.js'
 import * as array from './array.test.js'
 import * as broadcastchannel from './broadcastchannel.test.js'
 import * as crypto from './crypto.test.js'
-import * as cryptoPolynomial from './crypto/gc2-polynomial.test.js'
+import * as rabin from './hash/rabin.test.js'
 import * as logging from './logging.test.js'
 import * as string from './string.test.js'
 import * as encoding from './encoding.test.js'
@@ -45,7 +45,7 @@ runTests({
   array,
   broadcastchannel,
   crypto,
-  cryptoPolynomial,
+  rabin,
   logging,
   string,
   encoding,

@@ -1,6 +1,9 @@
 import * as fs from 'fs'
 
-const files = fs.readdirSync('./').filter(file => /(?<!(test|config))\.js$/.test(file))
+const roots = ['./', './crypto/', './hash/']
+
+const files = roots.map(root => fs.readdirSync(root).map(f => root + f)).flat().filter(file => /(?<!(test|config))\.js$/.test(file))
+console.log(files)
 
 export default [{
   input: files,
