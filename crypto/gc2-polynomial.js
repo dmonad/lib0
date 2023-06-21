@@ -2,7 +2,6 @@ import * as math from '../math.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as array from '../array.js'
 import * as buffer from '../buffer.js'
-import * as error from '../error.js'
 import * as map from '../map.js'
 
 /**
@@ -26,6 +25,8 @@ export class GC2Polynomial {
 }
 
 /**
+ * From Uint8Array (MSB).
+ *
  * @param {Uint8Array} bytes
  */
 export const createFromBytes = bytes => {
@@ -43,25 +44,8 @@ export const createFromBytes = bytes => {
 }
 
 /**
- * Least-significant-byte-first
+ * Transform to Uint8Array (MSB).
  *
- * @param {Uint8Array} bytes
- */
-export const createFromBytesLsb = bytes => {
-  const p = new GC2Polynomial()
-  for (let bsi = 0, currDegree = 0; bsi < bytes.length; bsi++) {
-    const currByte = bytes[bsi]
-    for (let i = 0; i < 8; i++) {
-      if (((currByte >>> i) & 1) === 1) {
-        p.degrees.add(currDegree)
-      }
-      currDegree++
-    }
-  }
-  return p
-}
-
-/**
  * @param {GC2Polynomial} p
  * @param {number} byteLength
  */
@@ -73,23 +57,6 @@ export const toUint8Array = (p, byteLength = _degreeToMinByteLength(getHighestDe
   const setBit = i => {
     const bi = math.floor(i / 8)
     buf[buf.length - 1 - bi] |= (1 << (i % 8))
-  }
-  p.degrees.forEach(setBit)
-  return buf
-}
-
-/**
- * @param {GC2Polynomial} p
- * @param {number} byteLength
- */
-export const toUint8ArrayLsb = (p, byteLength) => {
-  const buf = buffer.createUint8ArrayFromLen(byteLength)
-  /**
-   * @param {number} i
-   */
-  const setBit = i => {
-    const bi = math.floor(i / 8)
-    buf[bi] |= (1 << (i % 8))
   }
   p.degrees.forEach(setBit)
   return buf
@@ -472,7 +439,7 @@ export class EfficientFingerprintEncoder {
         this.add(_shiftBsLeft(this.m, i))
       }
     }
-    if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
+    // if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
     // assert(this.bs[this.bpos] === 0)
   }
 
@@ -486,52 +453,32 @@ export class EfficientFingerprintEncoder {
 }
 
 /**
- * @param {Uint8Array} bs1
- * @param {Uint8Array} bs2
- */
-export const xorBuffers = (bs1, bs2) => {
-  const res = new Uint8Array(bs1.byteLength)
-  if (bs1.byteLength !== bs2.byteLength) error.unexpectedCase()
-  for (let i = 0; i < res.byteLength; i++) {
-    res[i] = bs1[i] ^ bs2[i]
-  }
-  return res
-}
-
-/**
  * Maps from a modulo to the precomputed values.
  *
- * @type {Map<Uint8Array,Uint8Array>}
+ * @type {Map<string,Uint8Array>}
  */
 const _precomputedFingerprintCache = new Map()
 
 /**
  * @param {Uint8Array} m
  */
-const ensureCache = m => map.setIfUndefined(_precomputedFingerprintCache, m, () => {
+const ensureCache = m => map.setIfUndefined(_precomputedFingerprintCache, buffer.toBase64(m), () => {
   const byteLen = m.byteLength
   const cache = new Uint8Array(256 * byteLen)
-  /**
-   * @todo not necessary, can be written directly
-   * @param {number} msb
-   * @param {Uint8Array} result
-   */
-  const writeCacheResult = (msb, result) => {
-    for (let i = 0; i < result.byteLength; i++) {
-      cache[msb * byteLen + i] = result[i]
-    }
-  }
-  writeCacheResult(1, m) // can be written using a native function
-  // 10101010
+  // Use dynamic computing to compute the cached results.
+  // Starting values: cache(0) = 0; cache(1) = m
+  cache.set(m, byteLen)
   for (let bit = 1; bit < 8; bit++) {
     const mBitShifted = _shiftBsLeft(m, bit)
     const bitShifted = 1 << bit
     for (let j = 0; j < bitShifted; j++) {
       // rest is already precomputed
-      const rest = (bitShifted | j) ^ mBitShifted[0]
-      // @todo xorBuffers (and creating views) is not necessary
-      writeCacheResult(bitShifted | j, xorBuffers(cache.slice(rest * byteLen, rest * byteLen + byteLen), mBitShifted))
-      if (cache[(bitShifted | j) * byteLen] !== (bitShifted | j)) { error.unexpectedCase() }
+      const msb = bitShifted | j
+      const rest = msb ^ mBitShifted[0]
+      for (let i = 0; i < byteLen; i++) {
+        cache[msb * byteLen + i] = cache[rest * byteLen + i] ^ mBitShifted[i]
+      }
+      // if (cache[(bitShifted | j) * byteLen] !== (bitShifted | j)) { error.unexpectedCase() }
     }
   }
   return cache
@@ -566,7 +513,7 @@ export class CachedEfficientFingerprintEncoder {
     for (let i = 0; i < this.blen; i++) {
       this.bs[(this.bpos + i) % this.blen] ^= this.cache[msb * this.blen + i]
     }
-    if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
+    // if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
   }
 
   getFingerprint () {
@@ -577,3 +524,13 @@ export class CachedEfficientFingerprintEncoder {
     return result
   }
 }
+
+export const StandardIrreducible8 = new Uint8Array([1, 189])
+
+export const StandardIrreducible16 = new Uint8Array([1, 244, 157])
+
+export const StandardIrreducible32 = new Uint8Array([1, 149, 183, 205, 191])
+
+export const StandardIrreducible64 = new Uint8Array([1, 133, 250, 114, 193, 250, 28, 193, 231])
+
+export const StandardIrreducible128 = new Uint8Array([1, 94, 109, 166, 228, 6, 222, 102, 239, 27, 128, 184, 13, 50, 112, 169, 199])

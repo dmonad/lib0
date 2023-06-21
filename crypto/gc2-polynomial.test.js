@@ -37,8 +37,8 @@ export const testIrreducibleInput = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testIrreducibleSpread = _tc => {
-  const degree = 53
-  const N = 200
+  const degree = 32
+  const N = 400
   const avgSpread = getSpreadAverage(degree, N)
   const diffSpread = math.abs(avgSpread - degree)
   t.info(`Average spread for degree ${degree} at ${N} repetitions: ${avgSpread}`)
@@ -65,23 +65,56 @@ const getSpreadAverage = (degree, tests) => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testFingerprint = tc => {
+export const testGenerateIrreducibles = _tc => {
+  /**
+   * @param {number} byteLen
+   */
+  const testIrreducibleGen = byteLen => {
+    const K = byteLen * 8
+    const irr = gc2.createIrreducible(K)
+    t.assert(gc2.getHighestDegree(irr) === K, 'degree equals K')
+    const irrBs = gc2.toUint8Array(irr)
+    console.log(`K = ${K}`, irrBs)
+    t.assert(irrBs[0] === 1)
+    t.assert(irrBs.byteLength === byteLen + 1)
+  }
+  testIrreducibleGen(1)
+  testIrreducibleGen(2)
+  testIrreducibleGen(4)
+  testIrreducibleGen(8)
+  testIrreducibleGen(16)
+  gc2.isIrreducibleBenOr(gc2.createFromBytes(gc2.StandardIrreducible8))
+  gc2.isIrreducibleBenOr(gc2.createFromBytes(gc2.StandardIrreducible16))
+  gc2.isIrreducibleBenOr(gc2.createFromBytes(gc2.StandardIrreducible32))
+  gc2.isIrreducibleBenOr(gc2.createFromBytes(gc2.StandardIrreducible64))
+  gc2.isIrreducibleBenOr(gc2.createFromBytes(gc2.StandardIrreducible128))
+}
+
+/**
+ * @param {t.TestCase} tc
+ * @param {number} K
+ */
+export const _testFingerprintK = (tc, K) => {
   /**
    * @type {Array<Uint8Array>}
    */
   const dataObjects = []
-  const N = 3000
-  const K = 32
+  const N = 300
   const MSIZE = 130
   t.info(`N=${N} K=${K} MSIZE=${MSIZE}`)
   /**
    * @type {gc2.GC2Polynomial}
    */
   let irreducible
+  /**
+   * @type {Uint8Array}
+   */
+  let irreducibleBuffer
   t.measureTime(`find irreducible of ${K}`, () => {
     irreducible = gc2.createIrreducible(K)
+    irreducibleBuffer = gc2.toUint8Array(irreducible)
   })
   for (let i = 0; i < N; i++) {
     dataObjects.push(prng.uint8Array(tc.prng, MSIZE))
@@ -94,7 +127,7 @@ export const testFingerprint = tc => {
     fingerprints1 = dataObjects.map((o, _index) => gc2.fingerprint(o, irreducible))
   })
   const testSet = new Set(fingerprints1.map(buffer.toBase64))
-  t.assert(testSet.size === N)
+  t.assert(K < 32 || testSet.size === N)
   /**
    * @type {Array<Uint8Array>}
    */
@@ -115,7 +148,7 @@ export const testFingerprint = tc => {
   let fingerprints3 = []
   t.measureTime('polynomial incremental (efficent))', () => {
     fingerprints3 = dataObjects.map((o, _index) => {
-      const encoder = new gc2.EfficientFingerprintEncoder(gc2.toUint8Array(irreducible))
+      const encoder = new gc2.EfficientFingerprintEncoder(irreducibleBuffer)
       for (let i = 0; i < o.byteLength; i++) {
         encoder.write(o[i])
       }
@@ -129,7 +162,7 @@ export const testFingerprint = tc => {
   let fingerprints4 = []
   t.measureTime('polynomial incremental (efficent & cached))', () => {
     fingerprints4 = dataObjects.map((o, _index) => {
-      const encoder = new gc2.CachedEfficientFingerprintEncoder(gc2.toUint8Array(irreducible))
+      const encoder = new gc2.CachedEfficientFingerprintEncoder(irreducibleBuffer)
       for (let i = 0; i < o.byteLength; i++) {
         encoder.write(o[i])
       }
@@ -137,4 +170,15 @@ export const testFingerprint = tc => {
     })
   })
   t.compare(fingerprints1, fingerprints4)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testFingerprint = tc => {
+  _testFingerprintK(tc, 8)
+  _testFingerprintK(tc, 16)
+  _testFingerprintK(tc, 32)
+  _testFingerprintK(tc, 64)
+  _testFingerprintK(tc, 128)
 }

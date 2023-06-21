@@ -4,9 +4,9 @@ import * as random from './random.js'
 import * as math from './math.js'
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testNumber = tc => {
+export const testNumber = _tc => {
   t.describe('isNaN')
   t.assert(number.isNaN(NaN))
   t.assert(!number.isNaN(1 / 0))
@@ -18,6 +18,9 @@ export const testNumber = tc => {
   t.assert(!number.isInteger(NaN))
   t.assert(number.isInteger(0))
   t.assert(number.isInteger(-1))
+  t.assert(number.countBits(1) === 1)
+  t.assert(number.countBits(3) === 2)
+  t.assert(number.countBits(128 + 3) === 3)
 }
 
 /**
