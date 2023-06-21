@@ -3,6 +3,12 @@ import * as webcrypto from 'lib0/webcrypto'
 import * as array from '../array.js'
 import * as buffer from '../buffer.js'
 import * as error from '../error.js'
+import * as map from '../map.js'
+
+/**
+ * @param {number} degree
+ */
+const _degreeToMinByteLength = degree => math.floor(degree / 8) + 1
 
 /**
  * This is a GC2 Polynomial abstraction that is not meant for production!
@@ -57,10 +63,10 @@ export const createFromBytesLsb = bytes => {
 
 /**
  * @param {GC2Polynomial} p
+ * @param {number} byteLength
  */
-export const toUint8Array = p => {
-  const max = getHighestDegree(p)
-  const buf = buffer.createUint8ArrayFromLen(math.floor(max / 8) + 1)
+export const toUint8Array = (p, byteLength = _degreeToMinByteLength(getHighestDegree(p))) => {
+  const buf = buffer.createUint8ArrayFromLen(byteLength)
   /**
    * @param {number} i
    */
@@ -74,10 +80,10 @@ export const toUint8Array = p => {
 
 /**
  * @param {GC2Polynomial} p
+ * @param {number} byteLength
  */
-export const toUint8ArrayLsb = p => {
-  const max = getHighestDegree(p)
-  const buf = buffer.createUint8ArrayFromLen(math.floor(max / 8) + 1)
+export const toUint8ArrayLsb = (p, byteLength) => {
+  const buf = buffer.createUint8ArrayFromLen(byteLength)
   /**
    * @param {number} i
    */
@@ -108,7 +114,7 @@ export const createFromUint = uint => {
  * @param {number} degree
  */
 export const createRandom = degree => {
-  const bs = new Uint8Array(math.floor(degree / 8) + 1)
+  const bs = new Uint8Array(_degreeToMinByteLength(degree))
   webcrypto.getRandomValues(bs)
   // Get first byte and explicitly set the bit of "degree" to 1 (the result must have the specified
   // degree).
@@ -377,7 +383,7 @@ export const createIrreducible = degree => {
  * @param {Uint8Array} buf
  * @param {GC2Polynomial} m
  */
-export const fingerprint = (buf, m) => toUint8Array(mod(createFromBytes(buf), m))
+export const fingerprint = (buf, m) => toUint8Array(mod(createFromBytes(buf), m), _degreeToMinByteLength(getHighestDegree(m) - 1))
 
 export class FingerprintEncoder {
   /**
@@ -399,7 +405,7 @@ export class FingerprintEncoder {
   }
 
   getFingerprint () {
-    return toUint8Array(this.fingerprint)
+    return toUint8Array(this.fingerprint, _degreeToMinByteLength(getHighestDegree(this.m) - 1))
   }
 }
 
@@ -468,6 +474,99 @@ export class EfficientFingerprintEncoder {
     }
     if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
     // assert(this.bs[this.bpos] === 0)
+  }
+
+  getFingerprint () {
+    const result = new Uint8Array(this.blen - 1)
+    for (let i = 0; i < result.byteLength; i++) {
+      result[i] = this.bs[(this.bpos + i + 1) % this.blen]
+    }
+    return result
+  }
+}
+
+/**
+ * @param {Uint8Array} bs1
+ * @param {Uint8Array} bs2
+ */
+export const xorBuffers = (bs1, bs2) => {
+  const res = new Uint8Array(bs1.byteLength)
+  if (bs1.byteLength !== bs2.byteLength) error.unexpectedCase()
+  for (let i = 0; i < res.byteLength; i++) {
+    res[i] = bs1[i] ^ bs2[i]
+  }
+  return res
+}
+
+/**
+ * Maps from a modulo to the precomputed values.
+ *
+ * @type {Map<Uint8Array,Uint8Array>}
+ */
+const _precomputedFingerprintCache = new Map()
+
+/**
+ * @param {Uint8Array} m
+ */
+const ensureCache = m => map.setIfUndefined(_precomputedFingerprintCache, m, () => {
+  const byteLen = m.byteLength
+  const cache = new Uint8Array(256 * byteLen)
+  /**
+   * @todo not necessary, can be written directly
+   * @param {number} msb
+   * @param {Uint8Array} result
+   */
+  const writeCacheResult = (msb, result) => {
+    for (let i = 0; i < result.byteLength; i++) {
+      cache[msb * byteLen + i] = result[i]
+    }
+  }
+  writeCacheResult(1, m) // can be written using a native function
+  // 10101010
+  for (let bit = 1; bit < 8; bit++) {
+    const mBitShifted = _shiftBsLeft(m, bit)
+    const bitShifted = 1 << bit
+    for (let j = 0; j < bitShifted; j++) {
+      // rest is already precomputed
+      const rest = (bitShifted | j) ^ mBitShifted[0]
+      // @todo xorBuffers (and creating views) is not necessary
+      writeCacheResult(bitShifted | j, xorBuffers(cache.slice(rest * byteLen, rest * byteLen + byteLen), mBitShifted))
+      if (cache[(bitShifted | j) * byteLen] !== (bitShifted | j)) { error.unexpectedCase() }
+    }
+  }
+  return cache
+})
+
+export class CachedEfficientFingerprintEncoder {
+  /**
+   * @param {Uint8Array} m assert(m[0] === 1)
+   */
+  constructor (m) {
+    this.m = m
+    this.blen = m.byteLength
+    this.bs = new Uint8Array(this.blen)
+    this.cache = ensureCache(m)
+    /**
+     * This describes the position of the most significant byte (starts with 0 and increases with
+     * shift)
+     */
+    this.bpos = 0
+  }
+
+  /**
+   * @param {number} byte
+   */
+  write (byte) {
+    // [0,m1,m2,b]
+    //  x            <- bpos
+    // Shift one byte to the left, add b
+    this.bs[this.bpos] = byte
+    this.bpos = (this.bpos + 1) % this.blen
+    const msb = this.bs[this.bpos]
+    for (let i = 0; i < this.blen; i++) {
+      this.bs[(this.bpos + i) % this.blen] ^= this.cache[msb * this.blen + i]
+    }
+    if (this.bs[this.bpos] !== 0) { error.unexpectedCase() }
   }
 
   getFingerprint () {
