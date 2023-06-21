@@ -92,6 +92,7 @@ export const createRandom = degree => {
   return createFromBytes(bs)
 }
 
+
 /**
  * @param {GC2Polynomial} p
  * @return number
@@ -212,14 +213,6 @@ export const shiftLeft = (p, shift) => {
   })
   return result
 }
-
-/**
- * Multiply (•) p1 with p2 and store the result in p1.
- *
- * @param {GC2Polynomial} p
- * @param {number} shift
- */
-export const shiftRight = (p, shift) => shiftLeft(p, -shift)
 
 /**
  * Computes p1 % p2. I.e. the remainder of p1/p2.
