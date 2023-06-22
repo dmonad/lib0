@@ -8,7 +8,7 @@
 import * as buffer from '../buffer.js'
 import * as map from '../map.js'
 
-export const StandardIrreducible8 = new Uint8Array([1, 189])
+export const StandardIrreducible8 = new Uint8Array([1, 221])
 export const StandardIrreducible16 = new Uint8Array([1, 244, 157])
 export const StandardIrreducible32 = new Uint8Array([1, 149, 183, 205, 191])
 export const StandardIrreducible64 = new Uint8Array([1, 133, 250, 114, 193, 250, 28, 193, 231])
@@ -84,4 +84,18 @@ export class RabinEncoder {
     }
     return result
   }
+}
+
+/**
+ * Basically an exact copy of the Encoder, but inlined.
+ *
+ * @param {Uint8Array} irreducible
+ * @param {Uint8Array} data
+ */
+export const fingerprint = (irreducible, data) => {
+  const encoder = new RabinEncoder(irreducible)
+  for (let i = 0; i < data.length; i++) {
+    encoder.write(data[i])
+  }
+  return encoder.getFingerprint()
 }

@@ -20,12 +20,12 @@ import * as buffer from '../buffer.js'
 const _degreeToMinByteLength = degree => math.floor(degree / 8) + 1
 
 /**
- * This is a GC2 Polynomial abstraction that is not meant for production!
+ * This is a GF2 Polynomial abstraction that is not meant for production!
  *
  * It is easy to understand and it's correctness is as obvious as possible. It can be used to verify
- * efficient implementations of algorithms on GC2.
+ * efficient implementations of algorithms on GF2.
  */
-export class GC2Polynomial {
+export class GF2Polynomial {
   constructor () {
     /**
       * @type {Set<number>}
@@ -40,7 +40,7 @@ export class GC2Polynomial {
  * @param {Uint8Array} bytes
  */
 export const createFromBytes = bytes => {
-  const p = new GC2Polynomial()
+  const p = new GF2Polynomial()
   for (let bsi = bytes.length - 1, currDegree = 0; bsi >= 0; bsi--) {
     const currByte = bytes[bsi]
     for (let i = 0; i < 8; i++) {
@@ -56,7 +56,7 @@ export const createFromBytes = bytes => {
 /**
  * Transform to Uint8Array (MSB).
  *
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  * @param {number} byteLength
  */
 export const toUint8Array = (p, byteLength = _degreeToMinByteLength(getHighestDegree(p))) => {
@@ -103,7 +103,7 @@ export const createRandom = degree => {
 }
 
 /**
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  * @return number
  */
 export const getHighestDegree = p => array.fold(array.from(p.degrees), 0, math.max)
@@ -113,8 +113,8 @@ export const getHighestDegree = p => array.fold(array.from(p.degrees), 0, math.m
  *
  * Addition is defined as xor in F2. Substraction is equivalent to addition in F2.
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const addInto = (p1, p2) => {
   p2.degrees.forEach(degree => {
@@ -131,8 +131,8 @@ export const addInto = (p1, p2) => {
  *
  * Addition is defined as xor in F2. Substraction is equivalent to addition in F2.
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const orInto = (p1, p2) => {
   p2.degrees.forEach(degree => {
@@ -145,11 +145,11 @@ export const orInto = (p1, p2) => {
  *
  * Addition is defined as xor in F2. Substraction is equivalent to addition in F2.
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const add = (p1, p2) => {
-  const result = new GC2Polynomial()
+  const result = new GF2Polynomial()
   p2.degrees.forEach(degree => {
     if (!p1.degrees.has(degree)) {
       result.degrees.add(degree)
@@ -168,10 +168,10 @@ export const add = (p1, p2) => {
  *
  * Addition is defined as xor in F2. Substraction is equivalent to addition in F2.
  *
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  */
 export const clone = (p) => {
-  const result = new GC2Polynomial()
+  const result = new GF2Polynomial()
   p.degrees.forEach(d => result.degrees.add(d))
   return result
 }
@@ -181,7 +181,7 @@ export const clone = (p) => {
  *
  * Addition is defined as xor in F2. Substraction is equivalent to addition in F2.
  *
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  * @param {number} degree
  */
 export const addDegreeInto = (p, degree) => {
@@ -195,11 +195,11 @@ export const addDegreeInto = (p, degree) => {
 /**
  * Multiply (•) p1 with p2 and store the result in p1.
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const multiply = (p1, p2) => {
-  const result = new GC2Polynomial()
+  const result = new GF2Polynomial()
   p1.degrees.forEach(degree1 => {
     p2.degrees.forEach(degree2 => {
       addDegreeInto(result, degree1 + degree2)
@@ -211,11 +211,11 @@ export const multiply = (p1, p2) => {
 /**
  * Multiply (•) p1 with p2 and store the result in p1.
  *
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  * @param {number} shift
  */
 export const shiftLeft = (p, shift) => {
-  const result = new GC2Polynomial()
+  const result = new GF2Polynomial()
   p.degrees.forEach(degree => {
     const r = degree + shift
     r >= 0 && result.degrees.add(r)
@@ -226,8 +226,8 @@ export const shiftLeft = (p, shift) => {
 /**
  * Computes p1 % p2. I.e. the remainder of p1/p2.
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const mod = (p1, p2) => {
   const maxDeg1 = getHighestDegree(p1)
@@ -247,9 +247,9 @@ export const mod = (p1, p2) => {
  *
  * http://en.wikipedia.org/wiki/Modular_exponentiation
  *
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  * @param {number} e
- * @param {GC2Polynomial} m
+ * @param {GF2Polynomial} m
  */
 export const modPow = (p, e, m) => {
   let result = ONE
@@ -268,8 +268,8 @@ export const modPow = (p, e, m) => {
 /**
  * Find the greatest common divisor using Euclid's Algorithm.
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const gcd = (p1, p2) => {
   while (p2.degrees.size > 0) {
@@ -283,8 +283,8 @@ export const gcd = (p1, p2) => {
 /**
  * true iff p1 equals p2
  *
- * @param {GC2Polynomial} p1
- * @param {GC2Polynomial} p2
+ * @param {GF2Polynomial} p1
+ * @param {GF2Polynomial} p2
  */
 export const equals = (p1, p2) => {
   if (p1.degrees.size !== p2.degrees.size) return false
@@ -303,7 +303,7 @@ const ONE = createFromBytes(new Uint8Array([1]))
  * (shamelessly copied from
  * https://github.com/opendedup/rabinfingerprint/blob/master/src/org/rabinfingerprint/polynomial/Polynomial.java)
  *
- * @param {GC2Polynomial} f
+ * @param {GF2Polynomial} f
  * @param {number} p
  */
 const reduceExponent = (f, p) => {
@@ -322,7 +322,7 @@ const reduceExponent = (f, p) => {
  *
  * http://citeseer.ist.psu.edu/cache/papers/cs/27167/http:zSzzSzwww.math.clemson.eduzSzfacultyzSzGaozSzpaperszSzGP97a.pdf/gao97tests.pdf
  *
- * @param {GC2Polynomial} p
+ * @param {GF2Polynomial} p
  */
 export const isIrreducibleBenOr = p => {
   const degree = getHighestDegree(p)
@@ -350,16 +350,16 @@ export const createIrreducible = degree => {
  * Create a fingerprint of buf using the irreducible polynomial m.
  *
  * @param {Uint8Array} buf
- * @param {GC2Polynomial} m
+ * @param {GF2Polynomial} m
  */
 export const fingerprint = (buf, m) => toUint8Array(mod(createFromBytes(buf), m), _degreeToMinByteLength(getHighestDegree(m) - 1))
 
 export class RabinPolynomialEncoder {
   /**
-   * @param {GC2Polynomial} m The irreducible polynomial
+   * @param {GF2Polynomial} m The irreducible polynomial
    */
   constructor (m) {
-    this.fingerprint = new GC2Polynomial()
+    this.fingerprint = new GF2Polynomial()
     this.m = m
   }
 

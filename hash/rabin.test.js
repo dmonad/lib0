@@ -6,6 +6,7 @@ import * as math from '../math.js'
 import * as array from '../array.js'
 import * as prng from '../prng.js'
 import * as buffer from '../buffer.js'
+import * as map from '../map.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -40,7 +41,7 @@ export const testIrreducibleInput = _tc => {
  */
 export const testIrreducibleSpread = _tc => {
   const degree = 32
-  const N = 400
+  const N = 1000
   const avgSpread = getSpreadAverage(degree, N)
   const diffSpread = math.abs(avgSpread - degree)
   t.info(`Average spread for degree ${degree} at ${N} repetitions: ${avgSpread}`)
@@ -98,7 +99,7 @@ export const testGenerateIrreducibles = _tc => {
  * @param {t.TestCase} tc
  * @param {number} K
  */
-const _testFingerprintK = (tc, K) => {
+const _testFingerprintCompatiblityK = (tc, K) => {
   /**
    * @type {Array<Uint8Array>}
    */
@@ -107,7 +108,7 @@ const _testFingerprintK = (tc, K) => {
   const MSIZE = 130
   t.info(`N=${N} K=${K} MSIZE=${MSIZE}`)
   /**
-   * @type {gf2.GC2Polynomial}
+   * @type {gf2.GF2Polynomial}
    */
   let irreducible
   /**
@@ -158,11 +159,15 @@ const _testFingerprintK = (tc, K) => {
     })
   })
   t.compare(fingerprints1, fingerprints3)
+  // ensuring that the cache is already populated
+  // @ts-ignore
+  // eslint-disable-next-line
+  new rabin.RabinEncoder(irreducibleBuffer)
   /**
    * @type {Array<Uint8Array>}
    */
   let fingerprints4 = []
-  t.measureTime('polynomial incremental (efficent & cached))', () => {
+  t.measureTime('polynomial incremental (efficent & cached)) using encoder', () => {
     fingerprints4 = dataObjects.map((o, _index) => {
       const encoder = new rabin.RabinEncoder(irreducibleBuffer)
       for (let i = 0; i < o.byteLength; i++) {
@@ -172,15 +177,56 @@ const _testFingerprintK = (tc, K) => {
     })
   })
   t.compare(fingerprints1, fingerprints4)
+  /**
+   * @type {Array<Uint8Array>}
+   */
+  let fingerprints5 = []
+  t.measureTime('polynomial incremental (efficent & cached))', () => {
+    fingerprints5 = dataObjects.map((o, _index) => {
+      return rabin.fingerprint(irreducibleBuffer, o)
+    })
+  })
+  t.compare(fingerprints1, fingerprints5)
 }
 
 /**
  * @param {t.TestCase} tc
  */
-export const testFingerprint = tc => {
-  _testFingerprintK(tc, 8)
-  _testFingerprintK(tc, 16)
-  _testFingerprintK(tc, 32)
-  _testFingerprintK(tc, 64)
-  _testFingerprintK(tc, 128)
+export const testFingerprintCompatiblity = tc => {
+  _testFingerprintCompatiblityK(tc, 8)
+  _testFingerprintCompatiblityK(tc, 16)
+  _testFingerprintCompatiblityK(tc, 32)
+  _testFingerprintCompatiblityK(tc, 64)
+  _testFingerprintCompatiblityK(tc, 128)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testConflicts = tc => {
+  /**
+   * @type {Array<Uint8Array>}
+   */
+  const data = []
+  const N = 100
+  const Irr = rabin.StandardIrreducible8
+  t.measureTime(`generate ${N} items`, () => {
+    for (let i = 0; i < N; i++) {
+      data.push(prng.uint8Array(tc.prng, prng.uint32(tc.prng, 5, 50)))
+    }
+  })
+  /**
+   * @type {Map<string, Set<string>>}
+   */
+  const results = new Map()
+  t.measureTime(`fingerprint ${N} items`, () => {
+    data.forEach(d => {
+      const f = buffer.toBase64(rabin.fingerprint(Irr, d))
+      map.setIfUndefined(results, f, () => new Set()).add(buffer.toBase64(d))
+    })
+  })
+  const conflicts = array.fold(map.map(results, (ds) => ds.size - 1), 0, math.add)
+  const usedFields = results.size
+  const unusedFieds = math.pow(2, (Irr.length - 1) * 8) - results.size
+  console.log({ conflicts, usedFields, unusedFieds })
 }
