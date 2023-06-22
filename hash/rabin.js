@@ -2,7 +2,7 @@
  * @module rabin
  *
  * Very efficient & versatile fingerprint/hashing algorithm. However, it is not cryptographically
- * secure.
+ * secure. Well suited for fingerprinting.
  */
 
 import * as buffer from '../buffer.js'
@@ -34,10 +34,11 @@ const ensureCache = m => map.setIfUndefined(_precomputedFingerprintCache, buffer
     const mBitShifted = buffer.shiftNBitsLeft(m, bit)
     const bitShifted = 1 << bit
     for (let j = 0; j < bitShifted; j++) {
-      // rest is already precomputed
+      // apply the shifted result (reducing the degree of the polynomial)
       const msb = bitShifted | j
       const rest = msb ^ mBitShifted[0]
       for (let i = 0; i < byteLen; i++) {
+        // rest is already precomputed in the cache
         cache[msb * byteLen + i] = cache[rest * byteLen + i] ^ mBitShifted[i]
       }
       // if (cache[(bitShifted | j) * byteLen] !== (bitShifted | j)) { error.unexpectedCase() }
@@ -74,7 +75,7 @@ export class RabinEncoder {
     for (let i = 0; i < this.blen; i++) {
       this.bs[(this.bpos + i) % this.blen] ^= this.cache[msb * this.blen + i]
     }
-    // assert(this.bs[this.bpos] !== 0)
+    // assert(this.bs[this.bpos] === 0)
   }
 
   getFingerprint () {
@@ -87,8 +88,6 @@ export class RabinEncoder {
 }
 
 /**
- * Basically an exact copy of the Encoder, but inlined.
- *
  * @param {Uint8Array} irreducible
  * @param {Uint8Array} data
  */
