@@ -21,6 +21,6 @@
       "lib0/logging": ["./logging.node.js"]
     }
   },
-  "include": ["./*.js", "./crypto/*.js", "./bin/*.js"],
+  "include": ["./*.js", "./hash/*.js", "./crypto/*.js", "./bin/*.js"],
   "exclude": ["./dist/**/*"]
 }

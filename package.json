@@ -83,19 +83,25 @@
       "types": "./crypto/aes-gcm.d.ts",
       "module": "./crypto/aes-gcm.js",
       "import": "./crypto/aes-gcm.js",
-      "require": "./dist/crypto/aes-gcm.cjs"
+      "require": "./dist/aes-gcm.cjs"
     },
     "./crypto/ecdsa": {
       "types": "./crypto/ecdsa.d.ts",
       "module": "./crypto/ecdsa.js",
       "import": "./crypto/ecdsa.js",
-      "require": "./dist/crypto/ecdsa.cjs"
+      "require": "./dist/ecdsa.cjs"
     },
     "./crypto/rsa-oaep": {
       "types": "./crypto/rsa-oaep.d.ts",
       "module": "./crypto/rsa-oaep.js",
       "import": "./crypto/rsa-oaep.js",
-      "require": "./dist/crypto/rsa-oaep.cjs"
+      "require": "./dist/rsa-oaep.cjs"
+    },
+    "./hash/rabin": {
+      "types": "./hash/rabin.d.ts",
+      "module": "./hash/rabin.js",
+      "import": "./hash/rabin.js",
+      "require": "./dist/rabin.cjs"
     },
     "./decoding.js": "./decoding.js",
     "./dist/decoding.cjs": "./dist/decoding.cjs",
