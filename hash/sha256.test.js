@@ -45,8 +45,8 @@ export const testRepeatSha256Hashing = async tc => {
  * @param {t.TestCase} _tc
  */
 export const testBenchmarkSha256 = async _tc => {
-  const N = 10000 // 100k
-  const BS = 530
+  const N = 100 * 1000
+  const BS = 500
   /**
    * @type {Array<Uint8Array>}
    */
@@ -56,9 +56,16 @@ export const testBenchmarkSha256 = async _tc => {
     webcrypto.getRandomValues(data)
     datas.push(data)
   }
+  t.measureTime(`[lib0] Time to hash ${N} random values of size ${BS}`, () => {
+    for (let i = 0; i < N; i++) {
+      const x = sha256.hash(datas[i])
+      if (x === null) throw new Error()
+    }
+  })
   t.measureTime(`[webcrypto sequentially] Time to hash ${N} random values of size ${BS}`, async () => {
     for (let i = 0; i < N; i++) {
-      await webcrypto.subtle.digest('SHA-256', datas[i])
+      const x = await webcrypto.subtle.digest('SHA-256', datas[i])
+      if (x === null) throw new Error()
     }
   })
   t.measureTime(`[webcrypto concurrent] Time to hash ${N} random values of size ${BS}`, async () => {
@@ -69,11 +76,7 @@ export const testBenchmarkSha256 = async _tc => {
     for (let i = 0; i < N; i++) {
       ps.push(webcrypto.subtle.digest('SHA-256', datas[i]))
     }
-    await promise.all(ps)
-  })
-  t.measureTime(`[lib0] Time to hash ${N} random values of size ${BS}`, () => {
-    for (let i = 0; i < N; i++) {
-      sha256.hash(datas[i])
-    }
+    const x = await promise.all(ps)
+    if (x === null) throw new Error()
   })
 }
