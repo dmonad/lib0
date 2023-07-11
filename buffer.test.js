@@ -7,7 +7,7 @@ import * as prng from './prng.js'
  */
 export const testRepeatBase64Encoding = tc => {
   const gen = tc.prng
-  const barr = prng.uint8Array(gen, 100000)
+  const barr = prng.uint8Array(gen, prng.uint32(gen, 0, 47))
   const copied = buffer.copyUint8Array(barr)
   const encoded = buffer.toBase64(barr)
   t.assert(encoded.constructor === String)
@@ -23,7 +23,25 @@ export const testRepeatBase64Encoding = tc => {
 /**
  * @param {t.TestCase} tc
  */
-export const testAnyEncoding = tc => {
+export const testRepeatHexEncoding = tc => {
+  const gen = tc.prng
+  const barr = prng.uint8Array(gen, prng.uint32(gen, 0, 47))
+  const copied = buffer.copyUint8Array(barr)
+  const encoded = buffer.toHexString(barr)
+  t.assert(encoded.constructor === String)
+  const decoded = buffer.fromHexString(encoded)
+  t.assert(decoded.constructor === Uint8Array)
+  t.assert(decoded.byteLength === barr.byteLength)
+  for (let i = 0; i < barr.length; i++) {
+    t.assert(barr[i] === decoded[i])
+  }
+  t.compare(copied, decoded)
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testAnyEncoding = _tc => {
   const obj = { val: 1, arr: [1, 2], str: '409231dtrnä' }
   const res = buffer.decodeAny(buffer.encodeAny(obj))
   t.compare(obj, res)

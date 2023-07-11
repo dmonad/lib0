@@ -6,6 +6,8 @@
 
 import * as string from './string.js'
 import * as env from './environment.js'
+import * as array from './array.js'
+import * as math from './math.js'
 import * as encoding from './encoding.js'
 import * as decoding from './decoding.js'
 
@@ -80,6 +82,27 @@ export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
 
 /* c8 ignore next */
 export const fromBase64 = env.isBrowser ? fromBase64Browser : fromBase64Node
+
+/**
+ * Base64 is always a more efficient choice. This exists for utility purposes only.
+ *
+ * @param {Uint8Array} buf
+ */
+export const toHexString = buf => array.map(buf, b => b.toString(16).padStart(2, '0')).join('')
+
+/**
+ * Note: This function expects that the hex doesn't start with 0x..
+ *
+ * @param {string} hex
+ */
+export const fromHexString = hex => {
+  const hlen = hex.length
+  const buf = new Uint8Array(math.ceil(hlen / 2))
+  for (let i = 0; i < hlen; i += 2) {
+    buf[buf.length - i / 2 - 1] = Number.parseInt(hex.slice(hlen - i - 2, hlen - i), 16)
+  }
+  return buf
+}
 
 /**
  * Copy the content of an Uint8Array view to a new ArrayBuffer.

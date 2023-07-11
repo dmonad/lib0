@@ -164,3 +164,21 @@ export const uniqueBy = (arr, mapper) => {
   }
   return result
 }
+
+/**
+ * @template {ArrayLike<any>} ARR
+ * @template {function(ARR extends ArrayLike<infer T> ? T : never, number, ARR):any} MAPPER
+ * @param {ARR} arr
+ * @param {MAPPER} mapper
+ * @return {Array<MAPPER extends function(...any): infer M ? M : never>}
+ */
+export const map = (arr, mapper) => {
+  /**
+   * @type {Array<any>}
+   */
+  const res = Array(arr.length)
+  for (let i = 0; i < arr.length; i++) {
+    res[i] = mapper(/** @type {any} */ (arr[i]), i, /** @type {any} */ (arr))
+  }
+  return /** @type {any} */ (res)
+}
