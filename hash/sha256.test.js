@@ -1,10 +1,11 @@
 import * as t from '../testing.js'
-import * as sha256 from './sha256.js'
+import * as sha256 from './sha256.fallback.js'
 import * as buffer from '../buffer.js'
 import * as string from '../string.js'
 import * as prng from '../prng.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as promise from '../promise.js'
+import * as env from '../environment.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -56,12 +57,21 @@ export const testBenchmarkSha256 = async _tc => {
     webcrypto.getRandomValues(data)
     datas.push(data)
   }
-  t.measureTime(`[lib0] Time to hash ${N} random values of size ${BS}`, () => {
+  t.measureTime(`[lib0 (fallback))] Time to hash ${N} random values of size ${BS}`, () => {
     for (let i = 0; i < N; i++) {
       const x = sha256.hash(datas[i])
       if (x === null) throw new Error()
     }
   })
+  if (env.isNode) {
+    const nodeSha = await import('./sha256.node.js')
+    t.measureTime(`[lib0 (node))] Time to hash ${N} random values of size ${BS}`, () => {
+      for (let i = 0; i < N; i++) {
+        const x = nodeSha.hash(datas[i])
+        if (x === null) throw new Error()
+      }
+    })
+  }
   t.measureTime(`[webcrypto sequentially] Time to hash ${N} random values of size ${BS}`, async () => {
     for (let i = 0; i < N; i++) {
       const x = await webcrypto.subtle.digest('SHA-256', datas[i])

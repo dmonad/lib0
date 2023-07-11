@@ -8,6 +8,36 @@
 import * as binary from '../binary.js'
 import * as math from '../math.js'
 
+/**
+ * @param {number} w - a 32bit uint
+ * @param {number} shift
+ */
+const rotr = (w, shift) => (w >>> shift) | (w << (32 - shift))
+
+/**
+ * Helper for SHA-224 & SHA-256. See 4.1.2.
+ * @param {number} x
+ */
+const sum0to256 = x => rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22)
+
+/**
+ * Helper for SHA-224 & SHA-256. See 4.1.2.
+ * @param {number} x
+ */
+const sum1to256 = x => rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25)
+
+/**
+ * Helper for SHA-224 & SHA-256. See 4.1.2.
+ * @param {number} x
+ */
+const sigma0to256 = x => rotr(x, 7) ^ rotr(x, 18) ^ x >>> 3
+
+/**
+ * Helper for SHA-224 & SHA-256. See 4.1.2.
+ * @param {number} x
+ */
+const sigma1to256 = x => rotr(x, 17) ^ rotr(x, 19) ^ x >>> 10
+
 // @todo don't init these variables globally
 
 /**
@@ -26,6 +56,7 @@ const K = new Uint32Array([
   0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 ])
+
 /**
  * See 5.3.3. Initial hash value.
  *
@@ -111,8 +142,8 @@ const updateHash = (H, W, K) => {
   let h = H[7]
   // Step 3
   for (let t = 0; t < 64; t++) {
-    const T1 = (h + sum1to256(e) + ch(e, f, g) + K[t] + W[t]) >>> 0
-    const T2 = (sum0to256(a) + maj(a, b, c)) >>> 0
+    const T1 = (h + sum1to256(e) + ((e & f) ^ (~e & g)) + K[t] + W[t]) >>> 0
+    const T2 = (sum0to256(a) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0
     h = g
     g = f
     f = e
@@ -131,47 +162,3 @@ const updateHash = (H, W, K) => {
   H[6] += g
   H[7] += h
 }
-
-/**
- * @param {number} x
- * @param {number} y
- * @param {number} z
- */
-const ch = (x, y, z) => (x & y) ^ (~x & z)
-
-/**
- * @param {number} x
- * @param {number} y
- * @param {number} z
- */
-const maj = (x, y, z) => (x & y) ^ (x & z) ^ (y & z)
-
-/**
- * @param {number} w - a 32bit uint
- * @param {number} shift
- */
-const rotr = (w, shift) => (w >>> shift) | (w << (32 - shift))
-
-/**
- * Helper for SHA-224 & SHA-256. See 4.1.2.
- * @param {number} x
- */
-const sum0to256 = x => rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22)
-
-/**
- * Helper for SHA-224 & SHA-256. See 4.1.2.
- * @param {number} x
- */
-const sum1to256 = x => rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25)
-
-/**
- * Helper for SHA-224 & SHA-256. See 4.1.2.
- * @param {number} x
- */
-const sigma0to256 = x => rotr(x, 7) ^ rotr(x, 18) ^ x >>> 3
-
-/**
- * Helper for SHA-224 & SHA-256. See 4.1.2.
- * @param {number} x
- */
-const sigma1to256 = x => rotr(x, 17) ^ rotr(x, 19) ^ x >>> 10

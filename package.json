@@ -103,6 +103,18 @@
       "import": "./hash/rabin.js",
       "require": "./dist/rabin.cjs"
     },
+    "./hash/sha256": {
+      "types": "./hash/sha256.fallback.d.ts",
+      "node": {
+        "require": "./dist/sha256.node.cjs",
+        "default": "./hash/sha256.node.js"
+      },
+      "default": {
+        "module": "./hash/sha256.fallback.js"
+        "require": "./dist/sha256.fallback.cjs",
+        "default": "./hash/sha256.fallback.js"
+      }
+    },
     "./decoding.js": "./decoding.js",
     "./dist/decoding.cjs": "./dist/decoding.cjs",
     "./decoding": {
