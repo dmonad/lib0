@@ -77,6 +77,40 @@ export const hash = data => {
   const H = new Uint32Array(HINIT)
   // "Message schedule" - a working variable
   const W = new Uint32Array(64)
+  const updateHash = () => {
+    for (let t = 16; t < 64; t++) {
+      W[t] = sigma1to256(W[t - 2]) + W[t - 7] + sigma0to256(W[t - 15]) + W[t - 16]
+    }
+    let a = H[0]
+    let b = H[1]
+    let c = H[2]
+    let d = H[3]
+    let e = H[4]
+    let f = H[5]
+    let g = H[6]
+    let h = H[7]
+    // Step 3
+    for (let tt = 0, T1, T2; tt < 64; tt++) {
+      T1 = (h + sum1to256(e) + ((e & f) ^ (~e & g)) + K[tt] + W[tt]) >>> 0
+      T2 = (sum0to256(a) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0
+      h = g
+      g = f
+      f = e
+      e = (d + T1) >>> 0
+      d = c
+      c = b
+      b = a
+      a = (T1 + T2) >>> 0
+    }
+    H[0] += a
+    H[1] += b
+    H[2] += c
+    H[3] += d
+    H[4] += e
+    H[5] += f
+    H[6] += g
+    H[7] += h
+  }
   let i = 0
   let isPaddedWith1 = false
   for (; i + 56 <= data.length;) {
@@ -94,7 +128,7 @@ export const hash = data => {
       }
       W[j] |= binary.BIT8 << ((3 - (i % 4)) * 8)
     }
-    updateHash(H, W, K)
+    updateHash()
   }
   // write rest of the data, including the padding (using msb endiannes)
   let j = 0
@@ -112,7 +146,7 @@ export const hash = data => {
   // @todo test that this works correctly
   W[14] = math.round(data.byteLength / binary.BIT30)
   W[15] = data.byteLength * 8
-  updateHash(H, W, K)
+  updateHash()
   // correct H endianness and return a Uint8Array view
   const dv = new Uint8Array(H.buffer)
   for (let i = 0; i < H.length; i++) {
@@ -122,45 +156,4 @@ export const hash = data => {
     }
   }
   return dv
-}
-
-/**
- * @param {Uint32Array} H - @todo since this is manipulated, it should be lower case
- * @param {Uint32Array} W
- * @param {Uint32Array} K
- */
-const updateHash = (H, W, K) => {
-  for (let t = 16; t < 64; t++) {
-    W[t] = sigma1to256(W[t - 2]) + W[t - 7] + sigma0to256(W[t - 15]) + W[t - 16]
-  }
-  // Step 2
-  let a = H[0]
-  let b = H[1]
-  let c = H[2]
-  let d = H[3]
-  let e = H[4]
-  let f = H[5]
-  let g = H[6]
-  let h = H[7]
-  // Step 3
-  for (let t = 0; t < 64; t++) {
-    const T1 = (h + sum1to256(e) + ((e & f) ^ (~e & g)) + K[t] + W[t]) >>> 0
-    const T2 = (sum0to256(a) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0
-    h = g
-    g = f
-    f = e
-    e = (d + T1) >>> 0
-    d = c
-    c = b
-    b = a
-    a = (T1 + T2) >>> 0
-  }
-  H[0] += a
-  H[1] += b
-  H[2] += c
-  H[3] += d
-  H[4] += e
-  H[5] += f
-  H[6] += g
-  H[7] += h
 }
