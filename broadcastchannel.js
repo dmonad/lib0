@@ -66,7 +66,7 @@ class LocalStoragePolyfill {
 
 // Use BroadcastChannel or Polyfill
 /* c8 ignore next */
-const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : BroadcastChannel
+export const BC = typeof BroadcastChannel === 'undefined' ? LocalStoragePolyfill : BroadcastChannel
 
 /**
  * @param {string} room
