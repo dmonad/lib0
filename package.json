@@ -110,7 +110,7 @@
         "default": "./hash/sha256.node.js"
       },
       "default": {
-        "module": "./hash/sha256.fallback.js"
+        "module": "./hash/sha256.fallback.js",
         "require": "./dist/sha256.fallback.cjs",
         "default": "./hash/sha256.fallback.js"
       }

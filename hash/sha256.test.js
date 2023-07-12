@@ -6,6 +6,9 @@ import * as prng from '../prng.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as promise from '../promise.js'
 import * as env from '../environment.js'
+import * as array from '../array.js'
+import * as binary from '../binary.js'
+import * as f from '../function.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -31,11 +34,38 @@ export const testSha256Basics = async _tc => {
 }
 
 /**
+ * Test if implementation is correct when length (in bits) exceeds uint32.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testLargeValue = async _tc => {
+  t.skip(!t.extensive)
+  const BS = binary.BIT30
+  const data = prng.uint8Array(prng.create(42), BS)
+  let resNode = buffer.fromBase64('WZK5ZK68FVhGoTXZY0XrU9wcfTHsqmJZukf1ULEAD+s=')
+  let resLib0
+  t.measureTime(`[lib0] Hash message of size ${BS}`, () => {
+    resLib0 = sha256.hash(data)
+  })
+  if (env.isNode) {
+    const sha256Node = await import('./sha256.node.js')
+    t.measureTime(`[node] Hash message of size ${BS}`, () => {
+      const res = new Uint8Array(sha256Node.hash(data))
+      if (!f.equalityDeep(res, resNode)) {
+        console.warn(`Precomputed result should be the same! New result: ${buffer.toBase64(res)}`)
+      }
+      resNode = res
+      t.compare(res, resNode, 'Precomputed result should be the same')
+    })
+  }
+  t.compare(resLib0, resNode)
+}
+
+/**
  * @param {t.TestCase} tc
  */
 export const testRepeatSha256Hashing = async tc => {
   const LEN = prng.bool(tc.prng) ? prng.uint32(tc.prng, 0, 512) : prng.uint32(tc.prng, 0, 3003030)
-  console.log(LEN)
   const data = prng.uint8Array(tc.prng, LEN)
   const hashedCustom = sha256.hash(data)
   const hashedWebcrypto = new Uint8Array(await webcrypto.subtle.digest('SHA-256', data))
@@ -46,47 +76,52 @@ export const testRepeatSha256Hashing = async tc => {
  * @param {t.TestCase} _tc
  */
 export const testBenchmarkSha256 = async _tc => {
-  const N = 100 * 1000
-  const BS = 500
   /**
-   * @type {Array<Uint8Array>}
+   * @param {number} N
+   * @param {number} BS
    */
-  const datas = []
-  for (let i = 0; i < N; i++) {
-    const data = new Uint8Array(BS)
-    webcrypto.getRandomValues(data)
-    datas.push(data)
-  }
-  t.measureTime(`[lib0 (fallback))] Time to hash ${N} random values of size ${BS}`, () => {
-    for (let i = 0; i < N; i++) {
-      const x = sha256.hash(datas[i])
-      if (x === null) throw new Error()
-    }
-  })
-  if (env.isNode) {
-    const nodeSha = await import('./sha256.node.js')
-    t.measureTime(`[lib0 (node))] Time to hash ${N} random values of size ${BS}`, () => {
+  const bench = (N, BS) => t.groupAsync(`Hash ${N} random values of size ${BS}`, async () => {
+    const gen = prng.create(42)
+    const datas = array.unfold(N, () => prng.uint8Array(gen, BS))
+    t.measureTime('lib0 (fallback))', () => {
       for (let i = 0; i < N; i++) {
-        const x = nodeSha.hash(datas[i])
+        const x = sha256.hash(datas[i])
         if (x === null) throw new Error()
       }
     })
-  }
-  t.measureTime(`[webcrypto sequentially] Time to hash ${N} random values of size ${BS}`, async () => {
-    for (let i = 0; i < N; i++) {
-      const x = await webcrypto.subtle.digest('SHA-256', datas[i])
-      if (x === null) throw new Error()
+    if (env.isNode) {
+      const nodeSha = await import('./sha256.node.js')
+      t.measureTime('lib0 (node))', () => {
+        for (let i = 0; i < N; i++) {
+          const x = nodeSha.hash(datas[i])
+          if (x === null) throw new Error()
+        }
+      })
     }
-  })
-  t.measureTime(`[webcrypto concurrent] Time to hash ${N} random values of size ${BS}`, async () => {
+    await t.measureTimeAsync('webcrypto sequentially', async () => {
+      for (let i = 0; i < N; i++) {
+        const x = await webcrypto.subtle.digest('SHA-256', datas[i])
+        if (x === null) throw new Error()
+      }
+    })
+    await t.measureTimeAsync('webcrypto concurrent', async () => {
     /**
      * @type {Array<Promise<any>>}
      */
-    const ps = []
-    for (let i = 0; i < N; i++) {
-      ps.push(webcrypto.subtle.digest('SHA-256', datas[i]))
-    }
-    const x = await promise.all(ps)
-    if (x === null) throw new Error()
+      const ps = []
+      for (let i = 0; i < N; i++) {
+        ps.push(webcrypto.subtle.digest('SHA-256', datas[i]))
+      }
+      const x = await promise.all(ps)
+      if (x === null) throw new Error()
+    })
   })
+  await bench(10 * 1000, 10)
+  await bench(10 * 1000, 50)
+  t.skip(!t.extensive)
+  await bench(10 * 1000, 100)
+  await bench(10 * 1000, 500)
+  await bench(10 * 1000, 1000)
+  await bench(10 * 1000, 4098)
+  await bench(10, 5 * 1000 * 1000)
 }

@@ -110,16 +110,18 @@ export const hash = data => {
   }
   // write length of message (size in bits) as 64 bit uint
   // @todo test that this works correctly
-  W[14] = math.round(data.byteLength / binary.BIT29)
+  W[14] = math.round(data.byteLength / binary.BIT30)
   W[15] = data.byteLength * 8
   updateHash(H, W, K)
   // correct H endianness and return a Uint8Array view
-  const dv = new DataView(H.buffer)
+  const dv = new Uint8Array(H.buffer)
   for (let i = 0; i < H.length; i++) {
-    dv.setUint32(i * 4, H[i], false)
+    const h = H[i]
+    for (let ci = 0; ci < 4; ci++) {
+      dv[i * 4 + ci] = h >>> (3 - ci) * 8
+    }
   }
-  // logState(H)
-  return new Uint8Array(H.buffer)
+  return dv
 }
 
 /**
