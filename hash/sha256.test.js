@@ -27,10 +27,17 @@ export const testSha256Basics = async _tc => {
     const resWebcryptoHex = buffer.toHexString(resWebcrypto)
     t.assert(resWebcryptoHex === result)
   }
-
+  // const newInput = 'abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopno'
+  // const xx = new Uint8Array(await webcrypto.subtle.digest('SHA-256', string.encodeUtf8(newInput)))
+  // console.log(buffer.toHexString(xx), ' dtrndtndtn', newInput.length)
   await test('', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+  await test(string.encodeUtf8('ab'), 'fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603')
   await test(string.encodeUtf8('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
+  await test(string.encodeUtf8('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopno'), '71806f0af18dbbe905f8fcaa576b8e687859163cf68b38bc26f32e5120522cc1')
   await test(string.encodeUtf8('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq'), '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1')
+  await test(string.encodeUtf8('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopqqqq0001'), 'e54ad86cad2d9d7c03506d6a67ed03fab5fbb8d34012143e9c0eb88ace56ca59')
+  await test(string.encodeUtf8('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopqqqq00012'), '7a1e062405a534817dcb89fa2416a69e4fbe75fabece33d528b82d1b71d3e418')
+  await test(string.encodeUtf8('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopqqqq000123'), '51691fe639226a9df2c0e4637918990291c73cdbb58665a7c729bb4e8d67784c')
 }
 
 /**

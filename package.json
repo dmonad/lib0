@@ -472,7 +472,7 @@
     "debug": "npm run gentesthtml && npx 0serve -o test.html",
     "test": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
-    "test-extensive": "node test.js && npm test -- --repetition-time 30000 --extensive",
+    "test-extensive": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node test.js --repetition-time 30000 --extensive --production",
     "trace-deopt": "clear && rollup -c  && node --trace-deopt dist/test.cjs",
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",

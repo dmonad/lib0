@@ -24,7 +24,7 @@ export {f}
 
 Each function in this library is tested thoroughly and is not deoptimized by v8 (except some logging and comparison functions that can't be implemented without deoptimizations). This library implements its own test suite that is designed for randomized testing and inspecting performance issues.
 
-* `node --trace-deop` and `node --trace-opt`
+* `node --trace-deopt` and `node --trace-opt`
 * https://youtu.be/IFWulQnM5E0 Good intro video
 * https://github.com/thlorenz/v8-perf
 * https://github.com/thlorenz/deoptigate - A great tool for investigating deoptimizations

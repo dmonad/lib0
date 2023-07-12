@@ -69,15 +69,21 @@ const HINIT = new Uint32Array([
   0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
 ])
 
-/**
- * @param {Uint8Array} data
- */
-export const hash = data => {
-  // Init working variables.
-  const H = new Uint32Array(HINIT)
-  // "Message schedule" - a working variable
-  const W = new Uint32Array(64)
-  const updateHash = () => {
+// time to beat: (large value < 4.35s)
+
+class Hasher {
+  constructor () {
+    const buf = new ArrayBuffer(64 + 64 * 4)
+    // Init working variables using a single arraybuffer
+    this.H = new Uint32Array(buf, 0, 8)
+    this.H.set(HINIT)
+    // "Message schedule" - a working variable
+    this.W = new Uint32Array(buf, 64, 64)
+  }
+
+  _updateHash () {
+    const H = this.H
+    const W = this.W
     for (let t = 16; t < 64; t++) {
       W[t] = sigma1to256(W[t - 2]) + W[t - 7] + sigma0to256(W[t - 15]) + W[t - 16]
     }
@@ -89,7 +95,6 @@ export const hash = data => {
     let f = H[5]
     let g = H[6]
     let h = H[7]
-    // Step 3
     for (let tt = 0, T1, T2; tt < 64; tt++) {
       T1 = (h + sum1to256(e) + ((e & f) ^ (~e & g)) + K[tt] + W[tt]) >>> 0
       T2 = (sum0to256(a) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0
@@ -111,49 +116,60 @@ export const hash = data => {
     H[6] += g
     H[7] += h
   }
-  let i = 0
-  let isPaddedWith1 = false
-  for (; i + 56 <= data.length;) {
-    // write data in big endianess
-    let j = 0
-    for (; j < 16 && i + 3 < data.length; j++) {
-      W[j] = data[i++] << 24 | data[i++] << 16 | data[i++] << 8 | data[i++]
-    }
-    if (i % 64 !== 0) { // there is still room to write partial content and the ending bit.
-      W.fill(0, j, 16)
-      isPaddedWith1 = true
-      while (i < data.length) {
-        W[j] |= data[i] << ((3 - (i % 4)) * 8)
-        i++
+
+  /**
+   * @param {Uint8Array} data
+   */
+  hash (data) {
+    let i = 0
+    for (; i + 56 <= data.length;) {
+      // write data in big endianess
+      let j = 0
+      for (; j < 16 && i + 3 < data.length; j++) {
+        this.W[j] = data[i++] << 24 | data[i++] << 16 | data[i++] << 8 | data[i++]
       }
-      W[j] |= binary.BIT8 << ((3 - (i % 4)) * 8)
+      if (i % 64 !== 0) { // there is still room to write partial content and the ending bit.
+        this.W.fill(0, j, 16)
+        while (i < data.length) {
+          this.W[j] |= data[i] << ((3 - (i % 4)) * 8)
+          i++
+        }
+        this.W[j] |= binary.BIT8 << ((3 - (i % 4)) * 8)
+      }
+      this._updateHash()
     }
-    updateHash()
-  }
-  // write rest of the data, including the padding (using msb endiannes)
-  let j = 0
-  W.fill(0, 0, 16)
-  for (; i < data.length; j++) {
-    for (let ci = 3; ci >= 0 && i < data.length; ci--) {
-      W[j] |= data[i++] << (ci * 8)
+    // same check as earlier - the ending bit has been written
+    const isPaddedWith1 = i % 64 !== 0
+    this.W.fill(0, 0, 16)
+    let j = 0
+    for (; i < data.length; j++) {
+      for (let ci = 3; ci >= 0 && i < data.length; ci--) {
+        this.W[j] |= data[i++] << (ci * 8)
+      }
     }
-  }
-  // Write padding of the message. See 5.1.2.
-  if (!isPaddedWith1) {
-    W[j - (i % 4 === 0 ? 0 : 1)] |= binary.BIT8 << ((3 - (i % 4)) * 8)
-  }
-  // write length of message (size in bits) as 64 bit uint
-  // @todo test that this works correctly
-  W[14] = math.round(data.byteLength / binary.BIT30)
-  W[15] = data.byteLength * 8
-  updateHash()
-  // correct H endianness and return a Uint8Array view
-  const dv = new Uint8Array(H.buffer)
-  for (let i = 0; i < H.length; i++) {
-    const h = H[i]
-    for (let ci = 0; ci < 4; ci++) {
-      dv[i * 4 + ci] = h >>> (3 - ci) * 8
+    // Write padding of the message. See 5.1.2.
+    if (!isPaddedWith1) {
+      this.W[j - (i % 4 === 0 ? 0 : 1)] |= binary.BIT8 << ((3 - (i % 4)) * 8)
     }
+    // write length of message (size in bits) as 64 bit uint
+    // @todo test that this works correctly
+    this.W[14] = data.byteLength / binary.BIT30 // same as data.byteLength >>> 30 - but works on floats
+    this.W[15] = data.byteLength * 8
+    this._updateHash()
+    // correct H endianness to use big endiannes and return a Uint8Array
+    const dv = new Uint8Array(32)
+    for (let i = 0; i < this.H.length; i++) {
+      for (let ci = 0; ci < 4; ci++) {
+        dv[i * 4 + ci] = this.H[i] >>> (3 - ci) * 8
+      }
+    }
+    return dv
   }
-  return dv
+}
+
+/**
+ * @param {Uint8Array} data
+ */
+export const hash = data => {
+  return new Hasher().hash(data)
 }
