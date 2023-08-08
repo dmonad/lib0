@@ -57,14 +57,15 @@ export class Lib0Component extends HTMLElement {
   }
 
   /**
-   * @param {S} state
-   * @param {boolean} [forceStateUpdate] Force that the state is rerendered even if state didn't change
+   * @param {S} _state
+   * @param {boolean} [_forceStateUpdate] Force that the state is rerendered even if state didn't change
    */
-  setState (state, forceStateUpdate = true) {}
+  setState (_state, _forceStateUpdate = true) {}
+
   /**
-    * @param {any} stateUpdate
+    * @param {any} _stateUpdate
     */
-  updateState (stateUpdate) { }
+  updateState (_stateUpdate) { }
 }
 
 /**
@@ -135,12 +136,14 @@ export const createComponent = (name, { template, style = '', state: defaultStat
   for (const key in attrs) {
     normalizedAttrs[string.fromCamelCase(key, '-')] = key
   }
-  const templateElement = template ? /** @type {HTMLTemplateElement} */ (dom.parseElement(`
-    <template>
-      <style>${style}</style>
-      ${template}
-    </template>
-  `)) : null
+  const templateElement = template
+    ? /** @type {HTMLTemplateElement} */ (dom.parseElement(`
+      <template>
+        <style>${style}</style>
+        ${template}
+      </template>
+      `))
+    : null
 
   class _Lib0Component extends HTMLElement {
     /**

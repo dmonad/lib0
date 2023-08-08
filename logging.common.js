@@ -56,21 +56,21 @@ export const createModuleLogger = (_print, moduleName) => {
   return !doLogging
     ? func.nop
     : (...args) => {
-      const timeNow = time.getUnixTime()
-      const timeDiff = timeNow - lastLoggingTime
-      lastLoggingTime = timeNow
-      _print(
-        color,
-        moduleName,
-        UNCOLOR,
-        ...args.map((arg) =>
-          (typeof arg === 'string' || typeof arg === 'symbol')
-            ? arg
-            : JSON.stringify(arg)
-        ),
-        color,
-        ' +' + timeDiff + 'ms'
-      )
-    }
+        const timeNow = time.getUnixTime()
+        const timeDiff = timeNow - lastLoggingTime
+        lastLoggingTime = timeNow
+        _print(
+          color,
+          moduleName,
+          UNCOLOR,
+          ...args.map((arg) =>
+            (typeof arg === 'string' || typeof arg === 'symbol')
+              ? arg
+              : JSON.stringify(arg)
+          ),
+          color,
+          ' +' + timeDiff + 'ms'
+        )
+      }
 }
 /* c8 ignore stop */

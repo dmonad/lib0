@@ -1,4 +1,3 @@
-
 /**
  * Isomorphic module for true random numbers / buffers / uuids.
  *

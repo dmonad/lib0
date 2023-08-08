@@ -126,7 +126,7 @@ export const repetitionTime = Number(env.getParam('--repetition-time', '50'))
 const testFilter = env.hasParam('--filter') ? env.getParam('--filter', '') : null
 
 /* c8 ignore next */
-const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : new RegExp('.*')
+const testFilterRegExp = testFilter !== null ? new RegExp(testFilter) : /.*/
 
 const repeatTestRegex = /^(repeat|repeating)\s/
 

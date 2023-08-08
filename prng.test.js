@@ -1,4 +1,3 @@
-
 import { Xoroshiro128plus } from './prng/Xoroshiro128plus.js'
 import * as prng from './prng.js'
 import { MAX_SAFE_INTEGER } from './number.js'

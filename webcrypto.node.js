@@ -1,4 +1,3 @@
-
 import { webcrypto } from 'node:crypto'
 
 export const subtle = /** @type {any} */ (webcrypto).subtle

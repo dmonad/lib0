@@ -6,7 +6,6 @@
  */
 
 import * as binary from '../binary.js'
-import * as math from '../math.js'
 
 /**
  * @param {number} w - a 32bit uint
@@ -75,15 +74,15 @@ class Hasher {
   constructor () {
     const buf = new ArrayBuffer(64 + 64 * 4)
     // Init working variables using a single arraybuffer
-    this.H = new Uint32Array(buf, 0, 8)
-    this.H.set(HINIT)
+    this._H = new Uint32Array(buf, 0, 8)
+    this._H.set(HINIT)
     // "Message schedule" - a working variable
-    this.W = new Uint32Array(buf, 64, 64)
+    this._W = new Uint32Array(buf, 64, 64)
   }
 
   _updateHash () {
-    const H = this.H
-    const W = this.W
+    const H = this._H
+    const W = this._W
     for (let t = 16; t < 64; t++) {
       W[t] = sigma1to256(W[t - 2]) + W[t - 7] + sigma0to256(W[t - 15]) + W[t - 16]
     }
@@ -126,41 +125,41 @@ class Hasher {
       // write data in big endianess
       let j = 0
       for (; j < 16 && i + 3 < data.length; j++) {
-        this.W[j] = data[i++] << 24 | data[i++] << 16 | data[i++] << 8 | data[i++]
+        this._W[j] = data[i++] << 24 | data[i++] << 16 | data[i++] << 8 | data[i++]
       }
       if (i % 64 !== 0) { // there is still room to write partial content and the ending bit.
-        this.W.fill(0, j, 16)
+        this._W.fill(0, j, 16)
         while (i < data.length) {
-          this.W[j] |= data[i] << ((3 - (i % 4)) * 8)
+          this._W[j] |= data[i] << ((3 - (i % 4)) * 8)
           i++
         }
-        this.W[j] |= binary.BIT8 << ((3 - (i % 4)) * 8)
+        this._W[j] |= binary.BIT8 << ((3 - (i % 4)) * 8)
       }
       this._updateHash()
     }
     // same check as earlier - the ending bit has been written
     const isPaddedWith1 = i % 64 !== 0
-    this.W.fill(0, 0, 16)
+    this._W.fill(0, 0, 16)
     let j = 0
     for (; i < data.length; j++) {
       for (let ci = 3; ci >= 0 && i < data.length; ci--) {
-        this.W[j] |= data[i++] << (ci * 8)
+        this._W[j] |= data[i++] << (ci * 8)
       }
     }
     // Write padding of the message. See 5.1.2.
     if (!isPaddedWith1) {
-      this.W[j - (i % 4 === 0 ? 0 : 1)] |= binary.BIT8 << ((3 - (i % 4)) * 8)
+      this._W[j - (i % 4 === 0 ? 0 : 1)] |= binary.BIT8 << ((3 - (i % 4)) * 8)
     }
     // write length of message (size in bits) as 64 bit uint
     // @todo test that this works correctly
-    this.W[14] = data.byteLength / binary.BIT30 // same as data.byteLength >>> 30 - but works on floats
-    this.W[15] = data.byteLength * 8
+    this._W[14] = data.byteLength / binary.BIT30 // same as data.byteLength >>> 30 - but works on floats
+    this._W[15] = data.byteLength * 8
     this._updateHash()
     // correct H endianness to use big endiannes and return a Uint8Array
     const dv = new Uint8Array(32)
-    for (let i = 0; i < this.H.length; i++) {
+    for (let i = 0; i < this._H.length; i++) {
       for (let ci = 0; ci < 4; ci++) {
-        dv[i * 4 + ci] = this.H[i] >>> (3 - ci) * 8
+        dv[i * 4 + ci] = this._H[i] >>> (3 - ci) * 8
       }
     }
     return dv

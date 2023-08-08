@@ -1,4 +1,3 @@
-
 import * as log from 'lib0/logging'
 
 export const testLogging = () => {

@@ -7,7 +7,6 @@ import * as webcrypto from 'lib0/webcrypto'
 import * as promise from '../promise.js'
 import * as env from '../environment.js'
 import * as array from '../array.js'
-import * as binary from '../binary.js'
 import * as f from '../function.js'
 
 /**
@@ -47,13 +46,11 @@ export const testSha256Basics = async _tc => {
  */
 export const testLargeValue = async _tc => {
   t.skip(!t.extensive)
-  const BS = binary.BIT30
+  const BS = 100 * 1000 * 1000
   const data = prng.uint8Array(prng.create(42), BS)
-  let resNode = buffer.fromBase64('WZK5ZK68FVhGoTXZY0XrU9wcfTHsqmJZukf1ULEAD+s=')
+  let resNode = buffer.fromBase64('81m7UtkH2s9J3E33Bw5kRMuC5zvktgZ64SfzenbV5Lw=')
   let resLib0
-  t.measureTime(`[lib0] Hash message of size ${BS}`, () => {
-    resLib0 = sha256.hash(data)
-  })
+  let resWebcrypto
   if (env.isNode) {
     const sha256Node = await import('./sha256.node.js')
     t.measureTime(`[node] Hash message of size ${BS}`, () => {
@@ -65,7 +62,14 @@ export const testLargeValue = async _tc => {
       t.compare(res, resNode, 'Precomputed result should be the same')
     })
   }
+  t.measureTime(`[lib0] Hash message of size ${BS}`, () => {
+    resLib0 = sha256.hash(data)
+  })
+  await t.measureTimeAsync(`[webcrypto] Hash message of size ${BS}`, async () => {
+    resWebcrypto = new Uint8Array(await webcrypto.subtle.digest('SHA-256', data))
+  })
   t.compare(resLib0, resNode)
+  t.compare(resLib0, resWebcrypto)
 }
 
 /**

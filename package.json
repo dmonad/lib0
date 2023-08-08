@@ -462,7 +462,7 @@
     "jsdoc-api": "^8.0.0",
     "jsdoc-plugin-typescript": "^2.2.1",
     "rollup": "^2.42.1",
-    "standard": "^14.3.4",
+    "standard": "^17.1.0",
     "typescript": "^5.0.2"
   },
   "scripts": {

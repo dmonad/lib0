@@ -70,6 +70,7 @@ export const some = (obj, f) => {
  * @param {Object|undefined} obj
  */
 export const isEmpty = obj => {
+  // eslint-disable-next-line
   for (const _k in obj) {
     return false
   }
