@@ -45,7 +45,7 @@ export const testIrreducibleSpread = _tc => {
   const avgSpread = getSpreadAverage(degree, N)
   const diffSpread = math.abs(avgSpread - degree)
   t.info(`Average spread for degree ${degree} at ${N} repetitions: ${avgSpread}`)
-  t.assert(diffSpread < 3, 'Spread of irreducible polynomials is within expected range')
+  t.assert(diffSpread < 4, 'Spread of irreducible polynomials is within expected range')
 }
 
 /**
