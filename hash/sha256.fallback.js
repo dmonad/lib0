@@ -169,6 +169,4 @@ class Hasher {
 /**
  * @param {Uint8Array} data
  */
-export const digest = data => {
-  return new Hasher().digest(data)
-}
+export const digest = data => new Hasher().digest(data)
