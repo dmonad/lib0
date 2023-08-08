@@ -19,7 +19,7 @@ export const testSha256Basics = async _tc => {
    */
   const test = async (data, result) => {
     data = typeof data === 'string' ? buffer.fromHexString(data) : data
-    const res = sha256.hash(data)
+    const res = sha256.digest(data)
     const resHex = buffer.toHexString(res)
     t.assert(resHex === result)
     const resWebcrypto = new Uint8Array(await webcrypto.subtle.digest('SHA-256', data))
@@ -54,7 +54,7 @@ export const testLargeValue = async _tc => {
   if (env.isNode) {
     const sha256Node = await import('./sha256.node.js')
     t.measureTime(`[node] Hash message of size ${BS}`, () => {
-      const res = new Uint8Array(sha256Node.hash(data))
+      const res = new Uint8Array(sha256Node.digest(data))
       if (!f.equalityDeep(res, resNode)) {
         console.warn(`Precomputed result should be the same! New result: ${buffer.toBase64(res)}`)
       }
@@ -63,7 +63,7 @@ export const testLargeValue = async _tc => {
     })
   }
   t.measureTime(`[lib0] Hash message of size ${BS}`, () => {
-    resLib0 = sha256.hash(data)
+    resLib0 = sha256.digest(data)
   })
   await t.measureTimeAsync(`[webcrypto] Hash message of size ${BS}`, async () => {
     resWebcrypto = new Uint8Array(await webcrypto.subtle.digest('SHA-256', data))
@@ -78,7 +78,7 @@ export const testLargeValue = async _tc => {
 export const testRepeatSha256Hashing = async tc => {
   const LEN = prng.bool(tc.prng) ? prng.uint32(tc.prng, 0, 512) : prng.uint32(tc.prng, 0, 3003030)
   const data = prng.uint8Array(tc.prng, LEN)
-  const hashedCustom = sha256.hash(data)
+  const hashedCustom = sha256.digest(data)
   const hashedWebcrypto = new Uint8Array(await webcrypto.subtle.digest('SHA-256', data))
   t.compare(hashedCustom, hashedWebcrypto)
 }
@@ -96,7 +96,7 @@ export const testBenchmarkSha256 = async _tc => {
     const datas = array.unfold(N, () => prng.uint8Array(gen, BS))
     t.measureTime('lib0 (fallback))', () => {
       for (let i = 0; i < N; i++) {
-        const x = sha256.hash(datas[i])
+        const x = sha256.digest(datas[i])
         if (x === null) throw new Error()
       }
     })
@@ -104,7 +104,7 @@ export const testBenchmarkSha256 = async _tc => {
       const nodeSha = await import('./sha256.node.js')
       t.measureTime('lib0 (node))', () => {
         for (let i = 0; i < N; i++) {
-          const x = nodeSha.hash(datas[i])
+          const x = nodeSha.digest(datas[i])
           if (x === null) throw new Error()
         }
       })

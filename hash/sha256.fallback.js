@@ -119,7 +119,7 @@ class Hasher {
   /**
    * @param {Uint8Array} data
    */
-  hash (data) {
+  digest (data) {
     let i = 0
     for (; i + 56 <= data.length;) {
       // write data in big endianess
@@ -169,6 +169,6 @@ class Hasher {
 /**
  * @param {Uint8Array} data
  */
-export const hash = data => {
-  return new Hasher().hash(data)
+export const digest = data => {
+  return new Hasher().digest(data)
 }
