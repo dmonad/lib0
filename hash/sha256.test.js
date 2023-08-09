@@ -1,5 +1,5 @@
 import * as t from '../testing.js'
-import * as sha256 from './sha256.fallback.js'
+import * as sha256 from './sha256.js'
 import * as buffer from '../buffer.js'
 import * as string from '../string.js'
 import * as prng from '../prng.js'
