@@ -83,34 +83,55 @@ export const testReapeatEncryption = async tc => {
 export const testImportExport = async tc => {
   const secret = prng.word(tc.prng, 1, 30)
   const salt = prng.word(tc.prng)
-  await t.groupAsync('aes-gcm', async () => {
+  await t.groupAsync('aes-gcm (jwk))', async () => {
     const key = await aes.deriveKey(secret, salt, { extractable: true })
-    const jwk = await aes.exportKey(key)
-    const ekey = await aes.importKey(jwk, undefined, true)
-    const ejwk = await aes.exportKey(ekey)
+    const jwk = await aes.exportKeyJwk(key)
+    const ekey = await aes.importKeyJwk(jwk, { extractable: true })
+    const ejwk = await aes.exportKeyJwk(ekey)
     t.compare(jwk, ejwk)
   })
-  await t.groupAsync('ecdsa', async () => {
+  await t.groupAsync('aes-gcm (raw))', async () => {
+    const key = await aes.deriveKey(secret, salt, { extractable: true })
+    const raw = await aes.exportKeyRaw(key)
+    const ekey = await aes.importKeyRaw(raw, { extractable: true })
+    const eraw = await aes.exportKeyRaw(ekey)
+    t.compare(raw, eraw)
+  })
+  await t.groupAsync('ecdsa (jwk))', async () => {
     const keypair = await ecdsa.generateKeyPair({ extractable: true })
-    const jwkPrivate = await ecdsa.exportKey(keypair.privateKey)
-    const jwkPublic = await ecdsa.exportKey(keypair.publicKey)
-    const ekeyPrivate = await ecdsa.importKey(jwkPrivate, { extractable: true })
-    const ekeyPublic = await ecdsa.importKey(jwkPublic, { extractable: true })
-    const ejwkPrivate = await ecdsa.exportKey(ekeyPrivate)
-    const ejwkPublic = await ecdsa.exportKey(ekeyPublic)
+    const jwkPrivate = await ecdsa.exportKeyJwk(keypair.privateKey)
+    const jwkPublic = await ecdsa.exportKeyJwk(keypair.publicKey)
+    const ekeyPrivate = await ecdsa.importKeyJwk(jwkPrivate, { extractable: true })
+    const ekeyPublic = await ecdsa.importKeyJwk(jwkPublic, { extractable: true })
+    const ejwkPrivate = await ecdsa.exportKeyJwk(ekeyPrivate)
+    const ejwkPublic = await ecdsa.exportKeyJwk(ekeyPublic)
     t.compare(jwkPrivate, ejwkPrivate)
     t.compare(jwkPublic, ejwkPublic)
   })
-  await t.groupAsync('rsa-oaep', async () => {
+  await t.groupAsync('ecdsa (raw))', async () => {
+    const keypair = await ecdsa.generateKeyPair({ extractable: true, usages: ['sign', 'verify'] })
+    const rawPublic = await ecdsa.exportKeyRaw(keypair.publicKey)
+    const ekeyPublic = await ecdsa.importKeyRaw(rawPublic, { extractable: true, usages: ['verify'] })
+    const erawPublic = await ecdsa.exportKeyRaw(ekeyPublic)
+    t.compare(rawPublic, erawPublic)
+  })
+  await t.groupAsync('rsa-oaep (jwk))', async () => {
     const keypair = await rsa.generateKeyPair({ extractable: true })
-    const jwkPrivate = await rsa.exportKey(keypair.privateKey)
-    const jwkPublic = await rsa.exportKey(keypair.publicKey)
-    const ekeyPrivate = await rsa.importKey(jwkPrivate, { extractable: true })
-    const ekeyPublic = await rsa.importKey(jwkPublic, { extractable: true })
-    const ejwkPrivate = await rsa.exportKey(ekeyPrivate)
-    const ejwkPublic = await rsa.exportKey(ekeyPublic)
+    const jwkPrivate = await rsa.exportKeyJwk(keypair.privateKey)
+    const jwkPublic = await rsa.exportKeyJwk(keypair.publicKey)
+    const ekeyPrivate = await rsa.importKeyJwk(jwkPrivate, { extractable: true })
+    const ekeyPublic = await rsa.importKeyJwk(jwkPublic, { extractable: true })
+    const ejwkPrivate = await rsa.exportKeyJwk(ekeyPrivate)
+    const ejwkPublic = await rsa.exportKeyJwk(ekeyPublic)
     t.compare(jwkPrivate, ejwkPrivate)
     t.compare(jwkPublic, ejwkPublic)
+  })
+  await t.groupAsync('rsa-oaep (raw))', async () => {
+    const keypair = await rsa.generateKeyPair({ extractable: true })
+    const rawPublic = await rsa.exportKeyRaw(keypair.publicKey)
+    const ekeyPublic = await rsa.importKeyRaw(rawPublic, { extractable: true })
+    const erawPublic = await rsa.exportKeyRaw(ekeyPublic)
+    t.compare(rawPublic, erawPublic)
   })
 }
 
@@ -172,7 +193,7 @@ export const testConsistentKeyGeneration = async _tc => {
       alg: 'A256GCM'
     }
     const key = await aes.deriveKey(secret, salt, { extractable: true })
-    const jwk = await aes.exportKey(key)
+    const jwk = await aes.exportKeyJwk(key)
     t.compare(jwk, expectedJwk)
   })
   await t.groupAsync('key generation (ECDSA))', async () => {
@@ -193,10 +214,10 @@ export const testConsistentKeyGeneration = async _tc => {
       crv: 'P-384',
       d: 'z1bahlvHj7dWLYGr_oGGSNT_o01JdmnOoG79vLEm2LCG5Arl-4UZPFKpIWhmnZZU'
     }
-    const privateKey = await ecdsa.importKey(jwkPrivate, { extractable: true, usages: ['sign'] })
-    const publicKey = await ecdsa.importKey(jwkPublic, { extractable: true, usages: ['verify'] })
-    const exportedPublic = await ecdsa.exportKey(publicKey)
-    const exportedPrivate = await ecdsa.exportKey(privateKey)
+    const privateKey = await ecdsa.importKeyJwk(jwkPrivate, { extractable: true, usages: ['sign'] })
+    const publicKey = await ecdsa.importKeyJwk(jwkPublic, { extractable: true, usages: ['verify'] })
+    const exportedPublic = await ecdsa.exportKeyJwk(publicKey)
+    const exportedPrivate = await ecdsa.exportKeyJwk(privateKey)
     delete exportedPublic.alg // for firefox compat
     delete exportedPrivate.alg // for firefox compat
     t.compare(jwkPublic, /** @type {any} */ (exportedPublic))
@@ -225,10 +246,10 @@ export const testConsistentKeyGeneration = async _tc => {
       qi: 'ggdoo4EYrtNl-sSNwF8PjtmJxv8GA5df__iKMnN0A5yHlbcdfBH4zCGoDQW8K4QKAsBldI7zkuYx08VCYrSQL6xkowXctjXprxkROHsWxN8cDC2kg6lUOO88GeRT9s96wgzZoHcPNxTrZiJDsAGgPr4OdiGk1feu3BpWPitSZL2TnWfEqlmIdq99-0wTCgn_-kzXrRnZEAOsEyZk2FXwBA7d22fJ5fbyvVQ98pj7ih-ieKUZWyzR5E-EEYDfQjJ8A49F1ejcNSIr2zPb7vCiEpdtLlRak9dfuetmYNfrqaVhAKLqzE2ErtZ6ZLfvJcp9d4ZHsbppR8WckKEyA-L7_A',
       alg: 'RSA-OAEP-256'
     }
-    const privateKey = await rsa.importKey(jwkPrivate, { extractable: true, usages: ['decrypt'] })
-    const publicKey = await rsa.importKey(jwkPublic, { extractable: true, usages: ['encrypt'] })
-    const exportedPublic = await rsa.exportKey(publicKey)
-    const exportedPrivate = await rsa.exportKey(privateKey)
+    const privateKey = await rsa.importKeyJwk(jwkPrivate, { extractable: true, usages: ['decrypt'] })
+    const publicKey = await rsa.importKeyJwk(jwkPublic, { extractable: true, usages: ['encrypt'] })
+    const exportedPublic = await rsa.exportKeyJwk(publicKey)
+    const exportedPrivate = await rsa.exportKeyJwk(privateKey)
     t.compare(jwkPublic, /** @type {any} */ (exportedPublic))
     t.compare(jwkPrivate, /** @type {any} */ (exportedPrivate))
   })

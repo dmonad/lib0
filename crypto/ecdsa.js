@@ -3,7 +3,7 @@
  */
 
 import * as webcrypto from 'lib0/webcrypto'
-export { exportKey } from './common.js'
+export { exportKeyJwk, exportKeyRaw } from './common.js'
 
 /**
  * @typedef {Array<'sign'|'verify'>} Usages
@@ -78,10 +78,21 @@ export const generateKeyPair = ({ extractable = false, usages = defaultUsages } 
  * @param {boolean} [opts.extractable]
  * @param {Usages} [opts.usages]
  */
-export const importKey = (jwk, { extractable = false, usages } = {}) => {
+export const importKeyJwk = (jwk, { extractable = false, usages } = {}) => {
   if (usages == null) {
-    /* c8 ignore next */
+    /* c8 ignore next 2 */
     usages = jwk.key_ops || defaultUsages
   }
   return webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-384' }, extractable, /** @type {Usages} */ (usages))
 }
+
+/**
+ * Only suited for importing public keys.
+ *
+ * @param {any} raw
+ * @param {Object} opts
+ * @param {boolean} [opts.extractable]
+ * @param {Usages} [opts.usages]
+ */
+export const importKeyRaw = (raw, { extractable = false, usages = defaultUsages } = {}) =>
+  webcrypto.subtle.importKey('raw', raw, { name: 'ECDSA', namedCurve: 'P-384' }, extractable, usages)

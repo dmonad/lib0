@@ -6,7 +6,7 @@ import * as encoding from '../encoding.js'
 import * as decoding from '../decoding.js'
 import * as webcrypto from 'lib0/webcrypto'
 import * as string from '../string.js'
-export { exportKey } from './common.js'
+export { exportKeyJwk, exportKeyRaw } from './common.js'
 
 /**
  * @typedef {Array<'encrypt'|'decrypt'>} Usages
@@ -62,18 +62,35 @@ export const decrypt = (key, data) => {
   ).then(data => new Uint8Array(data))
 }
 
+const aesAlgDef = {
+  name: 'AES-GCM',
+  length: 256
+}
+
 /**
  * @param {any} jwk
- * @param {Usages} [usages]
- * @param {boolean} [extractable]
+ * @param {Object} opts
+ * @param {Usages} [opts.usages]
+ * @param {boolean} [opts.extractable]
  */
-export const importKey = (jwk, usages, extractable = false) => {
+export const importKeyJwk = (jwk, { usages, extractable = false } = {}) => {
   if (usages == null) {
     /* c8 ignore next */
     usages = jwk.key_ops || defaultUsages
   }
   return webcrypto.subtle.importKey('jwk', jwk, 'AES-GCM', extractable, /** @type {Usages} */ (usages))
 }
+
+/**
+ * Only suited for importing public keys.
+ *
+ * @param {Uint8Array} raw
+ * @param {Object} opts
+ * @param {Usages} [opts.usages]
+ * @param {boolean} [opts.extractable]
+ */
+export const importKeyRaw = (raw, { usages = defaultUsages, extractable = false } = {}) =>
+  webcrypto.subtle.importKey('raw', raw, aesAlgDef, extractable, /** @type {Usages} */ (usages))
 
 /**
  * @param {Uint8Array | string} data
@@ -92,8 +109,8 @@ const toBinary = data => typeof data === 'string' ? string.encodeUtf8(data) : da
  * @param {boolean} [opts.extractable]
  * @param {Usages} [opts.usages]
  */
-export const deriveKey = (secret, salt, { extractable = false, usages = defaultUsages } = {}) => {
-  return webcrypto.subtle.importKey(
+export const deriveKey = (secret, salt, { extractable = false, usages = defaultUsages } = {}) =>
+  webcrypto.subtle.importKey(
     'raw',
     toBinary(secret),
     'PBKDF2',
@@ -108,12 +125,8 @@ export const deriveKey = (secret, salt, { extractable = false, usages = defaultU
         hash: 'SHA-256'
       },
       keyMaterial,
-      {
-        name: 'AES-GCM',
-        length: 256
-      },
+      aesAlgDef,
       extractable,
       usages
     )
   )
-}
