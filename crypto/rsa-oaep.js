@@ -3,7 +3,7 @@
  */
 
 import * as webcrypto from 'lib0/webcrypto'
-export { exportKeyJwk, exportKeyRaw } from './common.js'
+export { exportKeyJwk } from './common.js'
 
 /**
  * @typedef {Array<'encrypt'|'decrypt'>} Usages
@@ -79,14 +79,3 @@ export const importKeyJwk = (jwk, { extractable = false, usages } = {}) => {
   }
   return webcrypto.subtle.importKey('jwk', jwk, { name: 'RSA-OAEP', hash: 'SHA-256' }, extractable, /** @type {Usages} */ (usages))
 }
-
-/**
- * Only suited for importing public keys.
- *
- * @param {Uint8Array} raw
- * @param {Object} opts
- * @param {boolean} [opts.extractable]
- * @param {Usages} [opts.usages]
- */
-export const importKeyRaw = (raw, { extractable = false, usages = defaultUsages } = {}) =>
-  webcrypto.subtle.importKey('raw', raw, { name: 'RSA-OAEP', hash: 'SHA-256' }, extractable, usages)

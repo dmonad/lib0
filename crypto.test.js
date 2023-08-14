@@ -126,13 +126,6 @@ export const testImportExport = async tc => {
     t.compare(jwkPrivate, ejwkPrivate)
     t.compare(jwkPublic, ejwkPublic)
   })
-  await t.groupAsync('rsa-oaep (raw))', async () => {
-    const keypair = await rsa.generateKeyPair({ extractable: true })
-    const rawPublic = await rsa.exportKeyRaw(keypair.publicKey)
-    const ekeyPublic = await rsa.importKeyRaw(rawPublic, { extractable: true })
-    const erawPublic = await rsa.exportKeyRaw(ekeyPublic)
-    t.compare(rawPublic, erawPublic)
-  })
 }
 
 /**

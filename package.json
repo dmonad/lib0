@@ -469,7 +469,7 @@
     "clean": "rm -rf dist *.d.ts */*.d.ts *.d.ts.map */*.d.ts.map",
     "types": "tsc --outDir .",
     "dist": "rollup -c",
-    "debug": "npm run gentesthtml && npx 0serve -o test.html",
+    "debug": "npm run gentesthtml && node ./bin/0serve.js -o test.html",
     "test": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./test.js --repetition-time 50 --production",
     "test-extensive": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node test.js --repetition-time 30000 --extensive --production",
