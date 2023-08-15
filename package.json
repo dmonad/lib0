@@ -79,6 +79,12 @@
       "import": "./condititons.js",
       "require": "./dist/conditions.cjs"
     },
+    "./crypto/jwt": {
+      "types": "./crypto/jwt.d.ts",
+      "module": "./crypto/jwt.js",
+      "import": "./crypto/jwt.js",
+      "require": "./dist/jwt.cjs"
+    },
     "./crypto/aes-gcm": {
       "types": "./crypto/aes-gcm.d.ts",
       "module": "./crypto/aes-gcm.js",

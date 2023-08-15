@@ -14,6 +14,11 @@ export { exportKeyJwk, exportKeyRaw } from './common.js'
  */
 const defaultUsages = ['sign', 'verify']
 
+const defaultSignAlgorithm = {
+  name: 'ECDSA',
+  hash: 'SHA-384'
+}
+
 /**
  * @experimental The API is not final!
  *
@@ -23,16 +28,12 @@ const defaultUsages = ['sign', 'verify']
  * @param {Uint8Array} data
  * @return {PromiseLike<Uint8Array>} signature
  */
-export const sign = (key, data) => {
-  return webcrypto.subtle.sign(
-    {
-      name: 'ECDSA',
-      hash: { name: 'SHA-384' }
-    },
+export const sign = (key, data) =>
+  webcrypto.subtle.sign(
+    defaultSignAlgorithm,
     key,
     data
   ).then(signature => new Uint8Array(signature))
-}
 
 /**
  * @experimental The API is not final!
@@ -44,16 +45,17 @@ export const sign = (key, data) => {
  * @param {Uint8Array} data
  * @return {PromiseLike<boolean>} signature
  */
-export const verify = (key, signature, data) => {
-  return webcrypto.subtle.verify(
-    {
-      name: 'ECDSA',
-      hash: { name: 'SHA-384' }
-    },
+export const verify = (key, signature, data) =>
+  webcrypto.subtle.verify(
+    defaultSignAlgorithm,
     key,
     signature,
     data
   )
+
+const defaultKeyAlgorithm = {
+  name: 'ECDSA',
+  namedCurve: 'P-384'
 }
 
 /* c8 ignore next */
@@ -64,10 +66,7 @@ export const verify = (key, signature, data) => {
  */
 export const generateKeyPair = ({ extractable = false, usages = defaultUsages } = {}) =>
   webcrypto.subtle.generateKey(
-    {
-      name: 'ECDSA',
-      namedCurve: 'P-384'
-    },
+    defaultKeyAlgorithm,
     extractable,
     usages
   )
@@ -83,7 +82,7 @@ export const importKeyJwk = (jwk, { extractable = false, usages } = {}) => {
     /* c8 ignore next 2 */
     usages = jwk.key_ops || defaultUsages
   }
-  return webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-384' }, extractable, /** @type {Usages} */ (usages))
+  return webcrypto.subtle.importKey('jwk', jwk, defaultKeyAlgorithm, extractable, /** @type {Usages} */ (usages))
 }
 
 /**
@@ -95,4 +94,4 @@ export const importKeyJwk = (jwk, { extractable = false, usages } = {}) => {
  * @param {Usages} [opts.usages]
  */
 export const importKeyRaw = (raw, { extractable = false, usages = defaultUsages } = {}) =>
-  webcrypto.subtle.importKey('raw', raw, { name: 'ECDSA', namedCurve: 'P-384' }, extractable, usages)
+  webcrypto.subtle.importKey('raw', raw, defaultKeyAlgorithm, extractable, usages)

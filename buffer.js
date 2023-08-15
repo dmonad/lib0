@@ -84,6 +84,17 @@ export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
 export const fromBase64 = env.isBrowser ? fromBase64Browser : fromBase64Node
 
 /**
+ * Implements base64url - see https://datatracker.ietf.org/doc/html/rfc4648#section-5
+ * @param {Uint8Array} buf
+ */
+export const toBase64UrlEncoded = buf => toBase64(buf).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+
+/**
+ * @param {string} base64
+ */
+export const fromBase64UrlEncoded = base64 => fromBase64(base64.replaceAll('-', '+').replaceAll('_', '/'))
+
+/**
  * Base64 is always a more efficient choice. This exists for utility purposes only.
  *
  * @param {Uint8Array} buf

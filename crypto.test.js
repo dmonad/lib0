@@ -1,9 +1,30 @@
+import * as jose from 'lib0/crypto/jwt'
 import * as aes from 'lib0/crypto/aes-gcm'
 import * as rsa from 'lib0/crypto/rsa-oaep'
 import * as ecdsa from 'lib0/crypto/ecdsa'
 import * as t from './testing.js'
 import * as prng from './prng.js'
 import * as webcrypto from 'lib0/webcrypto'
+import * as json from 'lib0/json'
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testJwt = async _tc => {
+  const publicJwk = json.parse('{"key_ops":["verify"],"ext":true,"kty":"EC","x":"X7xPIgxWOHmKPv2PtrxGvaQUJ3LiUXQTVLExwPGBvanD3kAc9sEY9FwKxp8NVJ3j","y":"SIBaHLE1fvW_O-xOdzmbkU5M_M7cGHULZHrXOo_exCKBIbV2pJm3MH87gAXkZvoD","crv":"P-384"}')
+  const privateJwk = json.parse('{"key_ops":["sign"],"ext":true,"kty":"EC","x":"X7xPIgxWOHmKPv2PtrxGvaQUJ3LiUXQTVLExwPGBvanD3kAc9sEY9FwKxp8NVJ3j","y":"SIBaHLE1fvW_O-xOdzmbkU5M_M7cGHULZHrXOo_exCKBIbV2pJm3MH87gAXkZvoD","crv":"P-384","d":"3BdPp9LSWOl36bJuwEIun14Y17dgV7AK8RKqOuTJAbG080kemtr7qmZgTiCE_K_o"}')
+  const privateKey = await ecdsa.importKeyJwk(privateJwk)
+  const publicKey = await ecdsa.importKeyJwk(publicJwk)
+  const payload = {
+    sub: '1234567890',
+    name: 'John Doe',
+    iat: 1516239022
+  }
+  const jwt = await jose.encodeJwt(privateKey, payload)
+  console.log('jwt: ', jwt)
+  const verified = await jose.verifyJwt(publicKey, jwt)
+  t.compare(verified.payload, payload)
+}
 
 /**
  * @param {t.TestCase} tc
