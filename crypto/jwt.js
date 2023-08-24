@@ -50,3 +50,16 @@ export const verifyJwt = async (publicKey, jwt) => {
     payload: _parse(payloadBase64)
   }
 }
+
+/**
+ * Decode a jwt without verifying it. Probably a bad idea to use this. Only use if you know the jwt was already verified!
+ *
+ * @param {string} jwt
+ */
+export const unsafeDecode = jwt => {
+  const [headerBase64, payloadBase64] = jwt.split('.')
+  return {
+    header: _parse(headerBase64),
+    payload: _parse(payloadBase64)
+  }
+}

@@ -5,7 +5,7 @@ import * as ecdsa from 'lib0/crypto/ecdsa'
 import * as t from './testing.js'
 import * as prng from './prng.js'
 import * as webcrypto from 'lib0/webcrypto'
-import * as json from 'lib0/json'
+import * as json from './json.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -24,6 +24,8 @@ export const testJwt = async _tc => {
   console.log('jwt: ', jwt)
   const verified = await jose.verifyJwt(publicKey, jwt)
   t.compare(verified.payload, payload)
+  const unverified = jose.unsafeDecode(jwt)
+  t.compare(verified, unverified)
 }
 
 /**
