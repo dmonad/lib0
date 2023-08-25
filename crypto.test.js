@@ -4,7 +4,6 @@ import * as rsa from 'lib0/crypto/rsa-oaep'
 import * as ecdsa from 'lib0/crypto/ecdsa'
 import * as t from './testing.js'
 import * as prng from './prng.js'
-import * as webcrypto from 'lib0/webcrypto'
 import * as json from './json.js'
 
 /**
