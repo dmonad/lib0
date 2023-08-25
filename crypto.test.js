@@ -171,7 +171,7 @@ export const testEncryptionPerformance = async tc => {
    */
   const data = []
   for (let i = 0; i < N; i++) {
-    data.push(webcrypto.getRandomValues(new Uint8Array(BLen)))
+    data.push(prng.uint8Array(tc.prng, BLen))
   }
   /**
    * @type {Array<Uint8Array>}
