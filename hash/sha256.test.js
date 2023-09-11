@@ -12,6 +12,14 @@ import * as f from '../function.js'
 /**
  * @param {t.TestCase} _tc
  */
+export const testSelfReferencingHash = _tc => {
+  const hash = sha256.digest(string.encodeUtf8('The SHA256 for this sentence begins with: one, eight, two, a, seven, c and nine.'))
+  t.assert(buffer.toHexString(hash).startsWith('182a7c9'))
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
 export const testSha256Basics = async _tc => {
   /**
    * @param {string | Uint8Array} data input data (buffer or hex encoded)
