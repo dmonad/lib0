@@ -7,14 +7,30 @@ export class QueueNode {
   }
 }
 
+/**
+ * @template V
+ */
+export class QueueValue extends QueueNode {
+  /**
+   * @param {V} v
+   */
+  constructor (v) {
+    super()
+    this.v = v
+  }
+}
+
+/**
+ * @template {QueueNode} N
+ */
 export class Queue {
   constructor () {
     /**
-     * @type {QueueNode | null}
+     * @type {N | null}
      */
     this.start = null
     /**
-     * @type {QueueNode | null}
+     * @type {N | null}
      */
     this.end = null
   }
@@ -24,18 +40,20 @@ export class Queue {
  * @note The queue implementation is experimental and unfinished.
  * Don't use this in production yet.
  *
- * @return {Queue}
+ * @template {QueueNode} N
+ * @return {Queue<N>}
  */
 export const create = () => new Queue()
 
 /**
- * @param {Queue} queue
+ * @param {Queue<any>} queue
  */
 export const isEmpty = queue => queue.start === null
 
 /**
- * @param {Queue} queue
- * @param {QueueNode} n
+ * @template {Queue<any>} Q
+ * @param {Q} queue
+ * @param {Q extends Queue<infer N> ? N : never} n
  */
 export const enqueue = (queue, n) => {
   if (queue.end !== null) {
@@ -48,8 +66,9 @@ export const enqueue = (queue, n) => {
 }
 
 /**
- * @param {Queue} queue
- * @return {QueueNode | null}
+ * @template {QueueNode} N
+ * @param {Queue<N>} queue
+ * @return {N | null}
  */
 export const dequeue = queue => {
   const n = queue.start
