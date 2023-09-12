@@ -22,6 +22,7 @@ import * as eventloop from './eventloop.test.js'
 import * as time from './time.test.js'
 import * as pair from './pair.test.js'
 import * as object from './object.test.js'
+import * as observable from './observable.test.js'
 import * as math from './math.test.js'
 import * as number from './number.test.js'
 import * as buffer from './buffer.test.js'
@@ -65,6 +66,7 @@ runTests({
   time,
   pair,
   object,
+  observable,
   math,
   number,
   buffer,
