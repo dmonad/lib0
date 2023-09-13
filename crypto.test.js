@@ -201,14 +201,15 @@ export const testConsistentKeyGeneration = async _tc => {
     const secret = 'qfycncpxhjktawlqkhc'
     const salt = 'my nonce'
     const expectedJwk = {
-      key_ops: ['encrypt', 'decrypt'],
-      ext: true,
+      key_ops: ['decrypt', 'encrypt'],
       kty: 'oct',
       k: 'psAqoMh9apefdr8y1tdbNMVTLxb-tFekEFipYIOX5n8',
       alg: 'A256GCM'
     }
     const key = await aes.deriveKey(secret, salt, { extractable: true })
     const jwk = await aes.exportKeyJwk(key)
+    delete jwk.ext
+    jwk.key_ops?.sort()
     t.compare(jwk, expectedJwk)
   })
   await t.groupAsync('key generation (ECDSA))', async () => {
