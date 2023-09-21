@@ -87,6 +87,7 @@ const setupWS = (wsclient) => {
 }
 
 /**
+ * @deprecated
  * @extends Observable<string>
  */
 export class WebsocketClient extends Observable {
