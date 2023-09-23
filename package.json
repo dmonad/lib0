@@ -111,6 +111,7 @@
     },
     "./hash/sha256": {
       "types": "./hash/sha256.d.ts",
+      "browser": "./hash/sha256.js",
       "node": {
         "require": "./dist/sha256.node.cjs",
         "default": "./hash/sha256.node.js"
@@ -231,6 +232,7 @@
       "types": "./logging.node.d.ts",
       "deno": "./logging.node.js",
       "bun": "./logging.js",
+      "browser": "./logging.js",
       "node": {
         "module": "./logging.node.js",
         "require": "./dist/logging.node.cjs",
@@ -448,6 +450,7 @@
       "types": "./performance.d.ts",
       "deno": "./performance.node.js",
       "bun": "./performance.node.js",
+      "browser": "./performance.js",
       "node": {
         "module": "./performance.node.js",
         "require": "./dist/performance.node.cjs",
