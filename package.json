@@ -430,6 +430,7 @@
       "types": "./webcrypto.d.ts",
       "deno": "./webcrypto.deno.js",
       "bun": "./webcrypto.js",
+      "browser": "./webcrypto.js",
       "node": {
         "module": "./webcrypto.node.js",
         "require": "./dist/webcrypto.node.cjs",
