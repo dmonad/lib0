@@ -11,19 +11,12 @@ import * as math from './math.js'
 import * as encoding from './encoding.js'
 import * as decoding from './decoding.js'
 
+export { createUint8ArrayViewFromArrayBuffer } from './common.js'
+
 /**
  * @param {number} len
  */
 export const createUint8ArrayFromLen = len => new Uint8Array(len)
-
-/**
- * Create Uint8Array with initial content from buffer
- *
- * @param {ArrayBuffer} buffer
- * @param {number} byteOffset
- * @param {number} length
- */
-export const createUint8ArrayViewFromArrayBuffer = (buffer, byteOffset, length) => new Uint8Array(buffer, byteOffset, length)
 
 /**
  * Create Uint8Array with initial content from buffer
