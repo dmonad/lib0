@@ -27,7 +27,7 @@ export class ObservableV2 {
   }
 
   /**
-   * @template {string} NAME
+   * @template {keyof EVENTS & string} NAME
    * @param {NAME} name
    * @param {EVENTS[NAME]} f
    */
@@ -37,7 +37,7 @@ export class ObservableV2 {
   }
 
   /**
-   * @template {string} NAME
+   * @template {keyof EVENTS & string} NAME
    * @param {NAME} name
    * @param {EVENTS[NAME]} f
    */
@@ -53,7 +53,7 @@ export class ObservableV2 {
   }
 
   /**
-   * @template {string} NAME
+   * @template {keyof EVENTS & string} NAME
    * @param {NAME} name
    * @param {EVENTS[NAME]} f
    */
@@ -73,7 +73,7 @@ export class ObservableV2 {
    *
    * @todo This should catch exceptions
    *
-   * @template {string} NAME
+   * @template {keyof EVENTS & string} NAME
    * @param {NAME} name The event name.
    * @param {Parameters<EVENTS[NAME]>} args The arguments that are applied to the event listener.
    */
