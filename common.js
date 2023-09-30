@@ -1,7 +1,7 @@
 /**
  * Common Functions.
  *
- * @module buffer
+ * @module common
  */
 
 /**
