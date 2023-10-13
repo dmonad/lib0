@@ -40,7 +40,7 @@ let usePolyfill = true
 /* c8 ignore start */
 try {
   // if the same-origin rule is violated, accessing localStorage might thrown an error
-  if (typeof localStorage !== 'undefined' && localStorage !== null) {
+  if (typeof localStorage !== 'undefined' && localStorage) {
     _localStorage = localStorage
     usePolyfill = false
   }
