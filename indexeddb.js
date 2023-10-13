@@ -48,9 +48,6 @@ export const openDB = (name, initDB) => promise.create((resolve, reject) => {
      */
     const db = event.target.result
     db.onversionchange = () => { db.close() }
-    if (typeof addEventListener !== 'undefined') {
-      addEventListener('unload', () => db.close())
-    }
     resolve(db)
   }
 })
