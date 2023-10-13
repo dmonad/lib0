@@ -13,7 +13,8 @@ import * as f from './function.js'
 /* c8 ignore next */
 // @ts-ignore
 export const isNode = typeof process !== 'undefined' && process.release &&
-  /node|io\.js/.test(process.release.name)
+  /node|io\.js/.test(process.release.name) && Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]'
+
 /* c8 ignore next */
 export const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined' && !isNode
 /* c8 ignore next 3 */
