@@ -111,7 +111,11 @@
     },
     "./hash/sha256": {
       "types": "./hash/sha256.d.ts",
-      "browser": "./hash/sha256.js",
+      "browser": {
+        "module": "./hash/sha256.js",
+        "require": "./dist/sha256.cjs",
+        "default": "./hash/sha256.js"
+      }
       "node": {
         "require": "./dist/sha256.node.cjs",
         "default": "./hash/sha256.node.js"
@@ -232,7 +236,11 @@
       "types": "./logging.node.d.ts",
       "deno": "./logging.node.js",
       "bun": "./logging.js",
-      "browser": "./logging.js",
+      "browser": {
+        "module": "./logging.js",
+        "require": "./dist/logging.cjs",
+        "default": "./logging.js"
+      }
       "node": {
         "module": "./logging.node.js",
         "require": "./dist/logging.node.cjs",
@@ -432,7 +440,11 @@
       "types": "./webcrypto.d.ts",
       "deno": "./webcrypto.deno.js",
       "bun": "./webcrypto.js",
-      "browser": "./webcrypto.js",
+      "browser": {
+        "module": "./webcrypto.js",
+        "require": "./dist/webcrypto.cjs",
+        "default": "./webcrypto.js"
+      }
       "node": {
         "module": "./webcrypto.node.js",
         "require": "./dist/webcrypto.node.cjs",
