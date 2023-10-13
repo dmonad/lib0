@@ -74,7 +74,7 @@ const fromBase64Browser = s => {
  */
 const fromBase64Node = s => {
   const buf = Buffer.from(s, 'base64')
-  return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
+  return createUint8ArrayViewFromArrayBuffer(buf.buffer, buf.byteOffset, buf.byteLength)
 }
 
 /* c8 ignore next */
