@@ -134,11 +134,8 @@ export const copyUint8Array = uint8Array => {
  * @param {any} data
  * @return {Uint8Array}
  */
-export const encodeAny = data => {
-  const encoder = encoding.createEncoder()
-  encoding.writeAny(encoder, data)
-  return encoding.toUint8Array(encoder)
-}
+export const encodeAny = data =>
+  encoding.encode(encoder => encoding.writeAny(encoder, data))
 
 /**
  * Decode an any-encoded value.
