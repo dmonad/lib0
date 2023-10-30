@@ -16,7 +16,7 @@ export const testUrlParamQuery = tc => {
   paramTest({})
   paramTest({ a: '4' })
   paramTest({ a: 'dtrn', b: '0x0' })
-  paramTest({__proto__: 'oops'})
+  paramTest({ __proto__: 'oops' })
 
   t.compareObjects({ }, url.decodeQueryParams('http://localhost:8080/dtrn?'))
   t.compareObjects({ a: 'ay' }, url.decodeQueryParams('http://localhost:8080/dtrn?a=ay'))
