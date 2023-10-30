@@ -16,7 +16,7 @@ export const decodeQueryParams = url => {
   /**
    * @type {Object<string,string>}
    */
-  const query = {}
+  const query = Object.create(null)
   const urlQuerySplit = url.split('?')
   const pairs = urlQuerySplit[urlQuerySplit.length - 1].split('&')
   for (let i = 0; i < pairs.length; i++) {
