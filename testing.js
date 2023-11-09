@@ -110,6 +110,8 @@ export class TestCase {
   /**
    * A PRNG for this test case. Use only this PRNG for randomness to make the test case reproducible.
    *
+   * @todo idea, repeat tests when prng is accessed
+   *
    * @type {prng.PRNG}
    */
   get prng () {

@@ -17,7 +17,7 @@ export const testText = _tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatRandom = tc => {
-  const gen = prng.create(42) // tc.prng // prng.create(42)
+  const gen = tc.prng // prng.create(42)
   let testString = prng.word(gen, 0, 10)
   const txt = text.from(testString)
   const numOfChanges = 30

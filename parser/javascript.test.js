@@ -1,4 +1,4 @@
-import * as t from '../testing.js'
+import * as t from '../testing.js' // eslint-disable-line
 import * as jsparser from './javascript.js'
 
 /**
@@ -6,4 +6,5 @@ import * as jsparser from './javascript.js'
  */
 export const testVariableDeclaration = _tc => {
   console.log(jsparser.parse('const x = 4'))
+  console.log(jsparser.parse('const x 4'))
 }

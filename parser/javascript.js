@@ -31,7 +31,7 @@ const readIdentifier = p => {
   const start = p.i
   for (let c = p.c.charCodeAt(p.i); c >= 97 && c <= 122 && p.i < p.c.length - 1; c = p.c.charCodeAt(++p.i)) { /* */ }
   while (p.c[p.i] !== ' ') { p.i++ }
-  return start < p.i ? new Identifier(p.c.substring(start, p.i)) : null
+  return start < p.i ? new Identifier(p.c.substring(start, p.i)) : parser.error(start, 'Identifier')
 }
 
 /**
@@ -57,12 +57,11 @@ export class VariableDeclaration {
 
 /**
  * @param {parser.Parser} p
+ * @return {parser.Result<VariableDeclaration>}
  */
 export const readVariableDeclaration = p => {
   const variableDeclaration = parser.tryRead(p, p => parser.readKeyword(p, 'var', 'let', 'const'), readIdentifier, p => parser.readChar(p, '='), readExpression)
-  if (variableDeclaration == null) return null
-  const [kind, id,, init] = variableDeclaration
-  return new VariableDeclaration(kind, id, init)
+  return parser.mapResult(variableDeclaration, ([kind, id,, init]) => new VariableDeclaration(kind, id, init))
 }
 
 /**
@@ -70,15 +69,15 @@ export const readVariableDeclaration = p => {
  */
 
 /**
- * @return {Expression}
+ * @param {parser.Parser} p
+ * @return {parser.Result<Expression>}
  */
-export const readExpression = p => {
-  return parser.readNumber(p)
-}
+export const readExpression = p =>
+  parser.mapResult(parser.readNumber(p), num => new Literal(num))
 
 export class Identifier {
   /**
-   * @param {Expression} expression
+   * @param {string} name
    */
   constructor (name) {
     this.name = name
@@ -125,4 +124,3 @@ export class BinaryExpression {
     this.operator = operator
   }
 }
-
