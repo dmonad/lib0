@@ -4,8 +4,8 @@
  * @module buffer
  */
 
-import * as string from './string.js'
 import * as env from './environment.js'
+import * as string from './string.js'
 import * as array from './array.js'
 import * as math from './math.js'
 import * as encoding from './encoding.js'
@@ -163,4 +163,20 @@ export const shiftNBitsLeft = (bs, N) => {
     bs[i] <<= N
   }
   return bs
+}
+
+/**
+ * @param {Uint8Array} a
+ * @param {Uint8Array} b
+ */
+export const equal = (a, b) => {
+  if (a.length !== b.length) {
+    return false
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false
+    }
+  }
+  return true
 }

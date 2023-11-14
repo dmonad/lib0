@@ -36,6 +36,7 @@ import * as list from './list.test.js'
 import * as cache from './cache.test.js'
 import * as symbol from './symbol.test.js'
 import * as jsparser from './parser/javascript.test.js'
+import * as parser from './parser/parser.test.js'
 import * as text from './text.test.js'
 
 import { isBrowser, isNode } from './environment.js'
@@ -82,6 +83,7 @@ runTests({
   cache,
   symbol,
   jsparser,
+  parser,
   text
 }).then(success => {
   /* c8 ignore next */

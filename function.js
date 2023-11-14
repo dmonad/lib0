@@ -83,7 +83,7 @@ export const equalityDeep = (a, b) => {
       b = new Uint8Array(b)
     // eslint-disable-next-line no-fallthrough
     case Uint8Array: {
-      if (a.byteLength !== b.byteLength) {
+      if (a.length !== b.length) {
         return false
       }
       for (let i = 0; i < a.length; i++) {

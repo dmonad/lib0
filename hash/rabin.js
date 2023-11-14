@@ -98,3 +98,48 @@ export const fingerprint = (irreducible, data) => {
   }
   return encoder.getFingerprint()
 }
+
+/**
+ * Convenience function for generating a unique fingerprint.
+ *
+ * Use an irreducible polynomial of degree 8 to produce an 8-bit fingerprint.
+ *
+ * @param {Uint8Array} data
+ */
+export const fingerprint8 = data => fingerprint(StandardIrreducible8, data)
+
+/**
+ * Convenience function for generating a unique fingerprint.
+ *
+ * Use an irreducible polynomial of degree 16 to produce a 16-bit fingerprint.
+ *
+ * @param {Uint8Array} data
+ */
+export const fingerprint16 = data => fingerprint(StandardIrreducible16, data)
+
+/**
+ * Convenience function for generating a unique fingerprint.
+ *
+ * Use an irreducible polynomial of degree 32 to produce a 32-bit fingerprint.
+ *
+ * @param {Uint8Array} data
+ */
+export const fingerprint32 = data => fingerprint(StandardIrreducible32, data)
+
+/**
+ * Convenience function for generating a unique fingerprint.
+ *
+ * Use an irreducible polynomial of degree 64 to produce a 64-bit fingerprint.
+ *
+ * @param {Uint8Array} data
+ */
+export const fingerprint64 = data => fingerprint(StandardIrreducible64, data)
+
+/**
+ * Convenience function for generating a unique fingerprint.
+ *
+ * Use an irreducible polynomial of degree 128 to produce a 128-bit fingerprint.
+ *
+ * @param {Uint8Array} data
+ */
+export const fingerprint128 = data => fingerprint(StandardIrreducible128, data)

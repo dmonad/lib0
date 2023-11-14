@@ -51,3 +51,11 @@ export const testAnyEncoding = _tc => {
   const res = buffer.decodeAny(buffer.encodeAny(obj))
   t.compare(obj, res)
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testEquality = _tc => {
+  t.assert(buffer.equal(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 3])))
+  t.assert(buffer.equal(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2])))
+}

@@ -1,3 +1,7 @@
+import * as encoding from '../encoding.js'
+import * as rabin from '../hash/rabin.js'
+import * as map from '../map.js'
+
 /**
  * @module parser
  *
@@ -34,23 +38,54 @@ export class Parser {
   }
 }
 
+/**
+ * @type {Map<function,number>}
+ */
+const hashTypeCache = new Map()
+
+/**
+ * @template {{ _hash: Uint8Array|null }} NodeOrVal
+ * @param {NodeOrVal} o
+ */
+const getHash = o => o._hash || (o._hash = rabin.fingerprint32(encoding.encode(encoder => {
+  // make sure that different constructors yield different results
+  encoding.writeVarUint(encoder, map.setIfUndefined(hashTypeCache, o.constructor, () => hashTypeCache.size))
+  for (const key in o) {
+    if (key === '_hash') continue
+    const v = o[key]
+    if (v instanceof Node) {
+      encoding.writeUint8(encoder, 255)
+      encoding.writeVarUint8Array(encoder, v.hash)
+    } else {
+      encoding.writeAny(encoder, /** @type {any} */ (v))
+    }
+  }
+})))
+
 export class Node {
   constructor () {
+    /**
+     * @type {Uint8Array|null}
+     */
+    this._hash = null
     this.offset = 0
     this.len = 0
+  }
+
+  get hash () {
+    return getHash(this)
   }
 }
 
 /**
  * @template V
  */
-export class NodeVal {
+export class NodeVal extends Node {
   /**
    * @param {V} val
    */
   constructor (val) {
-    this.offset = 0
-    this.len = 0
+    super()
     this.val = val
   }
 }
@@ -60,6 +95,10 @@ export class Err {
    * @param {string} expected
    */
   constructor (expected) {
+    /**
+     * @type {Uint8Array|null}
+     */
+    this._hash = null
     this.offset = 0
     this.len = 0
     this.expected = expected
@@ -67,6 +106,10 @@ export class Err {
 
   toString () {
     return `Expected ${this.expected}`
+  }
+
+  get hash () {
+    return getHash(this)
   }
 }
 
@@ -159,7 +202,7 @@ export const readSpace = p => {
 /**
  * @template {Result<Node>} R
  * @param {Parser} p
- * @param {function(Parser, number):R} f arguments are: Parser,start
+ * @param {function(Parser,number):R} f arguments are: Parser,start
  * @return {R}
  */
 export const readNodeHelper = (p, f) => {
@@ -178,7 +221,8 @@ export const readNodeHelper = (p, f) => {
  * @return {Result<NodeVal<string>>}
  */
 export const readWord = p => readNodeHelper(p, (p, start) => {
-  while (p.c[p.i] !== ' ') { p.i++ }
+  // @todo implement a helper like (p.readWhile(' ', '\n'))
+  while (p.c[p.i] !== ' ' && p.i < p.c.length) { p.i++ }
   return p.i > start ? resultVal(p.c.substring(start, p.i)) : error('word')
 })
 
