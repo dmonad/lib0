@@ -16,7 +16,7 @@ export class Parser {
     this.c = content
     this.i = 0
     /**
-     * Curretn offset to the previous node that was successfully parsed.
+     * Current offset to the previous node that was successfully parsed.
      * @type {number}
      */
     this.offset = 0
@@ -68,6 +68,10 @@ export class Node {
      * @type {Uint8Array|null}
      */
     this._hash = null
+    /**
+     * @type {Node|null}
+     */
+    this.parent = null
     this.offset = 0
     this.len = 0
   }
@@ -156,7 +160,7 @@ export const isError = v => v.constructor === Err
 /**
  * @param {string} expected
  */
-export const error = (expected) => new Err(expected)
+export const err = (expected) => new Err(expected)
 
 /**
  * @template T
@@ -223,7 +227,7 @@ export const readNodeHelper = (p, f) => {
 export const readWord = p => readNodeHelper(p, (p, start) => {
   // @todo implement a helper like (p.readWhile(' ', '\n'))
   while (p.c[p.i] !== ' ' && p.i < p.c.length) { p.i++ }
-  return p.i > start ? resultVal(p.c.substring(start, p.i)) : error('word')
+  return p.i > start ? resultVal(p.c.substring(start, p.i)) : err('word')
 })
 
 /**
@@ -234,7 +238,7 @@ export const readWord = p => readNodeHelper(p, (p, start) => {
  */
 export const readChar = (p, char) => readNodeHelper(p, (p) => {
   const c = p.c[p.i++]
-  return c === char ? resultVal(/** @type {C} */ (c)) : error(`char '${char}'`)
+  return c === char ? resultVal(/** @type {C} */ (c)) : err(`char '${char}'`)
 })
 
 /**
@@ -243,7 +247,7 @@ export const readChar = (p, char) => readNodeHelper(p, (p) => {
  */
 export const readNumber = p => readNodeHelper(p, (p, start) => {
   for (let c = p.c.charCodeAt(p.i); c >= 48 && c <= 57; c = p.c.charCodeAt(++p.i)) { /* */ }
-  return start < p.i ? resultVal(Number.parseInt(p.c.substring(start, p.i))) : error('number')
+  return start < p.i ? resultVal(Number.parseInt(p.c.substring(start, p.i))) : err('number')
 })
 
 /**
@@ -253,5 +257,5 @@ export const readNumber = p => readNodeHelper(p, (p, start) => {
  * @return {Result<NodeVal<KS[number]>>}
  */
 export const readKeyword = (p, ...keywords) => readNodeHelper(p, (p) =>
-  mapResult(readWord(p), word => keywords.includes(word.val) ? word : error(`keyword ${keywords.join(',')}`))
+  mapResult(readWord(p), word => keywords.includes(word.val) ? word : err(`keyword ${keywords.join(',')}`))
 )

@@ -105,7 +105,7 @@ export class VariableDeclaration extends parser.Node {
 const readIdentifier = p => parser.readNodeHelper(p, (p, start) => {
   for (let c = p.c.charCodeAt(p.i); c >= 97 && c <= 122 && p.i < p.c.length - 1; c = p.c.charCodeAt(++p.i)) { /* */ }
   while (p.c[p.i] !== ' ') { p.i++ }
-  return start < p.i ? new Identifier(p.c.substring(start, p.i)) : parser.error('Identifier')
+  return start < p.i ? new Identifier(p.c.substring(start, p.i)) : parser.err('Identifier')
 })
 
 /**
