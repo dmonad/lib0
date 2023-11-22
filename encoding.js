@@ -762,6 +762,11 @@ export class UintOptRleEncoder {
     }
   }
 
+  /**
+   * Flush the encoded state and transform this to a Uint8Array.
+   *
+   * Note that this should only be called once.
+   */
   toUint8Array () {
     flushUintOptRleEncoder(this)
     return toUint8Array(this.encoder)
@@ -799,6 +804,11 @@ export class IncUintOptRleEncoder {
     }
   }
 
+  /**
+   * Flush the encoded state and transform this to a Uint8Array.
+   *
+   * Note that this should only be called once.
+   */
   toUint8Array () {
     flushUintOptRleEncoder(this)
     return toUint8Array(this.encoder)
@@ -866,6 +876,11 @@ export class IntDiffOptRleEncoder {
     }
   }
 
+  /**
+   * Flush the encoded state and transform this to a Uint8Array.
+   *
+   * Note that this should only be called once.
+   */
   toUint8Array () {
     flushIntDiffOptRleEncoder(this)
     return toUint8Array(this.encoder)
