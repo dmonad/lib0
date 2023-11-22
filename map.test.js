@@ -26,3 +26,30 @@ export const testMap = _tc => {
   t.assert(!map.all(m, (v, k) => k === 1 && v === 2))
   t.assert(map.all(m, (v) => v === 2 || v === 3 || v === numberOfWrites))
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testTypeDefinitions = _tc => {
+  // setIfUndefined supports inheritance properly: See https://github.com/dmonad/lib0/issues/82
+  class A {
+    constructor () {
+      this.a = 4
+    }
+  }
+  class B extends A {
+    constructor () {
+      super()
+      this.b = 4
+    }
+  }
+  /**
+   * @type {Map<number, A>}
+   */
+  const m = map.create()
+  /**
+   * @type {B}
+   */
+  const b = map.setIfUndefined(m, 0, () => new B())
+  console.log(b)
+}

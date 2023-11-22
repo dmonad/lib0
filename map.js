@@ -18,9 +18,9 @@ export const create = () => new Map()
  * Copy a Map object into a fresh Map object.
  *
  * @function
- * @template X,Y
- * @param {Map<X,Y>} m
- * @return {Map<X,Y>}
+ * @template K,V
+ * @param {Map<K,V>} m
+ * @return {Map<K,V>}
  */
 export const copy = m => {
   const r = create()
@@ -37,12 +37,12 @@ export const copy = m => {
  * ```
  *
  * @function
- * @template V,K
- * @template {Map<K,V>} MAP
+ * @template {Map<any, any>} MAP
+ * @template {MAP extends Map<any,infer V> ? function():V : unknown} CF
  * @param {MAP} map
- * @param {K} key
- * @param {function():V} createT
- * @return {V}
+ * @param {MAP extends Map<infer K,any> ? K : unknown} key
+ * @param {CF} createT
+ * @return {ReturnType<CF>}
  */
 export const setIfUndefined = (map, key, createT) => {
   let set = map.get(key)
