@@ -12,10 +12,11 @@ import * as parser from './parser.js'
 /**
  * @param {string} content
  */
-export const parse = content => parser.parse(content, readVariableDeclaration)
+export const parse = content => parser.parse(content, readProgram)
 
-export class Program {
+export class Program extends parser.Node {
   constructor () {
+    super()
     /**
      * @type {Array<Statement>}
      */
@@ -115,6 +116,30 @@ const readIdentifier = p => parser.readNodeHelper(p, (p, start) => {
 export const readVariableDeclaration = p => {
   const variableDeclaration = parser.tryReadNodes(p, p => parser.readKeyword(p, 'var', 'let', 'const'), readIdentifier, p => parser.readChar(p, '='), readExpression)
   return parser.mapResult(variableDeclaration, ({ val: [kind, id,, init] }) => new VariableDeclaration(kind, id, init))
+}
+
+/**
+ * @param {parser.Parser} p
+ * @return {parser.Result<Statement>}
+ */
+export const readStatement = p => {
+  return readVariableDeclaration(p)
+}
+
+/**
+ * @param {parser.Parser} p
+ * @return {parser.Result<Program>}
+ */
+export const readProgram = p => {
+  const program = new Program()
+  while (p.i < p.c.length) {
+    const st = readStatement(p)
+    if (parser.isError(st)) {
+      return /** @type {parser.Err} */ (st)
+    }
+    program.body.push(/** @type {Statement} */ (st))
+  }
+  return program
 }
 
 /**

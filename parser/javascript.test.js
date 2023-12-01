@@ -16,6 +16,15 @@ export const testVariableDeclaration = _tc => {
   t.compare(r1.hash, r2.hash)
   console.log({ hash: r1.hash })
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testUpdates = _tc => {
+  const r1 = jsparser.parse('const x = 4\nconst y = 5')
+  console.log(r1)
+}
+
 // Idea for annotating an incrementally updatable ast
 // /**
 //  * @param {t.TestCase} _tc
@@ -44,3 +53,16 @@ export const testVariableDeclaration = _tc => {
 //   })
 //   t1.applyDelta(text.delta().retain(6).insert('y'))
 // }
+
+/**
+ * # Approach to update an AST tree based on a text-delta.
+ *
+ * There two ASTs: previous ast `past` and the new ast we want to generate `nast`
+ *
+ * * start parsing of nast as if we would do a fresh parse.
+ * * whenever we want to parse a new node, the `parseNodeHelper` checks if past encodered the same
+ *   node at the same position**. If so, we reuse that node and return a successful parse.
+ * * (**) we use a `path` to follow along the parsing process in the `past`. We adjust the position
+ *   by the delta that was applied.
+ *
+ */

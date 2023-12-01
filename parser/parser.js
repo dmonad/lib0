@@ -1,6 +1,7 @@
 import * as encoding from '../encoding.js'
 import * as rabin from '../hash/rabin.js'
 import * as map from '../map.js'
+import * as array from '../array.js'
 
 /**
  * @module parser
@@ -56,6 +57,16 @@ const getHash = o => o._hash || (o._hash = rabin.fingerprint32(encoding.encode(e
     if (v instanceof Node) {
       encoding.writeUint8(encoder, 255)
       encoding.writeVarUint8Array(encoder, v.hash)
+    } else if (array.isArray(v)) {
+      for (let i = 0; i < v.length; i++) {
+        const av = v[i]
+        if (av instanceof Node) {
+          encoding.writeUint8(encoder, 255)
+          encoding.writeVarUint8Array(encoder, av.hash)
+        } else {
+          encoding.writeAny(encoder, av)
+        }
+      }
     } else {
       encoding.writeAny(encoder, /** @type {any} */ (v))
     }
