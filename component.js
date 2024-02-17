@@ -378,7 +378,7 @@ export const defineListComponent = createComponentDefiner(() => {
         component.removeChild(prevChild)
       }
       // insert remaining
-      component.insertBefore(dom.fragment(insert.slice(insertStart).map(insState => {
+      component.insertBefore(dom.fragment(insert.slice(insertStart).map(/** @param {any} insState */ insState => {
         const el = new Item()
         el.setState(insState)
         return el

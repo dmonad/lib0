@@ -94,7 +94,7 @@ export const getParam = (name, defaultVal) =>
 /* c8 ignore next 4 */
 export const getVariable = (name) =>
   isNode
-    ? conditions.undefinedToNull(process.env[name.toUpperCase()])
+    ? conditions.undefinedToNull(process.env[name.toUpperCase().replaceAll('-', '_')])
     : conditions.undefinedToNull(storage.varStorage.getItem(name))
 
 /**
@@ -104,6 +104,17 @@ export const getVariable = (name) =>
 /* c8 ignore next 2 */
 export const getConf = (name) =>
   computeParams().get('--' + name) || getVariable(name)
+
+/**
+ * @param {string} name
+ * @return {string}
+ */
+/* c8 ignore next 5 */
+export const ensureConf = (name) => {
+  const c = getConf(name)
+  if (c == null) throw new Error(`Expected configuration "${name.toUpperCase().replaceAll('-', '_')}"`)
+  return c
+}
 
 /**
  * @param {string} name
