@@ -2,6 +2,7 @@ import * as symbol from './symbol.js'
 import * as time from './time.js'
 import * as env from './environment.js'
 import * as func from './function.js'
+import * as json from './json.js'
 
 export const BOLD = symbol.create()
 export const UNBOLD = symbol.create()
@@ -63,11 +64,20 @@ export const createModuleLogger = (_print, moduleName) => {
           color,
           moduleName,
           UNCOLOR,
-          ...args.map((arg) =>
-            (typeof arg === 'string' || typeof arg === 'symbol')
-              ? arg
-              : JSON.stringify(arg)
-          ),
+          ...args.map((arg) => {
+            if (arg != null && arg.constructor !== Uint8Array) {
+              arg = Array.from(arg)
+            }
+            const t = typeof arg
+            switch (t) {
+              case 'string':
+              case 'symbol':
+                return arg
+              default: {
+                return json.stringify(arg)
+              }
+            }
+          }),
           color,
           ' +' + timeDiff + 'ms'
         )
