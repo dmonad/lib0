@@ -23,10 +23,13 @@ const _nodeStyleMap = {
 
 /* c8 ignore start */
 /**
- * @param {Array<string|Symbol|Object|number>} args
- * @return {Array<string|object|number>}
+ * @param {Array<string|undefined|Symbol|Object|number|function():Array<any>>} args
+ * @return {Array<string|object|number|undefined>}
  */
 const computeNodeLoggingArgs = (args) => {
+  if (args.length === 1 && args[0]?.constructor === Function) {
+    args = /** @type {Array<string|Symbol|Object|number>} */ (/** @type {[function]} */ (args)[0]())
+  }
   const strBuilder = []
   const logArgs = []
   // try with formatting until we find something unsupported
@@ -38,7 +41,9 @@ const computeNodeLoggingArgs = (args) => {
     if (style !== undefined) {
       strBuilder.push(style)
     } else {
-      if (arg.constructor === String || arg.constructor === Number) {
+      if (arg === undefined) {
+        break
+      } else if (arg.constructor === String || arg.constructor === Number) {
         strBuilder.push(arg)
       } else {
         break
@@ -68,7 +73,7 @@ const computeLoggingArgs = env.supportsColor
 /* c8 ignore stop */
 
 /**
- * @param {Array<string|Symbol|Object|number>} args
+ * @param {Array<string|Symbol|Object|number|undefined>} args
  */
 export const print = (...args) => {
   console.log(...computeLoggingArgs(args))

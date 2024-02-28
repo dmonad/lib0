@@ -14,4 +14,15 @@ export const testLogging = () => {
   log.print(log.BLUE, log.BOLD, 'number', 1)
   log.print(log.BLUE, log.BOLD, 'number', 1, {}, 's', 2)
   log.print({}, 'dtrn')
+  log.print(() => [log.GREEN, 'can lazyprint stuff ', log.RED, 'with formatting'])
+  log.print(undefined, 'supports undefined')
+}
+
+export const testModuleLogger = () => {
+  // if you want to see the messages, enable logging: LOG=* npm run test --filter logging
+  const mlog = log.createModuleLogger('testing')
+  mlog('can print ', log.GREEN, 'with colors')
+  mlog(() => ['can lazyprint ', log.GREEN, 'with colors'])
+  mlog(undefined, 'supports undefined')
+  mlog(() => [undefined, 'supports lazyprint undefined'])
 }

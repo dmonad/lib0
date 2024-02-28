@@ -16,17 +16,22 @@ export const UNCOLOR = symbol.create()
 
 /* c8 ignore start */
 /**
- * @param {Array<string|Symbol|Object|number>} args
+ * @param {Array<undefined|string|Symbol|Object|number|function():any>} args
  * @return {Array<string|object|number>}
  */
 export const computeNoColorLoggingArgs = args => {
+  if (args.length === 1 && args[0]?.constructor === Function) {
+    args = /** @type {Array<string|Symbol|Object|number>} */ (/** @type {[function]} */ (args)[0]())
+  }
   const strBuilder = []
   const logArgs = []
   // try with formatting until we find something unsupported
   let i = 0
   for (; i < args.length; i++) {
     const arg = args[i]
-    if (arg.constructor === String || arg.constructor === Number) {
+    if (arg === undefined) {
+      strBuilder.push('undefined')
+    } else if (arg.constructor === String || arg.constructor === Number) {
       strBuilder.push(arg)
     } else if (arg.constructor === Object) {
       logArgs.push(JSON.stringify(arg))
@@ -57,6 +62,9 @@ export const createModuleLogger = (_print, moduleName) => {
   return !doLogging
     ? func.nop
     : (...args) => {
+        if (args.length === 1 && args[0]?.constructor === Function) {
+          args = args[0]()
+        }
         const timeNow = time.getUnixTime()
         const timeDiff = timeNow - lastLoggingTime
         lastLoggingTime = timeNow
@@ -65,7 +73,7 @@ export const createModuleLogger = (_print, moduleName) => {
           moduleName,
           UNCOLOR,
           ...args.map((arg) => {
-            if (arg != null && arg.constructor !== Uint8Array) {
+            if (arg != null && arg.constructor === Uint8Array) {
               arg = Array.from(arg)
             }
             const t = typeof arg

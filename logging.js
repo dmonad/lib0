@@ -32,11 +32,14 @@ const _browserStyleMap = {
 }
 
 /**
- * @param {Array<string|Symbol|Object|number>} args
+ * @param {Array<string|Symbol|Object|number|function():any>} args
  * @return {Array<string|object|number>}
  */
 /* c8 ignore start */
 const computeBrowserLoggingArgs = (args) => {
+  if (args.length === 1 && args[0]?.constructor === Function) {
+    args = /** @type {Array<string|Symbol|Object|number>} */ (/** @type {[function]} */ (args)[0]())
+  }
   const strBuilder = []
   const styles = []
   const currentStyle = map.create()
@@ -53,6 +56,9 @@ const computeBrowserLoggingArgs = (args) => {
     if (style !== undefined) {
       currentStyle.set(style.left, style.right)
     } else {
+      if (arg === undefined) {
+        break
+      }
       if (arg.constructor === String || arg.constructor === Number) {
         const style = dom.mapToStyleString(currentStyle)
         if (i > 0 || style.length > 0) {
@@ -195,12 +201,15 @@ const _computeLineSpans = (args) => {
   // try with formatting until we find something unsupported
   let i = 0
   for (; i < args.length; i++) {
-    const arg = args[i]
+    let arg = args[i]
     // @ts-ignore
     const style = _browserStyleMap[arg]
     if (style !== undefined) {
       currentStyle.set(style.left, style.right)
     } else {
+      if (arg === undefined) {
+        arg = 'undefined '
+      }
       if (arg.constructor === String || arg.constructor === Number) {
         // @ts-ignore
         const span = dom.element('span', [
