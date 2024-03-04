@@ -1,3 +1,4 @@
+import * as time from './time.js'
 import * as jose from 'lib0/crypto/jwt'
 import * as aes from 'lib0/crypto/aes-gcm'
 import * as rsa from 'lib0/crypto/rsa-oaep'
@@ -25,6 +26,18 @@ export const testJwt = async _tc => {
   t.compare(verified.payload, payload)
   const unverified = jose.unsafeDecode(jwt)
   t.compare(verified, unverified)
+  t.info('expired jwt should not parse')
+  const payloadExpired = {
+    sub: '1234567890',
+    name: 'John Doe',
+    iat: 1516239022,
+    exp: time.getUnixTime() - 10
+  }
+  const jwtExpired = await jose.encodeJwt(privateKey, payloadExpired)
+  jose.unsafeDecode(jwtExpired)
+  t.failsAsync(async () => {
+    await jose.verifyJwt(publicKey, jwtExpired)
+  })
 }
 
 /**

@@ -13,7 +13,8 @@
   },
   "bin": {
     "0gentesthtml": "./bin/gentesthtml.js",
-    "0serve": "./bin/0serve.js"
+    "0serve": "./bin/0serve.js",
+    "0ecdsa-generate-keypair": "./bin/0ecdsa-generate-keypair.js"
   },
   "exports": {
     "./package.json": "./package.json",

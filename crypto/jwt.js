@@ -3,6 +3,7 @@ import * as buffer from '../buffer.js'
 import * as string from '../string.js'
 import * as json from '../json.js'
 import * as ecdsa from '../crypto/ecdsa.js'
+import * as time from '../time.js'
 
 /**
  * @param {Object} data
@@ -45,9 +46,13 @@ export const verifyJwt = async (publicKey, jwt) => {
   if (!verified) {
     throw new Error('Invalid JWT')
   }
+  const payload = _parse(payloadBase64)
+  if (payload.exp != null && time.getUnixTime() > payload.exp) {
+    throw new Error('Expired JWT')
+  }
   return {
     header: _parse(headerBase64),
-    payload: _parse(payloadBase64)
+    payload
   }
 }
 
