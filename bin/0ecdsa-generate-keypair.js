@@ -10,6 +10,6 @@ const privateJwk = json.stringify(await ecdsa.exportKeyJwk(keypair.privateKey))
 const publicJwk = json.stringify(await ecdsa.exportKeyJwk(keypair.publicKey))
 
 console.log(`
-${prefix ? prefix.toUpperCase() + '_' : ''}PUBLIC="${publicJwk.replaceAll('"', '\\"')}"
-${prefix ? prefix.toUpperCase() + '_' : ''}PRIVATE="${privateJwk.replaceAll('"', '\\"')}"
+${prefix ? prefix.toUpperCase() + '_' : ''}PUBLIC_KEY="${publicJwk.replaceAll('"', '\\"')}"
+${prefix ? prefix.toUpperCase() + '_' : ''}PRIVATE_KEY="${privateJwk.replaceAll('"', '\\"')}"
 `)
