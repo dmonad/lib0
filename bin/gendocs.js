@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // @ts-ignore
 import jsdoc from 'jsdoc-api'
 import * as fs from 'fs'
