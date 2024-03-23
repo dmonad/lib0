@@ -47,10 +47,17 @@ export const map = (obj, f) => {
 }
 
 /**
+ * @deprecated use object.size instead
  * @param {Object<string,any>} obj
  * @return {number}
  */
 export const length = obj => keys(obj).length
+
+/**
+ * @param {Object<string,any>} obj
+ * @return {number}
+ */
+export const size = obj => keys(obj).length
 
 /**
  * @param {Object<string,any>} obj
