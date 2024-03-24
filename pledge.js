@@ -1,4 +1,24 @@
+import * as queue from './queue.js'
 import * as object from './object.js'
+
+/**
+ * @type {queue.Queue<queue.QueueValue<()=>void>>}
+ */
+const ctxFs = queue.create()
+
+/**
+ * @param {() => void} f
+ */
+const runInGlobalContext = f => {
+  const isEmpty = queue.isEmpty(ctxFs)
+  queue.enqueue(ctxFs, new queue.QueueValue(f))
+  if (isEmpty) {
+    while (!queue.isEmpty(ctxFs)) {
+      /** @type {queue.QueueValue<()=>{}>} */ (ctxFs.start).v()
+      queue.dequeue(ctxFs)
+    }
+  }
+}
 
 /**
  * @template V
@@ -163,10 +183,9 @@ export const createWithDependencies = (init, ...deps) => {
  */
 export const whenResolved = (p, f) => {
   if (p instanceof PledgeInstance) {
-    p.whenResolved(f)
-  } else {
-    f(p)
+    return p.whenResolved(f)
   }
+  return f(p)
 }
 
 /**
@@ -178,6 +197,20 @@ export const whenCanceled = (p, f) => {
   if (p instanceof PledgeInstance) {
     p.whenCanceled(f)
   }
+}
+
+/**
+ * @template P
+ * @template Q
+ * @param {Pledge<P>} p
+ * @param {(r: P) => Q} f
+ * @return {Pledge<Q>}
+ */
+export const map = (p, f) => {
+  if (p instanceof PledgeInstance) {
+    return p.map(f)
+  }
+  return f(p)
 }
 
 /**
@@ -209,18 +242,6 @@ export const all = ps => {
 }
 
 /**
- * @template T
- * @param {Pledge<T>} p
- * @param {function(T):Pledge<T>} f
- */
-export const map = (p, f) => {
-  if (p instanceof PledgeInstance) {
-    return p.map(f)
-  }
-  return f(p)
-}
-
-/**
  * @template Result
  * @template {any} YieldResults
  * @param {() => Generator<Pledge<YieldResults> | PledgeInstance<YieldResults,any>, Result, any>} f
@@ -242,7 +263,9 @@ export const coroutine = f => {
     whenCanceled(res.value, (reason) => {
       gen.throw(reason)
     })
-    whenResolved(res.value, handleGen)
+    runInGlobalContext(() =>
+      whenResolved(res.value, handleGen)
+    )
   }
   handleGen()
   return p

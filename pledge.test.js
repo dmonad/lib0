@@ -24,8 +24,13 @@ export const testPledgeCoroutine = async _tc => {
  * @param {t.TestCase} _tc
  */
 export const testPledgeVsPromisePerformanceTimeout = async _tc => {
-  const iterations = 1000
+  const iterations = 25000
   const waitTime = 0
+  await t.measureTimeAsync(`Awaiting ${iterations} callbacks (promise)`, async () => {
+    for (let i = 0; i < iterations; i++) {
+      await promise.wait(waitTime)
+    }
+  })
   await t.measureTimeAsync(`Awaiting ${iterations} callbacks (pledge)`, () =>
     pledge.coroutine(function * () {
       for (let i = 0; i < iterations; i++) {
@@ -33,21 +38,32 @@ export const testPledgeVsPromisePerformanceTimeout = async _tc => {
       }
     }).promise()
   )
-  await t.measureTimeAsync(`Awaiting ${iterations} callbacks (promise)`, async () => {
-    for (let i = 0; i < iterations; i++) {
-      await promise.wait(waitTime)
-    }
-  })
 }
+
+/**
+ * @typedef {Promise<number> | number} MaybePromise
+ */
 
 /**
  * @param {t.TestCase} _tc
  */
 export const testPledgeVsPromisePerformanceResolved = async _tc => {
-  const iterations = 100000
+  const iterations = 25000
+  t.measureTime(`Awaiting ${iterations} callbacks (only iterate)`, () => {
+    for (let i = 0; i < iterations; i++) { /* nop */ }
+  })
   await t.measureTimeAsync(`Awaiting ${iterations} callbacks (promise)`, async () => {
     for (let i = 0; i < iterations; i++) {
       await promise.resolve(0)
+    }
+  })
+  await t.measureTimeAsync(`Awaiting ${iterations} callbacks (await, no resolve)`, async () => {
+    for (let i = 0; i < iterations; i++) {
+      /**
+       * @type {Promise<number> | number}
+       */
+      const x = 0
+      await x
     }
   })
   await t.measureTimeAsync(`Awaiting ${iterations} callbacks (pledge)`, () =>
@@ -57,4 +73,13 @@ export const testPledgeVsPromisePerformanceResolved = async _tc => {
       }
     }).promise()
   )
+  t.measureTime(`Awaiting ${iterations} callbacks (pledge, manual wrap)`, () => {
+    /**
+     * @type {pledge.Pledge<number>}
+     */
+    let val = 0
+    for (let i = 0; i < iterations; i++) {
+      val = pledge.map(val, _v => 0)
+    }
+  })
 }
