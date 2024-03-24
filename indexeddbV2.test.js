@@ -113,6 +113,3 @@ export const testBlocked = async () => {
   }).promise()
 }
 
-export const testPerf = async () => {
-  t.measureTime('resolve 1000 wait pledges')
-}
