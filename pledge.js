@@ -1,5 +1,13 @@
+/**
+ * @experimental Use of this module is not encouraged!
+ * This is just an experiment.
+ * @todo remove `c8 ignore` line once this is moved to "non-experimental"
+ */
+
 import * as queue from './queue.js'
 import * as object from './object.js'
+
+/* c8 ignore start */
 
 /**
  * @type {queue.Queue<queue.QueueValue<()=>void>>}
@@ -280,3 +288,5 @@ export const wait = timeout => {
   setTimeout(p.resolve.bind(p), timeout)
   return p
 }
+
+/* c8 ignore end */

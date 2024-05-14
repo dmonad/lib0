@@ -112,4 +112,4 @@ export const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(ob
  * @param {Object<string,any>} b
  * @return {boolean}
  */
-export const equalFlat = (a, b) => a === b || (length(a) === length(b) && every(a, (val, key) => (val !== undefined || hasProperty(b, key)) && b[key] === val))
+export const equalFlat = (a, b) => a === b || (size(a) === size(b) && every(a, (val, key) => (val !== undefined || hasProperty(b, key)) && b[key] === val))
