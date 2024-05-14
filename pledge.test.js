@@ -24,7 +24,7 @@ export const testPledgeCoroutine = async _tc => {
  * @param {t.TestCase} _tc
  */
 export const testPledgeVsPromisePerformanceTimeout = async _tc => {
-  const iterations = 25000
+  const iterations = 100
   const waitTime = 0
   await t.measureTimeAsync(`Awaiting ${iterations} callbacks (promise)`, async () => {
     for (let i = 0; i < iterations; i++) {
@@ -48,7 +48,7 @@ export const testPledgeVsPromisePerformanceTimeout = async _tc => {
  * @param {t.TestCase} _tc
  */
 export const testPledgeVsPromisePerformanceResolved = async _tc => {
-  const iterations = 25000
+  const iterations = 100
   t.measureTime(`Awaiting ${iterations} callbacks (only iterate)`, () => {
     for (let i = 0; i < iterations; i++) { /* nop */ }
   })

@@ -56,6 +56,7 @@ export const resolveWith = res => Promise.resolve(res)
 
 /**
  * @todo Next version, reorder parameters: check, [timeout, [intervalResolution]]
+ * @deprecated use untilAsync instead
  *
  * @param {number} timeout
  * @param {function():boolean} check
@@ -81,10 +82,27 @@ export const until = (timeout, check, intervalResolution = 10) => create((resolv
 })
 
 /**
+ * @param {()=>Promise<boolean>|boolean} check
+ * @param {number} timeout
+ * @param {number} intervalResolution
+ * @return {Promise<void>}
+ */
+export const untilAsync = async (check, timeout = 0, intervalResolution = 10) => {
+  const startTime = time.getUnixTime()
+  const noTimeout = timeout <= 0
+  // eslint-disable-next-line no-unmodified-loop-condition
+  while (noTimeout || time.getUnixTime() - startTime <= timeout) {
+    if (await check()) return
+    await wait(intervalResolution)
+  }
+  throw new Error('Timeout')
+}
+
+/**
  * @param {number} timeout
  * @return {Promise<undefined>}
  */
-export const wait = timeout => create((resolve, reject) => setTimeout(resolve, timeout))
+export const wait = timeout => create((resolve, _reject) => setTimeout(resolve, timeout))
 
 /**
  * Checks if an object is a promise using ducktyping.

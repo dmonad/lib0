@@ -38,8 +38,11 @@ export const testRepeatPromise = async _tc => {
   await promise.resolve()
   await measureP(promise.wait(10), 7, 1000)
   await measureP(failsP(promise.until(15, () => false)), 15, 1000)
+  await measureP(failsP(promise.untilAsync(() => false, 15)), 15, 1000)
   const startTime = time.getUnixTime()
   await measureP(promise.until(0, () => (time.getUnixTime() - startTime) > 100), 100, 1000)
+  const startTime2 = time.getUnixTime()
+  await measureP(promise.untilAsync(() => (time.getUnixTime() - startTime2) > 100), 100, 1000)
   await promise.all([promise.wait(5), promise.wait(10)])
 }
 

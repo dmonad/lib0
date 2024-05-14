@@ -112,4 +112,3 @@ export const testBlocked = async () => {
     return idb.deleteDB(testDBName)
   }).promise()
 }
-
