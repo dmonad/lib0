@@ -23,16 +23,15 @@ export const computeNoColorLoggingArgs = args => {
   if (args.length === 1 && args[0]?.constructor === Function) {
     args = /** @type {Array<string|Symbol|Object|number>} */ (/** @type {[function]} */ (args)[0]())
   }
-  const strBuilder = []
   const logArgs = []
   // try with formatting until we find something unsupported
   let i = 0
   for (; i < args.length; i++) {
     const arg = args[i]
     if (arg === undefined) {
-      strBuilder.push('undefined')
+      logArgs.push('undefined')
     } else if (arg.constructor === String || arg.constructor === Number) {
-      strBuilder.push(arg)
+      logArgs.push(arg)
     } else if (arg.constructor === Object) {
       logArgs.push(JSON.stringify(arg))
     }
