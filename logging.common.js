@@ -17,23 +17,35 @@ export const UNCOLOR = symbol.create()
 /* c8 ignore start */
 /**
  * @param {Array<undefined|string|Symbol|Object|number|function():any>} args
- * @return {Array<string|object|number>}
+ * @return {Array<string|object|number|undefined>}
  */
 export const computeNoColorLoggingArgs = args => {
   if (args.length === 1 && args[0]?.constructor === Function) {
     args = /** @type {Array<string|Symbol|Object|number>} */ (/** @type {[function]} */ (args)[0]())
   }
+  const strBuilder = []
   const logArgs = []
   // try with formatting until we find something unsupported
   let i = 0
   for (; i < args.length; i++) {
     const arg = args[i]
     if (arg === undefined) {
-      logArgs.push('undefined')
+      break
     } else if (arg.constructor === String || arg.constructor === Number) {
-      logArgs.push(arg)
+      strBuilder.push(arg)
     } else if (arg.constructor === Object) {
-      logArgs.push(JSON.stringify(arg))
+      break
+    }
+  }
+  if (i > 0) {
+    // create logArgs with what we have so far
+    logArgs.push(strBuilder.join(''))
+  }
+  // append the rest
+  for (; i < args.length; i++) {
+    const arg = args[i]
+    if (!(arg instanceof Symbol)) {
+      logArgs.push(arg)
     }
   }
   return logArgs
