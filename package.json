@@ -441,6 +441,7 @@
       "types": "./webcrypto.d.ts",
       "deno": "./webcrypto.deno.js",
       "bun": "./webcrypto.js",
+      "react-native": "./dist/webcrypto.react-native.cjs",
       "browser": {
         "module": "./webcrypto.js",
         "require": "./dist/webcrypto.cjs",

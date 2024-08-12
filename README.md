@@ -1388,6 +1388,12 @@ export const testMyFirstTest = tc => {
 </dl>
 </details>
 
+### React-Native support
+
+```sh
+npm i isomorphic-webcrypto
+```
+
 ### License
 
 [The MIT License](./LICENSE) © Kevin Jahns
