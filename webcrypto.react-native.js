@@ -1,3 +1,4 @@
+// @ts-ignore
 import webcrypto from 'isomorphic-webcrypto'
 
 webcrypto.ensureSecure()
