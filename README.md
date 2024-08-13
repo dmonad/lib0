@@ -1390,9 +1390,26 @@ export const testMyFirstTest = tc => {
 
 ### React-Native support
 
+React-native apps should be able to use lib0. You need to install a polyfill for
+webcrypto and enable package-exports support in react-native:
+
 ```sh
+# install polyfill
 npm i isomorphic-webcrypto
 ```
+
+Add this to `metro.config.js` [(see docs)](https://reactnative.dev/blog/2023/06/21/package-exports-support):
+
+```js
+const config = {
+  // ...
+  resolver: {
+    unstable_enablePackageExports: true
+  }
+}
+```
+
+
 
 ### License
 
