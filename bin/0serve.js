@@ -23,7 +23,8 @@ const types = {
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   json: 'application/json',
-  xml: 'application/xml'
+  xml: 'application/xml',
+  wasm: 'application/wasm'
 }
 
 const root = path.normalize(path.resolve('./'))
