@@ -1,7 +1,7 @@
 /**
  * Isomorphic module to work access the environment (query params, env variables).
  *
- * @module map
+ * @module environment
  */
 
 import * as map from './map.js'
