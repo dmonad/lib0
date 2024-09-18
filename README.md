@@ -712,19 +712,19 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>encoding.RleIntDiffEncoder#bufs: Array&lt;Uint8Array&gt;</code></b><br>
 </dl>
 </details>
-<details><summary><b>[lib0/map]</b> Isomorphic module to work access the environment (query params, env variables).</summary>
-<pre>import * as map from 'lib0/environment'</pre>
+<details><summary><b>[lib0/environment]</b> Isomorphic module to work access the environment (query params, env variables).</summary>
+<pre>import * as env from 'lib0/environment'</pre>
 <dl>
-<b><code>map.isNode</code></b><br>
-<b><code>map.isBrowser</code></b><br>
-<b><code>map.isMac</code></b><br>
-<b><code>map.hasParam</code></b><br>
-<b><code>map.getParam</code></b><br>
-<b><code>map.getVariable</code></b><br>
-<b><code>map.getConf(name: string): string|null</code></b><br>
-<b><code>map.hasConf</code></b><br>
-<b><code>map.production</code></b><br>
-<b><code>map.supportsColor</code></b><br>
+<b><code>env.isNode</code></b><br>
+<b><code>env.isBrowser</code></b><br>
+<b><code>env.isMac</code></b><br>
+<b><code>env.hasParam</code></b><br>
+<b><code>env.getParam</code></b><br>
+<b><code>env.getVariable</code></b><br>
+<b><code>env.getConf(name: string): string|null</code></b><br>
+<b><code>env.hasConf</code></b><br>
+<b><code>env.production</code></b><br>
+<b><code>env.supportsColor</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/error]</b> Error helpers.</summary>
