@@ -35,3 +35,29 @@ export const testObject = _tc => {
   t.assert(object.isEmpty({}))
   t.assert(!object.isEmpty({ a: 3 }))
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testFreeze = _tc => {
+  const o1 = { a: { b: [1, 2, 3] } }
+  const o2 = [1, 2, { a: 'hi' }]
+  object.deepFreeze(o1)
+  object.deepFreeze(o2)
+  t.fails(() => {
+    o1.a.b.push(4)
+  })
+  t.fails(() => {
+    o1.a.b = [1]
+  })
+  t.fails(() => {
+    o2.push(4)
+  })
+  t.fails(() => {
+    o2[2] = 42
+  })
+  t.fails(() => {
+    // @ts-ignore-next-line
+    o2[2].a = 'hello'
+  })
+}

@@ -113,3 +113,27 @@ export const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(ob
  * @return {boolean}
  */
 export const equalFlat = (a, b) => a === b || (size(a) === size(b) && every(a, (val, key) => (val !== undefined || hasProperty(b, key)) && b[key] === val))
+
+/**
+ * Make an object immutable. This hurts performance and is usually not needed if you perform good
+ * coding practices.
+ */
+export const freeze = Object.freeze
+
+/**
+ * Make an object and all its children immutable.
+ * This *really* hurts performance and is usually not needed if you perform good coding practices.
+ *
+ * @template {any} T
+ * @param {T} o
+ * @return {Readonly<T>}
+ */
+export const deepFreeze = (o) => {
+  for (const key in o) {
+    const c = o[key]
+    if (typeof c === 'object' || typeof c === 'function') {
+      deepFreeze(o[key])
+    }
+  }
+  return freeze(o)
+}
