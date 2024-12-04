@@ -1395,7 +1395,7 @@ webcrypto and enable package-exports support in react-native:
 
 ```sh
 # install polyfill
-npm i isomorphic-webcrypto
+npm i isomorphic-webcrypto@^2.3.8 # last known working version was 2.3.8
 ```
 
 Add this to `metro.config.js` [(see docs)](https://reactnative.dev/blog/2023/06/21/package-exports-support):
@@ -1408,8 +1408,6 @@ const config = {
   }
 }
 ```
-
-
 
 ### License
 
