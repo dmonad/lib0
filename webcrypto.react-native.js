@@ -1,5 +1,5 @@
 // @ts-ignore
-import webcrypto from 'isomorphic-webcrypto'
+import webcrypto from 'isomorphic-webcrypto/src/react-native'
 
 webcrypto.ensureSecure()
 
