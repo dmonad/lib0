@@ -75,9 +75,9 @@
     "./conditions.js": "./conditions.js",
     "./dist/conditions.cjs": "./dist/conditions.cjs",
     "./conditions": {
-      "types": "./condititons.d.ts",
-      "module": "./condititons.js",
-      "import": "./condititons.js",
+      "types": "./conditions.d.ts",
+      "module": "./conditions.js",
+      "import": "./conditions.js",
       "require": "./dist/conditions.cjs"
     },
     "./crypto/jwt": {
