@@ -47,7 +47,7 @@ export const verifyJwt = async (publicKey, jwt) => {
     throw new Error('Invalid JWT')
   }
   const payload = _parse(payloadBase64)
-  if (payload.exp != null && time.getUnixTime() > payload.exp) {
+  if (payload.exp != null && time.getUnixTimeInSeconds() > payload.exp) {
     throw new Error('Expired JWT')
   }
   return {
