@@ -117,6 +117,8 @@ class Hasher {
   }
 
   /**
+   * Returns a 32-byte hash.
+   *
    * @param {Uint8Array} data
    */
   digest (data) {
@@ -167,6 +169,8 @@ class Hasher {
 }
 
 /**
+ * Returns a 32-byte hash.
+ *
  * @param {Uint8Array} data
  */
 export const digest = data => new Hasher().digest(data)
