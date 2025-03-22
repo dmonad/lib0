@@ -36,7 +36,6 @@ export const testComparing = _tc => {
   map2.set('x', {})
   map2.set(98, 'tst')
   t.compare(map1, map2, 'compare Maps')
-
   t.describe('The following errors are expected!')
   t.fails(() => {
     t.compare({ a: 4 }, { b: 5 }, 'childs are not equal')
@@ -113,6 +112,13 @@ export const testComparing = _tc => {
   })
   t.fails(() => {
     t.compare(new Set([1]), new Set([2])) // childs have different length (array) -- no message
+  })
+  t.group('test object with constructor set to `undefined`', () => {
+    const a = Object.create(null)
+    const b = Object.create(null)
+    a.x = 42
+    b.x = 42
+    t.compare(a, b)
   })
 }
 

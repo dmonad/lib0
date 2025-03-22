@@ -478,6 +478,7 @@ const _compare = (a, b, path, message, customCompare) => {
       })
       break
     }
+    case undefined: // undefined is often set as a constructor for objects
     case Object:
       if (object.length(a) !== object.length(b)) {
         _failMessage(message, 'Objects have a different number of attributes', path)
