@@ -24,7 +24,7 @@ const scopes = {}
 const extractModMap = (v, k, pkgName, pathPrefix, importMap) => {
   if (k[0] !== '.') return
   if (typeof v === 'object') {
-    extractModMap(v.browser || v.module || v.default || v.import, k, pkgName, pathPrefix, importMap)
+    extractModMap(v.browser || v.import || v.module || v.default, k, pkgName, pathPrefix, importMap)
   } else if (v && v[0] === '.') {
     importMap[pkgName + k.slice(1)] = pathPrefix + v.slice(1)
   }
