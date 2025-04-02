@@ -81,10 +81,10 @@ export const testIdleCallback = async _tc => {
 export const testDebouncer = async _tc => {
   const debounce = eventloop.createDebouncer(10)
   let calls = 0
-  debounce(() => {
+  debounce((_x) => {
     calls++
   })
-  debounce(() => {
+  debounce((_y, _z) => {
     calls++
   })
   t.assert(calls === 0)

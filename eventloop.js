@@ -105,7 +105,7 @@ export const createDebouncer = (timeout, triggerAfter = -1) => {
     */
   let lastCall = null
   /**
-   * @param {(()=>void)?} cb function to trigger after debounce. If null, it will reset the
+   * @param {((...args: any)=>void)?} cb function to trigger after debounce. If null, it will reset the
    *                         debounce.
    */
   return cb => {
