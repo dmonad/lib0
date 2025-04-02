@@ -1,5 +1,7 @@
 /* global requestIdleCallback, requestAnimationFrame, cancelIdleCallback, cancelAnimationFrame */
 
+import * as time from './time.js'
+
 /**
  * Utility module to work with EcmaScript's event loop.
  *
@@ -93,14 +95,34 @@ export const idleCallback = cb => typeof requestIdleCallback !== 'undefined' ? n
 
 /**
  * @param {number} timeout Timeout of the debounce action
- * @return {function(function():void):void}
+ * @param {number} triggerAfter Optional. Trigger callback after a certain amount of time
+ *                              without waiting for debounce.
  */
-export const createDebouncer = timeout => {
+export const createDebouncer = (timeout, triggerAfter = -1) => {
   let timer = -1
-  return f => {
+  /**
+   * @type {number?}
+    */
+  let lastCall = null
+  /**
+   * @param {(()=>void)?} cb function to trigger after debounce. If null, it will reset the
+   *                         debounce.
+   */
+  return cb => {
     clearTimeout(timer)
-    if (f) {
-      timer = /** @type {any} */ (setTimeout(f, timeout))
+    if (cb) {
+      if (triggerAfter >= 0) {
+        const now = time.getUnixTime()
+        if (lastCall === null) lastCall = now
+        if (now - lastCall > triggerAfter) {
+          lastCall = null
+          timer = /** @type {any} */ (setTimeout(cb, 0))
+          return
+        }
+      }
+      timer = /** @type {any} */ (setTimeout(() => { lastCall = null; cb() }, timeout))
+    } else {
+      lastCall = null
     }
   }
 }

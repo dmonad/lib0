@@ -91,3 +91,31 @@ export const testDebouncer = async _tc => {
   await promise.wait(20)
   t.assert(calls === 1)
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testDebouncerTriggerAfter = async _tc => {
+  const debounce = eventloop.createDebouncer(100, 100)
+  let calls = 0
+  debounce(() => {
+    calls++
+  })
+  await promise.wait(40)
+  debounce(() => {
+    calls++
+  })
+  await promise.wait(30)
+  debounce(() => {
+    calls++
+  })
+  await promise.wait(50)
+  debounce(() => {
+    calls++
+  })
+  t.assert(calls === 0)
+  await promise.wait(0)
+  t.assert(calls === 1)
+  await promise.wait(30)
+  t.assert(calls === 1)
+}
