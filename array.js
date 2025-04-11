@@ -182,3 +182,39 @@ export const map = (arr, mapper) => {
   }
   return /** @type {any} */ (res)
 }
+
+/**
+ * This function bubble-sorts a single item to the correct position. The sort happens in-place and
+ * might be useful to ensure that a single item is at the correct position in an otherwise sorted
+ * array.
+ *
+ * @example
+ *  const arr = [3, 2, 5]
+ *  arr.sort((a, b) => a - b)
+ *  arr // => [2, 3, 5]
+ *  arr.splice(1, 0, 7)
+ *  array.bubbleSortItem(arr, 1, (a, b) => a - b)
+ *  arr // => [2, 3, 5, 7]
+ *
+ * @template T
+ * @param {Array<T>} arr
+ * @param {number} i
+ * @param {(a:T,b:T) => number} compareFn
+ */
+export const bubblesortItem = (arr, i, compareFn) => {
+  const n = arr[i]
+  let j = i
+  // try to sort to the right
+  while (compareFn(n, arr[j + 1]) > 0) {
+    arr[j] = arr[j + 1]
+    arr[++j] = n
+  }
+  if (i === j && j > 0) { // no change yet
+    // sort to the left
+    while (compareFn(arr[j - 1], n) > 0) {
+      arr[j] = arr[j - 1]
+      arr[--j] = n
+    }
+  }
+  return j
+}

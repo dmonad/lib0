@@ -1,5 +1,6 @@
 import * as array from './array.js'
 import * as t from './testing.js'
+import * as prng from './prng.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -116,4 +117,30 @@ export const testUnique = _tc => {
   t.compare([], array.unique([]))
   t.compare([{ el: 1 }], array.uniqueBy([{ el: 1 }, { el: 1 }], o => o.el))
   t.compare([], array.uniqueBy([], o => o))
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatBubblesortItem = tc => {
+  const arr = Array.from(prng.uint8Array(tc.prng, 10))
+  arr.sort((a, b) => a - b)
+  const newItem = prng.uint32(tc.prng, 0, 256)
+  const pos = prng.uint32(tc.prng, 0, arr.length)
+  arr.splice(pos, newItem)
+  const arrCopySorted = arr.slice().sort((a, b) => a - b)
+  array.bubblesortItem(arr, pos, (a, b) => a - b)
+  t.compare(arr, arrCopySorted)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatBubblesort = tc => {
+  const arr = Array.from(prng.uint8Array(tc.prng, 10))
+  const arrCopySorted = arr.slice().sort((a, b) => a - b)
+  for (let i = arr.length - 1; i >= 0; i--) {
+    while (array.bubblesortItem(arr, i, (a, b) => a - b) !== i) { /* nop */ }
+  }
+  t.compare(arr, arrCopySorted)
 }
