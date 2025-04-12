@@ -205,13 +205,13 @@ export const bubblesortItem = (arr, i, compareFn) => {
   const n = arr[i]
   let j = i
   // try to sort to the right
-  while (compareFn(n, arr[j + 1]) > 0) {
+  while (j + 1 < arr.length && compareFn(n, arr[j + 1]) > 0) {
     arr[j] = arr[j + 1]
     arr[++j] = n
   }
   if (i === j && j > 0) { // no change yet
     // sort to the left
-    while (compareFn(arr[j - 1], n) > 0) {
+    while (j > 0 && compareFn(arr[j - 1], n) > 0) {
       arr[j] = arr[j - 1]
       arr[--j] = n
     }

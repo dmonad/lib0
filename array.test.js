@@ -122,6 +122,16 @@ export const testUnique = _tc => {
 /**
  * @param {t.TestCase} tc
  */
+export const testBubblesortItemEdgeCases = tc => {
+  // does not throw..
+  array.bubblesortItem([1], 0, (a, b) => a - b)
+  array.bubblesortItem([2, 1], 1, (a, b) => a - b)
+  array.bubblesortItem([2, 1], 0, (a, b) => a - b)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
 export const testRepeatBubblesortItem = tc => {
   const arr = Array.from(prng.uint8Array(tc.prng, 10))
   arr.sort((a, b) => a - b)
