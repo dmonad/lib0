@@ -68,14 +68,11 @@ export const equalityFlat = (a, b) => a === b || (a != null && b != null && a.co
  * @return {boolean}
  */
 export const equalityDeep = (a, b) => {
-  if (a == null || b == null) {
-    return equalityStrict(a, b)
-  }
-  if (a.constructor !== b.constructor) {
-    return false
-  }
   if (a === b) {
     return true
+  }
+  if (a == null || b == null || a.constructor !== b.constructor) {
+    return false
   }
   switch (a.constructor) {
     case ArrayBuffer:
