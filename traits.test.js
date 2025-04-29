@@ -51,4 +51,3 @@ export const testEqualityTrait2 = _tc => {
   t.assert(fun.equalityDeep(x, x2))
   t.assert(!fun.equalityDeep(x, y))
 }
-
