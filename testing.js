@@ -57,6 +57,7 @@ import * as json from './json.js'
 import * as time from './time.js'
 import * as promise from './promise.js'
 import * as performance from 'lib0/performance'
+import * as traits from './traits.js'
 
 export { production } from './environment.js'
 
@@ -434,6 +435,13 @@ const _compare = (a, b, path, message, customCompare) => {
   // we don't use assert here because we want to test all branches (istanbul errors if one branch is not tested)
   if (a == null || b == null) {
     return compareValues(null, a, b, path)
+  }
+  if (a[traits.EqualityTraitSymbol] != null) {
+    if (a[traits.EqualityTraitSymbol](b)) {
+      return true
+    } else {
+      _failMessage(message, 'Not equal by equality trait', path)
+    }
   }
   if (a.constructor !== b.constructor) {
     _failMessage(message, 'Constructors don\'t match', path)

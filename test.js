@@ -37,6 +37,7 @@ import * as storage from './storage.test.js'
 import * as list from './list.test.js'
 import * as cache from './cache.test.js'
 import * as symbol from './symbol.test.js'
+import * as traits from './traits.test.js'
 
 import { isBrowser, isNode } from './environment.js'
 
@@ -82,7 +83,8 @@ runTests({
   storage,
   list,
   cache,
-  symbol
+  symbol,
+  traits
 }).then(success => {
   /* c8 ignore next */
   if (isNode) {

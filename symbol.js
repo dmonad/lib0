@@ -6,8 +6,6 @@
 
 /**
  * Return fresh symbol.
- *
- * @return {Symbol}
  */
 export const create = Symbol
 

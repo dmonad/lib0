@@ -6,6 +6,7 @@
 
 import * as array from './array.js'
 import * as object from './object.js'
+import * as traits from './traits.js'
 
 /**
  * Calls all functions in `fs` with args. Only throws after all functions were called.
@@ -73,6 +74,9 @@ export const equalityDeep = (a, b) => {
   }
   if (a == null || b == null || a.constructor !== b.constructor) {
     return false
+  }
+  if (a[traits.EqualityTraitSymbol] != null) {
+    return a[traits.EqualityTraitSymbol](b)
   }
   switch (a.constructor) {
     case ArrayBuffer:

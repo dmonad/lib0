@@ -397,6 +397,14 @@
       "import": "./symbol.js",
       "require": "./dist/symbol.cjs"
     },
+    "./traits.js": "./traits.js",
+    "./dist/traits.cjs": "./dist/traits.cjs",
+    "./traits": {
+      "types": "./traits.d.ts",
+      "module": "./traits.js",
+      "import": "./traits.js",
+      "require": "./dist/traits.cjs"
+    },
     "./testing.js": "./testing.js",
     "./dist/testing.cjs": "./dist/testing.cjs",
     "./testing": {
