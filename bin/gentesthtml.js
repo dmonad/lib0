@@ -49,8 +49,9 @@ const readPkg = (pkgJson, pathPrefix, importMap) => {
 const rootPkgJson = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }))
 readPkg(rootPkgJson, '.', exports)
 includeDeps.forEach(depName => {
-  const depPkgJson = JSON.parse(fs.readFileSync(`./node_modules/${depName}/package.json`, { encoding: 'utf8' }))
-  readPkg(depPkgJson, '.', exports)
+  const prefix = `./node_modules/${depName}`
+  const depPkgJson = JSON.parse(fs.readFileSync(`${prefix}/package.json`, { encoding: 'utf8' }))
+  readPkg(depPkgJson, prefix, exports)
 })
 
 const testHtml = `
