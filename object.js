@@ -77,6 +77,7 @@ export const some = (obj, f) => {
  * @param {Object|null|undefined} obj
  */
 export const isEmpty = obj => {
+  // eslint-disable-next-line no-unreachable-loop
   for (const _k in obj) {
     return false
   }
