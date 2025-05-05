@@ -4,6 +4,7 @@ import * as object from '../object.js'
 import * as env from '../environment.js'
 
 const script = env.getParam('--script', './test.js')
+const includeDeps = env.getParam('--include-dependencies', '').split(',').filter(d => d.length)
 
 /**
  * @type {Object<string,string>}
@@ -47,6 +48,10 @@ const readPkg = (pkgJson, pathPrefix, importMap) => {
 
 const rootPkgJson = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }))
 readPkg(rootPkgJson, '.', exports)
+includeDeps.forEach(depName => {
+  const depPkgJson = JSON.parse(fs.readFileSync(`./node_modules/${depName}/package.json`, { encoding: 'utf8' }))
+  readPkg(depPkgJson, '.', exports)
+})
 
 const testHtml = `
 <!DOCTYPE html>
