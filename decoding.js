@@ -35,6 +35,7 @@ import * as encoding from './encoding.js'
 
 const errorUnexpectedEndOfArray = error.create('Unexpected end of array')
 const errorIntegerOutOfRange = error.create('Integer out of Range')
+const errorValueTooLong = error.create('Value too long')
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -113,9 +114,17 @@ export const readUint8Array = (decoder, len) => {
  *
  * @function
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the array
  * @return {Uint8Array}
  */
-export const readVarUint8Array = decoder => readUint8Array(decoder, readVarUint(decoder))
+export const readVarUint8Array = (decoder, maxLen) => {
+  const len = readVarUint(decoder)
+  if (maxLen !== undefined && len > maxLen) {
+    throw errorValueTooLong
+  }
+
+  return readUint8Array(decoder, len)
+}
 
 /**
  * Read the rest of the content as an ArrayBuffer
@@ -336,13 +345,16 @@ export const peekVarInt = decoder => {
  *
  * @function
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the string in bytes
  * @return {String} The read String.
  */
 /* c8 ignore start */
-export const _readVarStringPolyfill = decoder => {
+export const _readVarStringPolyfill = (decoder, maxLen) => {
   let remainingLen = readVarUint(decoder)
   if (remainingLen === 0) {
     return ''
+  } else if (maxLen !== undefined && remainingLen > maxLen) {
+    throw errorValueTooLong
   } else {
     let encodedString = String.fromCodePoint(readUint8(decoder)) // remember to decrease remainingLen
     if (--remainingLen < 100) { // do not create a Uint8Array for small strings
@@ -368,10 +380,11 @@ export const _readVarStringPolyfill = decoder => {
 /**
  * @function
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the string in bytes
  * @return {String} The read String
  */
-export const _readVarStringNative = decoder =>
-  /** @type any */ (string.utf8TextDecoder).decode(readVarUint8Array(decoder))
+export const _readVarStringNative = (decoder, maxLen) =>
+  /** @type any */ (string.utf8TextDecoder).decode(readVarUint8Array(decoder, maxLen))
 
 /**
  * Read string of variable length
@@ -379,6 +392,7 @@ export const _readVarStringNative = decoder =>
  *
  * @function
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the string in bytes
  * @return {String} The read String
  *
  */
@@ -387,12 +401,16 @@ export const readVarString = string.utf8TextDecoder ? _readVarStringNative : _re
 
 /**
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the array
  * @return {Uint8Array}
  */
-export const readTerminatedUint8Array = decoder => {
+export const readTerminatedUint8Array = (decoder, maxLen) => {
   const encoder = encoding.createEncoder()
   let b
   while (true) {
+    if (maxLen !== undefined && encoding.length(encoder) > maxLen) {
+      throw errorValueTooLong
+    }
     b = readUint8(decoder)
     if (b === 0) {
       return encoding.toUint8Array(encoder)
@@ -406,20 +424,22 @@ export const readTerminatedUint8Array = decoder => {
 
 /**
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the array string in bytes
  * @return {string}
  */
-export const readTerminatedString = decoder => string.decodeUtf8(readTerminatedUint8Array(decoder))
+export const readTerminatedString = (decoder, maxLen) => string.decodeUtf8(readTerminatedUint8Array(decoder, maxLen))
 
 /**
  * Look ahead and read varString without incrementing position
  *
  * @function
  * @param {Decoder} decoder
+ * @param {number} [maxLen] Maximum length of the array string in bytes
  * @return {string}
  */
-export const peekVarString = decoder => {
+export const peekVarString = (decoder, maxLen) => {
   const pos = decoder.pos
-  const s = readVarString(decoder)
+  const s = readVarString(decoder, maxLen)
   decoder.pos = pos
   return s
 }
@@ -684,10 +704,11 @@ export class IntDiffOptRleDecoder extends Decoder {
 export class StringDecoder {
   /**
    * @param {Uint8Array} uint8Array
+   * @param {number} [maxLen] Maximum length of the string in bytes
    */
-  constructor (uint8Array) {
+  constructor (uint8Array, maxLen) {
     this.decoder = new UintOptRleDecoder(uint8Array)
-    this.str = readVarString(this.decoder)
+    this.str = readVarString(this.decoder, maxLen)
     /**
      * @type {number}
      */
