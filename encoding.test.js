@@ -803,6 +803,22 @@ export const testStringDecoder = tc => {
 }
 
 /**
+ * @param {t.TestCase} _tc
+ */
+export const testStringDecoderLengthLimit = _tc => {
+  const tooLongText = 'a'.repeat(100)
+  const encoderA = new encoding.StringEncoder()
+  encoderA.write(tooLongText)
+  t.fails(() => new decoding.StringDecoder(encoderA.toUint8Array(), 10))
+
+  const okayText = 'a'.repeat(9)
+  const encoderB = new encoding.StringEncoder()
+  encoderB.write(okayText)
+  const decoder = new decoding.StringDecoder(encoderB.toUint8Array(), 10)
+  t.assert(decoder.read() === okayText)
+}
+
+/**
  * @param {t.TestCase} tc
  */
 export const testLargeNumberEncoding = tc => {
@@ -868,4 +884,42 @@ export const testTerminatedEncodering = _tc => {
   t.assert(readStr2 === str2)
   t.compare(readBuf1, buf1)
   t.compare(readBuf2, buf2)
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testVarUint8ArrayLengthLimitEncoding = _tc => {
+  const buf1 = new Uint8Array([0, 1, 2, 255, 4, 5])
+  const buf2 = new Uint8Array([255, 255, 0, 0, 0, 1, 0, 0])
+
+  const encoder = encoding.createEncoder()
+  encoding.writeVarUint8Array(encoder, buf1)
+  encoding.writeVarUint8Array(encoder, buf2)
+
+  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const readBuf1 = decoding.readVarUint8Array(decoder, 6)
+  t.compare(readBuf1, buf1)
+  t.fails(() => {
+    decoding.readVarUint8Array(decoder, 6)
+  })
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testTerminatedUint8ArrayLengthLimitEncoding = _tc => {
+  const buf1 = new Uint8Array([0, 1, 2, 255, 4, 5])
+  const buf2 = new Uint8Array([255, 255, 0, 0, 0, 1, 0, 0])
+
+  const encoder = encoding.createEncoder()
+  encoding.writeTerminatedUint8Array(encoder, buf1)
+  encoding.writeTerminatedUint8Array(encoder, buf2)
+
+  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const readBuf1 = decoding.readTerminatedUint8Array(decoder, 6)
+  t.compare(readBuf1, buf1)
+  t.fails(() => {
+    decoding.readTerminatedUint8Array(decoder, 6)
+  })
 }
