@@ -142,13 +142,13 @@ export const repeat = (source, n) => array.unfold(n, () => source).join('')
  * @param {string} str
  */
 export const escapeHTML = str =>
-  str.replace(/[&<>'"]/g, r => ({
+  str.replace(/[&<>'"]/g, r => /** @type {string} */ ({
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
     "'": '&#39;',
     '"': '&quot;'
-  }[r] || r))
+  }[r]))
 
 /**
  * Reverse of `escapeHTML`
@@ -156,10 +156,10 @@ export const escapeHTML = str =>
  * @param {string} str
  */
 export const unescapeHTML = str =>
-  str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, r => ({
+  str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, r => /** @type {string} */ ({
     '&amp;': '&',
     '&lt;': '<',
     '&gt;': '>',
     '&#39;': "'",
     '&quot;': '"'
-  }[r] || r))
+  }[r]))
