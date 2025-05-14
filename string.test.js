@@ -90,5 +90,4 @@ export const testHtmlEscape = _tc => {
     t.compare(string.escapeHTML(c.s), c.e)
     t.compare(string.unescapeHTML(c.e), c.s)
   })
-  return
 }
