@@ -3,18 +3,18 @@ import * as string from './string.js'
 import * as t from './testing.js'
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testUtilities = tc => {
+export const testUtilities = _tc => {
   t.assert(string.repeat('1', 3) === '111')
   t.assert(string.repeat('1', 0) === '')
   t.assert(string.repeat('1', 1) === '1')
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testLowercaseTransformation = tc => {
+export const testLowercaseTransformation = _tc => {
   t.compareStrings(string.fromCamelCase('ThisIsATest', ' '), 'this is a test')
   t.compareStrings(string.fromCamelCase('Testing', ' '), 'testing')
   t.compareStrings(string.fromCamelCase('testingThis', ' '), 'testing this')
@@ -54,9 +54,9 @@ export const testRepeatStringUtf8Decoding = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testBomEncodingDecoding = tc => {
+export const testBomEncodingDecoding = _tc => {
   const bomStr = '﻿bom'
   t.assert(bomStr.length === 4)
   const polyfilledResult = string._decodeUtf8Polyfill(string._encodeUtf8Polyfill(bomStr))
@@ -69,10 +69,26 @@ export const testBomEncodingDecoding = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testSplice = tc => {
+export const testSplice = _tc => {
   const initial = 'xyz'
   t.compareStrings(string.splice(initial, 0, 2), 'z')
   t.compareStrings(string.splice(initial, 0, 2, 'u'), 'uz')
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testHtmlEscape = _tc => {
+  const cases = [
+    { s: 'hello <script> &', e: 'hello &lt;script&gt; &amp;' },
+    { s: '', e: '' },
+    { s: '\'"', e: '&#39;&quot;' }
+  ]
+  cases.forEach((c) => {
+    t.compare(string.escapeHTML(c.s), c.e)
+    t.compare(string.unescapeHTML(c.e), c.s)
+  })
+  return
 }

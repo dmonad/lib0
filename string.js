@@ -135,3 +135,31 @@ export const splice = (str, index, remove, insert = '') => str.slice(0, index) +
  * @param {number} n
  */
 export const repeat = (source, n) => array.unfold(n, () => source).join('')
+
+/**
+ * Escape HTML characters &,<,>,'," to their respective HTML entities &amp;,&lt;,&gt;,&#39;,&quot;
+ *
+ * @param {string} str
+ */
+export const escapeHTML = str =>
+  str.replace(/[&<>'"]/g, r => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[r] || r))
+
+/**
+ * Reverse of `escapeHTML`
+ *
+ * @param {string} str
+ */
+export const unescapeHTML = str =>
+  str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, r => ({
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&#39;': "'",
+    '&quot;': '"'
+  }[r] || r))
