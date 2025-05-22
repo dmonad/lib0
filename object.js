@@ -21,6 +21,13 @@ export const keys = Object.keys
 
 /**
  * @template V
+ * @param {{[key:string]: V}} obj
+ * @return {Array<V>}
+ */
+export const values = Object.values
+
+/**
+ * @template V
  * @param {{[k:string]:V}} obj
  * @param {function(V,string):any} f
  */

@@ -36,6 +36,17 @@ export const testObject = _tc => {
   t.assert(!object.isEmpty({ a: 3 }))
   t.assert(object.isEmpty(null))
   t.assert(object.isEmpty(undefined))
+
+  /**
+   * @type {Array<string>}
+   */
+  const keys = object.keys({ a: 1, b: 2 })
+  t.compare(keys, ['a', 'b'])
+  /**
+   * @type {Array<number>}
+   */
+  const vals = object.values({ a: 1 })
+  t.compare(vals, [1, 2])
 }
 
 /**
