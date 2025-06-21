@@ -36,7 +36,6 @@ export const testObject = _tc => {
   t.assert(!object.isEmpty({ a: 3 }))
   t.assert(object.isEmpty(null))
   t.assert(object.isEmpty(undefined))
-
   /**
    * @type {Array<string>}
    */
@@ -46,7 +45,7 @@ export const testObject = _tc => {
    * @type {Array<number>}
    */
   const vals = object.values({ a: 1 })
-  t.compare(vals, [1, 2])
+  t.compare(vals, [1])
 }
 
 /**
