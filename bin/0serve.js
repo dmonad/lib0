@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+
+/**
+ * Simple http server implementation.
+ * Optionally, you may set `DEBUG_BROWSER` environment variable to use a different browser to debug
+ * web apps.
+ */
+
 import * as http from 'http'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -9,6 +16,7 @@ import * as logging from 'lib0/logging'
 const host = env.getParam('--host', 'localhost')
 const port = number.parseInt(env.getParam('--port', '8000'))
 const paramOpenFile = env.getParam('-o', '')
+const debugBrowser = env.getConf('DEBUG_BROWSER')
 
 /**
  * @type {Object<string,string>}
@@ -81,7 +89,7 @@ const server = http.createServer((req, res) => {
 server.listen(port, host, () => {
   logging.print(logging.BOLD, logging.ORANGE, `Server is running on http://${host}:${port}`)
   if (paramOpenFile) {
-    const start = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
+    const start = debugBrowser || (process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open')
     import('child_process').then(cp => {
       cp.exec(`${start} http://${host}:${port}/${paramOpenFile}`)
     })
