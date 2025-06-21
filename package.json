@@ -135,6 +135,12 @@
       "import": "./decoding.js",
       "require": "./dist/decoding.cjs"
     },
+    "./diff/patience": {
+      "types": "./diff/patience.d.ts",
+      "module": "./diff/patience.js",
+      "import": "./diff/patience.js",
+      "require": "./dist/patience.cjs"
+    },
     "./diff.js": "./diff.js",
     "./dist/diff.cjs": "./dist/diff.cjs",
     "./diff": {

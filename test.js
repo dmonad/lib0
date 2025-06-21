@@ -8,6 +8,7 @@ import * as logging from './logging.test.js'
 import * as string from './string.test.js'
 import * as encoding from './encoding.test.js'
 import * as diff from './diff.test.js'
+import * as patienceDiff from './diff/patience.test.js'
 import * as testing from './testing.test.js'
 import * as indexeddb from './indexeddb.test.js'
 import * as indexeddbV2 from './indexeddbV2.test.js'
@@ -56,6 +57,7 @@ runTests({
   string,
   encoding,
   diff,
+  patienceDiff,
   testing,
   indexeddb,
   indexeddbV2,
