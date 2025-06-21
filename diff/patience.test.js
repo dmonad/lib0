@@ -19,6 +19,19 @@ const testDiffAuto = (a, b, expect) => {
  */
 export const testDiffing = _tc => {
   testDiffAuto(
+    'a b c',
+    'b a c',
+    [{
+      insert: 'b ',
+      remove: '',
+      index: 0
+    }, {
+      insert: '',
+      remove: ' b',
+      index: 1
+    }]
+  )
+  testDiffAuto(
     'x  ',
     ' ',
     [{
