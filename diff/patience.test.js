@@ -154,4 +154,3 @@ export const testRepeatRandomWordReplace = tc => {
     t.assert(d.length <= NReplacements + 1 + NInserts + NDeletes) // Sanity check: A maximum of one fault
   })
 }
-

@@ -27,7 +27,6 @@ export const diff = (as, bs) => {
   return lcs(middleAs, middleBs, commonPrefix)
 }
 
-
 /**
  * @param {string} a
  * @param {string} b
@@ -65,7 +64,7 @@ export const diffSplitBy = (a, b, _regexp) => {
  */
 export const diffAuto = (a, b) =>
   diffSplitBy(a, b, '\n').map(d =>
-    diffSplitBy(d.remove, d.insert, /\.\ |[a-zA-Z0-9]+|[\.\ \(\)\[\]\,\;\{\}]/g).map(dd => ({
+    diffSplitBy(d.remove, d.insert, /\. |[a-zA-Z0-9]+|[. ()[\],;{}]/g).map(dd => ({
       insert: dd.insert,
       remove: dd.remove,
       index: dd.index + d.index
@@ -80,7 +79,7 @@ const removeCommonPrefixAndSuffix = (as, bs) => {
   const commonLen = math.min(as.length, bs.length)
   let commonPrefix = 0
   let commonSuffix = 0
-  // match start  
+  // match start
   for (; commonPrefix < commonLen && as[commonPrefix] === bs[commonPrefix]; commonPrefix++) { /* nop */ }
   // match end
   for (; commonSuffix < commonLen - commonPrefix && as[as.length - 1 - commonSuffix] === bs[bs.length - 1 - commonSuffix]; commonSuffix++) { /* nop */ }
