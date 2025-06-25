@@ -5,6 +5,7 @@ import * as env from '../environment.js'
 
 const script = env.getParam('--script', './test.js')
 const includeDeps = env.getParam('--include-dependencies', '').split(',').filter(d => d.length)
+const customImportsPath = env.getParam('--custom-imports', '')
 
 /**
  * @type {Object<string,string>}
@@ -32,11 +33,19 @@ const extractModMap = (v, k, pkgName, pathPrefix, importMap) => {
 }
 
 /**
+ * @param {string} s
+ */
+const _maybeAddRelPrefix = s => (s[0] !== '.' ? './' : '') + s
+
+/**
  * @param {any} pkgJson
  * @param {string} pathPrefix
  * @param {Object<string,string>} importMap
  */
 const readPkg = (pkgJson, pathPrefix, importMap) => {
+  if (pkgJson.exports == null && pkgJson.main != null) {
+    importMap[pkgJson.name] = pathPrefix + _maybeAddRelPrefix(pkgJson.main).slice(1)
+  }
   object.forEach(pkgJson.exports, (v, k) => extractModMap(v, k, pkgJson.name, pathPrefix, importMap))
   object.forEach(pkgJson.dependencies, (_v, depName) => {
     const nextImportMap = pathPrefix === '.' ? exports : (scopes[pathPrefix + '/'] = {})
@@ -54,6 +63,11 @@ includeDeps.forEach(depName => {
   readPkg(depPkgJson, prefix, exports)
 })
 
+const customImports = {}
+if (customImportsPath !== '') {
+  object.assign(customImports, JSON.parse(fs.readFileSync(customImportsPath, { encoding: 'utf8' })))
+}
+
 const testHtml = `
 <!DOCTYPE html>
 <html>
@@ -61,7 +75,7 @@ const testHtml = `
   <title>Testing ${rootPkgJson.name}</title>
   <script type="importmap">
     {
-      "imports": ${JSON.stringify(exports, null, 2)},
+      "imports": ${JSON.stringify(object.assign({}, exports, customImports), null, 2)},
       "scopes": ${JSON.stringify(scopes, null, 2)}
     }
   </script>
