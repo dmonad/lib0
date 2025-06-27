@@ -48,7 +48,7 @@ const readPkg = (pkgJson, pathPrefix, importMap) => {
   }
   object.forEach(pkgJson.exports, (v, k) => extractModMap(v, k, pkgJson.name, pathPrefix, importMap))
   object.forEach(pkgJson.dependencies, (_v, depName) => {
-    const nextImportMap = pathPrefix === '.' ? exports : (scopes[pathPrefix + '/'] = {})
+    const nextImportMap = pathPrefix === '.' ? exports : (scopes[pathPrefix + '/'] || (scopes[pathPrefix + '/'] = {}))
     const prefix = `./node_modules/${depName}`
     const depPkgJson = JSON.parse(fs.readFileSync(prefix + '/package.json', { encoding: 'utf8' }))
     readPkg(depPkgJson, prefix, nextImportMap)
