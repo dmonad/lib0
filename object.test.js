@@ -73,3 +73,22 @@ export const testFreeze = _tc => {
     o2[2].a = 'hello'
   })
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testSetifundefined = _tc => {
+  const o = { a: 42, b: '42' }
+  object.setIfUndefined(o, 'a', () => 43)
+  object.setIfUndefined(o, 'b', () => '43')
+  /**
+   * @type {{ [key: number]: string}}
+   */
+  const o2 = {}
+  object.setIfUndefined(o2, 42, () => '52')
+  /**
+   * @type {{ [key: string]: number}}
+   */
+  const o3 = {}
+  object.setIfUndefined(o3, '42', () => 52)
+}

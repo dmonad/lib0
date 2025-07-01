@@ -109,7 +109,7 @@ export const every = (obj, f) => {
  * Calls `Object.prototype.hasOwnProperty`.
  *
  * @param {any} obj
- * @param {string|symbol} key
+ * @param {string|number|symbol} key
  * @return {boolean}
  */
 export const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
@@ -144,3 +144,16 @@ export const deepFreeze = (o) => {
   }
   return freeze(o)
 }
+
+/**
+ * Get object property. Create T if property is undefined and set T on object.
+ *
+ * @function
+ * @template {object} KV
+ * @template {keyof KV} [K=keyof KV]
+ * @param {KV} o
+ * @param {K} key
+ * @param {() => KV[K]} createT
+ * @return {KV[K]}
+ */
+export const setIfUndefined = (o, key, createT) => hasProperty(o, key) ? o[key] : (o[key] = createT())
