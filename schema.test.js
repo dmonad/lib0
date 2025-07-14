@@ -25,7 +25,7 @@ export const testSchemas = _tc => {
     t.assert(!s.bigint.validate(new Date()))
   })
   t.group('symbol', () => {
-    t.assert(s.symbol.validate(Symbol()))
+    t.assert(s.symbol.validate(Symbol('random symbol')))
     // @ts-expect-error
     t.assert(!s.symbol.validate({}))
     // @ts-expect-error
@@ -45,7 +45,7 @@ export const testSchemas = _tc => {
     const myobject = s.object({
       num: s.number
     })
-    const q = /** @type {number} */ (/** @type {any} */ ({ num: 42, x:9 }))
+    const q = /** @type {number} */ (/** @type {any} */ ({ num: 42, x: 9 }))
     if (myobject.check(q)) {
       s.number.validate(q)
       myobject.validate(q)
@@ -53,7 +53,7 @@ export const testSchemas = _tc => {
       // q is a number now
       s.number.validate(q)
     }
-    t.assert(myobject.check({ num: 42, x:9 }))
+    t.assert(myobject.check({ num: 42, x: 9 }))
     // @ts-expect-error
     t.assert(!myobject.validate(undefined))
     // @ts-expect-error
@@ -92,7 +92,7 @@ export const testSchemas = _tc => {
     class BetterString extends String { }
     // @ts-expect-error
     t.assert(!s.string.validate(new BetterString()))
-    t.assert(s.string.validate("hi"))
+    t.assert(s.string.validate('hi'))
     // @ts-expect-error
     t.assert(!s.string.validate(undefined))
     // @ts-expect-error
@@ -111,7 +111,7 @@ export const testSchemas = _tc => {
     {
       const mysimplearray = s.array(s.object({}))
       // @ts-expect-error
-      if (env.production) t.fails(() => t.assert(mysimplearray.ensure({x: 4})))
+      if (env.production) t.fails(() => t.assert(mysimplearray.ensure({ x: 4 })))
       mysimplearray.cast([{}])
     }
   })
@@ -132,7 +132,7 @@ export const testSchemas = _tc => {
     t.assert(!myintersectionNever.validate(42))
     // @ts-expect-error
     t.assert(!myintersectionNever.validate('str'))
-    const myintersection = s.intersect(s.object({a: s.number}), s.object({ b: s.number }))
+    const myintersection = s.intersect(s.object({ a: s.number }), s.object({ b: s.number }))
     t.assert(myintersection.validate({ a: 42, b: 42 }))
     // @ts-expect-error
     t.assert(!myintersection.validate({ a: 42 }))
@@ -208,12 +208,12 @@ export const testSchemas = _tc => {
     $fun.validate(/** @param {number} n */ (n) => n) // expected string result
     const $fun2 = s.lambda(s.number, s.string, s.void)
     t.assert($fun2.validate(() => ''))
-    t.assert($fun2.validate(/** @param {number} n */ (n) => n+''))
+    t.assert($fun2.validate(/** @param {number} n */ (n) => n + ''))
     t.assert($fun2.validate(/** @param {number} n */ (n) => n)) // this works now, because void is the absense of value
     const $fun3 = s.lambda(s.number, s.undefined)
     // @ts-expect-error
     $fun3.validate(/** @param {number} n */ (n) => n) // this doesn't work, because expected the literal undefined.
     // @ts-expect-error
-    t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ ((a, b) => undefined))) // too many parameters
+    t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ (a, b) => undefined)) // too many parameters
   })
 }

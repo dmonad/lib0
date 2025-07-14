@@ -146,6 +146,7 @@ export class $ConstructedBy extends $Schema {
     super()
     this.v = c
   }
+
   /**
    * @param {any} o
    * @return {o is C extends ((...args:any[]) => infer T) ? T : (C extends (new (...args:any[]) => any) ? InstanceType<C> : never)} o
@@ -183,7 +184,6 @@ export class $Literal extends $Schema {
     return this.v.some(a => a === o)
   }
 }
-
 
 /**
  * @template {LiteralType[]} T
@@ -439,7 +439,7 @@ export const string = constructedBy(String)
 /**
  * @type {$Schema<undefined>}
  */
-const undefined_ = literal(void 0)
+const undefined_ = literal(undefined)
 
 /**
  * @type {$Schema<void>}
@@ -451,18 +451,20 @@ const void_ = undefined_
  */
 const null_ = literal(null)
 
-export {null_ as null, void_ as void, undefined_ as undefined, }
+export { null_ as null, void_ as void, undefined_ as undefined }
 
-/* c8 ignore start*/
+/* c8 ignore start */
 /**
  * Assert that a variable is of this specific type.
  * The assertion check is only performed in non-production environments.
  *
  * @type {<T>(o:any,schema:$Schema<T>) => asserts o is T}
  */
-export const assert = env.production ? () => {} : (o, schema) => {
-  if (!schema.check(o)) {
-    throw error.create(`Expected value to be of type ${schema.constructor.name}.`)
-  }
-}
+export const assert = env.production
+  ? () => {}
+  : (o, schema) => {
+      if (!schema.check(o)) {
+        throw error.create(`Expected value to be of type ${schema.constructor.name}.`)
+      }
+    }
 /* c8 ignore end */
