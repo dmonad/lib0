@@ -59,6 +59,14 @@ export const testSchemas = _tc => {
     // @ts-expect-error
     t.assert(!myobject.validate(new Date()))
   })
+  t.group('record', () => {
+    const myrecord = s.record(s.number, s.string)
+    // @ts-expect-error
+    t.assert(!myrecord.validate({ a: 'a' }))
+    const myrecord2 = s.record(s.string, s.number)
+    const o = { a: 42 }
+    t.assert(myrecord2.validate(o))
+  })
   t.group('tuple', () => {
     const mytuple = s.tuple(s.number, s.string)
     t.assert(mytuple.validate([4, '5']))

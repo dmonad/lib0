@@ -222,6 +222,40 @@ export class $Object extends $Schema {
 export const object = def => new $Object(def)
 
 /**
+ * @template {$Schema<string|number|symbol>} Keys
+ * @template {$Schema<any>} Values
+ * @extends {$Schema<Record<Keys extends $Schema<infer K> ? K : never,Values extends $Schema<infer T> ? T : never>>}
+ */
+export class $Record extends $Schema {
+  /**
+   * @param {Keys} keys
+   * @param {Values} values
+   */
+  constructor (keys, values) {
+    super()
+    this.keys = keys
+    this.values = values
+  }
+
+  /**
+   * @param {any} o
+   * @return {o is Record<Keys extends $Schema<infer K> ? K : never,Values extends $Schema<infer T> ? T : never>}
+   */
+  check (o) {
+    return o != null && obj.every(o, (vv, vk) => this.keys.check(vk) && this.values.check(vv))
+  }
+}
+
+/**
+ * @template {$Schema<string|number|symbol>} Keys
+ * @template {$Schema<any>} Values
+ * @param {Keys} keys
+ * @param {Values} values
+ * @return {CastToSchema<$Record<Keys,Values>>}
+ */
+export const record = (keys, values) => new $Record(keys, values)
+
+/**
  * @template {$Schema<any>[]} S
  * @extends {$Schema<{ [Key in keyof S]: S[Key] extends $Schema<infer Type> ? Type : never }>}
  */
