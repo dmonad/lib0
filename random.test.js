@@ -80,7 +80,6 @@ export const testUuidv4 = tc => {
  * @param {t.TestCase} tc
  */
 export const testUuidv4Overlaps = tc => {
-  t.skip(!t.production)
   const iterations = t.extensive ? 1000000 : 10000
   const uuids = new Set()
   for (let i = 0; i < iterations; i++) {

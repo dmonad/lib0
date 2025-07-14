@@ -59,8 +59,6 @@ import * as promise from './promise.js'
 import * as performance from 'lib0/performance'
 import * as traits from './traits.js'
 
-export { production } from './environment.js'
-
 export const extensive = env.hasConf('extensive')
 
 /* c8 ignore next */

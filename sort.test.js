@@ -67,7 +67,6 @@ const createSortTest = (tc, createArray, compare, getVal) => {
  * @param {t.TestCase} tc
  */
 export const testSortUint8 = tc => {
-  t.skip(!t.production)
   /**
    * @param {number} i
    * @return {number}
@@ -91,7 +90,6 @@ export const testSortUint8 = tc => {
  * @param {t.TestCase} tc
  */
 export const testSortUint32 = tc => {
-  t.skip(!t.production)
   /**
    * @param {number} i
    * @return {number}
@@ -115,7 +113,6 @@ export const testSortUint32 = tc => {
  * @param {t.TestCase} tc
  */
 export const testSortUint16 = tc => {
-  t.skip(!t.production)
   /**
    * @param {number} i
    * @return {number}

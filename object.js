@@ -67,8 +67,9 @@ export const length = obj => keys(obj).length
 export const size = obj => keys(obj).length
 
 /**
- * @param {Object<string,any>} obj
- * @param {function(any,string):boolean} f
+ * @template {{ [key:string|number|symbol]: any }} T
+ * @param {T} obj
+ * @param {(v:T[keyof T],k:keyof T)=>boolean} f
  * @return {boolean}
  */
 export const some = (obj, f) => {
@@ -92,8 +93,9 @@ export const isEmpty = obj => {
 }
 
 /**
- * @param {Object<string,any>} obj
- * @param {function(any,string):boolean} f
+ * @template {{ [key:string|number|symbol]: any }} T
+ * @param {T} obj
+ * @param {(v:T[keyof T],k:keyof T)=>boolean} f
  * @return {boolean}
  */
 export const every = (obj, f) => {

@@ -15,6 +15,7 @@ export const testObject = _tc => {
   t.assert(object.equalFlat({ x: undefined }, { x: undefined }), 'flatEqual handles undefined')
   t.assert(!object.equalFlat({ x: undefined }, { y: {} }), 'flatEqual handles undefined')
   t.describe('object.every')
+  // @ts-expect-error k has no overlap with "c"
   t.assert(object.every({ a: 1, b: 3 }, (v, k) => (v % 2) === 1 && k !== 'c'))
   t.assert(!object.every({ a: 1, b: 3, c: 5 }, (v, k) => (v % 2) === 1 && k !== 'c'))
   t.describe('object.some')

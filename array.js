@@ -55,11 +55,10 @@ export const from = Array.from
  * True iff condition holds on every element in the Array.
  *
  * @function
- * @template ITEM
- * @template {ArrayLike<ITEM>} ARR
+ * @template {ArrayLike<any>} ARR
  *
  * @param {ARR} arr
- * @param {function(ITEM, number, ARR):boolean} f
+ * @param {ARR extends ArrayLike<infer S> ? ((value:S, index:number, arr:ARR) => boolean) : any} f
  * @return {boolean}
  */
 export const every = (arr, f) => {
@@ -75,10 +74,10 @@ export const every = (arr, f) => {
  * True iff condition holds on some element in the Array.
  *
  * @function
- * @template S
- * @template {ArrayLike<S>} ARR
+ * @template {ArrayLike<any>} ARR
+ *
  * @param {ARR} arr
- * @param {function(S, number, ARR):boolean} f
+ * @param {ARR extends ArrayLike<infer S> ? ((value:S, index:number, arr:ARR) => boolean) : never} f
  * @return {boolean}
  */
 export const some = (arr, f) => {
