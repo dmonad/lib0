@@ -18,14 +18,12 @@ import { equalityStrict } from './function.js'
  * a === b // values match
  * ```
  *
+ * @template {string} T
  * @typedef {Object} SimpleDiff
  * @property {Number} index The index where changes were applied
  * @property {Number} remove The number of characters to delete starting
  *                                  at `index`.
  * @property {T} insert The new text to insert at `index` after applying
- *                           `delete`
- *
- * @template T
  */
 
 const highSurrogateRegex = /[\uD800-\uDBFF]/

@@ -225,3 +225,23 @@ export const testSchemas = _tc => {
     t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ (a, b) => undefined)) // too many parameters
   })
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testObjectSchemaOptionals = _tc => {
+  const schema = s.object({ a: s.number.optional, b: s.string.optional })
+  t.assert(schema.validate({ })) // should work
+  // @ts-expect-error
+  t.assert(!schema.validate({ a: 'str' })) // should throw a type error
+  const def = s.union(s.string,s.array(s.number))
+  const defOptional = def.optional
+  const defObject = s.object({ j: defOptional, k: def })
+  // @ts-expect-error
+  t.assert(!defObject.validate({ k: undefined }))
+  t.assert(defObject.validate({ k: [42]}))
+  // @ts-expect-error
+  t.assert(!defObject.validate({ k: [42], j: 42}))
+  t.assert(defObject.validate({ k: [42], j: 'str'}))
+  t.assert(defObject.validate({ k: [42], j: undefined}))
+}

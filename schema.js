@@ -19,24 +19,12 @@ import * as env from './environment.js'
 
 /**
  * @template T
- * @typedef {T extends $Schema<infer X> ? X : T} TypeOfSchema
+ * @typedef {T extends $Schema<infer X> ? X : T} Unwrap
  */
 
 /**
  * @template {readonly unknown[]} T
- * @typedef {T extends []
- *   ? {}
- *   : T extends [infer First]
- *   ? First
- *   : T extends [infer First, ...infer Rest]
- *   ? First & Intersect<Rest>
- *   : never
- * } Intersect
- */
-
-/**
- * @template {readonly unknown[]} T
- * @typedef {T extends readonly [$Schema<infer First>, ...infer Rest] ? [First, ...ExtractTypesFromSchemaArray<Rest>] : [] } ExtractTypesFromSchemaArray
+ * @typedef {T extends readonly [$Schema<infer First>, ...infer Rest] ? [First, ...UnwrapArray<Rest>] : [] } UnwrapArray
  */
 
 /**
@@ -52,6 +40,18 @@ import * as env from './environment.js'
 /**
  * @template {unknown[]} Arr
  * @typedef {Arr extends [...infer Fs, unknown] ? Fs : never} TuplePop
+ */
+
+/**
+ * @template {readonly unknown[]} T
+ * @typedef {T extends []
+ *   ? {}
+ *   : T extends [infer First]
+ *   ? First
+ *   : T extends [infer First, ...infer Rest]
+ *   ? First & Intersect<Rest>
+ *   : never
+ * } Intersect
  */
 
 const schemaSymbol = Symbol('0schema')
@@ -93,10 +93,10 @@ export class $Schema {
   }
 
   /**
-   * @type {$Schema<T|undefined>}
+   * @type {$Optional<$Schema<T>>}
    */
   get optional () {
-    return union(this, undefined_)
+    return new $Optional(/** @type {$Schema<T>} */ (this))
   }
 
   /**
@@ -192,9 +192,38 @@ export class $Literal extends $Schema {
  */
 export const literal = (...literals) => new $Literal(literals)
 
+const isOptionalSymbol = Symbol('optional')
+/**
+ * @template {$Schema<any>} S
+ * @extends $Schema<Unwrap<S>|undefined>
+ */
+class $Optional extends $Schema {
+  /**
+   * @param {S} s
+   */
+  constructor (s) {
+    super()
+    this.s = s
+  }
+
+  /**
+   * @param {any} o
+   * @return {o is (Unwrap<S>|undefined)}
+   */
+  check (o) {
+    return o === undefined || this.s.check(o)
+  }
+  get [isOptionalSymbol] () { return true }
+}
+
+/**
+ * @template {{ [key: string|symbol|number]: $Schema<any> }} S
+ * @typedef {{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }} $ObjectToType
+ */
+
 /**
  * @template {{[key:string|symbol|number]: $Schema<any>}} S
- * @extends {$Schema<{ [Key in keyof S]: S[Key] extends $Schema<infer Type> ? Type : never }>}
+ * @extends {$Schema<$ObjectToType<S>>}
  */
 export class $Object extends $Schema {
   /**
@@ -207,19 +236,21 @@ export class $Object extends $Schema {
 
   /**
    * @param {any} o
-   * @return {o is { [K in keyof S]: S[K] extends $Schema<infer Type> ? Type : never }}
+   * @return {o is $ObjectToType<S>}
    */
   check (o) {
     return o != null && obj.every(this.v, (vv, vk) => vv.check(o[vk]))
   }
 }
 
+// I used an explicit type annotation instead of $ObjectToType, so that the user doesn't see the
+// weird type definitions when inspecting type definions.
 /**
- * @template {{ [key:string|symbol|number]: $Schema<any> }} T
- * @param {T} def
- * @return {CastToSchema<$Object<T>>}
+ * @template {{ [key:string|symbol|number]: $Schema<any> }} S
+ * @param {S} def
+ * @return {$Schema<{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }>}
  */
-export const object = def => new $Object(def)
+export const object = def => /** @type {any} */ (new $Object(def))
 
 /**
  * @template {$Schema<string|number|symbol>} Keys
@@ -347,7 +378,7 @@ export const instance = c => new $InstanceOf(c)
 
 /**
  * @template {$Schema<any>[]} Args
- * @typedef {(...args:ExtractTypesFromSchemaArray<TuplePop<Args>>)=>TypeOfSchema<TupleLast<Args>>} _LArgsToLambdaDef
+ * @typedef {(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>} _LArgsToLambdaDef
  */
 
 /**
@@ -377,13 +408,13 @@ export class $Lambda extends $Schema {
 /**
  * @template {$Schema<any>[]} Args
  * @param {Args} args
- * @return {$Schema<(...args:ExtractTypesFromSchemaArray<TuplePop<Args>>)=>TypeOfSchema<TupleLast<Args>>>}
+ * @return {$Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
  */
 export const lambda = (...args) => new $Lambda(args.length > 0 ? args : [void_])
 
 /**
  * @template {Array<$Schema<any>>} T
- * @extends {$Schema<Intersect<ExtractTypesFromSchemaArray<T>>>}
+ * @extends {$Schema<Intersect<UnwrapArray<T>>>}
  */
 export class $Intersection extends $Schema {
   /**
@@ -399,7 +430,7 @@ export class $Intersection extends $Schema {
 
   /**
    * @param {any} o
-   * @return {o is Intersect<ExtractTypesFromSchemaArray<T>>}
+   * @return {o is Intersect<UnwrapArray<T>>}
    */
   check (o) {
     // @ts-ignore

@@ -101,6 +101,7 @@ const parseAttrVal = (val, type) => {
 }
 
 /**
+ * @template S
  * @typedef {Object} CONF
  * @property {string?} [CONF.template] Template for the shadow dom.
  * @property {string} [CONF.style] shadow dom style. Is only used when
@@ -118,7 +119,6 @@ const parseAttrVal = (val, type) => {
  * to event listener.
  * @property {function(S, S, Lib0Component<S>):Object<string,string>} [CONF.slots] Fill slots
  * automatically when state changes. Maps from slot-name to slot-html.
- * @template S
  */
 
 /**

@@ -31,7 +31,7 @@
  *  * runTests automatically tests all exported functions that start with "test".
  *  * The name of the function should be in camelCase and is used for the logging output.
  *  *
- *  * @param {t.TestCase} tc
+ *  * @ param {t.TestCase} tc
  *  *\/
  * export const testMyFirstTest = tc => {
  *   t.compare({ a: 4 }, { a: 4 }, 'objects are equal')

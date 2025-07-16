@@ -16,10 +16,9 @@ export const toArray = set => Array.from(set)
 /**
  * @template T
  * @param {Set<T>} set
- * @return {T}
+ * @return {T|undefined}
  */
-export const first = set =>
-  set.values().next().value ?? undefined
+export const first = set => set.values().next().value
 
 /**
  * @template T
