@@ -204,23 +204,23 @@ export const testSchemas = _tc => {
     s.number.validate(known)
     // @ts-expect-error
     s.number.validate(unknown)
-    const f = s.lambda(s.number, s.void).ensure((_x) => {})
+    const f = s.lambda(s.number, s.$void).ensure((_x) => {})
     // should match a function with more parameters
-    t.assert(s.lambda(s.number, s.string, s.void).validate(f))
+    t.assert(s.lambda(s.number, s.string, s.$void).validate(f))
     // should still not match a different function
     // @ts-expect-error
-    s.lambda(s.string, s.void).validate(f)
-    const x = s.object({ f: s.lambda(s.string, s.void), n: s.number }).ensure({ f: () => {}, n: 99 })
+    s.lambda(s.string, s.$void).validate(f)
+    const x = s.object({ f: s.lambda(s.string, s.$void), n: s.number }).ensure({ f: () => {}, n: 99 })
     t.assert(x.n === 99)
     s.lambda().cast(() => {})
   })
   t.group('lambda', () => {
     const $fun = s.lambda(s.number, s.string, s.string)
     t.assert($fun.validate(() => ''))
-    t.assert($fun.validate(/** @param {number} n */ (n) => ''))
+    t.assert($fun.validate(/** @param {number} _n */ (_n) => ''))
     // @ts-expect-error
     $fun.validate(/** @param {number} n */ (n) => n) // expected string result
-    const $fun2 = s.lambda(s.number, s.string, s.void)
+    const $fun2 = s.lambda(s.number, s.string, s.$void)
     t.assert($fun2.validate(() => ''))
     t.assert($fun2.validate(/** @param {number} n */ (n) => n + ''))
     t.assert($fun2.validate(/** @param {number} n */ (n) => n)) // this works now, because void is the absense of value
@@ -228,7 +228,7 @@ export const testSchemas = _tc => {
     // @ts-expect-error
     $fun3.validate(/** @param {number} n */ (n) => n) // this doesn't work, because expected the literal undefined.
     // @ts-expect-error
-    t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ (a, b) => undefined)) // too many parameters
+    t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ (_a, _b) => undefined)) // too many parameters
   })
 }
 

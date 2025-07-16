@@ -89,7 +89,7 @@ export class $Schema {
    * @type {$Schema<T?>}
    */
   get nullable () {
-    return union(this, null_)
+    return union(this, $null)
   }
 
   /**
@@ -411,7 +411,7 @@ export class $Lambda extends $Schema {
  * @param {Args} args
  * @return {$Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
  */
-export const lambda = (...args) => new $Lambda(args.length > 0 ? args : [void_])
+export const lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
 
 /**
  * @template {Array<$Schema<any>>} T
@@ -505,19 +505,16 @@ export const string = constructedBy(String)
 /**
  * @type {$Schema<undefined>}
  */
-const undefined_ = literal(undefined)
+const $undefined = literal(undefined)
+
+export { $undefined as undefined }
 
 /**
  * @type {$Schema<void>}
  */
-const void_ = undefined_
+export const $void = literal(undefined)
 
-/**
- * @type {$Schema<null>}
- */
-const null_ = literal(null)
-
-export { null_ as null, void_ as void, undefined_ as undefined }
+export const $null = /** @type {$Schema<null>} */ (literal(null))
 
 /* c8 ignore start */
 /**
