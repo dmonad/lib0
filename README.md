@@ -1,5 +1,5 @@
 
-# Lib0 [![Build Status](https://travis-ci.com/dmonad/lib0.svg?branch=main)](https://travis-ci.com/dmonad/lib0)
+# Lib0
 > Monorepo of isomorphic utility functions
 
 This library is meant to replace all global JavaScript functions with isomorphic module imports. Additionally, it implements several performance-oriented utility modules. Most noteworthy are the binary encoding/decoding modules **[lib0/encoding]** / **[lib0/decoding]**, the randomized testing framework **[lib0/testing]**, the fast Pseudo Random Number Generator **[lib0/PRNG]**, the small socket.io alternative **[lib0/websocket]**, and the logging module **[lib0/logging]** that allows colorized logging in all environments. Lib0 has only one dependency, which is also from the author of lib0. If lib0 is transpiled with rollup or webpack, very little code is produced because of the way that it is written. All exports are pure and are removed by transpilers that support dead code elimination. Here is an example of how dead code elemination and mangling optimizes code from lib0:
