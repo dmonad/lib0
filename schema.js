@@ -213,6 +213,7 @@ class $Optional extends $Schema {
   check (o) {
     return o === undefined || this.s.check(o)
   }
+
   get [isOptionalSymbol] () { return true }
 }
 
