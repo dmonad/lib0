@@ -472,7 +472,7 @@ export class $Union extends $Schema {
 /**
  * @template {Array<$Schema<any>>} T
  * @param {T} def
- * @return {CastToSchema<$Union<T extends Array<$Schema<infer S>> ? S : never>>}
+ * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<$Schema<infer S>> ? S : never)>>}
  */
 export const union = (...def) => $Union.schema.check(def[0]) ? new $Union([...def[0].v, ...def.slice(1)]) : new $Union(def)
 

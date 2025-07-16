@@ -133,6 +133,12 @@ export const testSchemas = _tc => {
     t.assert(!myunion.validate(undefined))
     // @ts-expect-error
     t.assert(!myunion.validate(new Date()))
+    // @ts-expect-error
+    t.assert(!s.union().validate(42))
+    t.assert(s.union(s.number).validate(42))
+    // @ts-expect-error
+    t.assert(!s.union(s.number).validate('forty'))
+    t.assert(/** @type {s.$Union<any>} */ (s.union(s.union(s.number), s.string)).v.length === 2)
   })
   t.group('intersection', () => {
     const myintersectionNever = s.intersect(s.number, s.string)
