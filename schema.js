@@ -89,7 +89,7 @@ export class $Schema {
    * @type {$Schema<T?>}
    */
   get nullable () {
-    return union(this, $null)
+    return $union(this, $null)
   }
 
   /**
@@ -161,7 +161,7 @@ export class $ConstructedBy extends $Schema {
  * @param {C} c
  * @return {CastToSchema<$ConstructedBy<C>>}
  */
-export const constructedBy = c => new $ConstructedBy(c)
+export const $constructedBy = c => new $ConstructedBy(c)
 
 /**
  * @template {LiteralType} T
@@ -190,7 +190,7 @@ export class $Literal extends $Schema {
  * @param {T} literals
  * @return {CastToSchema<$Literal<T[number]>>}
  */
-export const literal = (...literals) => new $Literal(literals)
+export const $literal = (...literals) => new $Literal(literals)
 
 const isOptionalSymbol = Symbol('optional')
 /**
@@ -251,7 +251,7 @@ export class $Object extends $Schema {
  * @param {S} def
  * @return {$Schema<{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }>}
  */
-export const object = def => /** @type {any} */ (new $Object(def))
+export const $object = def => /** @type {any} */ (new $Object(def))
 
 /**
  * @template {$Schema<string|number|symbol>} Keys
@@ -285,7 +285,7 @@ export class $Record extends $Schema {
  * @param {Values} values
  * @return {CastToSchema<$Record<Keys,Values>>}
  */
-export const record = (keys, values) => new $Record(keys, values)
+export const $record = (keys, values) => new $Record(keys, values)
 
 /**
  * @template {$Schema<any>[]} S
@@ -314,7 +314,7 @@ export class $Tuple extends $Schema {
  * @param {T} def
  * @return {CastToSchema<$Tuple<T>>}
  */
-export const tuple = (...def) => new $Tuple(def)
+export const $tuple = (...def) => new $Tuple(def)
 
 /**
  * @template {$Schema<any>} S
@@ -346,7 +346,7 @@ export class $Array extends $Schema {
  * @param {T} def
  * @return {$Schema<Array<T extends Array<$Schema<infer S>> ? S : never>>}
  */
-export const array = (...def) => new $Array(def)
+export const $array = (...def) => new $Array(def)
 
 /**
  * @template T
@@ -375,7 +375,7 @@ export class $InstanceOf extends $Schema {
  * @param {new (...args:any) => T} c
  * @return {$Schema<T>}
  */
-export const instance = c => new $InstanceOf(c)
+export const $instance = c => new $InstanceOf(c)
 
 /**
  * @template {$Schema<any>[]} Args
@@ -393,7 +393,7 @@ export class $Lambda extends $Schema {
   constructor (args) {
     super()
     this.len = args.length - 1
-    this.args = tuple(...args.slice(-1))
+    this.args = $tuple(...args.slice(-1))
     this.res = args[this.len]
   }
 
@@ -411,7 +411,7 @@ export class $Lambda extends $Schema {
  * @param {Args} args
  * @return {$Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
  */
-export const lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
+export const $lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
 
 /**
  * @template {Array<$Schema<any>>} T
@@ -444,7 +444,7 @@ export class $Intersection extends $Schema {
  * @param {T} def
  * @return {CastToSchema<$Intersection<T>>}
  */
-export const intersect = (...def) => new $Intersection(def)
+export const $intersect = (...def) => new $Intersection(def)
 
 /**
  * @template S
@@ -467,7 +467,7 @@ export class $Union extends $Schema {
     return arr.some(this.v, (vv) => vv.check(o))
   }
 
-  static schema = constructedBy($Union)
+  static schema = $constructedBy($Union)
 }
 
 /**
@@ -475,46 +475,46 @@ export class $Union extends $Schema {
  * @param {T} def
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<$Schema<infer S>> ? S : never)>>}
  */
-export const union = (...def) => $Union.schema.check(def[0]) ? new $Union([...def[0].v, ...def.slice(1)]) : new $Union(def)
+export const $union = (...def) => $Union.schema.check(def[0]) ? new $Union([...def[0].v, ...def.slice(1)]) : new $Union(def)
 
 /**
  * @type {$Schema<any>}
  */
-export const any = intersect()
+export const $any = $intersect()
 
 /**
  * @type {$Schema<bigint>}
  */
-export const bigint = constructedBy(BigInt)
+export const $bigint = $constructedBy(BigInt)
 
 /**
  * @type {$Schema<Symbol>}
  */
-export const symbol = constructedBy(Symbol)
+export const $symbol = $constructedBy(Symbol)
 
 /**
  * @type {$Schema<number>}
  */
-export const number = constructedBy(Number)
+export const $number = $constructedBy(Number)
 
 /**
  * @type {$Schema<string>}
  */
-export const string = constructedBy(String)
+export const $string = $constructedBy(String)
 
 /**
  * @type {$Schema<undefined>}
  */
-const $undefined = literal(undefined)
+const $undefined = $literal(undefined)
 
 export { $undefined as undefined }
 
 /**
  * @type {$Schema<void>}
  */
-export const $void = literal(undefined)
+export const $void = $literal(undefined)
 
-export const $null = /** @type {$Schema<null>} */ (literal(null))
+export const $null = /** @type {$Schema<null>} */ ($literal(null))
 
 /* c8 ignore start */
 /**
