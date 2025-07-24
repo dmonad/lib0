@@ -85,12 +85,12 @@ export const testSchemas = _tc => {
       y () {}
     }
     class BetterBetterBase extends BetterBase { }
-    const z = s.$instance(Base)
+    const z = s.$instanceOf(Base)
     t.assert(z.validate(new Base()))
     t.assert(z.validate(new BetterBase()))
     // @ts-expect-error
     t.assert(!z.validate(4))
-    t.assert(!s.$instance(BetterBetterBase).validate(new BetterBase()))
+    t.assert(!s.$instanceOf(BetterBetterBase).validate(new BetterBase()))
     // @ts-expect-error
     t.assert(!z.validate(undefined))
     // @ts-expect-error

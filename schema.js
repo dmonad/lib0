@@ -23,6 +23,11 @@ import * as env from './environment.js'
  */
 
 /**
+ * @template T
+ * @typedef {T extends $Schema<infer X> ? X : T} TypeOf
+ */
+
+/**
  * @template {readonly unknown[]} T
  * @typedef {T extends readonly [$Schema<infer First>, ...infer Rest] ? [First, ...UnwrapArray<Rest>] : [] } UnwrapArray
  */
@@ -135,16 +140,23 @@ export class $Schema {
 }
 
 /**
+ * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} Constr
+ * @typedef {Constr extends ((...args:any[]) => infer T) ? T : (Constr extends (new (...args:any[]) => any) ? InstanceType<Constr> : never)} Instance
+ */
+
+/**
  * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} C
- * @extends {$Schema<C extends ((...args:any[]) => infer T) ? T : (C extends (new (...args:any[]) => any) ? InstanceType<C> : never)>}
+ * @extends {$Schema<Instance<C>>}
  */
 export class $ConstructedBy extends $Schema {
   /**
    * @param {C} c
+   * @param {((o:Instance<C>)=>boolean)|null} check
    */
-  constructor (c) {
+  constructor (c, check) {
     super()
     this.v = c
+    this._c = check
   }
 
   /**
@@ -152,16 +164,18 @@ export class $ConstructedBy extends $Schema {
    * @return {o is C extends ((...args:any[]) => infer T) ? T : (C extends (new (...args:any[]) => any) ? InstanceType<C> : never)} o
    */
   check (o) {
-    return o?.constructor === this.v
+    return o?.constructor === this.v && (this._c == null || this._c(o))
   }
 }
 
 /**
  * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} C
  * @param {C} c
+ * @param {((o:Instance<C>) => boolean)|null} check
  * @return {CastToSchema<$ConstructedBy<C>>}
  */
-export const $constructedBy = c => new $ConstructedBy(c)
+export const $constructedBy = (c, check = null) => new $ConstructedBy(c, check)
+export const $$constructedBy = $constructedBy($ConstructedBy)
 
 /**
  * @template {LiteralType} T
@@ -191,6 +205,7 @@ export class $Literal extends $Schema {
  * @return {CastToSchema<$Literal<T[number]>>}
  */
 export const $literal = (...literals) => new $Literal(literals)
+export const $$literal  = $constructedBy($Literal)
 
 const isOptionalSymbol = Symbol('optional')
 /**
@@ -216,6 +231,7 @@ class $Optional extends $Schema {
 
   get [isOptionalSymbol] () { return true }
 }
+export const $$optional  = $constructedBy($Optional)
 
 /**
  * @template {{ [key: string|symbol|number]: $Schema<any> }} S
@@ -375,7 +391,7 @@ export class $InstanceOf extends $Schema {
  * @param {new (...args:any) => T} c
  * @return {$Schema<T>}
  */
-export const $instance = c => new $InstanceOf(c)
+export const $instanceOf = c => new $InstanceOf(c)
 
 /**
  * @template {$Schema<any>[]} Args
