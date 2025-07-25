@@ -52,7 +52,9 @@ export const exp10 = exp => Math.pow(10, exp)
 export const sign = Math.sign
 
 /**
+ * Check whether n is negative, while considering the -0 edge case. While `-0 < 0` is false, this
+ * function returns true for -0,-1,,.. and returns false for 0,1,2,...
  * @param {number} n
- * @return {boolean} Wether n is negative. This function also differentiates between -0 and +0
+ * @return {boolean} Wether n is negative. This function also distinguishes between -0 and +0
  */
 export const isNegativeZero = n => n !== 0 ? n < 0 : 1 / n < 0
