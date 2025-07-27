@@ -224,7 +224,7 @@ export const testSchemas = _tc => {
     t.assert($fun2.validate(() => ''))
     t.assert($fun2.validate(/** @param {number} n */ (n) => n + ''))
     t.assert($fun2.validate(/** @param {number} n */ (n) => n)) // this works now, because void is the absense of value
-    const $fun3 = s.$lambda(s.$number, s.undefined)
+    const $fun3 = s.$lambda(s.$number, s.$undefined)
     // @ts-expect-error
     $fun3.validate(/** @param {number} n */ (n) => n) // this doesn't work, because expected the literal undefined.
     // @ts-expect-error
@@ -250,4 +250,23 @@ export const testObjectSchemaOptionals = _tc => {
   t.assert(!defObject.validate({ k: [42], j: 42 }))
   t.assert(defObject.validate({ k: [42], j: 'str' }))
   t.assert(defObject.validate({ k: [42], j: undefined }))
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testMetaSchemas = _tc => {
+  /**
+   * @type {s.$Schema<any>}
+   */
+  const sch = s.$object({ n: s.$array(s.$number) })
+  t.fails(() => {
+    s.assert(sch, s.$$number)
+    sch.validate(42) // should work, if this wouldn't throw..
+  })
+  s.assert(sch, s.$$object)
+  const schN = sch.v.n
+  s.assert(schN, s.$$array)
+  t.assert(schN.v)
+  s.$$number.cast(schN.v)
 }

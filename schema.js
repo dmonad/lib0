@@ -268,6 +268,7 @@ export class $Object extends $Schema {
  * @return {$Schema<{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }>}
  */
 export const $object = def => /** @type {any} */ (new $Object(def))
+export const $$object = $constructedBy($Object)
 
 /**
  * @template {$Schema<string|number|symbol>} Keys
@@ -302,6 +303,7 @@ export class $Record extends $Schema {
  * @return {CastToSchema<$Record<Keys,Values>>}
  */
 export const $record = (keys, values) => new $Record(keys, values)
+export const $$record = $constructedBy($Record)
 
 /**
  * @template {$Schema<any>[]} S
@@ -331,6 +333,7 @@ export class $Tuple extends $Schema {
  * @return {CastToSchema<$Tuple<T>>}
  */
 export const $tuple = (...def) => new $Tuple(def)
+export const $$tuple = $constructedBy($Tuple)
 
 /**
  * @template {$Schema<any>} S
@@ -363,6 +366,7 @@ export class $Array extends $Schema {
  * @return {$Schema<Array<T extends Array<$Schema<infer S>> ? S : never>>}
  */
 export const $array = (...def) => new $Array(def)
+export const $$array = $constructedBy($Array)
 
 /**
  * @template T
@@ -392,6 +396,7 @@ export class $InstanceOf extends $Schema {
  * @return {$Schema<T>}
  */
 export const $instanceOf = c => new $InstanceOf(c)
+export const $$instanceOf = $constructedBy($InstanceOf)
 
 /**
  * @template {$Schema<any>[]} Args
@@ -428,6 +433,7 @@ export class $Lambda extends $Schema {
  * @return {$Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
  */
 export const $lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
+export const $$lambda = $constructedBy($Lambda)
 
 /**
  * @template {Array<$Schema<any>>} T
@@ -461,6 +467,7 @@ export class $Intersection extends $Schema {
  * @return {CastToSchema<$Intersection<T>>}
  */
 export const $intersect = (...def) => new $Intersection(def)
+export const $$intersect = $constructedBy($Intersection, o => o.v.length > 0) // Intersection with length=0 is considered "any"
 
 /**
  * @template S
@@ -492,45 +499,52 @@ export class $Union extends $Schema {
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<$Schema<infer S>> ? S : never)>>}
  */
 export const $union = (...def) => $Union.schema.check(def[0]) ? new $Union([...def[0].v, ...def.slice(1)]) : new $Union(def)
+export const $$union = /** @type {$Schema<$Schema<any[]>>} */ ($constructedBy($Array))
 
 /**
  * @type {$Schema<any>}
  */
 export const $any = $intersect()
+export const $$any = /** @type {$Schema<$Schema<any>>} */ ($constructedBy($Intersection, o => o.v.length === 0))
 
 /**
  * @type {$Schema<bigint>}
  */
 export const $bigint = $constructedBy(BigInt)
+export const $$bigint  = /** @type {$Schema<$Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.v === BigInt))
 
 /**
  * @type {$Schema<Symbol>}
  */
 export const $symbol = $constructedBy(Symbol)
+export const $$symbol = /** @type {$Schema<$Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.v === Symbol))
 
 /**
  * @type {$Schema<number>}
  */
 export const $number = $constructedBy(Number)
+export const $$number  = /** @type {$Schema<$Schema<number>>} */ ($constructedBy($ConstructedBy, o => o.v === Number))
 
 /**
  * @type {$Schema<string>}
  */
 export const $string = $constructedBy(String)
+export const $$string = /** @type {$Schema<$Schema<string>>} */ ($constructedBy($ConstructedBy, o => o.v === String))
 
 /**
  * @type {$Schema<undefined>}
  */
-const $undefined = $literal(undefined)
-
-export { $undefined as undefined }
+export const $undefined = $literal(undefined)
+export const $$undefined = /** @type {$Schema<$Schema<undefined>>} */ ($constructedBy($Literal, o => o.v.length === 1 && o.v[0] === undefined))
 
 /**
  * @type {$Schema<void>}
  */
 export const $void = $literal(undefined)
+export const $$void = /** @type {$Schema<$Schema<void>>} */ ($$undefined)
 
-export const $null = /** @type {$Schema<null>} */ ($literal(null))
+export const $null = $literal(null)
+export const $$null = /** @type {$Schema<$Schema<null>>} */ ($constructedBy($Literal, o => o.v.length === 1 && o.v[0] === null))
 
 /* c8 ignore start */
 /**
