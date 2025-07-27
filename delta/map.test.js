@@ -18,14 +18,18 @@ export const testMapDeltaBasics = _tc => {
     // @ts-expect-error
     d.set('?', 'hi')
   })
-  d.forEach((c, cn) => {
-    if (cn === 'str') {
-      mapDelta.$insertOp(s.$string).check(c)
+  d.forEach((c) => {
+    if (c.key === 'str') {
+      // @ts-expect-error because value can't be a string
+      c.value === 42
+    } else if (c.key === 'num') {
+      c.value === 42
+    } else {
+      // no other option, this will always throw if called
+      s.assert(c, s.$never)
     }
   })
   d.delete('str')
-  // @ts-expect-error
-  d.delete('?')
   // @ts-expect-error
   d.get('?')
   const x = d.get('str')
@@ -37,10 +41,10 @@ export const testMapDeltaBasics = _tc => {
   d.has('_')
   for (const entry of d) {
     // ensure that typings work correctly when iterating through changes
-    if (entry[0] === 'str') {
-      t.assert(mapDelta.$insertOp(s.$string).optional.validate(entry[1]))
+    if (entry.key === 'str') {
+      t.assert(mapDelta.$insertOp(s.$string).optional.validate(entry))
       // @ts-expect-error should return the correct typed object
-      t.assert(!mapDelta.$insertOp(s.$number).optional.validate(entry[1]))
+      t.assert(!mapDelta.$insertOp(s.$number).optional.validate(entry))
     }
   }
   const ddone = d.done()

@@ -234,6 +234,21 @@ class $Optional extends $Schema {
 export const $$optional  = $constructedBy($Optional)
 
 /**
+ * @extends $Schema<never>
+ */
+class $Never extends $Schema {
+  /**
+   * @param {any} o
+   * @return {o is never}
+   */
+  check (o) {
+    return false
+  }
+}
+export const $never = new $Never
+export const $$never = $constructedBy($Never)
+
+/**
  * @template {{ [key: string|symbol|number]: $Schema<any> }} S
  * @typedef {{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }} $ObjectToType
  */

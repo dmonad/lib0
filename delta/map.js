@@ -6,14 +6,20 @@ import { $attribution, AbstractDelta, mergeAttrs } from './abstract.js'
 
 /**
  * @template V
+ * @template [K=string]
  */
 class MapInsertOp {
   /**
+   * @param {K} key
    * @param {V} value
    * @param {V|undefined} prevValue
    * @param {s.TypeOf<$attribution>?} attribution
    */
-  constructor (value, prevValue, attribution) {
+  constructor (key, value, prevValue, attribution) {
+    /**
+     * @type {K}
+     */
+    this.key = key
     this.prevValue = prevValue
     this.attribution = attribution
     this.value = value
@@ -37,19 +43,25 @@ class MapInsertOp {
    * @param {MapInsertOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    return fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.prevValue, other.prevValue) && fun.equalityDeep(this.attribution, other.attribution)
+    return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.prevValue, other.prevValue) && fun.equalityDeep(this.attribution, other.attribution)
   }
 }
 
 /**
  * @template V
+ * @template [K=string]
  */
 class MapDeleteOp {
   /**
+   * @param {K} key
    * @param {V|undefined} prevValue
    * @param {s.TypeOf<$attribution>?} attribution
    */
-  constructor (prevValue, attribution) {
+  constructor (key, prevValue, attribution) {
+    /**
+     * @type {K}
+     */
+    this.key = key
     this.prevValue = prevValue
     this.attribution = attribution
   }
@@ -73,18 +85,24 @@ class MapDeleteOp {
    * @param {MapDeleteOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    return fun.equalityDeep(this.prevValue, other.prevValue) && fun.equalityDeep(this.attribution, other.attribution)
+    return this.key === other.key && fun.equalityDeep(this.prevValue, other.prevValue) && fun.equalityDeep(this.attribution, other.attribution)
   }
 }
 
 /**
  * @template {AbstractDelta} Modifiers
+ * @template [K=string]
  */
 class MapModifyOp {
   /**
+   * @param {K} key
    * @param {Modifiers} delta
    */
-  constructor (delta) {
+  constructor (key, delta) {
+    /**
+     * @type {K}
+     */
+    this.key = key
     /**
      * @type {Modifiers}
      */
@@ -109,7 +127,7 @@ class MapModifyOp {
    * @param {MapModifyOp<Modifiers>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    return this.modify[traits.EqualityTraitSymbol](other.modify)
+    return this.key === other.key && this.modify[traits.EqualityTraitSymbol](other.modify)
   }
 }
 
@@ -129,7 +147,7 @@ export const $insertOp = ($value) => /** @type {s.$Schema<MapInsertOp<T>>} */ (s
  */
 export const $modifyOp = ($modifier) => /** @type {s.$Schema<MapModifyOp<T>>} */ (s.$constructedBy(MapModifyOp, o => $modifier.check(o.value)))
 
-export const $anyOp = s.$union($insertOp(s.$any),$deleteOp)
+export const $anyOp = s.$union($insertOp(s.$any),$deleteOp,$modifyOp(s.$any))
 
 export const $mapDeltaChangeJson = s.$union(
   s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.nullable.optional }),
@@ -138,6 +156,11 @@ export const $mapDeltaChangeJson = s.$union(
 )
 
 export const $mapDeltaJson = s.$record(s.$string, $mapDeltaChangeJson)
+
+/**
+ * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
+ * @typedef {{ [K in keyof OPS]: (OPS[K] extends MapInsertOp<infer V,any> ? MapInsertOp<V, K> : never) | (OPS[K] extends MapDeleteOp<infer V,any> ? MapDeleteOp<V,K> : never) | (OPS[K] extends MapModifyOp<infer V,any> ? MapModifyOp<V,K> : never) }} KeyedOps
+ */
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
@@ -190,23 +213,23 @@ export class MapDelta extends AbstractDelta {
    *     (modifyOp, index) => insertOp.modify
    *   )
    *
-   * @param {null|(<K extends keyof OPS>(change:OPS[K],key:K)=>void)} changeHandler
-   * @param {null|(<K extends keyof OPS>(insertOp:OPS[K] & MapInsertOp<any>,key:K)=>void)} insertHandler
-   * @param {null|(<K extends keyof OPS>(deleteOp:OPS[K] & MapDeleteOp<any>,key:K)=>void)} deleteHandler
-   * @param {null|(<K extends keyof OPS>(modifyOp:OPS[K] & MapModifyOp<any>,key:K)=>void)} modifyHandler
+   * @param {null|((change:KeyedOps<OPS>[keyof OPS])=>void)} changeHandler
+   * @param {null|((change:KeyedOps<OPS>[keyof OPS] & MapInsertOp<any,any>)=>void)} insertHandler
+   * @param {null|((change:KeyedOps<OPS>[keyof OPS] & MapDeleteOp<any,any>)=>void)} deleteHandler
+   * @param {null|((change:KeyedOps<OPS>[keyof OPS] & MapModifyOp<any,any>)=>void)} modifyHandler
    */
   forEach (changeHandler = null, insertHandler = null, deleteHandler = null, modifyHandler = null) {
-    this.changes.forEach((change, key) => {
-      changeHandler?.(change, key)
+    this.changes.forEach((change) => {
+      changeHandler?.(/** @type {any} */ (change))
       switch (change.constructor) {
         case MapDeleteOp:
-          deleteHandler?.(/** @type {OPS[keyof OPS] & MapDeleteOp<any>} */ (change), key)
+          deleteHandler?.(/** @type {any} */ (change))
           break
         case MapInsertOp:
-          insertHandler?.(/** @type {OPS[keyof OPS] & MapInsertOp<any>} */ (change), key)
+          insertHandler?.(/** @type {any} */ (change))
           break
         case MapModifyOp:
-          modifyHandler?.(/** @type {OPS[keyof OPS] & MapModifyOp<any>} */ (change), key)
+          modifyHandler?.(/** @type {any} */ (change))
           break
       }
     })
@@ -218,7 +241,7 @@ export class MapDelta extends AbstractDelta {
    * @return {OPS[K] | undefined}
    */
   get (key) {
-    return /** @type {OPS[K]|undefined} */ (this.changes.get(key))
+    return /** @type {(OPS[K] & { key:K })|undefined} */ (this.changes.get(key))
   }
 
   /**
@@ -253,10 +276,10 @@ export class MapDelta extends AbstractDelta {
   /**
    * Preferred way to iterate through changes.
    *
-   * @return {IterableIterator<{ [K in keyof OPS]: [K, OPS[K]] }[keyof OPS]>}
+   * @return {IterableIterator<KeyedOps<OPS>[keyof OPS]>}
    */
   [Symbol.iterator] () {
-    return this.changes.entries()
+    return /** @type {IterableIterator<KeyedOps<OPS>[keyof OPS]>} */ (this.changes.entries())
   }
 
   /**
@@ -265,14 +288,16 @@ export class MapDelta extends AbstractDelta {
   [traits.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.changes, other.changes)
   }
-
-  /**
-   * @return {MapDelta<OPS>}
-   */
-  done () {
-    return this
-  }
 }
+
+/**
+ * @template {{ [Key:string]: s.Unwrap<$anyOp> }} OPS
+ * @template {keyof OPS} K
+ * @param {s.$Schema<OPS>} $ops
+ * @param {K} k
+ * @return {s.$Schema<OPS[K]>}
+ */
+const opsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.v[k] || s.$never) : ((s.$$record.check($ops) && $ops.keys.check(k)) ? ($ops.values) : s.$never)
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
@@ -284,7 +309,7 @@ export class MapDeltaBuilder extends MapDelta {
    * @param {OPS[key] extends MapModifyOp<infer D> ? D : never} delta
    */
   modify (key, delta) {
-    this.changes.set(key, /** @type {OPS[keyof OPS] & MapModifyOp<any>} */ (new MapModifyOp(delta)))
+    this.changes.set(key, opsKeySchema(this.$ops, key).cast(new MapModifyOp(key,delta)))
     return this
   }
 
@@ -297,8 +322,7 @@ export class MapDeltaBuilder extends MapDelta {
    */
   set (key, newVal, prevValue = undefined, attribution = null) {
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
-    const op = new MapInsertOp(newVal, prevValue, mergedAttribution)
-    this.changes.set(key, /** @type {OPS[keyof OPS]} */ (op))
+    this.changes.set(key, opsKeySchema(this.$ops, key).cast(new MapInsertOp(key, newVal, prevValue, mergedAttribution)))
     return this
   }
 
@@ -309,7 +333,7 @@ export class MapDeltaBuilder extends MapDelta {
    */
   delete (key, prevValue = undefined, attribution = null) {
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
-    this.changes.set(key, /** @type {OPS[keyof OPS]} */ (new MapDeleteOp(prevValue, mergedAttribution)))
+    this.changes.set(key, /** @type {OPS[keyof OPS]} */ (new MapDeleteOp(key, prevValue, mergedAttribution)))
     return this
   }
 
@@ -319,6 +343,10 @@ export class MapDeltaBuilder extends MapDelta {
   useAttribution (attribution) {
     this.usedAttribution = attribution
     return this
+  }
+
+  done () {
+    return /** @type {MapDelta<OPS>} */ (this)
   }
 }
 

@@ -230,6 +230,13 @@ export const testSchemas = _tc => {
     // @ts-expect-error
     t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ (_a, _b) => undefined)) // too many parameters
   })
+  t.group('never', () => {
+    const x = 42
+    if (s.$never.check(x)) {
+      // @ts-expect-error method doesn't exist on never
+      x.toString
+    }
+  })
 }
 
 /**
