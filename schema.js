@@ -133,7 +133,7 @@ export class $Schema {
    * @param {T} o
    * @return {o extends T ? T : never}
    */
-  ensure (o) {
+  expect (o) {
     assert(o, this)
     return o
   }
@@ -206,6 +206,77 @@ export class $Literal extends $Schema {
  */
 export const $literal = (...literals) => new $Literal(literals)
 export const $$literal  = $constructedBy($Literal)
+
+/**
+ * @template {Array<string|$Schema<string|number>>} Ts
+ * @typedef {Ts extends [] ? `` : (Ts extends [infer T] ? (Unwrap<T> extends (string|number) ? Unwrap<T> : never) : (Ts extends [infer T1, ...infer Rest] ? `${Unwrap<T1> extends (string|number) ? Unwrap<T1> : never}${Rest extends Array<string|$Schema<string|number>> ? CastStringTemplateArgsToTemplate<Rest> : never}` : never))} CastStringTemplateArgsToTemplate
+ */
+
+/**
+ * @param {string} str
+ * @return {string}
+ */
+const _regexEscape = /** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (str =>
+  str.replace(/[\[\]\(\)\.\|\&\,\$\^)]/g, s => '\\' + s)
+)
+
+/**
+ * @param {string|$Schema<string|number>} s
+ * @return {string[]}
+ */
+const _schemaStringTemplateToRegex = s => {
+  if ($string.check(s)) {
+    return [_regexEscape(s)]
+  }
+  if ($$union.check(s)) {
+    return s.v.map(_schemaStringTemplateToRegex).flat(1)
+  }
+  if ($$literal.check(s)) {
+    return s.v.map(v => v + '')
+  }
+  if ($$number.check(s)) {
+    return ['[+-]?\\d+.?\\d*']
+  }
+  if ($$string.check(s)) {
+    return ['.*']
+  }
+  // unexpected schema structure (only supports unions and string in literal types)
+  error.unexpectedCase()
+}
+
+/**
+ * @template {Array<string|$Schema<string|number>>} T
+ * @extends {$Schema<CastStringTemplateArgsToTemplate<T>>}
+ */
+export class $StringTemplate extends $Schema {
+  /**
+   * @param {T} literals
+   */
+  constructor (literals) {
+    super()
+    this.v = literals
+    literals.map(l => {
+    })
+    this._r = new RegExp('^' + literals.map(_schemaStringTemplateToRegex).map(opts => `(${opts.join('|')})`).join('') + '$')
+  }
+
+  /**
+   * @param {any} o
+   * @return {o is CastStringTemplateArgsToTemplate<T>}
+   */
+  check (o) {
+    // @todo, currently this does not check the content (needs regex)
+    return this._r.exec(o) != null
+  }
+}
+
+/**
+ * @template {Array<string|$Schema<string|number>>} T
+ * @param {T} literals
+ * @return {CastToSchema<$StringTemplate<T>>}
+ */
+export const $stringTemplate = (...literals) => new $StringTemplate(literals)
+export const $$stringTemplate = $constructedBy($StringTemplate)
 
 const isOptionalSymbol = Symbol('optional')
 /**
@@ -390,10 +461,12 @@ export const $$array = $constructedBy($Array)
 export class $InstanceOf extends $Schema {
   /**
    * @param {new (...args:any) => T} constructor
+   * @param {((o:T) => boolean)|null} check
    */
-  constructor (constructor) {
+  constructor (constructor, check) {
     super()
     this.v = constructor
+    this._c = check
   }
 
   /**
@@ -401,16 +474,17 @@ export class $InstanceOf extends $Schema {
    * @return {o is T}
    */
   check (o) {
-    return o instanceof this.v
+    return o instanceof this.v && (this._c == null || this._c(o))
   }
 }
 
 /**
  * @template T
  * @param {new (...args:any) => T} c
+ * @param {((o:T) => boolean)|null} check
  * @return {$Schema<T>}
  */
-export const $instanceOf = c => new $InstanceOf(c)
+export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
 export const $$instanceOf = $constructedBy($InstanceOf)
 
 /**
@@ -514,7 +588,7 @@ export class $Union extends $Schema {
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<$Schema<infer S>> ? S : never)>>}
  */
 export const $union = (...def) => $Union.schema.check(def[0]) ? new $Union([...def[0].v, ...def.slice(1)]) : new $Union(def)
-export const $$union = /** @type {$Schema<$Schema<any[]>>} */ ($constructedBy($Array))
+export const $$union = /** @type {$Schema<$Union<any>>} */ ($constructedBy($Union))
 
 /**
  * @type {$Schema<any>}

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": ["dom", "ES2022"],
+    "lib": ["dom", "ESNext"],
     "module": "nodenext",
     "allowJs": true,
     "checkJs": true,

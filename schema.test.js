@@ -119,7 +119,7 @@ export const testSchemas = _tc => {
     {
       const mysimplearray = s.$array(s.$object({}))
       // @ts-expect-error
-      if (env.production) t.fails(() => t.assert(mysimplearray.ensure({ x: 4 })))
+      if (env.production) t.fails(() => t.assert(mysimplearray.expect({ x: 4 })))
       mysimplearray.cast([{}])
     }
   })
@@ -176,7 +176,7 @@ export const testSchemas = _tc => {
     })
     t.fails(() => {
       // @ts-expect-error
-      s.$number.ensure('42')
+      s.$number.expect('42')
     })
     t.fails(() => {
       s.assert('42', s.$number)
@@ -204,13 +204,13 @@ export const testSchemas = _tc => {
     s.$number.validate(known)
     // @ts-expect-error
     s.$number.validate(unknown)
-    const f = s.$lambda(s.$number, s.$void).ensure((_x) => {})
+    const f = s.$lambda(s.$number, s.$void).expect((_x) => {})
     // should match a function with more parameters
     t.assert(s.$lambda(s.$number, s.$string, s.$void).validate(f))
     // should still not match a different function
     // @ts-expect-error
     s.$lambda(s.$string, s.$void).validate(f)
-    const x = s.$object({ f: s.$lambda(s.$string, s.$void), n: s.$number }).ensure({ f: () => {}, n: 99 })
+    const x = s.$object({ f: s.$lambda(s.$string, s.$void), n: s.$number }).expect({ f: () => {}, n: 99 })
     t.assert(x.n === 99)
     s.$lambda().cast(() => {})
   })
@@ -276,4 +276,26 @@ export const testMetaSchemas = _tc => {
   s.assert(schN, s.$$array)
   t.assert(schN.v)
   s.$$number.cast(schN.v)
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testStringTemplate = _tc => {
+  // a test with number
+  const $t = s.$stringTemplate('hi', s.$number)
+  t.assert($t.validate('hi42'))
+  // complex test with rgp (what you would use in css)
+  // rgb(number,number,number)
+  const $rgb = s.$stringTemplate('rgb(', s.$number, ',', s.$number, ',', s.$number, ')')
+  t.assert($rgb.validate('rgb(42,42,3)'))
+  // @ts-expect-error
+  t.assert(!$rgb.validate('rgb(42,42,)'))
+  // test with unions, showing that the resulting type is nicely resolved
+  const $hi = s.$union(s.$literal('hello'), s.$literal('hi'))
+  const $greeting = s.$stringTemplate($hi, ' ', s.$string, '!')
+  t.assert($greeting.validate('hello world!'))
+  t.assert($greeting.validate('hi there!'))
+  // @ts-expect-error "moin" is not accepted"
+  t.assert(!$greeting.validate('moin otto!'))
 }
