@@ -290,13 +290,13 @@ export class DeltaMap extends AbstractDelta {
 }
 
 /**
- * @template {{ [Key:string]: s.Unwrap<$anyOp> }} OPS
- * @template {keyof OPS} K
- * @param {s.$Schema<OPS>} $ops
+ * @template {s.$Schema<{ [Key:string]: s.Unwrap<typeof $anyOp> }>} OPS
+ * @template {keyof s.Unwrap<OPS>} K
+ * @param {OPS} $ops
  * @param {K} k
- * @return {s.$Schema<OPS[K]>}
+ * @return {s.$Schema<s.Unwrap<OPS>[K]>}
  */
-const opsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.keys.check(k)) ? ($ops.values) : s.$never)
+const opsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.shape.keys.check(k)) ? ($ops.shape.values) : s.$never)
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
@@ -357,8 +357,6 @@ export class DeltaMapBuilder extends DeltaMap {
 export const create = $ops => new DeltaMapBuilder($ops)
 
 /**
- * @template {s.$Schema<{ [key:string]: s.Unwrap<$anyOp> }>} OPS
- * @param {OPS} $ops
- *
+ * @param {s.$Schema<{ [key:string]: s.Unwrap<$anyOp> }>} $ops
  */
 export const $deltaMap = $ops => s.$instanceOf(DeltaMap, o => traits.equals(o.$ops, $ops))

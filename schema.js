@@ -89,11 +89,7 @@ const shapeExtends = (a, b) => {
  * @implements {traits.EqualityTrait}
  */
 export class $Schema {
-  /**
-   * @type {any}
-   */
-  shape = null
-
+  // this.shape must not be defined on $Schema. Otherwise typecheck on metatypes (e.g. $$object) won't work as expected anymore
   /**
    * If true, the more things are added to the shape the more objects this schema will accept (e.g.
    * union). By default, the more objects are added, the the fewer objects this schema will accept.
@@ -105,7 +101,7 @@ export class $Schema {
    * @param {$Schema<any>} other
    */
   extends (other) {
-    let [a, b] = [this.shape, other.shape]
+    let [a, b] = [/** @type {any} */ (this).shape, /** @type {any} */ (other).shape]
     if (/** @type {typeof $Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
     return shapeExtends(a, b)
   }
@@ -395,6 +391,9 @@ export class $Object extends $Schema {
    */
   constructor (shape) {
     super()
+    /**
+     * @type {S}
+     */
     this.shape = shape
   }
 
@@ -548,6 +547,8 @@ export class $InstanceOf extends $Schema {
  */
 export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
 export const $$instanceOf = $constructedBy($InstanceOf)
+
+export const $$schema = $instanceOf($Schema)
 
 /**
  * @template {$Schema<any>[]} Args

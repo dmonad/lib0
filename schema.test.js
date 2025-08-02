@@ -277,6 +277,16 @@ export const testMetaSchemas = _tc => {
   s.assert(schN, s.$$array)
   t.assert(schN.shape)
   s.$$number.cast(schN.shape)
+  t.group('meta check - shape is working', () => {
+    const x = s.$object({ x: s.$number })
+    // @ts-expect-error shape shouldn't exist on $Schape
+    x.shape == undefined
+    if (s.$$object.check(x)) {
+      // expect that x is an object that maps to shemas
+      t.assert(s.$object({}).validate(x.shape))
+      t.assert(s.$$schema.check(x.shape.x))
+    }
+  })
 }
 
 /**
