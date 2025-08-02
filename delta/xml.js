@@ -1,4 +1,3 @@
-
 /**
  * @template {string|undefined} NodeName
  * @template Children
@@ -63,4 +62,3 @@ export class XmlDelta extends AbstractDelta {
  * @return {XmlDelta<NodeName,Children,Attrs,ChildModifiers, AttrModifiers>}
  */
 export const createXmlDelta = (nodeName, children = createArrayDelta(), attributes = /** @type {any} */ (createMapDelta())) => new XmlDelta(nodeName, children, attributes)
-

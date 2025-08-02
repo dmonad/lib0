@@ -8,6 +8,8 @@ import * as obj from './object.js'
 import * as arr from './array.js'
 import * as error from './error.js'
 import * as env from './environment.js'
+import * as traits from './traits.js'
+import * as fun from './function.js'
 
 /**
  * @typedef {string|number|bigint|boolean|null|undefined} LiteralType
@@ -62,10 +64,71 @@ import * as env from './environment.js'
 const schemaSymbol = Symbol('0schema')
 
 /**
+ * @param {any} a
+ * @param {any} b
+ * @return {boolean}
+ */
+const shapeExtends = (a, b) => {
+  if (a === b) return true
+  if (a == null || b == null || a.constructor !== b.constructor) return false
+  if (a[traits.EqualityTraitSymbol]) return traits.equals(a, b)
+  if (arr.isArray(a)) {
+    return arr.every(a, aitem =>
+      arr.some(b, bitem => shapeExtends(aitem, bitem))
+    )
+  } else if (obj.isObject(a)) {
+    return obj.every(a, (aitem, akey) =>
+      shapeExtends(aitem, b[akey])
+    )
+  }
+  return false
+}
+
+/**
  * @template T
+ * @implements {traits.EqualityTrait}
  */
 export class $Schema {
-  get [schemaSymbol] () { return true }
+  /**
+   * @type {any}
+   */
+  shape = null
+
+  /**
+   * If true, the more things are added to the shape the more objects this schema will accept (e.g.
+   * union). By default, the more objects are added, the the fewer objects this schema will accept.
+   * @protected
+   */
+  static _dilutes = false
+
+  /**
+   * @param {$Schema<any>} other
+   */
+  extends (other) {
+    let [a, b] = [this.shape, other.shape]
+    if (/** @type {typeof $Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
+    return shapeExtends(a, b)
+  }
+
+  /**
+   * Overwrite this when necessary. By default, we only check the `shape` property which every shape
+   * should have.
+   * @param {$Schema<any>} other
+   */
+  equals (other) {
+    // @ts-ignore
+    return this.constructor === other.constructor && fun.equalityDeep(this.shape, other.shape)
+  }
+
+  [schemaSymbol] () { return true }
+
+  /**
+   * @param {object} other
+   */
+  [traits.EqualityTraitSymbol] (other) {
+    return this.equals(/** @type {any} */ (other))
+  }
+
   /**
    * Use `schema.validate(obj)` with a typed parameter that is already of typed to be an instance of
    * Schema. Validate will check the structure of the parameter and return true iff the instance
@@ -155,7 +218,7 @@ export class $ConstructedBy extends $Schema {
    */
   constructor (c, check) {
     super()
-    this.v = c
+    this.shape = c
     this._c = check
   }
 
@@ -164,7 +227,7 @@ export class $ConstructedBy extends $Schema {
    * @return {o is C extends ((...args:any[]) => infer T) ? T : (C extends (new (...args:any[]) => any) ? InstanceType<C> : never)} o
    */
   check (o) {
-    return o?.constructor === this.v && (this._c == null || this._c(o))
+    return o?.constructor === this.shape && (this._c == null || this._c(o))
   }
 }
 
@@ -187,7 +250,7 @@ export class $Literal extends $Schema {
    */
   constructor (literals) {
     super()
-    this.v = literals
+    this.shape = literals
   }
 
   /**
@@ -195,7 +258,7 @@ export class $Literal extends $Schema {
    * @return {o is T}
    */
   check (o) {
-    return this.v.some(a => a === o)
+    return this.shape.some(a => a === o)
   }
 }
 
@@ -205,7 +268,7 @@ export class $Literal extends $Schema {
  * @return {CastToSchema<$Literal<T[number]>>}
  */
 export const $literal = (...literals) => new $Literal(literals)
-export const $$literal  = $constructedBy($Literal)
+export const $$literal = $constructedBy($Literal)
 
 /**
  * @template {Array<string|$Schema<string|number>>} Ts
@@ -217,28 +280,28 @@ export const $$literal  = $constructedBy($Literal)
  * @return {string}
  */
 const _regexEscape = /** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (str =>
-  str.replace(/[\[\]\(\)\.\|\&\,\$\^)]/g, s => '\\' + s)
+  str.replace(/[().|&,$^[\]]/g, s => '\\' + s)
 )
 
 /**
- * @param {string|$Schema<string|number>} s
+ * @param {string|$Schema<any>} s
  * @return {string[]}
  */
 const _schemaStringTemplateToRegex = s => {
   if ($string.check(s)) {
     return [_regexEscape(s)]
   }
-  if ($$union.check(s)) {
-    return s.v.map(_schemaStringTemplateToRegex).flat(1)
-  }
   if ($$literal.check(s)) {
-    return s.v.map(v => v + '')
+    return s.shape.map(v => v + '')
   }
   if ($$number.check(s)) {
     return ['[+-]?\\d+.?\\d*']
   }
   if ($$string.check(s)) {
     return ['.*']
+  }
+  if ($$union.check(s)) {
+    return s.shape.map(_schemaStringTemplateToRegex).flat(1)
   }
   // unexpected schema structure (only supports unions and string in literal types)
   error.unexpectedCase()
@@ -250,14 +313,12 @@ const _schemaStringTemplateToRegex = s => {
  */
 export class $StringTemplate extends $Schema {
   /**
-   * @param {T} literals
+   * @param {T} shape
    */
-  constructor (literals) {
+  constructor (shape) {
     super()
-    this.v = literals
-    literals.map(l => {
-    })
-    this._r = new RegExp('^' + literals.map(_schemaStringTemplateToRegex).map(opts => `(${opts.join('|')})`).join('') + '$')
+    this.shape = shape
+    this._r = new RegExp('^' + shape.map(_schemaStringTemplateToRegex).map(opts => `(${opts.join('|')})`).join('') + '$')
   }
 
   /**
@@ -285,11 +346,11 @@ const isOptionalSymbol = Symbol('optional')
  */
 class $Optional extends $Schema {
   /**
-   * @param {S} s
+   * @param {S} shape
    */
-  constructor (s) {
+  constructor (shape) {
     super()
-    this.s = s
+    this.shape = shape
   }
 
   /**
@@ -297,26 +358,26 @@ class $Optional extends $Schema {
    * @return {o is (Unwrap<S>|undefined)}
    */
   check (o) {
-    return o === undefined || this.s.check(o)
+    return o === undefined || this.shape.check(o)
   }
 
   get [isOptionalSymbol] () { return true }
 }
-export const $$optional  = $constructedBy($Optional)
+export const $$optional = $constructedBy($Optional)
 
 /**
  * @extends $Schema<never>
  */
 class $Never extends $Schema {
   /**
-   * @param {any} o
-   * @return {o is never}
+   * @param {any} _o
+   * @return {_o is never}
    */
-  check (o) {
+  check (_o) {
     return false
   }
 }
-export const $never = new $Never
+export const $never = new $Never()
 export const $$never = $constructedBy($Never)
 
 /**
@@ -330,11 +391,11 @@ export const $$never = $constructedBy($Never)
  */
 export class $Object extends $Schema {
   /**
-   * @param {S} v
+   * @param {S} shape
    */
-  constructor (v) {
+  constructor (shape) {
     super()
-    this.v = v
+    this.shape = shape
   }
 
   /**
@@ -342,7 +403,7 @@ export class $Object extends $Schema {
    * @return {o is $ObjectToType<S>}
    */
   check (o) {
-    return o != null && obj.every(this.v, (vv, vk) => vv.check(o[vk]))
+    return o != null && obj.every(this.shape, (vv, vk) => vv.check(o[vk]))
   }
 }
 
@@ -368,8 +429,9 @@ export class $Record extends $Schema {
    */
   constructor (keys, values) {
     super()
-    this.keys = keys
-    this.values = values
+    this.shape = {
+      keys, values
+    }
   }
 
   /**
@@ -377,7 +439,7 @@ export class $Record extends $Schema {
    * @return {o is Record<Keys extends $Schema<infer K> ? K : never,Values extends $Schema<infer T> ? T : never>}
    */
   check (o) {
-    return o != null && obj.every(o, (vv, vk) => this.keys.check(vk) && this.values.check(vv))
+    return o != null && obj.every(o, (vv, vk) => this.shape.keys.check(vk) && this.shape.values.check(vv))
   }
 }
 
@@ -397,11 +459,11 @@ export const $$record = $constructedBy($Record)
  */
 export class $Tuple extends $Schema {
   /**
-   * @param {S} v
+   * @param {S} shape
    */
-  constructor (v) {
+  constructor (shape) {
     super()
-    this.v = v
+    this.shape = shape
   }
 
   /**
@@ -409,7 +471,7 @@ export class $Tuple extends $Schema {
    * @return {o is { [K in keyof S]: S[K] extends $Schema<infer Type> ? Type : never }}
    */
   check (o) {
-    return o != null && obj.every(this.v, (vv, vk) => /** @type {$Schema<any>} */ (vv).check(o[vk]))
+    return o != null && obj.every(this.shape, (vv, vk) => /** @type {$Schema<any>} */ (vv).check(o[vk]))
   }
 }
 
@@ -434,7 +496,7 @@ export class $Array extends $Schema {
     /**
      * @type {$Schema<S extends $Schema<infer T> ? T : never>}
      */
-    this.v = v.length === 1 ? v[0] : new $Union(v)
+    this.shape = v.length === 1 ? v[0] : new $Union(v)
   }
 
   /**
@@ -442,7 +504,7 @@ export class $Array extends $Schema {
    * @return {o is Array<S extends $Schema<infer T> ? T : never>} o
    */
   check (o) {
-    return arr.isArray(o) && arr.every(o, oi => this.v.check(oi))
+    return arr.isArray(o) && arr.every(o, oi => this.shape.check(oi))
   }
 }
 
@@ -465,7 +527,7 @@ export class $InstanceOf extends $Schema {
    */
   constructor (constructor, check) {
     super()
-    this.v = constructor
+    this.shape = constructor
     this._c = check
   }
 
@@ -474,7 +536,7 @@ export class $InstanceOf extends $Schema {
    * @return {o is T}
    */
   check (o) {
-    return o instanceof this.v && (this._c == null || this._c(o))
+    return o instanceof this.shape && (this._c == null || this._c(o))
   }
 }
 
@@ -537,7 +599,7 @@ export class $Intersection extends $Schema {
     /**
      * @type {T}
      */
-    this.v = v
+    this.shape = v
   }
 
   /**
@@ -546,7 +608,7 @@ export class $Intersection extends $Schema {
    */
   check (o) {
     // @ts-ignore
-    return arr.every(this.v, check => check.check(o))
+    return arr.every(this.shape, check => check.check(o))
   }
 }
 
@@ -556,19 +618,21 @@ export class $Intersection extends $Schema {
  * @return {CastToSchema<$Intersection<T>>}
  */
 export const $intersect = (...def) => new $Intersection(def)
-export const $$intersect = $constructedBy($Intersection, o => o.v.length > 0) // Intersection with length=0 is considered "any"
+export const $$intersect = $constructedBy($Intersection, o => o.shape.length > 0) // Intersection with length=0 is considered "any"
 
 /**
  * @template S
  * @extends {$Schema<S>}
  */
 export class $Union extends $Schema {
+  static _dilutes = true
+
   /**
    * @param {Array<$Schema<S>>} v
    */
   constructor (v) {
     super()
-    this.v = v
+    this.shape = v
   }
 
   /**
@@ -576,10 +640,8 @@ export class $Union extends $Schema {
    * @return {o is S}
    */
   check (o) {
-    return arr.some(this.v, (vv) => vv.check(o))
+    return arr.some(this.shape, (vv) => vv.check(o))
   }
-
-  static schema = $constructedBy($Union)
 }
 
 /**
@@ -587,44 +649,50 @@ export class $Union extends $Schema {
  * @param {T} def
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<$Schema<infer S>> ? S : never)>>}
  */
-export const $union = (...def) => $Union.schema.check(def[0]) ? new $Union([...def[0].v, ...def.slice(1)]) : new $Union(def)
+export const $union = (...def) => $$union.check(def[0]) ? new $Union([...def[0].shape, ...def.slice(1)]) : new $Union(def)
 export const $$union = /** @type {$Schema<$Union<any>>} */ ($constructedBy($Union))
 
 /**
  * @type {$Schema<any>}
  */
 export const $any = $intersect()
-export const $$any = /** @type {$Schema<$Schema<any>>} */ ($constructedBy($Intersection, o => o.v.length === 0))
+export const $$any = /** @type {$Schema<$Schema<any>>} */ ($constructedBy($Intersection, o => o.shape.length === 0))
 
 /**
  * @type {$Schema<bigint>}
  */
 export const $bigint = $constructedBy(BigInt)
-export const $$bigint  = /** @type {$Schema<$Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.v === BigInt))
+export const $$bigint = /** @type {$Schema<$Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.shape === BigInt))
 
 /**
  * @type {$Schema<Symbol>}
  */
 export const $symbol = $constructedBy(Symbol)
-export const $$symbol = /** @type {$Schema<$Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.v === Symbol))
+export const $$symbol = /** @type {$Schema<$Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.shape === Symbol))
 
 /**
  * @type {$Schema<number>}
  */
 export const $number = $constructedBy(Number)
-export const $$number  = /** @type {$Schema<$Schema<number>>} */ ($constructedBy($ConstructedBy, o => o.v === Number))
+export const $$number = /** @type {$Schema<$Schema<number>>} */ ($constructedBy($ConstructedBy, o => o.shape === Number))
 
 /**
  * @type {$Schema<string>}
  */
 export const $string = $constructedBy(String)
-export const $$string = /** @type {$Schema<$Schema<string>>} */ ($constructedBy($ConstructedBy, o => o.v === String))
+export const $$string = /** @type {$Schema<$Schema<string>>} */ ($constructedBy($ConstructedBy, o => o.shape === String))
+
+/**
+ * @type {$Schema<boolean>}
+ */
+export const $boolean = $constructedBy(Boolean)
+export const $$boolean = /** @type {$Schema<$Schema<Boolean>>} */ ($constructedBy($ConstructedBy, o => o.shape === Boolean))
 
 /**
  * @type {$Schema<undefined>}
  */
 export const $undefined = $literal(undefined)
-export const $$undefined = /** @type {$Schema<$Schema<undefined>>} */ ($constructedBy($Literal, o => o.v.length === 1 && o.v[0] === undefined))
+export const $$undefined = /** @type {$Schema<$Schema<undefined>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === undefined))
 
 /**
  * @type {$Schema<void>}
@@ -633,7 +701,30 @@ export const $void = $literal(undefined)
 export const $$void = /** @type {$Schema<$Schema<void>>} */ ($$undefined)
 
 export const $null = $literal(null)
-export const $$null = /** @type {$Schema<$Schema<null>>} */ ($constructedBy($Literal, o => o.v.length === 1 && o.v[0] === null))
+export const $$null = /** @type {$Schema<$Schema<null>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === null))
+
+/**
+ * @type {$Schema<number|string|null|boolean>}
+ */
+export const $primitive = $union($number,$string,$null,$boolean)
+
+/**
+ * @typedef {JSON[]} JSONArray
+ */
+/**
+ * @typedef {Unwrap<$primitive>|JSONArray|{ [key:string]:JSON }} JSON
+ */
+/**
+ * @type {$Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
+ */
+export const $json = (() => {
+  const $jsonArr = /** @type {$Array<$any>} */ ($array($any))
+  const $jsonRecord = /** @type {$Record<$string,$any>} */ ($record($string,$any))
+  const $json = $union($number,$string,$null,$boolean,$jsonArr,$jsonRecord)
+  $jsonArr.shape = $json
+  $jsonRecord.shape.values = $json
+  return $json
+})()
 
 /* c8 ignore start */
 /**

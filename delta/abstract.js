@@ -49,4 +49,3 @@ export class AbstractDelta {
  * @param {T | null} b
  */
 export const mergeAttrs = (a, b) => object.isEmpty(a) ? b : (object.isEmpty(b) ? a : object.assign({}, a, b))
-

@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 export class $ArrayDelta extends s.$Schema {
   constructor (c) {
@@ -620,8 +620,8 @@ export const $arrayOp = ($value) => /** @type {s.$Schema<InsertArrayOp<T>>} */ (
  */
 export const $embedOp = ($embed) => /** @type {s.$Schema<InsertEmbedOp<T>>} */ (s.$constructedBy(InsertEmbedOp, o => $embed.check(o)))
 
-export const $anyOp = s.$union($arrayOp(s.$any),$embedOp(s.$any))
-export const $anyTextOp= s.$union($embedOp(s.$any))
+export const $anyOp = s.$union($arrayOp(s.$any), $embedOp(s.$any))
+export const $anyTextOp = s.$union($embedOp(s.$any))
 
 // @todo below is to do
 
@@ -644,6 +644,5 @@ export const createDelta = ($ops = $anyOp) => {
 }
 
 createDelta(42)
-createMapDelta(423, "dtrn")
+createMapDelta(423, 'dtrn')
 createXmlDelta
-

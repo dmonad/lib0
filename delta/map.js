@@ -147,15 +147,15 @@ export const $insertOp = ($value) => /** @type {s.$Schema<MapInsertOp<T>>} */ (s
  */
 export const $modifyOp = ($modifier) => /** @type {s.$Schema<MapModifyOp<T>>} */ (s.$constructedBy(MapModifyOp, o => $modifier.check(o.value)))
 
-export const $anyOp = s.$union($insertOp(s.$any),$deleteOp,$modifyOp(s.$any))
+export const $anyOp = s.$union($insertOp(s.$any), $deleteOp, $modifyOp(s.$any))
 
-export const $mapDeltaChangeJson = s.$union(
+export const $deltaMapChangeJson = s.$union(
   s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.nullable.optional }),
   s.$object({ type: s.$literal('delete'), prevValue: s.$any.optional, attribution: $attribution.nullable.optional }),
   s.$object({ type: s.$literal('modify'), modify: s.$any })
 )
 
-export const $mapDeltaJson = s.$record(s.$string, $mapDeltaChangeJson)
+export const $deltaMapJson = s.$record(s.$string, $deltaMapChangeJson)
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
@@ -165,7 +165,7 @@ export const $mapDeltaJson = s.$record(s.$string, $mapDeltaChangeJson)
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
  */
-export class MapDelta extends AbstractDelta {
+export class DeltaMap extends AbstractDelta {
   /**
    * @param {s.$Schema<OPS>} $ops
    */
@@ -191,14 +191,13 @@ export class MapDelta extends AbstractDelta {
    * following two examples achieve the same thing:
    *
    * @example
-   *   d.forEach((op, index) => {
-   *     if (op instanceof delta.InsertArrayOp) {
-   *       op.insert
-   *     } else if (op instanceof delta.RetainOp ) {
-   *       op.retain
-   *     } else if (op instanceof delta.DeleteOp) {
-   *       op.delete
-   *     } else if (op instanceof delta.ModifyOp) {
+   *   d.forEach(op => {
+   *     if (op instanceof dmap.MapInsertOp) {
+   *       console.log('content inserted:', op.key, op.value)
+   *     } else if (op instanceof dmap.MapDeleteOp) {
+   *       console.log('content deleted:', op.key, op.prevValue)
+   *     } else if (op instanceof delta.MapModifyOp) {
+   *       console.log('content was modified:', op.key, op.)
    *       op.modify
    *     }
    *   })
@@ -207,10 +206,10 @@ export class MapDelta extends AbstractDelta {
    *
    * @example
    *   d.forEach(null,
-   *     (insertOp, index) => insertOp.insert,
-   *     (retainOp, index) => insertOp.retain
-   *     (deleteOp, index) => insertOp.delete
-   *     (modifyOp, index) => insertOp.modify
+   *     (insertOp) => insertOp.insert,
+   *     (retainOp) => insertOp.retain
+   *     (deleteOp) => insertOp.delete
+   *     (modifyOp) => insertOp.modify
    *   )
    *
    * @param {null|((change:KeyedOps<OPS>[keyof OPS])=>void)} changeHandler
@@ -252,7 +251,7 @@ export class MapDelta extends AbstractDelta {
   }
 
   /**
-   * @param {MapDelta<OPS>} other
+   * @param {DeltaMap<OPS>} other
    * @return {boolean}
    */
   equals (other) {
@@ -260,11 +259,11 @@ export class MapDelta extends AbstractDelta {
   }
 
   /**
-   * @return {s.Unwrap<$mapDeltaJson>}
+   * @return {s.Unwrap<$deltaMapJson>}
    */
   toJSON () {
     /**
-     * @type {s.Unwrap<$mapDeltaJson>}
+     * @type {s.Unwrap<$deltaMapJson>}
      */
     const changes = {}
     this.changes.forEach((change, key) => {
@@ -283,7 +282,7 @@ export class MapDelta extends AbstractDelta {
   }
 
   /**
-   * @param {MapDelta<OPS>} other
+   * @param {DeltaMap<OPS>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.changes, other.changes)
@@ -297,19 +296,19 @@ export class MapDelta extends AbstractDelta {
  * @param {K} k
  * @return {s.$Schema<OPS[K]>}
  */
-const opsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.v[k] || s.$never) : ((s.$$record.check($ops) && $ops.keys.check(k)) ? ($ops.values) : s.$never)
+const opsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.keys.check(k)) ? ($ops.values) : s.$never)
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
- * @extends MapDelta<OPS>
+ * @extends DeltaMap<OPS>
  */
-export class MapDeltaBuilder extends MapDelta {
+export class DeltaMapBuilder extends DeltaMap {
   /**
    * @param {keyof OPS} key
    * @param {OPS[key] extends MapModifyOp<infer D> ? D : never} delta
    */
   modify (key, delta) {
-    this.changes.set(key, opsKeySchema(this.$ops, key).cast(new MapModifyOp(key,delta)))
+    this.changes.set(key, opsKeySchema(this.$ops, key).cast(new MapModifyOp(key, delta)))
     return this
   }
 
@@ -346,14 +345,20 @@ export class MapDeltaBuilder extends MapDelta {
   }
 
   done () {
-    return /** @type {MapDelta<OPS>} */ (this)
+    return /** @type {DeltaMap<OPS>} */ (this)
   }
 }
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
  * @param {s.$Schema<OPS>} $ops
- * @return {MapDeltaBuilder<OPS>}
+ * @return {DeltaMapBuilder<OPS>}
  */
-export const create = $ops => new MapDeltaBuilder($ops)
+export const create = $ops => new DeltaMapBuilder($ops)
 
+/**
+ * @template {s.$Schema<{ [key:string]: s.Unwrap<$anyOp> }>} OPS
+ * @param {OPS} $ops
+ *
+ */
+export const $deltaMap = $ops => s.$instanceOf(DeltaMap, o => traits.equals(o.$ops, $ops))

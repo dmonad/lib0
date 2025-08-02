@@ -138,7 +138,7 @@ export const testSchemas = _tc => {
     t.assert(s.$union(s.$number).validate(42))
     // @ts-expect-error
     t.assert(!s.$union(s.$number).validate('forty'))
-    t.assert(/** @type {s.$Union<any>} */ (s.$union(s.$union(s.$number), s.$string)).v.length === 2)
+    t.assert(/** @type {s.$Union<any>} */ (s.$union(s.$union(s.$number), s.$string)).shape.length === 2)
   })
   t.group('intersection', () => {
     const myintersectionNever = s.$intersect(s.$number, s.$string)
@@ -232,9 +232,10 @@ export const testSchemas = _tc => {
   })
   t.group('never', () => {
     const x = 42
+    x.toString()
     if (s.$never.check(x)) {
       // @ts-expect-error method doesn't exist on never
-      x.toString
+      x.toString()
     }
   })
 }
@@ -272,10 +273,10 @@ export const testMetaSchemas = _tc => {
     sch.validate(42) // should work, if this wouldn't throw..
   })
   s.assert(sch, s.$$object)
-  const schN = sch.v.n
+  const schN = sch.shape.n
   s.assert(schN, s.$$array)
-  t.assert(schN.v)
-  s.$$number.cast(schN.v)
+  t.assert(schN.shape)
+  s.$$number.cast(schN.shape)
 }
 
 /**
@@ -298,4 +299,15 @@ export const testStringTemplate = _tc => {
   t.assert($greeting.validate('hi there!'))
   // @ts-expect-error "moin" is not accepted"
   t.assert(!$greeting.validate('moin otto!'))
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testSchemaExtends = _tc => {
+  const t1 = s.$union(s.$number)
+  const t2 = s.$union(s.$number, s.$string)
+
+  t.assert(t2.extends(t1))
+  t.assert(!t1.extends(t2))
 }

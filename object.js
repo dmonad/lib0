@@ -1,3 +1,5 @@
+import * as traits from './traits.js'
+
 /**
  * Utility functions for working with EcmaScript objects.
  *
@@ -8,6 +10,12 @@
  * @return {Object<string,any>} obj
  */
 export const create = () => Object.create(null)
+
+/**
+ * @param {any} o
+ * @return {o is { [k:string]:any }}
+ */
+export const isObject = o => typeof o === 'object'
 
 /**
  * Object.assign
@@ -121,7 +129,7 @@ export const hasProperty = (obj, key) => Object.prototype.hasOwnProperty.call(ob
  * @param {Object<string,any>} b
  * @return {boolean}
  */
-export const equalFlat = (a, b) => a === b || (size(a) === size(b) && every(a, (val, key) => (val !== undefined || hasProperty(b, key)) && b[key] === val))
+export const equalFlat = (a, b) => a === b || (size(a) === size(b) && every(a, (val, key) => (val !== undefined || hasProperty(b, key)) && traits.equals(b[key], val)))
 
 /**
  * Make an object immutable. This hurts performance and is usually not needed if you perform good

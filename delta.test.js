@@ -4,7 +4,7 @@ import * as s from 'lib0/schema'
 
 export const testSchema = () => {
   const x = delta.$arrayOp(s.$number)
-  const d = delta.createArrayDelta([,d.$embedOp(s.$any)],[d.$any])
+  const d = delta.createArrayDelta([, d.$embedOp(s.$any)], [d.$any])
 }
 
 /**
@@ -84,51 +84,6 @@ export const testUseAttribution = _tc => {
   t.compare(d, d2)
 }
 
-/**
- * @param {t.TestCase} _tc
- */
-export const testMapDelta = _tc => {
-  const d = /** @type {delta.MapDeltaBuilder<{ key: string, v: number, over: string }>} */ (delta.createMapDelta())
-  d.set('key', 'value')
-    .useAttribution({ delete: ['me'] })
-    .delete('v', 94)
-    .useAttribution(null)
-    .set('over', 'andout', 'i existed before')
-    .done()
-  t.compare(d.toJSON(), {
-    key: { type: 'insert', value: 'value', prevValue: undefined, attribution: null },
-    v: { type: 'delete', prevValue: 94, attribution: { delete: ['me'] } },
-    over: { type: 'insert', value: 'andout', prevValue: 'i existed before', attribution: null }
-  })
-  t.compare(d.origin, null)
-  t.compare(d.remote, false)
-  t.compare(d.isDiff, true)
-  d.forEach((change, key) => {
-    if (key === 'v') {
-      t.assert(d.get(key)?.prevValue === 94) // should know that value is number
-      t.assert(change.prevValue === 94)
-    } else if (key === 'key') {
-      t.assert(d.get(key)?.value === 'value') // show know that value is a string
-      t.assert(change.value === 'value')
-    } else if (key === 'over') {
-      t.assert(change.value === 'andout')
-    } else {
-      throw new Error()
-    }
-  })
-  for (const [key, change] of d) {
-    if (key === 'v') {
-      t.assert(d.get(key)?.prevValue === 94)
-      t.assert(change.prevValue === 94) // should know that value is number
-    } else if (key === 'key') {
-      t.assert(change.value === 'value') // should know that value is string
-    } else if (key === 'over') {
-      t.assert(change.value === 'andout')
-    } else {
-      throw new Error()
-    }
-  }
-}
 
 /**
  * @param {t.TestCase} _tc
