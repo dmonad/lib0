@@ -7,8 +7,8 @@ import * as s from 'lib0/schema'
  */
 export const testMapDeltaBasics = _tc => {
   const $d = s.$object({
-    num: dmap.$insertOp(s.$union(s.$number, s.$string)),
-    str: dmap.$insertOp(s.$string)
+    num: s.$union(s.$number, s.$string),
+    str: s.$string
   })
   const d = dmap.create($d)
   // @ts-expect-error
@@ -18,6 +18,7 @@ export const testMapDeltaBasics = _tc => {
     // @ts-expect-error
     d.set('?', 'hi')
   })
+
   d.forEach((c) => {
     if (c.key === 'str') {
       // @ts-expect-error because value can't be a string
@@ -33,18 +34,16 @@ export const testMapDeltaBasics = _tc => {
   // @ts-expect-error
   d.get('?')
   const x = d.get('str')
-  t.assert(dmap.$insertOp(s.$string).optional.validate(x))
-  // @ts-expect-error should return the correct typed object
-  t.assert(!dmap.$insertOp(s.$number).optional.validate(x))
+  t.assert(dmap.$insertOp(s.$string).optional.check(x) && dmap.$insertOp(s.$string).optional.validate(x))
+  t.assert(!dmap.$insertOp(s.$number).optional.check(x))
   d.has('str')
   // @ts-expect-error should throw type error
   d.has('_')
   for (const entry of d) {
     // ensure that typings work correctly when iterating through changes
     if (entry.key === 'str') {
-      t.assert(dmap.$insertOp(s.$string).optional.validate(entry))
-      // @ts-expect-error should return the correct typed object
-      t.assert(!dmap.$insertOp(s.$number).optional.validate(entry))
+      t.assert(dmap.$insertOp(s.$string).optional.check(entry))
+      t.assert(!dmap.$insertOp(s.$number).optional.check(entry))
     }
   }
   const ddone = d.done()
@@ -62,23 +61,19 @@ export const testMapDeltaModify = _tc => {
   })
   // observeDeep needs to transform this to a modifyOp, while preserving tying
   const d = dmap.create($d)
-  throw 
 }
 
 /**
  * @param {t.TestCase} _tc
  */
 export const testMapDelta = _tc => {
-  const d = dmap.create({
+  const x = s.$object({
     key: s.$string,
     v: s.$number,
     over: s.$string
   })
-  const d = dmap.create(s.$object({
-    key: dmap.$insertOp(s.$string),
-    v: dmap.$insertOp(s.$number),
-    over: dmap.$insertOp(s.$string)
-  }))
+  const d = dmap.create(x)
+  d.delete('over')
   d.set('key', 'value')
     .useAttribution({ delete: ['me'] })
     .delete('v', 94)
@@ -96,8 +91,21 @@ export const testMapDelta = _tc => {
   d.forEach(change => {
     if (change.key === 'v') {
       t.assert(d.get(change.key)?.prevValue === 94) // should know that value is number
-      t.assert(change.prevValue === 94)
+      if (dmap.$insertOp(s.$any).check(change)) {
+
+        // @ts-expect-error
+        change.value === ''
+        t.assert(change.value === undefined)
+        t.assert(change.prevValue === 94)
+      } else if (dmap.$deleteOp(s.$any).check(change)) {
+        t.assert(change.value === undefined)
+        t.assert(change.prevValue === 94 || change.prevValue === undefined)
+      } else {
+        t.fail('should be an insert op')
+      }
     } else if (change.key === 'key') {
+
+
       change.prevValue
       t.assert(d.get(change.key)?.value === 'value') // show know that value is a string
       t.assert(change.value === 'value')
