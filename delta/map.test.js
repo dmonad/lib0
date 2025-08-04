@@ -1,3 +1,4 @@
+import * as error from '../error.js'
 import * as t from 'lib0/testing'
 import * as dmap from './map.js'
 import * as s from 'lib0/schema'
@@ -11,8 +12,10 @@ export const testMapDeltaBasics = _tc => {
     str: s.$string
   })
   const d = dmap.create($d)
-  // @ts-expect-error
-  d.set('str', 42)
+  t.fails(() => {
+    // @ts-expect-error
+    d.set('str', 42)
+  })
   d.set('str', 'hi')
   t.fails(() => {
     // @ts-expect-error
@@ -30,7 +33,6 @@ export const testMapDeltaBasics = _tc => {
       s.assert(c, s.$never)
     }
   })
-  d.delete('str')
   // @ts-expect-error
   d.get('?')
   const x = d.get('str')
@@ -55,12 +57,43 @@ export const testMapDeltaBasics = _tc => {
 export const testMapDeltaModify = _tc => {
   // Yjs users will create nested Yjs types like this (instead of $mapDelta they would use $yarray):
   const $d = s.$object({
-    num: dmap.$insertOp(s.$union(s.$number, s.$string)),
-    str: dmap.$insertOp(s.$string),
-    map: dmap.$insertOp(dmap.$deltaMap({ x: s.$number }))
+    num: s.$union(s.$number, s.$string),
+    str: s.$string,
+    map: dmap.$deltaMap(s.$object({ x: s.$number }))
   })
-  // observeDeep needs to transform this to a modifyOp, while preserving tying
-  const d = dmap.create($d)
+  const $dsmaller = s.$object({
+    str: s.$string
+  })
+  t.group('test extensibility', () => {
+    // observeDeep needs to transform this to a modifyOp, while preserving tying
+    const d = dmap.create($d)
+    t.assert(dmap.$deltaMap($d).check(d))
+    t.assert(dmap.$deltaMap($dsmaller).check(d))
+    t.assert(!dmap.$deltaMap($d).check(dmap.create($dsmaller)))
+  })
+  t.group('test delta insert', () => {
+    const d = dmap.create($d)
+    d.set('map', dmap.create(s.$object({ x: s.$number })).set('x', 42 ))
+    d.forEach(change => {
+      if (change.key === 'map' && change.type === 'insert') {
+        dmap.$deltaMap(s.$object({ x: s.$number })).validate(change.value)
+      } else {
+        error.unexpectedCase()
+      }
+    })
+  })
+  t.group('test modify', () => {
+    const d = dmap.create($d)
+    d.modify('map', dmap.create(s.$object({ x: s.$number })).delete('x'))
+    d.forEach(change => {
+      if (change.key === 'map' && change.type === 'modify') {
+        dmap.$deltaMap(s.$object({ x: s.$number })).validate(change.value)
+      } else {
+        error.unexpectedCase()
+      }
+    })
+  })
+  
 }
 
 /**
@@ -92,7 +125,6 @@ export const testMapDelta = _tc => {
     if (change.key === 'v') {
       t.assert(d.get(change.key)?.prevValue === 94) // should know that value is number
       if (dmap.$insertOp(s.$any).check(change)) {
-
         // @ts-expect-error
         change.value === ''
         t.assert(change.value === undefined)
@@ -104,9 +136,12 @@ export const testMapDelta = _tc => {
         t.fail('should be an insert op')
       }
     } else if (change.key === 'key') {
-
-
-      change.prevValue
+      if (change.type === 'insert') {
+        t.assert(change.prevValue === undefined)
+        t.assert(change.prevValue !== 'test')
+        // @ts-expect-error should know that prevValue is not a string
+        t.assert(change.prevValue !== 42)
+      }
       t.assert(d.get(change.key)?.value === 'value') // show know that value is a string
       t.assert(change.value === 'value')
     } else if (change.key === 'over') {
@@ -115,7 +150,8 @@ export const testMapDelta = _tc => {
       throw new Error()
     }
   })
-  for (const {key, value, prevValue} of d) {
+  for (const change of d) {
+    const {key, value, prevValue} = change
     if (key === 'v') {
       t.assert(d.get(key)?.prevValue === 94)
       t.assert(prevValue === 94) // should know that value is number

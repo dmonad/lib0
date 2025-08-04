@@ -40,6 +40,7 @@ import * as cache from './cache.test.js'
 import * as symbol from './symbol.test.js'
 import * as traits from './traits.test.js'
 import * as schema from './schema.test.js'
+import * as dmap from './delta/map.test.js'
 import { isBrowser, isNode } from './environment.js'
 
 /* c8 ignore next */
@@ -87,7 +88,8 @@ runTests({
   cache,
   symbol,
   traits,
-  schema
+  schema,
+  dmap
 }).then(success => {
   /* c8 ignore next */
   if (isNode) {

@@ -71,7 +71,7 @@ const schemaSymbol = Symbol('0schema')
 const shapeExtends = (a, b) => {
   if (a === b) return true
   if (a == null || b == null || a.constructor !== b.constructor) return false
-  if (a[traits.EqualityTraitSymbol]) return traits.equals(a, b)
+  if (a[traits.EqualityTraitSymbol]) return traits.equals(a, b) // last resort: check equality (do this before array and obj check which don't implement the equality trait)
   if (arr.isArray(a)) {
     return arr.every(a, aitem =>
       arr.some(b, bitem => shapeExtends(aitem, bitem))
