@@ -2,6 +2,7 @@ import * as error from '../error.js'
 import * as t from 'lib0/testing'
 import * as dmap from './map.js'
 import * as s from 'lib0/schema'
+import * as prng from '../prng.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -165,4 +166,76 @@ export const testMapDelta = _tc => {
       throw new Error()
     }
   }
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRebaseMergeDeltas = tc => {
+  const $d = s.$object({ a: s.$number, b: dmap.$deltaMap(s.$object({ x: s.$string })) })
+  const $dm = dmap.$deltaMap($d)
+  const gen = tc.prng
+  const createDelta = () => {
+    const d = dmap.create($d)
+    prng.oneOf(gen, [
+      // create insert
+      () => {
+        if (prng.bool(gen)) {
+          // write 'a'
+          d.set('a', prng.int32(gen, 0, 365))
+        } else if (prng.bool(gen)) {
+          // 25% chance to create an insertion on 'b'
+          d.set('b', dmap.create(s.$object({ x: s.$string })).set('x', prng.utf16String(gen)).done())
+        } else {
+          // 25% chance to create a modify op on 'b'
+          d.modify('b', dmap.create(s.$object({ x: s.$string })).set('x', prng.utf16String(gen)).done())
+        }
+      },
+      // create delete
+      () => {
+        if (prng.bool(gen)) {
+          d.delete('a')
+        } else {
+          d.delete('b')
+        }
+      }
+    ])()
+    return d
+  }
+  const da = createDelta()
+  da.origin = 1
+  const db = createDelta()
+  db.origin = 2
+  const dc = createDelta()
+  dc.origin = 3
+
+  const order1 = [da.clone(), db.clone(), dc.clone()]
+  const order2 = [dc.clone(), db.clone(), da.clone()]
+  /**
+   * @param {Array<s.Unwrap<$dm>>} ops
+   */
+  const rebase = (ops) => {
+    for (let i = 1; i < ops.length; i++) {
+      for (let j = 0; j < i; j++) {
+        ops[i].rebase(ops[j], ops[i].origin < ops[j].origin)
+      }
+    }
+  }
+  rebase(order1)
+  rebase(order2)
+  /**
+   * @param {Array<s.Unwrap<$dm>>} ops
+   */
+  const apply = ops => {
+    const d = dmap.create($d)
+    for (let i = 0; i < ops.length; i++) {
+      d.apply(ops[i])
+    }
+    return d
+  }
+  const dmerged1 = apply(order1)
+  const dmerged2 = apply(order2)
+  console.log('1', JSON.stringify(dmerged1))
+  console.log('2', JSON.stringify(dmerged2))
+  t.compare(dmerged1, dmerged2)
 }

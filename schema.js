@@ -448,7 +448,7 @@ export class $Object extends $Schema {
    */
   check (o, err) {
     if (o == null) {
-      err.extend(null, 'object', 'null')
+      err?.extend(null, 'object', 'null')
       return false
     }
     return obj.every(this.shape, (vv, vk) => {
@@ -494,7 +494,7 @@ export class $Record extends $Schema {
   check (o, err) {
     return o != null && obj.every(o, (vv, vk) => {
       const ck = this.shape.keys.check(vk, err)
-      !ck && err.extend(vk + '', 'Record', typeof o, ck ? 'Key doesn\'t match schema' : 'Value doesn\'t match value')
+      !ck && err?.extend(vk + '', 'Record', typeof o, ck ? 'Key doesn\'t match schema' : 'Value doesn\'t match value')
       return ck && this.shape.values.check(vv, err)
     })
   }
@@ -531,7 +531,7 @@ export class $Tuple extends $Schema {
   check (o, err) {
     return o != null && obj.every(this.shape, (vv, vk) => {
       const c = /** @type {$Schema<any>} */ (vv).check(o[vk], err)
-      !c && err.extend(vk.toString(), 'Tuple', typeof vv)
+      !c && err?.extend(vk.toString(), 'Tuple', typeof vv)
       return c
     })
   }
@@ -603,7 +603,7 @@ export class $InstanceOf extends $Schema {
    */
   check (o, err) {
     const c = o instanceof this.shape && (this._c == null || this._c(o))
-    !c && err.extend(null, this.shape.name, o?.constructor.name)
+    !c && err?.extend(null, this.shape.name, o?.constructor.name)
     return c
   }
 }
@@ -646,7 +646,7 @@ export class $Lambda extends $Schema {
    */
   check (f, err) {
     const c = f.constructor === Function && f.length <= this.len
-    !c && err.extend(null, 'function', typeof f)
+    !c && err?.extend(null, 'function', typeof f)
     return c
   }
 }

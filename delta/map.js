@@ -47,6 +47,10 @@ class MapInsertOp {
     }
   }
 
+  clone () {
+    return new MapInsertOp(this.key, this.value, this.prevValue, this.attribution)
+  }
+
   /**
    * @param {MapInsertOp<V>} other
    */
@@ -92,6 +96,10 @@ class MapDeleteOp {
     }
   }
 
+  clone () {
+    return new MapDeleteOp(this.key, this.prevValue, this.attribution)
+  }
+
   /**
    * @param {MapDeleteOp<V>} other
    */
@@ -130,6 +138,10 @@ class MapModifyOp {
       type: this.type,
       value: this.value.toJSON()
     }
+  }
+
+  clone () {
+    return new MapModifyOp(this.key, this.value)
   }
 
   /**
@@ -403,7 +415,7 @@ export class DeltaMapBuilder extends DeltaMap {
   }
 
   /**
-   * @param {DeltaMapBuilder<OPS>} other
+   * @param {DeltaMap<OPS>} other
    */
   apply (other) {
     other.forEach(op => {
@@ -412,13 +424,27 @@ export class DeltaMapBuilder extends DeltaMap {
         if ($delta.check(c?.value)) {
           c.value.apply(op.value)
         } else {
-          error.unexpectedCase() // expected to modify existing content
+          // then this is a simple modify
+          this.changes.set(op.key, /** @type {any} */ (op))
         }
       } else {
         op.prevValue = c?.value
         this.changes.set(op.key, /** @type {any} */ (op))
       }
     })
+  }
+
+  /**
+   * @return {DeltaMapBuilder<OPS>}
+   */
+  clone () {
+    const d = /** @type {DeltaMapBuilder<OPS>} */ (new DeltaMapBuilder(this.$vals, this.$ops))
+    this.forEach(change => {
+      d.changes.set(change.key, /** @type {any} */ (change))
+    })
+    d.origin = this.origin
+    d.isDiff = this.isDiff
+    return d
   }
 
   done () {
