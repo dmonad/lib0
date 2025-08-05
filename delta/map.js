@@ -4,7 +4,7 @@ import * as fun from '../function.js'
 import * as traits from '../traits.js'
 import * as s from '../schema.js'
 import * as object from '../object.js'
-import { $attribution, AbstractDelta, mergeAttrs } from './abstract.js'
+import { $attribution, AbstractDelta, mergeAttrs, $delta, $$delta } from './abstract.js'
 
 /**
  * @template V
@@ -146,6 +146,7 @@ class MapModifyOp {
  * @return {s.$Schema<MapDeleteOp<T>>}
  */
 export const $deleteOp = $value => /** @type {s.$Schema<MapDeleteOp<T>>} */ (s.$constructedBy(MapDeleteOp, o => o === undefined || $value.check(o.prevValue)))
+export const $deleteOpAny = $deleteOp(s.$any)
 
 /**
  * @template T
@@ -153,6 +154,7 @@ export const $deleteOp = $value => /** @type {s.$Schema<MapDeleteOp<T>>} */ (s.$
  * @return {s.$Schema<MapInsertOp<T>>}
  */
 export const $insertOp = $value => /** @type {s.$Schema<MapInsertOp<T>>} */ (s.$constructedBy(MapInsertOp, o => $value.check(o.value)))
+export const $insertOpAny = $insertOp(s.$any)
 
 /**
  * @template {AbstractDelta} T
@@ -160,12 +162,9 @@ export const $insertOp = $value => /** @type {s.$Schema<MapInsertOp<T>>} */ (s.$
  * @return {s.$Schema<MapModifyOp<T>>}
  */
 export const $modifyOp = $modifier => /** @type {s.$Schema<MapModifyOp<T>>} */ (s.$constructedBy(MapModifyOp, o => $modifier.check(o.value)))
+export const $modifyOpAny = $modifyOp($delta)
 
-export const $anyOp = s.$union($insertOp(s.$any), $deleteOp(s.$any), $modifyOp(s.$any))
-
-// @todo move this to common delta export
-export const $delta = s.$instanceOf(AbstractDelta)
-export const $$delta = /** @type {s.$Schema<s.$InstanceOf<AbstractDelta>>} */ (s.$constructedBy(s.$InstanceOf, s => s.shape.prototype instanceof AbstractDelta))
+export const $anyOp = s.$union($insertOpAny, $deleteOpAny, $modifyOpAny)
 
 export const $deltaMapChangeJson = s.$union(
   s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.nullable.optional }),
@@ -177,7 +176,7 @@ export const $deltaMapJson = s.$record(s.$string, $deltaMapChangeJson)
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
- * @typedef {{ [K in keyof OPS]: (Extract<OPS[K],MapInsertOp<any>> extends MapInsertOp<infer V,any> ? MapInsertOp<V, K> : never) | (Extract<OPS[K],MapDeleteOp<any>> extends MapDeleteOp<infer V,any> ? MapDeleteOp<V,K> : never) | (Extract<OPS[K],MapModifyOp<any>> extends MapModifyOp<infer V,any> ? (MapModifyOp<V,K>&OPS[K]) : {x:42}) }} KeyedOps */
+ * @typedef {{ [K in keyof OPS]: (Extract<OPS[K],MapInsertOp<any>> extends MapInsertOp<infer V,any> ? MapInsertOp<V, K> : never) | (Extract<OPS[K],MapDeleteOp<any>> extends MapDeleteOp<infer V,any> ? MapDeleteOp<V,K> : never) | (Extract<OPS[K],MapModifyOp<any>> extends MapModifyOp<infer V,any> ? (MapModifyOp<V,K>&OPS[K]) : never) }} KeyedOps */
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
@@ -231,10 +230,10 @@ export class DeltaMap extends AbstractDelta {
    *     (modifyOp) => insertOp.modify
    *   )
    *
-   * @param {null|((change:KeyedOps<OPS>[keyof OPS])=>void)} changeHandler
-   * @param {null|((change:Extract<KeyedOps<OPS>[keyof OPS],MapInsertOp<any,any>>)=>void)} insertHandler
-   * @param {null|((change:Extract<KeyedOps<OPS>[keyof OPS],MapDeleteOp<any,any>>)=>void)} deleteHandler
-   * @param {null|((change:Extract<KeyedOps<OPS>[keyof OPS],MapModifyOp<any,any>>)=>void)} modifyHandler
+   * @param {null|((op:KeyedOps<OPS>[keyof OPS])=>void)} changeHandler
+   * @param {null|((insertOp:Extract<KeyedOps<OPS>[keyof OPS],MapInsertOp<any,any>>)=>void)} insertHandler
+   * @param {null|((deleteOp:Extract<KeyedOps<OPS>[keyof OPS],MapDeleteOp<any,any>>)=>void)} deleteHandler
+   * @param {null|((modifyOp:Extract<KeyedOps<OPS>[keyof OPS],MapModifyOp<any,any>>)=>void)} modifyHandler
    */
   forEach (changeHandler = null, insertHandler = null, deleteHandler = null, modifyHandler = null) {
     this.changes.forEach((change) => {
@@ -361,6 +360,65 @@ export class DeltaMapBuilder extends DeltaMap {
   useAttribution (attribution) {
     this.usedAttribution = attribution
     return this
+  }
+
+  /**
+   *
+   * - insert vs delete ⇒ insert takes precedence
+   * - insert vs modify ⇒ insert takes precedence 
+   * - insert vs insert ⇒ priority decides
+   * - delete vs modify ⇒ delete takes precedence
+   * - delete vs delete ⇒ current delete op is removed because item has already been deleted
+   * - modify vs modify ⇒ rebase using priority
+   *
+   * @param {DeltaMapBuilder<OPS>} other
+   * @param {boolean} priority
+   */
+  rebase (other, priority) {
+    this.forEach(null,
+      insertOp => {
+        if ($insertOpAny.check(other.get(insertOp.key)) && !priority) {
+          this.changes.delete(insertOp.key)
+        }
+      },
+      deleteOp => {
+        const otherOp = other.get(deleteOp.key)
+        if (otherOp == null) {
+          return
+        } else if ($insertOpAny.check(otherOp) || $deleteOpAny.check(otherOp)) {
+          this.changes.delete(otherOp.key)
+        }
+      },
+      modifyOp => {
+        const otherOp = other.get(modifyOp.key)
+        if (otherOp == null) {
+          // nop
+        } else if ($modifyOpAny.check(otherOp)) {
+          modifyOp.value.rebase(otherOp.value, priority)
+        } else {
+          this.changes.delete(otherOp.key)
+        }
+      }
+    )
+  }
+
+  /**
+   * @param {DeltaMapBuilder<OPS>} other
+   */
+  apply (other) {
+    other.forEach(op => {
+      const c = this.changes.get(op.key)
+      if ($modifyOpAny.check(op)) {
+        if ($delta.check(c?.value)) {
+          c.value.apply(op.value)
+        } else {
+          error.unexpectedCase() // expected to modify existing content
+        }
+      } else {
+        op.prevValue = c?.value
+        this.changes.set(op.key, /** @type {any} */ (op))
+      }
+    })
   }
 
   done () {

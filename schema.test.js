@@ -53,6 +53,7 @@ export const testSchemas = _tc => {
       // q is a number now
       s.$number.validate(q)
     }
+    t.assert(myobject.check(42))
     t.assert(myobject.check({ num: 42, x: 9 }))
     // @ts-expect-error
     t.assert(!myobject.validate(undefined))
@@ -330,6 +331,6 @@ export const testSchemaErrors = _tc => {
   try {
     s.assert({ a: 42, b: 43 }, x)
   } catch (err) {
-    console.log(err.toString())
+    console.log(err + '')
   }
 }

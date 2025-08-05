@@ -34,12 +34,31 @@ export class AbstractDelta {
   }
 
   /**
+   * @param {AbstractDelta} other
+   * @param {boolean} priority
+   */
+  rebase (other, priority) {
+    error.methodUnimplemented()
+  }
+
+  /**
+   * @param {AbstractDelta} other
+   */
+  apply (other) {
+    error.methodUnimplemented()
+  }
+
+  /**
    * @param {any} _other
    */
   [traits.EqualityTraitSymbol] (_other) {
     error.methodUnimplemented()
   }
 }
+
+export const $delta = s.$instanceOf(AbstractDelta)
+export const $$delta = /** @type {s.$Schema<s.$InstanceOf<AbstractDelta>>} */ (s.$constructedBy(s.$InstanceOf, s => s.shape.prototype instanceof AbstractDelta))
+
 
 /**
  * Helper function to merge attribution and attributes. The latter input "wins".

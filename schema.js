@@ -283,6 +283,7 @@ export class $Literal extends $Schema {
   }
 
   /**
+   *
    * @param {any} o
    * @param {ValidationError} [err]
    * @return {o is T}
