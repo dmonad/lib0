@@ -431,11 +431,11 @@ const $mapOpsFromValues = $vs => {
 }
 
 /**
- * @template {{ [key:string]: any }} Vals
+ * @template {{ [key:string]: any }} [Vals={ [key:string]: any }]
  * @param {s.$Schema<Vals>} $vals
  * @return {DeltaMapBuilder<{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>) : (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>) }>}
  */
-export const create = $vals => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
+export const create = ($vals = /** @type {any} */ (s.$record(s.$string,s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
 
 /**
  * @template {{ [key:string]: any }} Vals

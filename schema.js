@@ -10,6 +10,7 @@ import * as error from './error.js'
 import * as env from './environment.js'
 import * as traits from './traits.js'
 import * as fun from './function.js'
+import * as string from './string.js'
 
 /**
  * @typedef {string|number|bigint|boolean|null|undefined} LiteralType
@@ -62,6 +63,34 @@ import * as fun from './function.js'
  */
 
 const schemaSymbol = Symbol('0schema')
+
+class ValidationError {
+  constructor () {
+    /**
+     * Reverse errors
+     * @type {Array<{ path: string?, expected: string, has: string, message: string? }>}
+     */
+    this._rerrs = []
+  }
+  /**
+   * @param {string?} path
+   * @param {string} expected
+   * @param {string} has
+   * @param {string?} message
+   */
+  extend (path, expected, has, message = null) {
+    this._rerrs.push({ path, expected, has, message })
+  }
+
+  toString () {
+    let s = []
+    for (let i = this._rerrs.length - 1; i > 0; i--) {
+      const r = this._rerrs[i]
+      s.push(string.repeat(' ', (this._rerrs.length - i) * 2) + `${r.path != null ? `[${r.path}] ` : ''}${r.has} doesn't match ${r.expected}. ${r.message}`)
+    }
+    return s.join('\n')
+  }
+}
 
 /**
  * @param {any} a
@@ -142,9 +171,10 @@ export class $Schema {
    * Similar to validate, but this method accepts untyped parameters.
    *
    * @param {any} _o
+   * @param {ValidationError} [_err]
    * @return {_o is T}
    */
-  check (_o) {
+  check (_o, _err) {
     error.methodUnimplemented()
   }
   /* c8 ignore stop */
@@ -220,10 +250,13 @@ export class $ConstructedBy extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} [err]
    * @return {o is C extends ((...args:any[]) => infer T) ? T : (C extends (new (...args:any[]) => any) ? InstanceType<C> : never)} o
    */
-  check (o) {
-    return o?.constructor === this.shape && (this._c == null || this._c(o))
+  check (o, err = undefined) {
+    const c = o?.constructor === this.shape && (this._c == null || this._c(o))
+    !c && err?.extend(null, this.shape.name, o?.constructor.name, o?.constructor !== this.shape ? 'Constructor match failed' : 'Check failed')
+    return c
   }
 }
 
@@ -251,10 +284,13 @@ export class $Literal extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} [err]
    * @return {o is T}
    */
-  check (o) {
-    return this.shape.some(a => a === o)
+  check (o, err) {
+    const c = this.shape.some(a => a === o)
+    !c && err?.extend(null, this.shape.join(' | '), o.toString())
+    return c
   }
 }
 
@@ -319,11 +355,13 @@ export class $StringTemplate extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} [err]
    * @return {o is CastStringTemplateArgsToTemplate<T>}
    */
-  check (o) {
-    // @todo, currently this does not check the content (needs regex)
-    return this._r.exec(o) != null
+  check (o, err) {
+    const c = this._r.exec(o) != null
+    !c && err?.extend(null, this._r.toString(), o.toString(), `String doesn't match string template.`)
+    return c
   }
 }
 
@@ -351,10 +389,13 @@ class $Optional extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} [err]
    * @return {o is (Unwrap<S>|undefined)}
    */
-  check (o) {
-    return o === undefined || this.shape.check(o)
+  check (o, err) {
+    const c = o === undefined || this.shape.check(o)
+    !c && err?.extend(null, 'undefined (optional)', '()')
+    return c
   }
 
   get [isOptionalSymbol] () { return true }
@@ -367,9 +408,11 @@ export const $$optional = $constructedBy($Optional)
 class $Never extends $Schema {
   /**
    * @param {any} _o
+   * @param {ValidationError} [err]
    * @return {_o is never}
    */
-  check (_o) {
+  check (_o, err) {
+    err?.extend(null, 'never', typeof _o)
     return false
   }
 }
@@ -399,10 +442,19 @@ export class $Object extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} err
    * @return {o is $ObjectToType<S>}
    */
-  check (o) {
-    return o != null && obj.every(this.shape, (vv, vk) => vv.check(o[vk]))
+  check (o, err) {
+    if (o == null) {
+      err.extend(null, 'object', 'null')
+      return false
+    }
+    return obj.every(this.shape, (vv, vk) => {
+      const c = vv.check(o[vk], err)
+      !c && err?.extend(vk.toString(), vv.toString(), typeof o[vk], 'Object property does not match')
+      return c
+    })
   }
 }
 
@@ -419,7 +471,7 @@ export const $$object = $constructedBy($Object)
 /**
  * @template {$Schema<string|number|symbol>} Keys
  * @template {$Schema<any>} Values
- * @extends {$Schema<Record<Keys extends $Schema<infer K> ? K : never,Values extends $Schema<infer T> ? T : never>>}
+ * @extends {$Schema<{ [key in Unwrap<Keys>]: Unwrap<Values> }>}
  */
 export class $Record extends $Schema {
   /**
@@ -435,10 +487,15 @@ export class $Record extends $Schema {
 
   /**
    * @param {any} o
-   * @return {o is Record<Keys extends $Schema<infer K> ? K : never,Values extends $Schema<infer T> ? T : never>}
+   * @param {ValidationError} err
+   * @return {o is { [key in Unwrap<Keys>]: Unwrap<Values> }}
    */
-  check (o) {
-    return o != null && obj.every(o, (vv, vk) => this.shape.keys.check(vk) && this.shape.values.check(vv))
+  check (o, err) {
+    return o != null && obj.every(o, (vv, vk) => {
+      const ck = this.shape.keys.check(vk, err)
+      !ck && err.extend(vk + '', 'Record', typeof o, ck ? 'Key doesn\'t match schema' : 'Value doesn\'t match value')
+      return ck && this.shape.values.check(vv, err)
+    })
   }
 }
 
@@ -467,10 +524,15 @@ export class $Tuple extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} err
    * @return {o is { [K in keyof S]: S[K] extends $Schema<infer Type> ? Type : never }}
    */
-  check (o) {
-    return o != null && obj.every(this.shape, (vv, vk) => /** @type {$Schema<any>} */ (vv).check(o[vk]))
+  check (o, err) {
+    return o != null && obj.every(this.shape, (vv, vk) => {
+      const c = /** @type {$Schema<any>} */ (vv).check(o[vk], err)
+      !c && err.extend(vk.toString(), 'Tuple', typeof vv)
+      return c
+    })
   }
 }
 
@@ -500,10 +562,13 @@ export class $Array extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} err
    * @return {o is Array<S extends $Schema<infer T> ? T : never>} o
    */
-  check (o) {
-    return arr.isArray(o) && arr.every(o, oi => this.shape.check(oi))
+  check (o, err) {
+    const c =  arr.isArray(o) && arr.every(o, oi => this.shape.check(oi))
+    !c && err?.extend(null, 'Array', '')
+    return c
   }
 }
 
@@ -532,10 +597,13 @@ export class $InstanceOf extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} err
    * @return {o is T}
    */
-  check (o) {
-    return o instanceof this.shape && (this._c == null || this._c(o))
+  check (o, err) {
+    const c = o instanceof this.shape && (this._c == null || this._c(o))
+    !c && err.extend(null, this.shape.name, o?.constructor.name)
+    return c
   }
 }
 
@@ -572,10 +640,13 @@ export class $Lambda extends $Schema {
 
   /**
    * @param {any} f
+   * @param {ValidationError} err
    * @return {f is _LArgsToLambdaDef<Args>}
    */
-  check (f) {
-    return f.constructor === Function && f.length <= this.len
+  check (f, err) {
+    const c = f.constructor === Function && f.length <= this.len
+    !c && err.extend(null, 'function', typeof f)
+    return c
   }
 }
 
@@ -605,11 +676,14 @@ export class $Intersection extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} [err]
    * @return {o is Intersect<UnwrapArray<T>>}
    */
-  check (o) {
+  check (o, err) {
     // @ts-ignore
-    return arr.every(this.shape, check => check.check(o))
+    const c = arr.every(this.shape, check => check.check(o, err))
+    !c && err?.extend(null, 'Intersectinon', typeof o)
+    return c
   }
 }
 
@@ -638,10 +712,13 @@ export class $Union extends $Schema {
 
   /**
    * @param {any} o
+   * @param {ValidationError} [err]
    * @return {o is S}
    */
-  check (o) {
-    return arr.some(this.shape, (vv) => vv.check(o))
+  check (o, err) {
+    const c = arr.some(this.shape, (vv) => vv.check(o, err))
+    err?.extend(null, 'Union', typeof o)
+    return c
   }
 }
 
@@ -737,8 +814,9 @@ export const $json = (() => {
 export const assert = env.production
   ? () => {}
   : (o, schema) => {
-      if (!schema.check(o)) {
-        throw error.create(`Expected value to be of type ${schema.constructor.name}.`)
-      }
+    const err = new ValidationError()
+    if (!schema.check(o, err)) {
+      throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
     }
+  }
 /* c8 ignore end */

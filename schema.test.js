@@ -321,3 +321,15 @@ export const testSchemaExtends = _tc => {
   t.assert(t2.extends(t1))
   t.assert(!t1.extends(t2))
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testSchemaErrors = _tc => {
+  const x = s.$union(s.$object({ a: s.$number, b: s.$string }))
+  try {
+    s.assert({ a: 42, b: 43 }, x)
+  } catch (err) {
+    console.log(err.toString())
+  }
+}

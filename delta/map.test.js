@@ -106,8 +106,8 @@ export const testMapDelta = _tc => {
     over: s.$string
   })
   const d = dmap.create(x)
-  d.delete('over')
-  d.set('key', 'value')
+    .delete('over')
+    .set('key', 'value')
     .useAttribution({ delete: ['me'] })
     .delete('v', 94)
     .useAttribution(null)
