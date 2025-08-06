@@ -42,7 +42,6 @@ class MapInsertOp {
     return {
       type: this.type,
       value: this.value,
-      prevValue: this.prevValue,
       attribution: this.attribution
     }
   }
@@ -55,7 +54,7 @@ class MapInsertOp {
    * @param {MapInsertOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.prevValue, other.prevValue) && fun.equalityDeep(this.attribution, other.attribution)
+    return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
   }
 }
 
@@ -91,7 +90,6 @@ class MapDeleteOp {
   toJSON () {
     return {
       type: this.type,
-      prevValue: this.prevValue,
       attribution: this.attribution
     }
   }
@@ -104,7 +102,7 @@ class MapDeleteOp {
    * @param {MapDeleteOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    return this.key === other.key && fun.equalityDeep(this.prevValue, other.prevValue) && fun.equalityDeep(this.attribution, other.attribution)
+    return this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
   }
 }
 
@@ -179,9 +177,9 @@ export const $modifyOpAny = $modifyOp($delta)
 export const $anyOp = s.$union($insertOpAny, $deleteOpAny, $modifyOpAny)
 
 export const $deltaMapChangeJson = s.$union(
-  s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.nullable.optional }),
-  s.$object({ type: s.$literal('delete'), prevValue: s.$any.optional, attribution: $attribution.nullable.optional }),
-  s.$object({ type: s.$literal('modify'), value: s.$any })
+  s.$object({ type: s.$literal('insert'), value: s.$any, attribution: $attribution.nullable.optional }),
+  s.$object({ type: s.$literal('modify'), value: s.$any }),
+  s.$object({ type: s.$literal('delete'), attribution: $attribution.nullable.optional })
 )
 
 export const $deltaMapJson = s.$record(s.$string, $deltaMapChangeJson)
@@ -377,7 +375,7 @@ export class DeltaMapBuilder extends DeltaMap {
   /**
    *
    * - insert vs delete ⇒ insert takes precedence
-   * - insert vs modify ⇒ insert takes precedence 
+   * - insert vs modify ⇒ insert takes precedence
    * - insert vs insert ⇒ priority decides
    * - delete vs modify ⇒ delete takes precedence
    * - delete vs delete ⇒ current delete op is removed because item has already been deleted
@@ -396,7 +394,7 @@ export class DeltaMapBuilder extends DeltaMap {
       deleteOp => {
         const otherOp = other.get(deleteOp.key)
         if (otherOp == null) {
-          return
+
         } else if ($insertOpAny.check(otherOp) || $deleteOpAny.check(otherOp)) {
           this.changes.delete(otherOp.key)
         }
@@ -457,7 +455,6 @@ export class DeltaMapBuilder extends DeltaMap {
  * @typedef {{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? s.$Schema<MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>> : s.$Schema<MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>> }} $MapOpsFromValues
  */
 
-
 /**
  * @template {s.$any} Val
  * @param {s.$Schema<Val>} $v
@@ -484,13 +481,13 @@ const $_mapOpFromValue = $v => {
     /**
      * @type {Array<$anyOp>}
      */
-    const ops = [$insertOp($vs),$deleteOp($vs)]
+    const ops = [$insertOp($vs), $deleteOp($vs)]
     if (ds.length > 0) {
       ops.push($modifyOp(s.$union(...ds)))
     }
     return /** @type {any} */ (s.$union(...ops))
   } else {
-    const ops = /** @type {Array<any>} */ ([$insertOp($v),$deleteOp($v)])
+    const ops = /** @type {Array<any>} */ ([$insertOp($v), $deleteOp($v)])
     if ($$delta.check($v)) { ops.push($modifyOp($v)) }
     return /** @type {any}  */ (s.$union(...ops))
   }
@@ -519,7 +516,7 @@ const $mapOpsFromValues = $vs => {
  * @param {s.$Schema<Vals>} $vals
  * @return {DeltaMapBuilder<{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>) : (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>) }>}
  */
-export const create = ($vals = /** @type {any} */ (s.$record(s.$string,s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
+export const create = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
 
 /**
  * @template {{ [key:string]: any }} Vals

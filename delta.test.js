@@ -84,7 +84,6 @@ export const testUseAttribution = _tc => {
   t.compare(d, d2)
 }
 
-
 /**
  * @param {t.TestCase} _tc
  */

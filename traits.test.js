@@ -30,7 +30,7 @@ export const testEqualityTrait1 = _tc => {
   t.assert(!x[traits.EqualityTraitSymbol](y))
   t.assert(x[traits.EqualityTraitSymbol](x))
   t.assert(!traits.equals(x, y))
-  t.assert(!traits.equals(x, x))
+  t.assert(traits.equals(x, x))
   // left needs to be more specific
   t.assert(!traits.equals(x, { [traits.EqualityTraitSymbol]: (other) => other === y }))
   // if left is not more specific, then it should throw a type error

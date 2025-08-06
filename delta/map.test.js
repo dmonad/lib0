@@ -74,7 +74,7 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test delta insert', () => {
     const d = dmap.create($d)
-    d.set('map', dmap.create(s.$object({ x: s.$number })).set('x', 42 ))
+    d.set('map', dmap.create(s.$object({ x: s.$number })).set('x', 42))
     d.forEach(change => {
       if (change.key === 'map' && change.type === 'insert') {
         dmap.$deltaMap(s.$object({ x: s.$number })).validate(change.value)
@@ -94,7 +94,6 @@ export const testMapDeltaModify = _tc => {
       }
     })
   })
-  
 }
 
 /**
@@ -115,9 +114,9 @@ export const testMapDelta = _tc => {
     .set('over', 'andout', 'i existed before')
     .done()
   t.compare(d.toJSON(), {
-    key: { type: 'insert', value: 'value', prevValue: undefined, attribution: null },
-    v: { type: 'delete', prevValue: 94, attribution: { delete: ['me'] } },
-    over: { type: 'insert', value: 'andout', prevValue: 'i existed before', attribution: null }
+    key: { type: 'insert', value: 'value', attribution: null },
+    v: { type: 'delete', attribution: { delete: ['me'] } },
+    over: { type: 'insert', value: 'andout', attribution: null }
   })
   t.compare(d.origin, null)
   t.compare(d.remote, false)
@@ -152,7 +151,7 @@ export const testMapDelta = _tc => {
     }
   })
   for (const change of d) {
-    const {key, value, prevValue} = change
+    const { key, value, prevValue } = change
     if (key === 'v') {
       t.assert(d.get(key)?.prevValue === 94)
       t.assert(prevValue === 94) // should know that value is number

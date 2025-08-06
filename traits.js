@@ -23,4 +23,4 @@ export const EqualityTraitSymbol = Symbol('Equality')
  * @param {T} b
  * @return {boolean}
  */
-export const equals = (a, b) => a[EqualityTraitSymbol](b)
+export const equals = (a, b) => a === b || a[EqualityTraitSymbol]?.(b) || false

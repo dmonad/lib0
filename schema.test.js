@@ -53,7 +53,7 @@ export const testSchemas = _tc => {
       // q is a number now
       s.$number.validate(q)
     }
-    t.assert(myobject.check(42))
+    t.assert(!myobject.check(42))
     t.assert(myobject.check({ num: 42, x: 9 }))
     // @ts-expect-error
     t.assert(!myobject.validate(undefined))
@@ -281,7 +281,7 @@ export const testMetaSchemas = _tc => {
   t.group('meta check - shape is working', () => {
     const x = s.$object({ x: s.$number })
     // @ts-expect-error shape shouldn't exist on $Schape
-    x.shape == undefined
+    t.assert(x.shape === undefined)
     if (s.$$object.check(x)) {
       // expect that x is an object that maps to shemas
       t.assert(s.$object({}).validate(x.shape))

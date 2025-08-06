@@ -72,6 +72,7 @@ class ValidationError {
      */
     this._rerrs = []
   }
+
   /**
    * @param {string?} path
    * @param {string} expected
@@ -83,7 +84,7 @@ class ValidationError {
   }
 
   toString () {
-    let s = []
+    const s = []
     for (let i = this._rerrs.length - 1; i > 0; i--) {
       const r = this._rerrs[i]
       s.push(string.repeat(' ', (this._rerrs.length - i) * 2) + `${r.path != null ? `[${r.path}] ` : ''}${r.has} doesn't match ${r.expected}. ${r.message}`)
@@ -110,6 +111,7 @@ const shapeExtends = (a, b) => {
       shapeExtends(aitem, b[akey])
     )
   }
+  /* c8 ignore next */
   return false
 }
 
@@ -130,7 +132,7 @@ export class $Schema {
    * @param {$Schema<any>} other
    */
   extends (other) {
-    let [a, b] = [/** @type {any} */ (this).shape, /** @type {any} */ (other).shape]
+    let [a, b] = [(this).shape, /** @type {any} */ (other).shape]
     if (/** @type {typeof $Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
     return shapeExtends(a, b)
   }
@@ -290,6 +292,7 @@ export class $Literal extends $Schema {
    */
   check (o, err) {
     const c = this.shape.some(a => a === o)
+    /* c8 ignore next */
     !c && err?.extend(null, this.shape.join(' | '), o.toString())
     return c
   }
@@ -336,6 +339,7 @@ const _schemaStringTemplateToRegex = s => {
   if ($$union.check(s)) {
     return s.shape.map(_schemaStringTemplateToRegex).flat(1)
   }
+  /* c8 ignore next 2 */
   // unexpected schema structure (only supports unions and string in literal types)
   error.unexpectedCase()
 }
@@ -361,7 +365,8 @@ export class $StringTemplate extends $Schema {
    */
   check (o, err) {
     const c = this._r.exec(o) != null
-    !c && err?.extend(null, this._r.toString(), o.toString(), `String doesn't match string template.`)
+    /* c8 ignore next */
+    !c && err?.extend(null, this._r.toString(), o.toString(), 'String doesn\'t match string template.')
     return c
   }
 }
@@ -395,6 +400,7 @@ class $Optional extends $Schema {
    */
   check (o, err) {
     const c = o === undefined || this.shape.check(o)
+    /* c8 ignore next */
     !c && err?.extend(null, 'undefined (optional)', '()')
     return c
   }
@@ -448,6 +454,7 @@ export class $Object extends $Schema {
    */
   check (o, err) {
     if (o == null) {
+      /* c8 ignore next */
       err?.extend(null, 'object', 'null')
       return false
     }
@@ -494,6 +501,7 @@ export class $Record extends $Schema {
   check (o, err) {
     return o != null && obj.every(o, (vv, vk) => {
       const ck = this.shape.keys.check(vk, err)
+      /* c8 ignore next */
       !ck && err?.extend(vk + '', 'Record', typeof o, ck ? 'Key doesn\'t match schema' : 'Value doesn\'t match value')
       return ck && this.shape.values.check(vv, err)
     })
@@ -531,6 +539,7 @@ export class $Tuple extends $Schema {
   check (o, err) {
     return o != null && obj.every(this.shape, (vv, vk) => {
       const c = /** @type {$Schema<any>} */ (vv).check(o[vk], err)
+      /* c8 ignore next */
       !c && err?.extend(vk.toString(), 'Tuple', typeof vv)
       return c
     })
@@ -567,7 +576,8 @@ export class $Array extends $Schema {
    * @return {o is Array<S extends $Schema<infer T> ? T : never>} o
    */
   check (o, err) {
-    const c =  arr.isArray(o) && arr.every(o, oi => this.shape.check(oi))
+    const c = arr.isArray(o) && arr.every(o, oi => this.shape.check(oi))
+    /* c8 ignore next */
     !c && err?.extend(null, 'Array', '')
     return c
   }
@@ -603,6 +613,7 @@ export class $InstanceOf extends $Schema {
    */
   check (o, err) {
     const c = o instanceof this.shape && (this._c == null || this._c(o))
+    /* c8 ignore next */
     !c && err?.extend(null, this.shape.name, o?.constructor.name)
     return c
   }
@@ -646,6 +657,7 @@ export class $Lambda extends $Schema {
    */
   check (f, err) {
     const c = f.constructor === Function && f.length <= this.len
+    /* c8 ignore next */
     !c && err?.extend(null, 'function', typeof f)
     return c
   }
@@ -683,6 +695,7 @@ export class $Intersection extends $Schema {
   check (o, err) {
     // @ts-ignore
     const c = arr.every(this.shape, check => check.check(o, err))
+    /* c8 ignore next */
     !c && err?.extend(null, 'Intersectinon', typeof o)
     return c
   }
@@ -785,7 +798,7 @@ export const $$null = /** @type {$Schema<$Schema<null>>} */ ($constructedBy($Lit
 /**
  * @type {$Schema<number|string|null|boolean>}
  */
-export const $primitive = $union($number,$string,$null,$boolean)
+export const $primitive = $union($number, $string, $null, $boolean)
 
 /**
  * @typedef {JSON[]} JSONArray
@@ -798,8 +811,8 @@ export const $primitive = $union($number,$string,$null,$boolean)
  */
 export const $json = (() => {
   const $jsonArr = /** @type {$Array<$any>} */ ($array($any))
-  const $jsonRecord = /** @type {$Record<$string,$any>} */ ($record($string,$any))
-  const $json = $union($number,$string,$null,$boolean,$jsonArr,$jsonRecord)
+  const $jsonRecord = /** @type {$Record<$string,$any>} */ ($record($string, $any))
+  const $json = $union($number, $string, $null, $boolean, $jsonArr, $jsonRecord)
   $jsonArr.shape = $json
   $jsonRecord.shape.values = $json
   return $json
@@ -815,9 +828,9 @@ export const $json = (() => {
 export const assert = env.production
   ? () => {}
   : (o, schema) => {
-    const err = new ValidationError()
-    if (!schema.check(o, err)) {
-      throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
+      const err = new ValidationError()
+      if (!schema.check(o, err)) {
+        throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
+      }
     }
-  }
 /* c8 ignore end */
