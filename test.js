@@ -41,6 +41,7 @@ import * as symbol from './symbol.test.js'
 import * as traits from './traits.test.js'
 import * as schema from './schema.test.js'
 import * as dmap from './delta/map.test.js'
+import * as dtransformer from './delta/transformer.test.js'
 import { isBrowser, isNode } from './environment.js'
 
 /* c8 ignore next */
@@ -89,7 +90,8 @@ runTests({
   symbol,
   traits,
   schema,
-  dmap
+  dmap,
+  dtransformer
 }).then(success => {
   /* c8 ignore next */
   if (isNode) {
