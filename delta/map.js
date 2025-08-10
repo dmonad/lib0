@@ -190,6 +190,7 @@ export const $deltaMapJson = s.$record(s.$string, $deltaMapChangeJson)
 
 /**
  * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
+ * @extends AbstractDelta
  */
 export class DeltaMap extends AbstractDelta {
   /**
@@ -433,10 +434,10 @@ export class DeltaMapBuilder extends DeltaMap {
   }
 
   /**
-   * @return {DeltaMapBuilder<OPS>}
+   * @return {this}
    */
   clone () {
-    const d = /** @type {DeltaMapBuilder<OPS>} */ (new DeltaMapBuilder(this.$vals, this.$ops))
+    const d = /** @type {this} */ (new DeltaMapBuilder(this.$vals, this.$ops))
     this.forEach(change => {
       d.changes.set(change.key, /** @type {any} */ (change))
     })
@@ -524,3 +525,4 @@ export const create = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))
  * @return {s.$Schema<DeltaMap<{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>) : (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>) }>>}
  */
 export const $deltaMap = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
+export const $$deltaMap = /** @type {s.$Schema<s.$InstanceOf<DeltaMap<any>>>} */ (s.$constructedBy(s.$InstanceOf, s => s.shape.prototype instanceof DeltaMap))

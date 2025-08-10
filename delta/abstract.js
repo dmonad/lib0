@@ -49,6 +49,13 @@ export class AbstractDelta {
   }
 
   /**
+   * @return {this}
+   */
+  clone ( ) {
+    error.methodUnimplemented()
+  }
+
+  /**
    * @param {any} _other
    */
   [traits.EqualityTraitSymbol] (_other) {
@@ -71,3 +78,18 @@ export const $$delta = /** @type {s.$Schema<s.$InstanceOf<AbstractDelta>>} */ (s
  * @param {T | null} b
  */
 export const mergeAttrs = (a, b) => object.isEmpty(a) ? b : (object.isEmpty(b) ? a : object.assign({}, a, b))
+
+/**
+ * @template {AbstractDelta?} D
+ * @param {D} a
+ * @param {D} b
+ * @return {D}
+ */
+export const mergeDeltas = (a, b) => {
+  if (a !== null && b !== null) {
+    const c = a.clone()
+    c.apply(b)
+    return c
+  }
+  return a === null ? b : a
+}
