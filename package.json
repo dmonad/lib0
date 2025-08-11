@@ -511,7 +511,7 @@
     "jsdoc-plugin-typescript": "^2.2.1",
     "rollup": "^2.42.1",
     "standard": "^17.1.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   },
   "scripts": {
     "clean": "rm -rf dist *.d.ts */*.d.ts *.d.ts.map */*.d.ts.map",

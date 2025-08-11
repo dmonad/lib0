@@ -1,9 +1,7 @@
-
 import * as error from '../error.js'
 import * as d from './abstract.js'
 import * as dmap from './map.js'
 import * as s from '../schema.js'
-import * as _map from '../map.js'
 
 /**
  * @template {s.Unwrap<d.$delta>|null} [DeltaA=s.Unwrap<d.$delta>|null]
@@ -83,7 +81,7 @@ class Transformer {
 
 /**
  * @param {Array<Transformer<any,d.AbstractDelta,d.AbstractDelta>>} trs
- * @param {TransformResult} output 
+ * @param {TransformResult} output
  * @return {boolean}
  */
 const _forwardPipe = (trs, output) => {
@@ -99,14 +97,14 @@ const _forwardPipe = (trs, output) => {
       } else {
         // need to interate back to integrate the produced backwards-change
         again = true
-        trs[i-1]._pb = a
+        trs[i - 1]._pb = a
       }
     }
     if (b !== null) {
       if (i === trs.length - 1) {
         output.b = d.mergeDeltas(output.b, b)
       } else {
-        trs[i+1]._pa = b
+        trs[i + 1]._pa = b
       }
     }
   }
@@ -115,7 +113,7 @@ const _forwardPipe = (trs, output) => {
 
 /**
  * @param {Array<Transformer<any,d.AbstractDelta,d.AbstractDelta>>} trs
- * @param {TransformResult} output 
+ * @param {TransformResult} output
  * @return {boolean}
  */
 const _backwardPipe = (trs, output) => {
@@ -130,7 +128,7 @@ const _backwardPipe = (trs, output) => {
         output.a = d.mergeDeltas(output.a, a)
       } else {
         // need to interate back to integrate the produced backwards-change
-        trs[i-1]._pb = a
+        trs[i - 1]._pb = a
       }
     }
     if (b !== null) {
@@ -139,7 +137,7 @@ const _backwardPipe = (trs, output) => {
       } else {
         // need to interate back to integrate the produced backwards-change
         again = true
-        trs[i+1]._pa = a
+        trs[i + 1]._pa = a
       }
     }
   }
@@ -241,7 +239,7 @@ class TransformerPipeTemplate extends TransformerTemplate {
    * @return {T extends TransformerTemplate<any,any,infer TOut> ? TransformerTemplate<any, DeltaA, TOut> : never}
    */
   pipe (t) {
-    this.templates.push(t)    
+    this.templates.push(t)
     if (this.$out.extends(t.$out)) error.create('piped schema does not match')
     this.$out = t.$out
     return /** @type {any} */ (this)
@@ -280,7 +278,7 @@ export const map = (def) => transformer({
     /**
      * @type {Array<{ d: d.AbstractDelta, src: Transformer<any,any,any>? }>}
      */
-    let reverseAChanges = []
+    const reverseAChanges = []
     d.forEach(op => {
       if (dmap.$deleteOpAny.check(op)) {
         error.unexpectedCase()
@@ -304,51 +302,51 @@ export const map = (def) => transformer({
  * @return {TransformResult<d.AbstractDelta?,dmap.DeltaMap<any>?>}
  */
 const _applyMapOpHelper = (state, reverseAChanges) => {
-    /**
+  /**
      * @type {TransformResult<d.AbstractDelta?,dmap.DeltaMapBuilder<any>?>}
      */
-    const applyResult = transformResult(null, null)
-    while (reverseAChanges.length > 0) {
-      /**
+  const applyResult = transformResult(null, null)
+  while (reverseAChanges.length > 0) {
+    /**
        * @type {Array<{ d: d.AbstractDelta, src: Transformer<any,any,any>? }>}
        */
-      let nextReverseAChanges = []
-      for (const key in state) {
-        const s = state[key]
-        let transformPriority = false // false until own is found
-        for (let i = 0; i < reverseAChanges.length; i++) {
-          // changes are applied in reverseAChanges order.
-          // rebase against all concurrent (the op stored on transformer), then apply
-          const r = reverseAChanges[i]
-          if (r.src === s) {
-            transformPriority = true // own has less priority, concurrent is applied with higher prio
-            continue // don't apply own
-          }
-          let rd = r.d
-          if (s._pa != null) {
-            rd = rd.clone()
-            rd.rebase(s._pa, transformPriority)
-          }
-          const res = s.applyA(rd)
-          s._pa = res.a
-          s._pb = d.mergeDeltas(s._pb, res.b)
-          if (res.a != null) {
-            nextReverseAChanges.push({ d: res.a, src: s })
-          }
+    let nextReverseAChanges = []
+    for (const key in state) {
+      const s = state[key]
+      let transformPriority = false // false until own is found
+      for (let i = 0; i < reverseAChanges.length; i++) {
+        // changes are applied in reverseAChanges order.
+        // rebase against all concurrent (the op stored on transformer), then apply
+        const r = reverseAChanges[i]
+        if (r.src === s) {
+          transformPriority = true // own has less priority, concurrent is applied with higher prio
+          continue // don't apply own
+        }
+        let rd = r.d
+        if (s._pa != null) {
+          rd = rd.clone()
+          rd.rebase(s._pa, transformPriority)
+        }
+        const res = s.applyA(rd)
+        s._pa = res.a
+        s._pb = d.mergeDeltas(s._pb, res.b)
+        if (res.a != null) {
+          nextReverseAChanges.push({ d: res.a, src: s })
         }
       }
-      // merge changes for output
-      for (let i = 0; i < reverseAChanges.length; i++) {
-        applyResult.a = d.mergeDeltas(applyResult.a, reverseAChanges[i].d)
-      }
-      reverseAChanges = nextReverseAChanges
-      nextReverseAChanges = []
     }
-    // accumulate b changes stored on transformers
-    applyResult.b = dmap.create()
-    for (const key in state) {
-      const b = state[key]._pb
-      if (b) applyResult.b.modify(key, b)
+    // merge changes for output
+    for (let i = 0; i < reverseAChanges.length; i++) {
+      applyResult.a = d.mergeDeltas(applyResult.a, reverseAChanges[i].d)
     }
-    return applyResult
+    reverseAChanges = nextReverseAChanges
+    nextReverseAChanges = []
+  }
+  // accumulate b changes stored on transformers
+  applyResult.b = dmap.createDeltaMap()
+  for (const key in state) {
+    const b = state[key]._pb
+    if (b) applyResult.b.modify(key, b)
+  }
+  return applyResult
 }

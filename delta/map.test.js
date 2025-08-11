@@ -12,7 +12,7 @@ export const testMapDeltaBasics = _tc => {
     num: s.$union(s.$number, s.$string),
     str: s.$string
   })
-  const d = dmap.create($d)
+  const d = dmap.createDeltaMap($d)
   t.fails(() => {
     // @ts-expect-error
     d.set('str', 42)
@@ -26,9 +26,9 @@ export const testMapDeltaBasics = _tc => {
   d.forEach((c) => {
     if (c.key === 'str') {
       // @ts-expect-error because value can't be a string
-      c.value === 42
+      t.assert(c.value !== 42)
     } else if (c.key === 'num') {
-      c.value === 42
+      t.assert(c.value !== 42)
     } else {
       // no other option, this will always throw if called
       s.assert(c, s.$never)
@@ -49,7 +49,7 @@ export const testMapDeltaBasics = _tc => {
       t.assert(!dmap.$insertOp(s.$number).optional.check(entry))
     }
   }
-  const ddone = d.done()
+  d.done()
 }
 
 /**
@@ -67,14 +67,14 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test extensibility', () => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
-    const d = dmap.create($d)
+    const d = dmap.createDeltaMap($d)
     t.assert(dmap.$deltaMap($d).check(d))
     t.assert(dmap.$deltaMap($dsmaller).check(d))
-    t.assert(!dmap.$deltaMap($d).check(dmap.create($dsmaller)))
+    t.assert(!dmap.$deltaMap($d).check(dmap.createDeltaMap($dsmaller)))
   })
   t.group('test delta insert', () => {
-    const d = dmap.create($d)
-    const testDeleteThis = dmap.create(s.$object({ x: s.$number })).set('x', 42).done()
+    const d = dmap.createDeltaMap($d)
+    const testDeleteThis = dmap.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
     d.set('map', testDeleteThis)
     d.forEach(change => {
       if (change.key === 'map' && change.type === 'insert') {
@@ -85,8 +85,8 @@ export const testMapDeltaModify = _tc => {
     })
   })
   t.group('test modify', () => {
-    const d = dmap.create($d)
-    d.modify('map', dmap.create(s.$object({ x: s.$number })).delete('x'))
+    const d = dmap.createDeltaMap($d)
+    d.modify('map', dmap.createDeltaMap(s.$object({ x: s.$number })).delete('x'))
     d.forEach(change => {
       if (change.key === 'map' && change.type === 'modify') {
         dmap.$deltaMap(s.$object({ x: s.$number })).validate(change.value)
@@ -106,7 +106,7 @@ export const testMapDelta = _tc => {
     v: s.$number,
     over: s.$string
   })
-  const d = dmap.create(x)
+  const d = dmap.createDeltaMap(x)
     .delete('over')
     .set('key', 'value')
     .useAttribution({ delete: ['me'] })
@@ -127,7 +127,7 @@ export const testMapDelta = _tc => {
       t.assert(d.get(change.key)?.prevValue === 94) // should know that value is number
       if (dmap.$insertOp(s.$any).check(change)) {
         // @ts-expect-error
-        change.value === ''
+        t.assert(change.value !== '')
         t.assert(change.value === undefined)
         t.assert(change.prevValue === 94)
       } else if (dmap.$deleteOp(s.$any).check(change)) {
@@ -174,9 +174,10 @@ export const testMapDelta = _tc => {
 export const testRepeatRebaseMergeDeltas = tc => {
   const $d = s.$object({ a: s.$number, b: dmap.$deltaMap(s.$object({ x: s.$string })) })
   const $dm = dmap.$deltaMap($d)
+  console.log($dm)
   const gen = tc.prng
   const createDelta = () => {
-    const d = dmap.create($d)
+    const d = dmap.createDeltaMap($d)
     prng.oneOf(gen, [
       // create insert
       () => {
@@ -185,10 +186,10 @@ export const testRepeatRebaseMergeDeltas = tc => {
           d.set('a', prng.int32(gen, 0, 365))
         } else if (prng.bool(gen)) {
           // 25% chance to create an insertion on 'b'
-          d.set('b', dmap.create(s.$object({ x: s.$string })).set('x', prng.utf16String(gen)).done())
+          d.set('b', dmap.createDeltaMap(s.$object({ x: s.$string })).set('x', prng.utf16String(gen)).done())
         } else {
           // 25% chance to create a modify op on 'b'
-          d.modify('b', dmap.create(s.$object({ x: s.$string })).set('x', prng.utf16String(gen)).done())
+          d.modify('b', dmap.createDeltaMap(s.$object({ x: s.$string })).set('x', prng.utf16String(gen)).done())
         }
       },
       // create delete
@@ -224,10 +225,10 @@ export const testRepeatRebaseMergeDeltas = tc => {
   rebase(order1)
   rebase(order2)
   /**
-   * @param {Array<s.Unwrap<$dm>>} ops
+   * @param {Array<s.Unwrap<typeof $dm>>} ops
    */
   const apply = ops => {
-    const d = dmap.create($d)
+    const d = dmap.createDeltaMap($d)
     for (let i = 0; i < ops.length; i++) {
       d.apply(ops[i])
     }

@@ -41,7 +41,7 @@ class LocalStoragePolyfill {
   constructor (room) {
     this.room = room
     /**
-     * @type {null|function({data:ArrayBuffer}):void}
+     * @type {null|function({data:Uint8Array}):void}
      */
     this.onmessage = null
     /**

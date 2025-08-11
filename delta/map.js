@@ -381,7 +381,7 @@ export class DeltaMapBuilder extends DeltaMap {
    * - insert vs modify ⇒ insert takes precedence
    * - insert vs insert ⇒ priority decides
    * - delete vs modify ⇒ delete takes precedence
-   * - delete vs delete ⇒ current delete op is removed because item has already been deleted
+   * - delete vs delete ⇒ current delete op is removed because item has already been deleted
    * - modify vs modify ⇒ rebase using priority
    *
    * @param {DeltaMapBuilder<Vals>} other
@@ -396,9 +396,7 @@ export class DeltaMapBuilder extends DeltaMap {
       },
       deleteOp => {
         const otherOp = other.get(deleteOp.key)
-        if (otherOp == null) {
-
-        } else if ($insertOpAny.check(otherOp) || $deleteOpAny.check(otherOp)) {
+        if (otherOp != null && ($insertOpAny.check(otherOp) || $deleteOpAny.check(otherOp))) {
           this.changes.delete(otherOp.key)
         }
       },
@@ -463,7 +461,7 @@ export class DeltaMapBuilder extends DeltaMap {
  * @param {s.$Schema<Val>} $v
  * @return {Val extends DeltaMap<infer DM> ? s.$Schema<MapInsertOp<Val>|MapDeleteOp<Val>|MapModifyOp<DeltaMap<DM>>> : s.$Schema<MapInsertOp<Val>|MapDeleteOp<Val>> }}
  */
-const $_mapOpFromValue = $v => {
+const _$mapOpFromValue = $v => {
   if (s.$$union.check($v)) {
     /**
      * @type {Array<any>}
@@ -505,11 +503,11 @@ const $mapOpsFromValues = $vs => {
   if (s.$$object.check($vs)) {
     const mapped = /** @type {any} */ ({})
     object.forEach($vs.shape, (v, k) => {
-      mapped[k] = $_mapOpFromValue(v)
+      mapped[k] = _$mapOpFromValue(v)
     })
     return /** @type {s.$Schema<$MapOpsFromValues<Vals>>} */ (s.$object(mapped))
   } else if (s.$$record.check($vs)) {
-    return /** @type {any} */ (s.$record($vs.shape.keys, $_mapOpFromValue($vs.shape.values)))
+    return /** @type {any} */ (s.$record($vs.shape.keys, _$mapOpFromValue($vs.shape.values)))
   }
   error.unexpectedCase()
 }
@@ -519,7 +517,7 @@ const $mapOpsFromValues = $vs => {
  * @param {s.$Schema<Vals>} $vals
  * @return {DeltaMapBuilder<Vals>}
  */
-export const create = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
+export const createDeltaMap = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
 
 /**
  * @template {{ [key:string]: any }} Vals

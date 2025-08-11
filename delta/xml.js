@@ -1,26 +1,29 @@
+import * as traits from '../traits.js'
+import * as dabstract from './abstract.js'
+import * as darray from './array.js'
+import * as dmap from './map.js'
+
 /**
  * @template {string|undefined} NodeName
  * @template Children
  * @template {object} Attrs
- * @template {Delta|undefined} [ChildModifiers=undefined]
- * @template {Delta|undefined} [AttrModifiers=undefined]
  * @template {'done'|'mutable'} [Done='mutable']
  */
-export class XmlDelta extends AbstractDelta {
+export class XmlDelta extends dabstract.AbstractDelta {
   /**
    * @param {NodeName} nodeName
-   * @param {ArrayDeltaBuilder<Children,ChildModifiers>} children
-   * @param {MapDelta<Attrs,AttrModifiers>} attributes
+   * @param {darray.DeltaArrayBuilder<Children>} children
+   * @param {dmap.DeltaMapBuilder<Attrs>} attributes
    */
   constructor (nodeName, children, attributes) {
     super()
     this.nodeName = nodeName
     /**
-     * @type {ArrayDeltaBuilder<Children,ChildModifiers>}
+     * @type {Done extends 'mutable' ? darray.DeltaArrayBuilder<Children> : darray.DeltaArray<Children>}
      */
-    this.children = children
+    this.children = /** @type {any} */ (children)
     /**
-     * @type {Done extends 'mutable' ? MapDeltaBuilder<Attrs> : MapDelta<Attrs,AttrModifiers>}
+     * @type {Done extends 'mutable' ? dmap.DeltaMapBuilder<Attrs> : dmap.DeltaMap<Attrs>}
      */
     this.attributes = /** @type {any} */ (attributes)
   }
@@ -34,16 +37,16 @@ export class XmlDelta extends AbstractDelta {
   }
 
   /**
-   * @return {XmlDelta<Children, Attrs, ChildModifiers, AttrModifiers, 'done'>}
+   * @return {XmlDelta<Children, Attrs, 'done'>}
    */
   done () {
-    this.children.done()
-    this.attributes.done()
+    /** @type {darray.DeltaArrayBuilder<any>} */ (this.children).done()
+    ;/** @type {dmap.DeltaMapBuilder<any>} */ (this.attributes).done()
     return /** @type {any} */ (this)
   }
 
   /**
-   * @param {XmlDelta<any,any,any>} other
+   * @param {XmlDelta<NodeName,Children,Attrs>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.nodeName === other.nodeName && this.children[traits.EqualityTraitSymbol](other.children) && this.attributes[traits.EqualityTraitSymbol](other.attributes)
@@ -54,11 +57,9 @@ export class XmlDelta extends AbstractDelta {
  * @template {string|undefined} NodeName
  * @template Children
  * @template {object} Attrs
- * @template {Delta|undefined} [ChildModifiers=undefined]
- * @template {Delta|undefined} [AttrModifiers=undefined]
  * @param {NodeName} nodeName
- * @param {ArrayDeltaBuilder<Children,ChildModifiers>} children
- * @param {MapDeltaBuilder<Attrs,AttrModifiers>} attributes
- * @return {XmlDelta<NodeName,Children,Attrs,ChildModifiers, AttrModifiers>}
+ * @param {darray.DeltaArrayBuilder<Children>} children
+ * @param {dmap.DeltaMapBuilder<Attrs>} attributes
+ * @return {XmlDelta<NodeName,Children,Attrs>}
  */
-export const createXmlDelta = (nodeName, children = createArrayDelta(), attributes = /** @type {any} */ (createMapDelta())) => new XmlDelta(nodeName, children, attributes)
+export const createXmlDelta = (nodeName, children = darray.createDeltaArray(), attributes = /** @type {any} */ (dmap.createDeltaMap())) => new XmlDelta(nodeName, children, attributes)

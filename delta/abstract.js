@@ -16,6 +16,9 @@ export const $attribution = s.$object({
  * @typedef {s.TypeOf<$attribution>} Attribution
  */
 
+/**
+ * @implements {traits.EqualityTrait}
+ */
 export class AbstractDelta {
   constructor () {
     this.remote = false
@@ -51,12 +54,13 @@ export class AbstractDelta {
   /**
    * @return {this}
    */
-  clone ( ) {
+  clone () {
     error.methodUnimplemented()
   }
 
   /**
    * @param {any} _other
+   * @return {boolean}
    */
   [traits.EqualityTraitSymbol] (_other) {
     error.methodUnimplemented()
