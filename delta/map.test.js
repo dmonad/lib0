@@ -74,7 +74,8 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test delta insert', () => {
     const d = dmap.create($d)
-    d.set('map', dmap.create(s.$object({ x: s.$number })).set('x', 42))
+    const testDeleteThis = dmap.create(s.$object({ x: s.$number })).set('x', 42).done()
+    d.set('map', testDeleteThis)
     d.forEach(change => {
       if (change.key === 'map' && change.type === 'insert') {
         dmap.$deltaMap(s.$object({ x: s.$number })).validate(change.value)

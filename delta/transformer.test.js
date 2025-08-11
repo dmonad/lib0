@@ -95,5 +95,5 @@ export const testMapBasics = _tc => {
   const qq = dmap.create(s.$object({ x: s.$number })).set('x', 42).done()
   const q = dmap.create(s.$object({ mynum: dmap.$deltaMap(s.$object({ x: s.$number })) }) ).set('mynum', qq).done()
   debugger
-  t.compare(res.b, q) // @todo not fixed
+  t.compare(res.b, q)
 }

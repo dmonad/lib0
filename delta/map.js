@@ -189,13 +189,13 @@ export const $deltaMapJson = s.$record(s.$string, $deltaMapChangeJson)
  * @typedef {{ [K in keyof OPS]: (Extract<OPS[K],MapInsertOp<any>> extends MapInsertOp<infer V,any> ? MapInsertOp<V, K> : never) | (Extract<OPS[K],MapDeleteOp<any>> extends MapDeleteOp<infer V,any> ? MapDeleteOp<V,K> : never) | (Extract<OPS[K],MapModifyOp<any>> extends MapModifyOp<infer V,any> ? (MapModifyOp<V,K>&OPS[K]) : never) }} KeyedOps */
 
 /**
- * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
+ * @template {{ [key: string]: any }} Vals
  * @extends AbstractDelta
  */
 export class DeltaMap extends AbstractDelta {
   /**
-   * @param {s.$Schema<{ [key: string]: any }>} $vals
-   * @param {s.$Schema<OPS>} $ops
+   * @param {s.$Schema<Vals>} $vals
+   * @param {s.$Schema<$MapOpsFromValues<Vals>>} $ops
    */
   constructor ($vals, $ops) {
     super()
@@ -205,7 +205,7 @@ export class DeltaMap extends AbstractDelta {
      */
     this.$ops = $ops
     /**
-     * @type {Map<keyof OPS,OPS[keyof OPS]>}
+     * @type {Map<keyof Vals,$MapOpsFromValues<Vals>[keyof Vals]>}
      */
     this.changes = map.create()
     /**
@@ -241,10 +241,10 @@ export class DeltaMap extends AbstractDelta {
    *     (modifyOp) => insertOp.modify
    *   )
    *
-   * @param {null|((op:KeyedOps<OPS>[keyof OPS])=>void)} changeHandler
-   * @param {null|((insertOp:Extract<KeyedOps<OPS>[keyof OPS],MapInsertOp<any,any>>)=>void)} insertHandler
-   * @param {null|((deleteOp:Extract<KeyedOps<OPS>[keyof OPS],MapDeleteOp<any,any>>)=>void)} deleteHandler
-   * @param {null|((modifyOp:Extract<KeyedOps<OPS>[keyof OPS],MapModifyOp<any,any>>)=>void)} modifyHandler
+   * @param {null|((op:KeyedOps<$MapOpsFromValues<Vals>>[keyof Vals])=>void)} changeHandler
+   * @param {null|((insertOp:Extract<KeyedOps<$MapOpsFromValues<Vals>>[keyof Vals],MapInsertOp<any,any>>)=>void)} insertHandler
+   * @param {null|((deleteOp:Extract<KeyedOps<$MapOpsFromValues<Vals>>[keyof Vals],MapDeleteOp<any,any>>)=>void)} deleteHandler
+   * @param {null|((modifyOp:Extract<KeyedOps<$MapOpsFromValues<Vals>>[keyof Vals],MapModifyOp<any,any>>)=>void)} modifyHandler
    */
   forEach (changeHandler = null, insertHandler = null, deleteHandler = null, modifyHandler = null) {
     this.changes.forEach((change) => {
@@ -264,23 +264,23 @@ export class DeltaMap extends AbstractDelta {
   }
 
   /**
-   * @template {keyof OPS} K
+   * @template {keyof Vals} K
    * @param {K} key
-   * @return {OPS[K] | undefined}
+   * @return {$MapOpsFromValues<Vals>[K] | undefined}
    */
   get (key) {
-    return /** @type {(OPS[K] & { key:K })|undefined} */ (this.changes.get(key))
+    return /** @type {($MapOpsFromValues<Vals>[K] & { key:K })|undefined} */ (this.changes.get(key))
   }
 
   /**
-   * @param {keyof OPS} key
+   * @param {keyof Vals} key
    */
   has (key) {
     return this.changes.has(key)
   }
 
   /**
-   * @param {DeltaMap<OPS>} other
+   * @param {DeltaMap<Vals>} other
    * @return {boolean}
    */
   equals (other) {
@@ -304,14 +304,14 @@ export class DeltaMap extends AbstractDelta {
   /**
    * Preferred way to iterate through changes.
    *
-   * @return {IterableIterator<KeyedOps<OPS>[keyof OPS]>}
+   * @return {IterableIterator<KeyedOps<$MapOpsFromValues<Vals>>[keyof Vals]>}
    */
   [Symbol.iterator] () {
-    return /** @type {IterableIterator<KeyedOps<OPS>[keyof OPS]>} */ (this.changes.values())
+    return /** @type {IterableIterator<KeyedOps<$MapOpsFromValues<Vals>>[keyof Vals]>} */ (this.changes.values())
   }
 
   /**
-   * @param {DeltaMap<OPS>} other
+   * @param {DeltaMap<Vals>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.changes, other.changes)
@@ -328,13 +328,14 @@ export class DeltaMap extends AbstractDelta {
 const opsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.shape.keys.check(k)) ? ($ops.shape.values) : s.$never)
 
 /**
- * @template {{ [key:string]: s.Unwrap<$anyOp> }} OPS
- * @extends DeltaMap<OPS>
+ * @template {{ [key: string]: any }} Vals
+ * @extends DeltaMap<Vals>
  */
 export class DeltaMapBuilder extends DeltaMap {
   /**
-   * @param {keyof OPS} key
-   * @param {Extract<OPS[key],MapModifyOp<any>> extends MapModifyOp<infer D> ? D : never} delta
+   * @template {keyof Vals} K
+   * @param {K} key
+   * @param {Extract<Vals[K], AbstractDelta>} delta
    */
   modify (key, delta) {
     this.changes.set(key, opsKeySchema(this.$ops, key).cast(new MapModifyOp(key, delta)))
@@ -342,10 +343,10 @@ export class DeltaMapBuilder extends DeltaMap {
   }
 
   /**
-   * @template {keyof OPS} K
+   * @template {keyof Vals} K
    * @param {K} key
-   * @param {Extract<OPS[K],MapInsertOp<any>> extends MapInsertOp<infer V> ? V : never} newVal
-   * @param {(Extract<OPS[K],MapInsertOp<any>> extends MapInsertOp<infer V> ? V : never)|undefined} prevValue
+   * @param {Vals[K]} newVal
+   * @param {Vals[K]|undefined} prevValue
    * @param {s.Unwrap<$attribution>?} attribution
    */
   set (key, newVal, prevValue = undefined, attribution = null) {
@@ -355,13 +356,14 @@ export class DeltaMapBuilder extends DeltaMap {
   }
 
   /**
-   * @param {keyof OPS} key
-   * @param {(Extract<OPS[key],MapInsertOp<any>> extends MapInsertOp<infer V> ? V : never) | undefined} prevValue
+   * @template {keyof Vals} K
+   * @param {K} key
+   * @param {Vals[K]|undefined} prevValue
    * @param {s.Unwrap<$attribution>?} attribution
    */
   delete (key, prevValue = undefined, attribution = null) {
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
-    this.changes.set(key, /** @type {OPS[keyof OPS]} */ (new MapDeleteOp(key, prevValue, mergedAttribution)))
+    this.changes.set(key, /** @type {any} */ (new MapDeleteOp(key, prevValue, mergedAttribution)))
     return this
   }
 
@@ -382,7 +384,7 @@ export class DeltaMapBuilder extends DeltaMap {
    * - delete vs delete ⇒ current delete op is removed because item has already been deleted
    * - modify vs modify ⇒ rebase using priority
    *
-   * @param {DeltaMapBuilder<OPS>} other
+   * @param {DeltaMapBuilder<Vals>} other
    * @param {boolean} priority
    */
   rebase (other, priority) {
@@ -414,14 +416,14 @@ export class DeltaMapBuilder extends DeltaMap {
   }
 
   /**
-   * @param {DeltaMap<OPS>} other
+   * @param {DeltaMap<Vals>} other
    */
   apply (other) {
     other.forEach(op => {
       const c = this.changes.get(op.key)
       if ($modifyOpAny.check(op)) {
         if ($delta.check(c?.value)) {
-          c.value.apply(op.value)
+          /** @type {DeltaMapBuilder<any>} */ (c.value).apply(op.value)
         } else {
           // then this is a simple modify
           this.changes.set(op.key, /** @type {any} */ (op))
@@ -447,13 +449,13 @@ export class DeltaMapBuilder extends DeltaMap {
   }
 
   done () {
-    return /** @type {DeltaMap<OPS>} */ (this)
+    return /** @type {DeltaMap<Vals>} */ (this)
   }
 }
 
 /**
- * @template {{ [key:string]: s.$any }} Vals
- * @typedef {{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? s.$Schema<MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>> : s.$Schema<MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>> }} $MapOpsFromValues
+ * @template {{ [key:string]: any }} Vals
+ * @typedef {{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>> : MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]> }} $MapOpsFromValues
  */
 
 /**
@@ -515,14 +517,14 @@ const $mapOpsFromValues = $vs => {
 /**
  * @template {{ [key:string]: any }} [Vals={ [key:string]: any }]
  * @param {s.$Schema<Vals>} $vals
- * @return {DeltaMapBuilder<{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>) : (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>) }>}
+ * @return {DeltaMapBuilder<Vals>}
  */
 export const create = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals, $mapOpsFromValues($vals)))
 
 /**
  * @template {{ [key:string]: any }} Vals
  * @param {s.$Schema<Vals>} $vals
- * @return {s.$Schema<DeltaMap<{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>|MapModifyOp<DeltaMap<DM>>) : (MapInsertOp<Vals[K]>|MapDeleteOp<Vals[K]>) }>>}
+ * @return {s.$Schema<DeltaMap<Vals>>}
  */
 export const $deltaMap = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
 export const $$deltaMap = /** @type {s.$Schema<s.$InstanceOf<DeltaMap<any>>>} */ (s.$constructedBy(s.$InstanceOf, s => s.shape.prototype instanceof DeltaMap))

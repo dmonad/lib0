@@ -260,7 +260,7 @@ export const transformer = def => new TransformerTemplate(/** @type {any} */ (de
 /**
  * @template {{ [key:string]: TransformerTemplate<any, any, any>}} T
  * @param {T} def
- * @return {TransformerTemplate<any, T[keyof T] extends TransformerTemplate<any,infer DIn,any> ? DIn : never, dmap.DeltaMap<dmap.$MapOpsFromValues<{ [K in keyof T]: T[K] extends TransformerTemplate<any, any, any> ? T[K] : never }>>>}
+ * @return {TransformerTemplate<any, T[keyof T] extends TransformerTemplate<any,infer DIn,any> ? DIn : never, dmap.DeltaMap<{ [K in keyof T]: T[K] extends TransformerTemplate<any, any, infer DOut> ? DOut : never }>>}
  */
 export const map = (def) => transformer({
   $in: s.$any,

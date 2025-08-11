@@ -132,7 +132,7 @@ export class $Schema {
    * @param {$Schema<any>} other
    */
   extends (other) {
-    let [a, b] = [(this).shape, /** @type {any} */ (other).shape]
+    let [a, b] = [/** @type {any} */ (this).shape, /** @type {any} */ (other).shape]
     if (/** @type {typeof $Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
     return shapeExtends(a, b)
   }
