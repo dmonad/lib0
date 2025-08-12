@@ -179,14 +179,14 @@ export const testEncryptionPerformance = async tc => {
     key = await aes.deriveKey(secret, salt)
   })
   /**
-   * @type {Array<Uint8Array>}
+   * @type {Array<Uint8Array<ArrayBuffer>>}
    */
   const data = []
   for (let i = 0; i < N; i++) {
     data.push(prng.uint8Array(tc.prng, BLen))
   }
   /**
-   * @type {Array<Uint8Array>}
+   * @type {Array<Uint8Array<ArrayBuffer>>}
    */
   const encryptedData = []
   await t.measureTimeAsync(`Encrypt ${N / 1000}k blocks of size ${BLen}byte`, async () => {

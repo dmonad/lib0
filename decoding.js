@@ -38,16 +38,17 @@ const errorIntegerOutOfRange = error.create('Integer out of Range')
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
+ * @template {ArrayBufferLike} [Buf=ArrayBufferLike]
  */
 export class Decoder {
   /**
-   * @param {Uint8Array} uint8Array Binary data to decode
+   * @param {Uint8Array<Buf>} uint8Array Binary data to decode
    */
   constructor (uint8Array) {
     /**
      * Decoding target.
      *
-     * @type {Uint8Array}
+     * @type {Uint8Array<Buf>}
      */
     this.arr = uint8Array
     /**
@@ -61,8 +62,9 @@ export class Decoder {
 
 /**
  * @function
- * @param {Uint8Array} uint8Array
- * @return {Decoder}
+ * @template {ArrayBufferLike} Buf
+ * @param {Uint8Array<Buf>} uint8Array
+ * @return {Decoder<Buf>}
  */
 export const createDecoder = uint8Array => new Decoder(uint8Array)
 
@@ -95,9 +97,10 @@ export const clone = (decoder, newPos = decoder.pos) => {
  *            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
  *
  * @function
- * @param {Decoder} decoder The decoder instance
+ * @template {ArrayBufferLike} Buf
+ * @param {Decoder<Buf>} decoder The decoder instance
  * @param {number} len The length of bytes to read
- * @return {Uint8Array}
+ * @return {Uint8Array<Buf>}
  */
 export const readUint8Array = (decoder, len) => {
   const view = new Uint8Array(decoder.arr.buffer, decoder.pos + decoder.arr.byteOffset, len)
@@ -112,8 +115,9 @@ export const readUint8Array = (decoder, len) => {
  *            Use `buffer.copyUint8Array` to copy the result into a new Uint8Array.
  *
  * @function
- * @param {Decoder} decoder
- * @return {Uint8Array}
+ * @template {ArrayBufferLike} Buf
+ * @param {Decoder<Buf>} decoder
+ * @return {Uint8Array<Buf>}
  */
 export const readVarUint8Array = decoder => readUint8Array(decoder, readVarUint(decoder))
 

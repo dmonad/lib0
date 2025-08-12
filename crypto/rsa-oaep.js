@@ -18,8 +18,8 @@ const defaultUsages = ['encrypt', 'decrypt']
  * Note that the max data size is limited by the size of the RSA key.
  *
  * @param {CryptoKey} key
- * @param {Uint8Array} data
- * @return {PromiseLike<Uint8Array>}
+ * @param {Uint8Array<ArrayBuffer>} data
+ * @return {PromiseLike<Uint8Array<ArrayBuffer>>}
  */
 export const encrypt = (key, data) =>
   webcrypto.subtle.encrypt(
@@ -36,7 +36,7 @@ export const encrypt = (key, data) =>
  * Decrypt some data using AES-GCM method.
  *
  * @param {CryptoKey} key
- * @param {Uint8Array} data
+ * @param {Uint8Array<ArrayBuffer>} data
  * @return {PromiseLike<Uint8Array>} decrypted buffer
  */
 export const decrypt = (key, data) =>

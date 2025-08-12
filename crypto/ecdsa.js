@@ -25,8 +25,8 @@ const defaultSignAlgorithm = {
  * Sign a message
  *
  * @param {CryptoKey} key
- * @param {Uint8Array} data
- * @return {PromiseLike<Uint8Array>} signature
+ * @param {Uint8Array<ArrayBuffer>} data
+ * @return {PromiseLike<Uint8Array<ArrayBuffer>>} signature
  */
 export const sign = (key, data) =>
   webcrypto.subtle.sign(
@@ -41,8 +41,8 @@ export const sign = (key, data) =>
  * Sign a message
  *
  * @param {CryptoKey} key
- * @param {Uint8Array} signature
- * @param {Uint8Array} data
+ * @param {Uint8Array<ArrayBuffer>} signature
+ * @param {Uint8Array<ArrayBuffer>} data
  * @return {PromiseLike<boolean>} signature
  */
 export const verify = (key, signature, data) =>

@@ -90,7 +90,7 @@ export const hasContent = encoder => encoder.cpos > 0 || encoder.bufs.length > 0
  *
  * @function
  * @param {Encoder} encoder
- * @return {Uint8Array} The created ArrayBuffer.
+ * @return {Uint8Array<ArrayBuffer>} The created ArrayBuffer.
  */
 export const toUint8Array = encoder => {
   const uint8arr = new Uint8Array(length(encoder))

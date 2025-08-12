@@ -19,7 +19,7 @@ const defaultUsages = ['encrypt', 'decrypt']
 
 /**
  * @param {CryptoKey} key
- * @param {Uint8Array} data
+ * @param {Uint8Array<ArrayBuffer>} data
  */
 export const encrypt = (key, data) => {
   const iv = webcrypto.getRandomValues(new Uint8Array(16)) // 92bit is enough. 128bit is recommended if space is not an issue.
@@ -45,7 +45,7 @@ export const encrypt = (key, data) => {
  * Decrypt some data using AES-GCM method.
  *
  * @param {CryptoKey} key
- * @param {Uint8Array} data
+ * @param {Uint8Array<ArrayBuffer>} data
  * @return {PromiseLike<Uint8Array>} decrypted buffer
  */
 export const decrypt = (key, data) => {
@@ -84,7 +84,7 @@ export const importKeyJwk = (jwk, { usages, extractable = false } = {}) => {
 /**
  * Only suited for importing public keys.
  *
- * @param {Uint8Array} raw
+ * @param {Uint8Array<ArrayBuffer>} raw
  * @param {Object} opts
  * @param {Usages} [opts.usages]
  * @param {boolean} [opts.extractable]
@@ -93,7 +93,7 @@ export const importKeyRaw = (raw, { usages = defaultUsages, extractable = false 
   webcrypto.subtle.importKey('raw', raw, aesAlgDef, extractable, /** @type {Usages} */ (usages))
 
 /**
- * @param {Uint8Array | string} data
+ * @param {Uint8Array<ArrayBuffer> | string} data
  */
 /* c8 ignore next */
 const toBinary = data => typeof data === 'string' ? string.encodeUtf8(data) : data
@@ -103,8 +103,8 @@ const toBinary = data => typeof data === 'string' ? string.encodeUtf8(data) : da
  *
  * Derive an symmetric key using the Password-Based-Key-Derivation-Function-2.
  *
- * @param {Uint8Array|string} secret
- * @param {Uint8Array|string} salt
+ * @param {Uint8Array<ArrayBuffer>|string} secret
+ * @param {Uint8Array<ArrayBuffer>|string} salt
  * @param {Object} opts
  * @param {boolean} [opts.extractable]
  * @param {Usages} [opts.usages]

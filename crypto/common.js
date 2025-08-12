@@ -13,7 +13,7 @@ export const exportKeyJwk = async key => {
  * Only suited for exporting public keys.
  *
  * @param {CryptoKey} key
- * @return {Promise<Uint8Array>}
+ * @return {Promise<Uint8Array<ArrayBuffer>>}
  */
 export const exportKeyRaw = key =>
   webcrypto.subtle.exportKey('raw', key).then(key => new Uint8Array(key))

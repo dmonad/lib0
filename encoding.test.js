@@ -551,7 +551,7 @@ export const testSetOnOverflow = _tc => {
   const buf = encoding.toUint8Array(encoder)
   t.assert(encoding.length(encoder) === initialLen + 2)
   const decoder = decoding.createDecoder(buf)
-  const space = buffer.createUint8ArrayFromArrayBuffer(decoding.readUint8Array(decoder, initialLen - 2))
+  const space = buffer.createUint8ArrayFromArrayBuffer(decoding.readUint8Array(decoder, initialLen - 2).buffer)
   for (let i = 0; i < initialLen - 2; i++) {
     t.assert(space[i] === 0)
   }

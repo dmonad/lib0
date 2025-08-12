@@ -22,7 +22,7 @@ export const testSelfReferencingHash = _tc => {
  */
 export const testSha256Basics = async _tc => {
   /**
-   * @param {string | Uint8Array} data input data (buffer or hex encoded)
+   * @param {string | Uint8Array<ArrayBuffer>} data input data (buffer or hex encoded)
    * @param {string} result Expected result (hex encoded)
    */
   const test = async (data, result) => {

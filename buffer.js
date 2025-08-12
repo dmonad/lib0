@@ -56,7 +56,7 @@ const toBase64Node = bytes => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.
 /* c8 ignore start */
 /**
  * @param {string} s
- * @return {Uint8Array}
+ * @return {Uint8Array<ArrayBuffer>}
  */
 const fromBase64Browser = s => {
   // eslint-disable-next-line no-undef

@@ -47,7 +47,7 @@ export const utf8ByteLength = str => unescape(encodeURIComponent(str)).length
 
 /**
  * @param {string} str
- * @return {Uint8Array}
+ * @return {Uint8Array<ArrayBuffer>}
  */
 export const _encodeUtf8Polyfill = str => {
   const encodedString = unescape(encodeURIComponent(str))
@@ -64,7 +64,7 @@ export const utf8TextEncoder = /** @type {TextEncoder} */ (typeof TextEncoder !=
 
 /**
  * @param {string} str
- * @return {Uint8Array}
+ * @return {Uint8Array<ArrayBuffer>}
  */
 export const _encodeUtf8Native = str => utf8TextEncoder.encode(str)
 

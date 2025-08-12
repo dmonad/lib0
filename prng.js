@@ -173,7 +173,7 @@ export const oneOf = (gen, array) => array[int31(gen, 0, array.length - 1)]
 /**
  * @param {PRNG} gen
  * @param {number} len
- * @return {Uint8Array}
+ * @return {Uint8Array<ArrayBuffer>}
  */
 export const uint8Array = (gen, len) => {
   const buf = buffer.createUint8ArrayFromLen(len)
