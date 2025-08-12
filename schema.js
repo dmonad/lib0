@@ -592,6 +592,43 @@ export const $array = (...def) => new $Array(def)
 export const $$array = $constructedBy($Array)
 
 /**
+ * Check custom properties on any object. You may want to overwrite the generated $Schema<any>.
+ *
+ * @extends {$Schema<any>}
+ */
+export class $Custom extends $Schema {
+  /**
+   * @param {(o:any) => boolean} check
+   */
+  constructor (check) {
+    super()
+    /**
+     * @type {(o:any) => boolean}
+     */
+    this.shape = check
+  }
+
+  /**
+   * @param {any} o
+   * @param {ValidationError} err
+   * @return {o is any}
+   */
+  check (o, err) {
+    const c = this.shape(o)
+    /* c8 ignore next */
+    !c && err?.extend(null, 'custom prop', o?.constructor.name, 'failed to check custom prop')
+    return c
+  }
+}
+
+/**
+ * @param {(o:any) => boolean} check
+ * @return {$Schema<any>}
+ */
+export const $custom = check => new $Custom(check)
+export const $$custom = $constructedBy($Custom)
+
+/**
  * @template T
  * @extends {$Schema<T>}
  */
@@ -744,11 +781,12 @@ export class $Union extends $Schema {
 export const $union = (...def) => $$union.check(def[0]) ? new $Union([...def[0].shape, ...def.slice(1)]) : new $Union(def)
 export const $$union = /** @type {$Schema<$Union<any>>} */ ($constructedBy($Union))
 
+const _t = () => true
 /**
  * @type {$Schema<any>}
  */
-export const $any = $intersect()
-export const $$any = /** @type {$Schema<$Schema<any>>} */ ($constructedBy($Intersection, o => o.shape.length === 0))
+export const $any = $custom(_t)
+export const $$any = /** @type {$Schema<$Schema<any>>} */ ($constructedBy($Custom, o => o.shape === _t))
 
 /**
  * @type {$Schema<bigint>}

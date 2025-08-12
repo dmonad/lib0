@@ -2,6 +2,7 @@ import * as traits from '../traits.js'
 import * as dabstract from './abstract.js'
 import * as darray from './array.js'
 import * as dmap from './map.js'
+import * as s from '../schema.js'
 
 /**
  * @template {string|undefined} NodeName
@@ -9,7 +10,7 @@ import * as dmap from './map.js'
  * @template {object} Attrs
  * @template {'done'|'mutable'} [Done='mutable']
  */
-export class XmlDelta extends dabstract.AbstractDelta {
+export class DeltaXml extends dabstract.AbstractDelta {
   /**
    * @param {NodeName} nodeName
    * @param {darray.DeltaArrayBuilder<Children>} children
@@ -37,7 +38,7 @@ export class XmlDelta extends dabstract.AbstractDelta {
   }
 
   /**
-   * @return {XmlDelta<Children, Attrs, 'done'>}
+   * @return {DeltaXml<Children, Attrs, 'done'>}
    */
   done () {
     /** @type {darray.DeltaArrayBuilder<any>} */ (this.children).done()
@@ -46,7 +47,7 @@ export class XmlDelta extends dabstract.AbstractDelta {
   }
 
   /**
-   * @param {XmlDelta<NodeName,Children,Attrs>} other
+   * @param {DeltaXml<NodeName,Children,Attrs>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.nodeName === other.nodeName && this.children[traits.EqualityTraitSymbol](other.children) && this.attributes[traits.EqualityTraitSymbol](other.attributes)
@@ -60,6 +61,22 @@ export class XmlDelta extends dabstract.AbstractDelta {
  * @param {NodeName} nodeName
  * @param {darray.DeltaArrayBuilder<Children>} children
  * @param {dmap.DeltaMapBuilder<Attrs>} attributes
- * @return {XmlDelta<NodeName,Children,Attrs>}
+ * @return {DeltaXml<NodeName,Children,Attrs>}
  */
-export const createXmlDelta = (nodeName, children = darray.createDeltaArray(), attributes = /** @type {any} */ (dmap.createDeltaMap())) => new XmlDelta(nodeName, children, attributes)
+export const createDeltaXml = (nodeName, children = darray.createDeltaArray(), attributes = /** @type {any} */ (dmap.createDeltaMap())) => new DeltaXml(nodeName, children, attributes)
+
+/**
+ * @template {string} NodeName
+ * @template Children
+ * @template {{ [key:string]: any }} Attributes
+ * @param {s.$Schema<NodeName>} $nodeName
+ * @param {s.$Schema<Children>} $children
+ * @param {s.$Schema<Attributes>} $attributes
+ * @return {s.$Schema<DeltaXml<NodeName, Children, Attributes>>}
+ */
+export const $deltaXml = ($nodeName, $children, $attributes) => {
+  const $dchildren = darray.$deltaArray($children)
+  const $dattrs = dmap.$deltaMap($attributes)
+  return/** @type {s.$Schema<DeltaXml<NodeName, any, any>>} */ (s.$instanceOf(DeltaXml, o => $nodeName.check(o.nodeName) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
+}
+export const $deltaXmlAny = s.$constructedBy(DeltaXml)

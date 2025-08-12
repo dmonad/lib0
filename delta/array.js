@@ -4,12 +4,12 @@ import { AbstractDeltaArrayBuilder } from './abstract-array.js'
 
 /**
  * @template Content
- * @typedef {import('./abstract-array.js').AbstractDeltaArray<'array',import('./abstract-array.js').DeltaArrayOps<Content>>} DeltaArray
+ * @typedef {import('./abstract-array.js').AbstractDeltaArray<'array',import('./ops.js').DeltaArrayOps<Content>>} DeltaArray
  */
 
 /**
  * @template ArrayContent
- * @extends AbstractDeltaArrayBuilder<'array', import('./abstract-array.js').DeltaArrayOps<ArrayContent>>
+ * @extends AbstractDeltaArrayBuilder<'array', import('./ops.js').DeltaArrayOps<ArrayContent>>
  */
 export class DeltaArrayBuilder extends AbstractDeltaArrayBuilder {
   /**
@@ -19,6 +19,17 @@ export class DeltaArrayBuilder extends AbstractDeltaArrayBuilder {
     super('array', $insert)
   }
 }
+
+/**
+ * @template ArrayContent
+ * @param {s.$Schema<ArrayContent>} $insert
+ * @return {s.$Schema<DeltaArray<ArrayContent>>}
+ */
+export const $deltaArray = $insert => /** @type {any} */ (s.$instanceOf(AbstractDeltaArrayBuilder, o => o.type === 'array' && o.$insert.extends($insert)))
+/**
+ * @type {s.$Schema<DeltaArray<any>>}
+ */
+export const $deltaArrayAny = /** @type {any} */ (s.$instanceOf(AbstractDeltaArrayBuilder, o => o.type === 'array'))
 
 /**
  * @template [V=any]
@@ -49,5 +60,3 @@ export const fromJSON = (ops, type) => {
   }
   return d.done()
 }
-
-export { $modifyOp, $insertOp, $insertOpAny, $retainOp, $deleteOp } from './abstract-array.js'

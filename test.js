@@ -41,6 +41,9 @@ import * as symbol from './symbol.test.js'
 import * as traits from './traits.test.js'
 import * as schema from './schema.test.js'
 import * as dmap from './delta/map.test.js'
+import * as darray from './delta/array.test.js'
+import * as dtext from './delta/text.test.js'
+import * as dxml from './delta/xml.test.js'
 import * as dtransformer from './delta/transformer.test.js'
 import { isBrowser, isNode } from './environment.js'
 
@@ -91,6 +94,9 @@ runTests({
   traits,
   schema,
   dmap,
+  darray,
+  dtext,
+  dxml,
   dtransformer
 }).then(success => {
   /* c8 ignore next */

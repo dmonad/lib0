@@ -1,7 +1,7 @@
-import * as object from 'lib0/object'
-import * as traits from 'lib0/traits'
-import * as error from 'lib0/error'
-import * as s from 'lib0/schema'
+import * as object from '../object.js'
+import * as traits from '../traits.js'
+import * as error from '../error.js'
+import * as s from '../schema.js'
 
 export const $attribution = s.$object({
   insert: s.$array(s.$string).optional,
@@ -69,10 +69,6 @@ export class AbstractDelta {
 
 export const $delta = s.$instanceOf(AbstractDelta)
 export const $$delta = /** @type {s.$Schema<s.$InstanceOf<AbstractDelta>>} */ (s.$constructedBy(s.$InstanceOf, s => s.shape.prototype instanceof AbstractDelta))
-
-/**
- * @typedef {s.Unwrap<$delta>} Delta
- */
 
 /**
  * Helper function to merge attribution and attributes. The latter input "wins".

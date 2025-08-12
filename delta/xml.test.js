@@ -1,12 +1,11 @@
 import * as t from 'lib0/testing'
-import * as dxml from './xml.js'
-import * as darray from './array.js'
+import * as delta from './index.js'
 
 /**
  * @param {t.TestCase} _tc
  */
 export const testXmlDelta = _tc => {
-  const d = /** @type {dxml.XmlDelta<string, string, { a: 1 }>} */ (dxml.createXmlDelta('test'))
+  const d = /** @type {delta.DeltaXml<string, string, { a: 1 }>} */ (delta.createDeltaXml('test'))
   d.children.insert(['hi'])
   // @ts-expect-error
   d.children.insert([42])
@@ -18,7 +17,7 @@ export const testXmlDelta = _tc => {
   const arr = []
   d.children.forEach(
     (op, index) => {
-      if (darray.$insertOpAny.check(op)) {
+      if (delta.$insertOp.check(op)) {
         arr.push(op.insert, index)
       }
     },
