@@ -92,6 +92,6 @@ export const testMapBasics = _tc => {
   const res = m1.applyA(d)
   t.assert(res.a == null)
   const qq = delta.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
-  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMap(s.$object({ x: s.$number })) })).set('mynum', qq).done()
+  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMap(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
   t.compare(res.b, q)
 }

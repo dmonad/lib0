@@ -264,7 +264,7 @@ export class MapInsertOp {
   toJSON () {
     return {
       type: this.type,
-      value: this.value,
+      value: d.$delta.check(this.value) ? this.value.toJSON() : this.value,
       attribution: this.attribution
     }
   }
@@ -382,12 +382,12 @@ export const $deltaMapChangeJson = s.$union(
 /**
  * @type {s.$Schema<MapDeleteOp<any> | DeleteOp>}
  */
-export const $deleteOp = s.$custom(o => o.constructor === DeleteOp || o.constructor === MapDeleteOp)
+export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp || o.constructor === MapDeleteOp))
 
 /**
  * @type {s.$Schema<MapInsertOp<any> | InsertOp<any>>}
  */
-export const $insertOp = s.$custom(o => o.constructor === MapInsertOp || o.constructor === InsertOp)
+export const $insertOp = s.$custom(o => o != null && (o.constructor === MapInsertOp || o.constructor === InsertOp))
 
 /**
  * @template Content
@@ -395,8 +395,10 @@ export const $insertOp = s.$custom(o => o.constructor === MapInsertOp || o.const
  * @return {s.$Schema<MapInsertOp<Content> | InsertOp<Content>>}
  */
 export const $insertOpWith = $content => s.$custom(o =>
-  (o.constructor === MapInsertOp && $content.check(/** @type {MapInsertOp<Content>} */ (o).value)) ||
-    (o.constructor === InsertOp && /** @type {InsertOp<Content>} */ (o).insert.every(ins => $content.check(ins)))
+  o != null && (
+    (o.constructor === MapInsertOp && $content.check(/** @type {MapInsertOp<Content>} */ (o).value)) 
+      || (o.constructor === InsertOp && /** @type {InsertOp<Content>} */ (o).insert.every(ins => $content.check(ins)))
+  )
 )
 
 /**
@@ -412,7 +414,7 @@ export const $retainOp = s.$constructedBy(RetainOp)
 /**
  * @type {s.$Schema<MapModifyOp<any> | ModifyOp<any>>}
  */
-export const $modifyOp = s.$custom(o => o.constructor === MapModifyOp || o.constructor === ModifyOp)
+export const $modifyOp = s.$custom(o => o != null && (o.constructor === MapModifyOp || o.constructor === ModifyOp))
 
 /**
  * @template {d.AbstractDelta} Modify
@@ -420,8 +422,10 @@ export const $modifyOp = s.$custom(o => o.constructor === MapModifyOp || o.const
  * @return {s.$Schema<MapModifyOp<Modify> | ModifyOp<Modify>>}
  */
 export const $modifyOpWith = $content => s.$custom(o =>
-  (o.constructor === MapModifyOp && $content.check(/** @type {MapModifyOp<Modify>} */ (o).value)) ||
-    (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).modify))
+  o != null && (
+    (o.constructor === MapModifyOp && $content.check(/** @type {MapModifyOp<Modify>} */ (o).value)) 
+      || (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).modify))
+  )
 )
 
 export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)

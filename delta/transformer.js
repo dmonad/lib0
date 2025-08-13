@@ -348,8 +348,8 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
       }
     }
     // merge changes for output
-    for (let i = 0; i < reverseAChanges.length; i++) {
-      applyResult.a = delta.mergeDeltas(applyResult.a, reverseAChanges[i].d)
+    for (let i = 0; i < nextReverseAChanges.length; i++) {
+      applyResult.a = delta.mergeDeltas(applyResult.a, nextReverseAChanges[i].d)
     }
     reverseAChanges = nextReverseAChanges
     nextReverseAChanges = []
