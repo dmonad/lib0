@@ -76,7 +76,7 @@ export const createDeltaXml = (nodeName, children = darray.createDeltaArray(), a
  */
 export const $deltaXml = ($nodeName, $children, $attributes) => {
   const $dchildren = darray.$deltaArray($children)
-  const $dattrs = dmap.$deltaMap($attributes)
+  const $dattrs = dmap.$deltaMapWith($attributes)
   return/** @type {s.$Schema<DeltaXml<NodeName, any, any>>} */ (s.$instanceOf(DeltaXml, o => $nodeName.check(o.nodeName) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
 }
 export const $deltaXmlAny = s.$constructedBy(DeltaXml)

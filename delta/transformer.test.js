@@ -85,8 +85,32 @@ export const testBasics = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testMapBasics = _tc => {
-  const m1 = dt.map({
-    mynum: mapNumber
+  const m1 = dt.mapho({
+    mynum: () => mapNumber
+  })(mapNumber.$in).init()
+  const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
+  const res = m1.applyA(d)
+  t.assert(res.a == null)
+  const qq = delta.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
+  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMap(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
+  t.compare(res.b, q)
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testMapQuery = _tc => {
+  mapNumber.pipe($d => dt.map({
+    x: dt.id
+  }))
+  const a1 = dt.query('q')
+  dt.map(mapNumber, { mynum: dt.id })
+  const m1 = mapNumber.pipe(dt.map({
+    mynum: dt.id()
+  }))
+
+  dt.map({
+    mynum: a1
   }).init()
   const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
   const res = m1.applyA(d)

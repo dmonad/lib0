@@ -257,6 +257,7 @@ export class $ConstructedBy extends $Schema {
    */
   check (o, err = undefined) {
     const c = o?.constructor === this.shape && (this._c == null || this._c(o))
+    /* c8 ignore next */
     !c && err?.extend(null, this.shape.name, o?.constructor.name, o?.constructor !== this.shape ? 'Constructor match failed' : 'Check failed')
     return c
   }

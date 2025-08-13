@@ -41,8 +41,8 @@ export {
 // delta map
 export {
   createDeltaMap,
+  $deltaMapWith,
   $deltaMap,
-  $$deltaMap,
   $deltaMapJson,
   DeltaMapBuilder,
   DeltaMap

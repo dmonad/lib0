@@ -396,8 +396,8 @@ export const $insertOp = s.$custom(o => o != null && (o.constructor === MapInser
  */
 export const $insertOpWith = $content => s.$custom(o =>
   o != null && (
-    (o.constructor === MapInsertOp && $content.check(/** @type {MapInsertOp<Content>} */ (o).value)) 
-      || (o.constructor === InsertOp && /** @type {InsertOp<Content>} */ (o).insert.every(ins => $content.check(ins)))
+    (o.constructor === MapInsertOp && $content.check(/** @type {MapInsertOp<Content>} */ (o).value)) ||
+      (o.constructor === InsertOp && /** @type {InsertOp<Content>} */ (o).insert.every(ins => $content.check(ins)))
   )
 )
 
@@ -423,8 +423,8 @@ export const $modifyOp = s.$custom(o => o != null && (o.constructor === MapModif
  */
 export const $modifyOpWith = $content => s.$custom(o =>
   o != null && (
-    (o.constructor === MapModifyOp && $content.check(/** @type {MapModifyOp<Modify>} */ (o).value)) 
-      || (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).modify))
+    (o.constructor === MapModifyOp && $content.check(/** @type {MapModifyOp<Modify>} */ (o).value)) ||
+      (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).modify))
   )
 )
 
