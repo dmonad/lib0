@@ -3,9 +3,64 @@ import * as dt from './transformer.js'
 import * as delta from './index.js'
 import * as s from '../schema.js'
 
-const idt = dt.transformer({
-  $in: delta.$deltaMap(s.$object({ x: s.$string })),
-  $out: delta.$deltaMap(s.$object({ x: s.$string })),
+// @todo just have a single `dt.transformer` function that returns a factory
+const mapString = dt.defineTransformer(delta.$deltaMapWith(s.$object({ x: s.$number })), dt.transformer({
+  $in: delta.$deltaMapWith(s.$object({ x: s.$number })),
+  $out: delta.$deltaMapWith(s.$object({ x: s.$string })),
+  state: () => null,
+  applyA: (d, state, def) => {
+    const dout = delta.createDeltaMap(s.$object({ x: s.$string }))
+    d.forEach(op => {
+      if (delta.$insertOp.check(op)) {
+        dout.set(op.key, op.value + '')
+      }
+    })
+    return dt.transformResult(null, dout)
+  },
+  applyB: (d, state, def) => {
+    const dout = delta.createDeltaMap(s.$object({ x: s.$number }))
+    d.forEach(op => {
+      if (delta.$insertOp.check(op)) {
+        dout.set(op.key, Number.parseInt(op.value))
+      }
+    })
+    return dt.transformResult(dout, null)
+  }
+}))
+
+const mapNumber = dt.defineTransformer(delta.$deltaMapWith(s.$object({ x: s.$string })), dt.transformer({
+  $in: delta.$deltaMapWith(s.$object({ x: s.$string })),
+  $out: delta.$deltaMapWith(s.$object({ x: s.$number })),
+  state: () => null,
+  applyA: (d, state, def) => {
+    const dout = delta.createDeltaMap(s.$object({ x: s.$number }))
+    d.forEach(op => {
+      if (delta.$insertOp.check(op)) {
+        dout.set(op.key, Number.parseInt(op.value))
+      }
+    })
+    return dt.transformResult(null, dout)
+  },
+  applyB: (d, state, def) => {
+    const dout = delta.createDeltaMap(s.$object({ x: s.$string }))
+    d.forEach(op => {
+      if (delta.$insertOp.check(op)) {
+        dout.set(op.key, op.value + '')
+      }
+    })
+    return dt.transformResult(dout, null)
+  }
+}))
+
+/**
+ * @todo remove this superfluous transformer
+ * @template {delta.AbstractDelta} Delta
+ * @param {s.$Schema<Delta>} $in
+ * @return {dt.TransformerTemplate<null,Delta,Delta>}
+ */
+export const id = $in => dt.transformer({
+  $in: $in,
+  $out: s.$any,
   state: () => null,
   applyA: (d, state, def) => {
     return dt.transformResult(null, d)
@@ -14,68 +69,35 @@ const idt = dt.transformer({
     return dt.transformResult(d, null)
   }
 })
-const mapString = dt.transformer({
-  $in: delta.$deltaMap(s.$object({ x: s.$number })),
-  $out: delta.$deltaMap(s.$object({ x: s.$string })),
-  state: () => null,
-  applyA: (d, state, def) => {
-    const dout = delta.createDeltaMap(s.$object({ x: s.$string }))
-    d.forEach(op => {
-      if (delta.$insertOp.check(op)) {
-        dout.set(op.key, op.value + '')
-      }
-    })
-    return dt.transformResult(null, dout)
-  },
-  applyB: (d, state, def) => {
-    const dout = delta.createDeltaMap(s.$object({ x: s.$number }))
-    d.forEach(op => {
-      if (delta.$insertOp.check(op)) {
-        dout.set(op.key, Number.parseInt(op.value))
-      }
-    })
-    return dt.transformResult(dout, null)
-  }
-})
-const mapNumber = dt.transformer({
-  $in: delta.$deltaMap(s.$object({ x: s.$string })),
-  $out: delta.$deltaMap(s.$object({ x: s.$number })),
-  state: () => null,
-  applyA: (d, state, def) => {
-    const dout = delta.createDeltaMap(s.$object({ x: s.$number }))
-    d.forEach(op => {
-      if (delta.$insertOp.check(op)) {
-        dout.set(op.key, Number.parseInt(op.value))
-      }
-    })
-    return dt.transformResult(null, dout)
-  },
-  applyB: (d, state, def) => {
-    const dout = delta.createDeltaMap(s.$object({ x: s.$string }))
-    d.forEach(op => {
-      if (delta.$insertOp.check(op)) {
-        dout.set(op.key, op.value + '')
-      }
-    })
-    return dt.transformResult(dout, null)
-  }
+
+const idFactory = dt.createTransformerFactory(delta.$deltaMap, $d => {
+  const x = id($d)
+  const y = x.pipe(id)
+  return y
 })
 
 /**
  * @param {t.TestCase} _tc
  */
 export const testBasics = _tc => {
-  idt.pipe(idt)
-  idt.pipe(idt)
-  mapNumber.pipe(mapString)
-  mapString.pipe(mapNumber)
+  const idFactory = dt.createTransformerFactory(delta.$deltaMap, $d => {
+    const x = id($d)
+    const y = x.pipe(id)
+    return y
+  })
+
+  const $snIn = delta.$deltaMapWith(s.$object({ x: s.$string }))
+
+  const mn = mapNumber($snIn).pipe(id).pipe(mapString)
+
+  const _q = id(delta.$deltaMap).pipe(id)
+  dt.createTransformerFactory(delta.$deltaMapWith(s.$object({ x: s.$string })), $d => mapNumber($d).pipe(mapString))
   // @ts-expect-error
-  mapString.pipe(mapString)
-  // @ts-expect-error
-  mapString.pipe(mapNumber, mapNumber)
-  const q = mapString.pipe(mapNumber).init()
+  dt.createTransformerFactory(delta.$deltaMapWith(s.$object({ x: s.$string })), $d => mapNumber($d).pipe(mapNumber))
+
+  const q = mapNumber($snIn).pipe(mapString).init()
   {
-    const d1 = delta.createDeltaMap(s.$object({ x: s.$number }))
+    const d1 = delta.createDeltaMap(s.$object({ x: s.$string }))
     const d1_ = q.applyA(d1).b
     t.compare(d1, d1_)
   }
@@ -85,14 +107,14 @@ export const testBasics = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testMapBasics = _tc => {
-  const m1 = dt.mapho({
-    mynum: () => mapNumber
+  const m1 = dt.map({
+    mynum: mapNumber
   })(mapNumber.$in).init()
   const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
   const res = m1.applyA(d)
   t.assert(res.a == null)
   const qq = delta.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
-  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMap(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
+  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMapWith(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
   t.compare(res.b, q)
 }
 
@@ -116,6 +138,12 @@ export const testMapQuery = _tc => {
   const res = m1.applyA(d)
   t.assert(res.a == null)
   const qq = delta.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
-  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMap(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
+  const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMapWith(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
   t.compare(res.b, q)
+}
+
+export const testMappingTransformer = () => {
+  const q = dt.defineTransformerDynamic(delta.$deltaMapWith(s.$object({ x: s.$number })), $d => id($d))
+  q(delta.$deltaMapWith(s.$object({ x: s.$number })))
+
 }
