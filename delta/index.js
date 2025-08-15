@@ -61,3 +61,11 @@ export {
 /**
  * @typedef {DeltaArray<any> | import('./xml.js').DeltaXml<string,any,any> } Delta
  */
+
+export {
+  createDeltaValue,
+  $deltaValue,
+  $deltaValueWith,
+  DeltaValue,
+  DeltaValueBuilder
+} from './value.js'

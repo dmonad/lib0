@@ -28,6 +28,10 @@ import * as s from '../schema.js'
  */
 
 /**
+ * @typedef {MapInsertOp<any,''>|MapDeleteOp<any,''>|MapModifyOp<any,''>} DeltaValueOps
+ */
+
+/**
  * @typedef {{ [key: string]: any }} FormattingAttributes
  */
 

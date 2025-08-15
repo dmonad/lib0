@@ -215,7 +215,7 @@ export class DeltaMapBuilder extends DeltaMap {
       },
       deleteOp => {
         const otherOp = other.get(deleteOp.key)
-        if (otherOp?.constructor instanceof ops.MapInsertOp || otherOp?.constructor === ops.MapInsertOp) {
+        if (otherOp?.constructor === ops.MapInsertOp) {
           this.changes.delete(otherOp.key)
         }
       },

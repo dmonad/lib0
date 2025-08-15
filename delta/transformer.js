@@ -211,9 +211,9 @@ class TransformerTemplate {
  */
 const defineTransformer = ($deltaA, transformerFactory) => transformerFactory
 
-const q = defineTransformer(delta.$deltaMap(s.$object({ x: s.$number })), $d => id($d))
+const q = defineTransformer(delta.$deltaMapWith(s.$object({ x: s.$number })), $d => id($d))
 
-q(delta.$deltaMap(s.$object({ x: s.$number })))
+q(delta.$deltaMapWith(s.$object({ x: s.$number })))
 
 /**
  * @type {TransformerDef<any,any,any>}
@@ -294,11 +294,16 @@ class TransformerPipeTemplate extends TransformerTemplate {
 export const transformer = def => new TransformerTemplate(/** @type {any} */ (def))
 
 /**
- * @template {{ [key:string]: TransformerFactory<any, any>}} T
- * @param {T} def
- * @return {<DeltaA> ($deltaA: DeltaA) => TransformerTemplate<any, DeltaA, delta.DeltaMap<{ [K in keyof T]: T[K] extends TransformerFactory<DeltaA, infer DeltaB> ? DeltaB : never }>>}
+ * @template {{ [key:string]: delta.AbstractDelta }} T
+ * @typedef {{ [K in keyof T]: T[K] extends delta.DeltaValue<infer V> ? V : T[K] }} MapValueOpt
  */
-export const mapho = (def) => ($deltaA) => transformer({
+
+/**
+ * @template {{ [key:string]: TransformerFactory<any>}} T
+ * @param {T} def
+ * @return {<DeltaA> ($deltaA: DeltaA) => TransformerTemplate<any, DeltaA, MapValueOpt<delta.DeltaMap<{ [K in keyof T]: T[K] extends TransformerFactory<DeltaA, infer DeltaB> ? DeltaB : never }>>>}
+ */
+export const map = (def) => ($deltaA) => transformer({
   $in: s.$any,
   $out: s.$any,
   state: () => {
@@ -312,7 +317,7 @@ export const mapho = (def) => ($deltaA) => transformer({
     return _applyMapOpHelper(state, [{ d, src: null }])
   },
   applyB: (d, state, def) => {
-    s.assert(d, delta.$deltaMap(s.$any))
+    s.assert(d, delta.$deltaMap)
     /**
      * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
      */
@@ -335,33 +340,24 @@ export const mapho = (def) => ($deltaA) => transformer({
 
 /**
  * @template {delta.AbstractDelta} DeltaA
- * @template {delta.AbstractDelta} DeltaB
  * @param {s.$Schema<DeltaA>} $deltaA
- * @param {TransformerFactory<DeltaA,DeltaB>} gen
- * @return {TransformerFactory<DeltaA, DeltaB>}
+ * @param {TransformerFactory<DeltaA>} gen
+ * @return {TransformerFactory<DeltaA>}
  */
 export const createHOTransformerTemplate = ($deltaA, gen) => gen
 
 /**
- * @template {{ [key:string]: TransformerTemplate<any, any, any>}} T
- * @param {T} def
- * @return {TransformerTemplate<any, T[keyof T] extends TransformerTemplate<any,infer DIn,any> ? DIn : never, delta.DeltaMap<{ [K in keyof T]: T[K] extends TransformerTemplate<any, any, infer DOut> ? DOut : never }>>}
+ * @return {TransformerTemplate<any, delta.DeltaMap<any>, delta.DeltaMap<any>>}
  */
-export const map = (def) => transformer({
+const mapValueOpt = transformer({
   $in: s.$any,
   $out: s.$any,
-  state: () => {
-    const mapState = /** @type {{ [key: string]: Transformer<any,any,any> }} */ ({})
-    for (const key in def) {
-      mapState[key] = def[key].init()
-    }
-    return /** @type {{ [key in keyof T]: T extends TransformerTemplate<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never }} */ (mapState)
-  },
+  state: () => null,
   applyA: (d, state, def) => {
     return _applyMapOpHelper(state, [{ d, src: null }])
   },
   applyB: (d, state, def) => {
-    s.assert(d, delta.$deltaMap(s.$any))
+    s.assert(d, delta.$deltaMap)
     /**
      * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
      */
@@ -380,11 +376,11 @@ export const map = (def) => transformer({
     })
     return _applyMapOpHelper(state, reverseAChanges)
   }
+
 })
 
 /**
- * @template {{ [key:string]: TransformerTemplate<any, any, any>}} T
- * @param {{ [key in keyof T]: T extends TransformerTemplate<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never }} state
+ * @param {{ [key: string]: Transformer<any, any, any> }} state
  * @param {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>} reverseAChanges
  * @return {TransformResult<delta.AbstractDelta?,delta.DeltaMap<any>?>}
  */
@@ -430,10 +426,26 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
     nextReverseAChanges = []
   }
   // accumulate b changes stored on transformers
-  applyResult.b = delta.createDeltaMap()
+  const bRes = delta.createDeltaMap()
   for (const key in state) {
     const b = state[key]._pb
-    if (b) applyResult.b.modify(key, b)
+    if (b) bRes.modify(key, b)
+  }
+  if (bRes.changes.size > 0) {
+    // opt values (iff delta is of type DeltaValue, map the change to the map)
+    bRes.changes.forEach((change, key) => {
+      if (delta.$deltaValue.check(change.value)) {
+        const changeOp = change.value.change
+        if (delta.$insertOp.check(changeOp) || delta.$modifyOp.check(changeOp)) {
+          bRes.set(key, changeOp.value)
+        } else if (delta.$deleteOp.check(changeOp)) {
+          bRes.delete(key)
+        } else {
+          error.unexpectedCase()
+        }
+      }
+    })
+    applyResult.b = bRes
   }
   return applyResult
 }
@@ -470,11 +482,11 @@ export const id = $in => transformer({
 /**
  * @template {Array<string>} Path
  * @param {Path} path
- * @return {<DA extends PathToDelta<Path>> ($in: s.$Schema<DA>) => TransformerTemplate<Path, DA, QueryFollowPath<DA,Path>>}
+ * @return {<DA extends PathToDelta<Path>> ($in: s.$Schema<DA>) => TransformerTemplate<Path, DA, delta.DeltaValue<QueryFollowPath<DA,Path>>>}
  */
 export const query = (...path) => $in => transformer({
   $in,
-  $out: s.$any,
+  $out: delta.$deltaValue,
   state: () => path,
   applyA: (d, path, def) => {
     /**
@@ -499,17 +511,41 @@ export const query = (...path) => $in => transformer({
         cd = null
       }
     }
+    const dv = delta.createDeltaValue()
     if (overwritten) {
       // @todo implement some kind of "ValueDelta" with insert, delete, modify ops. dmap is supposed
       // to automatically translate this.
-      delta.create
+      if (cd == null) {
+        dv.delete()
+      } else {
+        dv.set(cd)
+      }
+    } else {
+      dv.modify(delta)
     }
+    return transformResult(null, dv)
   },
-  applyB: (d, state, def) => {
-    error.methodUnimplemented()
+  applyB: (d, path, def) => {
+    const dop = d.change
+    let resD = delta.createDeltaMap()
+    let i = path.length - 1
+    let p = path[i]
+    if (delta.$modifyOp.check(dop)) {
+      resD.modify(p, dop.value)
+    } else if (delta.$insertOp.check(dop)) {
+      resD.set(p, dop.value)
+    } else if (delta.$deleteOp.check(dop)) {
+      resD.delete(p)
+    }
+    for (i--; i >= 0; i--) {
+      const tmpDmap = delta.createDeltaMap()
+      tmpDmap.modify(p, resD)
+      resD = tmpDmap
+    }
+    return /** @type {TransformResult<any,null>} */ (transformResult(resD, null))
   }
 })
 
 // @todo move this to tests
-const xx = query('hi', 'there')(delta.$deltaMap(s.$object({ hi: delta.$deltaMap(s.$object({ there: s.$number})) })))
+const xx = query('hi', 'there')(delta.$deltaMapWith(s.$object({ hi: delta.$deltaMapWith(s.$object({ there: s.$number})) })))
 

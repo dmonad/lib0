@@ -204,7 +204,7 @@ export class $Schema {
    * Performs an assertion check only if not in a production environment.
    *
    * @param {any} o
-   * @return {o extends T ? T : never}
+   * @return {Extract<o, T>}
    */
   cast (o) {
     assert(o, this)
