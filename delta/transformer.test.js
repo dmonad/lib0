@@ -129,20 +129,14 @@ export const testMapBasics = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testMapQuery = _tc => {
-  mapNumber.pipe($d => dt.map({
-    x: dt.id
-  }))
-  const a1 = dt.query('q')
-  dt.map(mapNumber, { mynum: dt.id })
-  const m1 = mapNumber.pipe(dt.map({
-    mynum: dt.id()
-  }))
-
+  const $sa = delta.$deltaMapWith(s.$object({ x: s.$string }))
+  const q42 = dt.pipe(mapNumber, id)
+  const a1 = dt.query('x')
   const xxx = dt.map({
     mynum: a1
-  })
+  })($sa)
   const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
-  const res = m1.applyA(d)
+  const res = xxx.init().applyA(d)
   t.assert(res.a == null)
   const qq = delta.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
   const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMapWith(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
@@ -152,5 +146,4 @@ export const testMapQuery = _tc => {
 export const testMappingTransformer = () => {
   const q = dt.defineTransformerDynamic(delta.$deltaMapWith(s.$object({ x: s.$number })), $d => id($d))
   q(delta.$deltaMapWith(s.$object({ x: s.$number })))
-
 }

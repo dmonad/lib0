@@ -307,6 +307,25 @@ class TransformerPipeTemplate extends TransformerTemplate {
   }
 }
 
+
+/**
+ * @template {delta.AbstractDelta} DeltaA
+ * @template {delta.AbstractDelta} DeltaB
+ * @template {delta.AbstractDelta} DeltaC
+ * @param {($s: s.$Schema<DeltaA>) => TransformerTemplate<any,DeltaA,DeltaB>} t1
+ * @param {($s: s.$Schema<DeltaB>) => TransformerTemplate<any,DeltaB,DeltaC>} t2
+ * @return {($d: s.$Schema<DeltaA>) => TransformerTemplate<any,DeltaA,DeltaC>}
+ */
+export const pipe = (t1, t2) => ($d) => {
+  /**
+   * @type {TransformerPipeTemplate<any,any>}
+   */
+  const tpipe = new TransformerPipeTemplate()
+  const t1t = t1($d)
+  tpipe.templates.push(t1t, t2(t1t.$out))
+  return tpipe
+}
+
 /**
  * @template {any} State
  * @template {s.Unwrap<typeof delta.$delta>} DeltaIn
