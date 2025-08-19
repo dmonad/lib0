@@ -107,15 +107,22 @@ export const testBasics = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testMapBasics = _tc => {
-  const m1 = dt.map({
+  const $sa = delta.$deltaMapWith(s.$object({ x: s.$string }))
+  const qqq = dt.map({
     mynum: mapNumber
-  })(mapNumber.$in).init()
+  })($sa)
+  const mappedMapNumber = dt.createTransformerFactory($sa, dt.map({
+      mynum: mapNumber
+    })
+  )
+  const m1 = mappedMapNumber($sa).init()
   const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
   const res = m1.applyA(d)
   t.assert(res.a == null)
   const qq = delta.createDeltaMap(s.$object({ x: s.$number })).set('x', 42).done()
   const q = delta.createDeltaMap(s.$object({ mynum: delta.$deltaMapWith(s.$object({ x: s.$number })) })).modify('mynum', qq).done()
   t.compare(res.b, q)
+  // @todo make sure the result is properly typed (not any)
 }
 
 /**
@@ -131,9 +138,9 @@ export const testMapQuery = _tc => {
     mynum: dt.id()
   }))
 
-  dt.map({
+  const xxx = dt.map({
     mynum: a1
-  }).init()
+  })
   const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
   const res = m1.applyA(d)
   t.assert(res.a == null)

@@ -222,7 +222,7 @@ export class TransformerTemplate {
  * @template {TransformerTemplate<any,DeltaA,any>} Tr
  * @param {s.$Schema<DeltaA>} $deltaA
  * @param {Tr} transformer
- * @return {($d:s.$Schema<DeltaA>) => Tr}
+ * @return {<DA extends DeltaA>($d:s.$Schema<DA>) => Tr extends TransformerTemplate<any,any,infer DeltaB> ? TransformerTemplate<any,DA,DeltaB> : never}
  */
 export const defineTransformer = ($deltaA, transformer) => {
   transformer.$in = $deltaA
@@ -317,14 +317,9 @@ class TransformerPipeTemplate extends TransformerTemplate {
 export const transformer = def => new TransformerTemplate(/** @type {any} */ (def))
 
 /**
- * @template {{ [key:string]: delta.AbstractDelta }} T
- * @typedef {{ [K in keyof T]: T[K] extends delta.DeltaValue<infer V> ? V : T[K] }} MapValueOpt
- */
-
-/**
  * @template {{ [key:string]: TransformerFactory<any>}} T
  * @param {T} def
- * @return {<DeltaA> ($deltaA: s.$Schema<DeltaA>) => TransformerTemplate<any, DeltaA, MapValueOpt<delta.DeltaMap<{ [K in keyof T]: T[K] extends TransformerFactory<DeltaA, infer DeltaB> ? DeltaB : never }>>>}
+ * @return {<DeltaA> ($deltaA: s.$Schema<DeltaA>) => TransformerTemplate<any, DeltaA, delta.DeltaMap<{ [K in keyof T]: T[K] extends (($deltaA: s.$Schema<DeltaA>) => TransformerTemplate<any,DeltaA,infer DeltaB>) ? (DeltaB extends delta.DeltaValue<infer V> ? V : DeltaB) : never }>>}
  */
 export const map = (def) => ($deltaA) => transformer({
   $in: s.$any,
