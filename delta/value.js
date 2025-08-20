@@ -120,7 +120,7 @@ export class DeltaValueBuilder extends DeltaValue {
     const oop = other.change
     const c = this.change
     if (ops.$modifyOp.check(oop)) {
-      if (c != null && (ops.$modifyOp.check(c) || ops.$insertOp.check(c)) && $deltaValue.check(c.value)) {
+      if (c != null && (ops.$modifyOp.check(c) || ops.$insertOp.check(c)) && $deltaValueAny.check(c.value)) {
         /** @type {DeltaValue<any>} */ (c.value).apply(oop.value)
       } else {
         // then this is a simple modify
@@ -156,12 +156,13 @@ export class DeltaValueBuilder extends DeltaValue {
 export const createDeltaValue = ($vals = s.$any) => /** @type {any} */ (new DeltaValueBuilder($vals))
 
 /**
- * @template {{ [key:string]: any }} Vals
+ * @template {any} Vals
  * @param {s.$Schema<Vals>} $vals
  * @return {s.$Schema<DeltaValue<Vals>>}
  */
-export const $deltaValueWith = $vals => /** @type {any} */ (s.$instanceOf(DeltaValue, o => $vals.extends(o.$vals)))
+export const $deltaValue = $vals => /** @type {any} */ (s.$instanceOf(DeltaValue, o => $vals.extends(o.$vals)))
+
 /**
  * @type {s.$Schema<DeltaValue<any>>}
  */
-export const $deltaValue = s.$instanceOf(DeltaValue)
+export const $deltaValueAny = s.$instanceOf(DeltaValue)

@@ -41,8 +41,8 @@ export {
 // delta map
 export {
   createDeltaMap,
-  $deltaMapWith,
   $deltaMap,
+  $deltaMapAny,
   $deltaMapJson,
   DeltaMapBuilder,
   DeltaMap
@@ -64,8 +64,8 @@ export {
 
 export {
   createDeltaValue,
+  $deltaValueAny,
   $deltaValue,
-  $deltaValueWith,
   DeltaValue,
   DeltaValueBuilder
 } from './value.js'

@@ -287,5 +287,5 @@ export const createDeltaMap = ($vals = /** @type {any} */ (s.$record(s.$string, 
  * @param {s.$Schema<Vals>} $vals
  * @return {s.$Schema<DeltaMap<Vals>>}
  */
-export const $deltaMapWith = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
-export const $deltaMap = s.$instanceOf(DeltaMap)
+export const $deltaMap = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
+export const $deltaMapAny = s.$instanceOf(DeltaMap)
