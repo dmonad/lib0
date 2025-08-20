@@ -20,9 +20,9 @@ export { $delta, $$delta, AbstractDelta, mergeDeltas } from './abstract.js'
 
 // delta array
 export {
-  createDeltaArray,
-  $deltaArray,
-  $deltaArrayAny,
+  array,
+  $array,
+  $arrayAny,
   DeltaArrayBuilder
 } from './array.js'
 
@@ -32,26 +32,26 @@ export {
  */
 
 export {
-  createDeltaXml,
-  $deltaXml,
-  $deltaXmlAny,
+  xml,
+  $xml,
+  $xmlAny,
   DeltaXml
 } from './xml.js'
 
 // delta map
 export {
-  createDeltaMap,
-  $deltaMap,
-  $deltaMapAny,
-  $deltaMapJson,
+  map,
+  $map,
+  $mapAny,
+  $mapJson,
   DeltaMapBuilder,
   DeltaMap
 } from './map.js'
 
 export {
-  createDeltaText,
+  text,
   DeltaTextBuilder,
-  $deltaText
+  $text
 } from './text.js'
 
 /**
@@ -63,9 +63,9 @@ export {
  */
 
 export {
-  createDeltaValue,
-  $deltaValueAny,
-  $deltaValue,
+  value,
+  $value,
+  $valueAny,
   DeltaValue,
   DeltaValueBuilder
 } from './value.js'

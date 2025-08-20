@@ -6,13 +6,13 @@ import * as s from '../schema.js'
  * Creates a transformer template after receiving schema for DeltaA.
  *
  * @template {delta.AbstractDelta} DeltaA
- * @typedef {<DA extends DeltaA> ($deltaA: s.$Schema<DA>) => TransformerTemplate<any,DA,any>} TransformerFactory
+ * @typedef {<DA extends DeltaA> ($deltaA: s.$Schema<DA>) => Template<any,DA,any>} TransformerFactory
  */
 
 /**
  * @template {TransformerFactory<any>} T
  * @template {delta.AbstractDelta} DeltaA
- * @typedef {T extends (($deltaA: s.$Schema<DeltaA>) => TransformerTemplate<any,DeltaA,infer DeltaB>) ? DeltaB : never } DeltaBFromTransformerFactory
+ * @typedef {T extends (($deltaA: s.$Schema<DeltaA>) => Template<any,DeltaA,infer DeltaB>) ? DeltaB : never } DeltaBFromTransformerFactory
  */
 
 /**
@@ -37,7 +37,7 @@ export const transformResult = (a, b) => ({ a, b })
  * @typedef {object} TransformerDef
  * @property {s.$Schema<DeltaA>} TransformerDef.$in
  * @property {s.$Schema<DeltaB>} TransformerDef.$out
- * @property {function (this: TransformerTemplate<State,DeltaA,DeltaB>): State} TransformerDef.state
+ * @property {function (this: Template<State,DeltaA,DeltaB>): State} TransformerDef.state
  * @property {(deltaIn:NoInfer<DeltaA>,s:NoInfer<State>,tdef:TransformerDef<State,DeltaA,DeltaB>) => TransformResult<NoInfer<DeltaA>?,NoInfer<DeltaB>?>} TransformerDef.applyA
  * @property {(deltaOut:NoInfer<DeltaB>,s:NoInfer<State>,tdef:TransformerDef<State,DeltaA,DeltaB>) => TransformResult<NoInfer<DeltaA>?,NoInfer<DeltaB>?>} TransformerDef.applyB
  */
@@ -52,7 +52,7 @@ export const transformResult = (a, b) => ({ a, b })
  */
 class Transformer {
   /**
-   * @param {TransformerTemplate<State,DeltaA,DeltaB>} t
+   * @param {Template<State,DeltaA,DeltaB>} t
    * @param {State} s
    */
   constructor (t, s) {
@@ -161,7 +161,7 @@ const _backwardPipe = (trs, output) => {
  * @template {s.Unwrap<typeof delta.$delta>} DeltaA
  * @template {s.Unwrap<typeof delta.$delta>} DeltaB
  */
-export class TransformerTemplate {
+export class Template {
   /**
    * @param {TransformerDef<State,DeltaA,DeltaB>} def
    */
@@ -194,8 +194,8 @@ export class TransformerTemplate {
 
   /**
    * @template {delta.AbstractDelta} R
-   * @param {($d: s.$Schema<DeltaB>) => TransformerTemplate<any,DeltaB,R>} t
-   * @return {TransformerTemplate<any,DeltaA,R>}
+   * @param {($d: s.$Schema<DeltaB>) => Template<any,DeltaB,R>} t
+   * @return {Template<any,DeltaA,R>}
    */
   pipe (t) {
     /**
@@ -219,16 +219,16 @@ export class TransformerTemplate {
 
 /**
  * @template {delta.AbstractDelta} DeltaA
- * @template {TransformerTemplate<any,DeltaA,any>} Tr
+ * @template {Template<any,DeltaA,any>} Tr
  * @param {s.$Schema<DeltaA>} $deltaA
  * @param {Tr} transformer
- * @return {<DA extends DeltaA>($d:s.$Schema<DA>) => Tr extends TransformerTemplate<any,any,infer DeltaB> ? TransformerTemplate<any,DA,DeltaB> : never}
+ * @return {<DA extends DeltaA>($d:s.$Schema<DA>) => Tr extends Template<any,any,infer DeltaB> ? Template<any,DA,DeltaB> : never}
  */
 export const transformStatic = ($deltaA, transformer) => () => /** @type {any} */ (transformer)
 
 /**
  * @template {delta.AbstractDelta} DeltaA
- * @template {<DA extends DeltaA> ($deltaA: s.$Schema<DA>) => TransformerTemplate<any,DA,any>} TF
+ * @template {<DA extends DeltaA> ($deltaA: s.$Schema<DA>) => Template<any,DA,any>} TF
  * @param {s.$Schema<DeltaA>} _$deltaA
  * @param {TF} transformerFactory
  * @return {TF}
@@ -277,21 +277,21 @@ const pipeTemplateDef = {
  * init the template.
  * @template {s.Unwrap<typeof delta.$delta>} DeltaA
  * @template {s.Unwrap<typeof delta.$delta>} DeltaB
- * @extends {TransformerTemplate<any,DeltaA,DeltaB>}
+ * @extends {Template<any,DeltaA,DeltaB>}
  */
-class TransformerPipeTemplate extends TransformerTemplate {
+class TransformerPipeTemplate extends Template {
   constructor () {
     super(pipeTemplateDef)
     /**
-     * @type {Array<TransformerTemplate<any,DeltaA,DeltaB>>}
+     * @type {Array<Template<any,DeltaA,DeltaB>>}
      */
     this.templates = []
   }
 
   /**
    * @template {delta.AbstractDelta} R
-   * @param {($d: s.$Schema<DeltaB>) => TransformerTemplate<any,DeltaB,R>} t
-   * @return {TransformerTemplate<any,DeltaA,R>}
+   * @param {($d: s.$Schema<DeltaB>) => Template<any,DeltaB,R>} t
+   * @return {Template<any,DeltaA,R>}
    */
   pipe (t) {
     /**
@@ -308,9 +308,9 @@ class TransformerPipeTemplate extends TransformerTemplate {
  * @template {delta.AbstractDelta} DeltaA
  * @template {delta.AbstractDelta} DeltaB
  * @template {delta.AbstractDelta} DeltaC
- * @param {($s: s.$Schema<DeltaA>) => TransformerTemplate<any,DeltaA,DeltaB>} t1
- * @param {($s: s.$Schema<DeltaB>) => TransformerTemplate<any,DeltaB,DeltaC>} t2
- * @return {($d: s.$Schema<DeltaA>) => TransformerTemplate<any,DeltaA,DeltaC>}
+ * @param {($s: s.$Schema<DeltaA>) => Template<any,DeltaA,DeltaB>} t1
+ * @param {($s: s.$Schema<DeltaB>) => Template<any,DeltaB,DeltaC>} t2
+ * @return {($d: s.$Schema<DeltaA>) => Template<any,DeltaA,DeltaC>}
  */
 export const pipe = (t1, t2) => ($d) => {
   /**
@@ -327,16 +327,24 @@ export const pipe = (t1, t2) => ($d) => {
  * @template {s.Unwrap<typeof delta.$delta>} DeltaIn
  * @template {s.Unwrap<typeof delta.$delta>} DeltaOut
  * @param {TransformerDef<State,DeltaIn,DeltaOut>} def
- * @return {TransformerTemplate<State,DeltaIn,DeltaOut>}
+ * @return {Template<State,DeltaIn,DeltaOut>}
  */
-export const transformer = def => new TransformerTemplate(/** @type {any} */ (def))
+export const template = def => new Template(/** @type {any} */ (def))
 
 /**
- * @template {{ [key:string]: TransformerTemplate<any,any,any> }} T
+ * @template {{ [key:string]: Template<any,any,any> }} T
  * @param {T} def
- * @return {TransformerTemplate<any, T[keyof T] extends TransformerTemplate<any, infer DeltaA,any> ? DeltaA : never, delta.DeltaMap<{ [K in keyof T]: T[K] extends TransformerTemplate<any,DeltaA,infer DeltaB> ? (DeltaB extends delta.DeltaValue<infer V> ? V : DeltaB) : never }>>}
+ * @return {Template<
+ *   any,
+ *   T[keyof T] extends Template<any, infer DeltaA,any> ? DeltaA : never,
+ *   delta.DeltaMap<{ [K in keyof T]: T[K] extends Template<
+ *     any,
+ *     T[keyof T] extends Template<any,infer DeltaA,any> ? DeltaA : never,
+ *     infer DeltaB
+ *   > ? (DeltaB extends delta.DeltaValue<infer V> ? V : DeltaB) : never }>
+ * >}
  */
-export const map = (def) => transformer({
+export const map = (def) => template({
   $in: s.$any,
   $out: s.$any,
   state: () => {
@@ -344,13 +352,13 @@ export const map = (def) => transformer({
     for (const key in def) {
       mapState[key] = def[key].init()
     }
-    return /** @type {{ [key in keyof T]: T extends TransformerTemplate<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never }} */ (mapState)
+    return /** @type {{ [key in keyof T]: T extends Template<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never }} */ (mapState)
   },
   applyA: (d, state) => {
     return _applyMapOpHelper(state, [{ d, src: null }])
   },
   applyB: (d, state) => {
-    s.assert(d, delta.$deltaMapAny)
+    s.assert(d, delta.$mapAny)
     /**
      * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
      */
@@ -383,8 +391,8 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
   const applyResult = transformResult(null, null)
   while (reverseAChanges.length > 0) {
     /**
-       * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
-       */
+     * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
+     */
     let nextReverseAChanges = []
     for (const key in state) {
       const s = state[key]
@@ -418,7 +426,7 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
     nextReverseAChanges = []
   }
   // accumulate b changes stored on transformers
-  const bRes = delta.createDeltaMap()
+  const bRes = delta.map()
   for (const key in state) {
     const b = state[key]._pb
     if (b) bRes.modify(key, b)
@@ -426,7 +434,7 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
   if (bRes.changes.size > 0) {
     // opt values (iff delta is of type DeltaValue, map the change to the map)
     bRes.changes.forEach((change, key) => {
-      if (delta.$deltaValueAny.check(change.value)) {
+      if (delta.$valueAny.check(change.value)) {
         const changeOp = change.value.change
         if (delta.$insertOp.check(changeOp) || delta.$modifyOp.check(changeOp)) {
           bRes.set(key, changeOp.value)
@@ -441,24 +449,6 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
   }
   return applyResult
 }
-
-/**
- * @todo remove this superfluous transformer
- * @template {delta.AbstractDelta} Delta
- * @param {s.$Schema<Delta>} $in
- * @return {TransformerTemplate<null,Delta,Delta>}
- */
-export const id = $in => transformer({
-  $in,
-  $out: s.$any,
-  state: () => null,
-  applyA: d => {
-    return transformResult(null, d)
-  },
-  applyB: d => {
-    return transformResult(d, null)
-  }
-})
 
 /**
  * @template {any} D
@@ -481,11 +471,11 @@ export const id = $in => transformer({
 /**
  * @template {Array<string>} Path
  * @param {Path} path
- * @return {<DA extends PathToDelta<Path>>($in: s.$Schema<DA>) => TransformerTemplate<Path, DA, delta.DeltaValue<QueryFollowPath<DA,Path>>>}
+ * @return {<DA extends PathToDelta<Path>>($in: s.$Schema<DA>) => Template<Path, DA, delta.DeltaValue<QueryFollowPath<DA,Path>>>}
  */
-export const query = (...path) => $in => transformer({
+export const query = (...path) => $in => template({
   $in,
-  $out: delta.$deltaValueAny,
+  $out: delta.$valueAny,
   state: () => path,
   applyA: (d, path) => {
     /**
@@ -494,7 +484,7 @@ export const query = (...path) => $in => transformer({
     let cd = d
     let overwritten = false
     for (let i = 0; i < path.length && cd != null; i++) {
-      if (delta.$deltaMapAny.check(d)) {
+      if (delta.$mapAny.check(d)) {
         const c = cd.get(path[i])
         if (delta.$insertOp.check(c)) {
           overwritten = true
@@ -510,7 +500,7 @@ export const query = (...path) => $in => transformer({
         cd = null
       }
     }
-    const dv = delta.createDeltaValue()
+    const dv = delta.value()
     if (overwritten) {
       // @todo implement some kind of "ValueDelta" with insert, delete, modify ops. dmap is supposed
       // to automatically translate this.
@@ -526,7 +516,7 @@ export const query = (...path) => $in => transformer({
   },
   applyB: (d, path) => {
     const dop = d.change
-    let resD = delta.createDeltaMap()
+    let resD = delta.map()
     let i = path.length - 1
     const p = path[i]
     if (delta.$modifyOp.check(dop)) {
@@ -537,7 +527,7 @@ export const query = (...path) => $in => transformer({
       resD.delete(p)
     }
     for (i--; i >= 0; i--) {
-      const tmpDmap = delta.createDeltaMap()
+      const tmpDmap = delta.map()
       tmpDmap.modify(p, resD)
       resD = tmpDmap
     }
@@ -550,7 +540,7 @@ export const query = (...path) => $in => transformer({
  * @template {delta.AbstractDelta} DeltaB
  * @param {s.$Schema<DeltaA>} $deltaA
  * @param {s.$Schema<DeltaB>} $deltaB
- * @return {s.$Schema<TransformerTemplate<any,DeltaA,DeltaB>>}
+ * @return {s.$Schema<Template<any,DeltaA,DeltaB>>}
  */
-export const $transformerTemplate = ($deltaA, $deltaB) => /** @type {s.$Schema<TransformerTemplate<any,any,any>>} */ (s.$instanceOf(TransformerTemplate, o => o.$in.extends($deltaA) && o.$out.extends($deltaB)))
-export const $transformerTemplateAny = $transformerTemplate(delta.$delta, delta.$delta)
+export const $template = ($deltaA, $deltaB) => /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template, o => o.$in.extends($deltaA) && o.$out.extends($deltaB)))
+export const $templateAny = $template(delta.$delta, delta.$delta)

@@ -6,7 +6,7 @@ import * as delta from './index.js'
  * @param {t.TestCase} _tc
  */
 export const testDelta = _tc => {
-  const d = delta.createDeltaText().insert('hello').insert(' ').useAttributes({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!').done()
+  const d = delta.text().insert('hello').insert(' ').useAttributes({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!').done()
   t.compare(d.toJSON(), [{ insert: 'hello ' }, { insert: 'world', attributes: { bold: true } }, { insert: '!', attributes: { bold: true }, attribution: { insert: ['tester'] } }])
 }
 
@@ -14,7 +14,7 @@ export const testDelta = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaMerging = _tc => {
-  const d = delta.createDeltaText(s.$union(s.$object({}), s.$number))
+  const d = delta.text(s.$union(s.$object({}), s.$number))
     .insert('hello')
     .insert('world')
     .insert(' ', { italic: true })
@@ -29,7 +29,7 @@ export const testDeltaMerging = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testUseAttributes = _tc => {
-  const d = delta.createDeltaText()
+  const d = delta.text()
     .insert('a')
     .updateUsedAttributes('bold', true)
     .insert('b')
@@ -41,7 +41,7 @@ export const testUseAttributes = _tc => {
     .useAttributes(null)
     .insert('f')
     .done()
-  const d2 = delta.createDeltaText()
+  const d2 = delta.text()
     .insert('a')
     .insert('b', { bold: true })
     .insert('c', { bold: 4 })
@@ -56,7 +56,7 @@ export const testUseAttributes = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testUseAttribution = _tc => {
-  const d = delta.createDeltaText()
+  const d = delta.text()
     .insert('a')
     .updateUsedAttribution('insert', ['me'])
     .insert('b')
@@ -68,7 +68,7 @@ export const testUseAttribution = _tc => {
     .useAttribution(null)
     .insert('f')
     .done()
-  const d2 = delta.createDeltaText()
+  const d2 = delta.text()
     .insert('a')
     .insert('b', null, { insert: ['me'] })
     .insert('c', null, { insert: ['you'] })

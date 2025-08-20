@@ -1,11 +1,11 @@
-import * as map from '../map.js'
+import * as gmap from '../map.js'
 import * as fun from '../function.js'
 import * as traits from '../traits.js'
 import * as s from '../schema.js'
 import * as ops from './ops.js'
 import { AbstractDelta, mergeAttrs, $delta } from './abstract.js'
 
-export const $deltaMapJson = s.$record(s.$string, ops.$deltaMapChangeJson)
+export const $mapJson = s.$record(s.$string, ops.$deltaMapChangeJson)
 
 /**
  * @template {{ [key:string]: ops.DeltaMapOps }} OPS
@@ -25,7 +25,7 @@ export class DeltaMap extends AbstractDelta {
     /**
      * @type {Map<keyof Vals,MapOpsFromValues<Vals>[keyof Vals]>}
      */
-    this.changes = map.create()
+    this.changes = gmap.create()
     /**
      * @type {import('./abstract.js').Attribution?}
      */
@@ -106,11 +106,11 @@ export class DeltaMap extends AbstractDelta {
   }
 
   /**
-   * @return {s.Unwrap<$deltaMapJson>}
+   * @return {s.Unwrap<$mapJson>}
    */
   toJSON () {
     /**
-     * @type {s.Unwrap<$deltaMapJson>}
+     * @type {s.Unwrap<$mapJson>}
      */
     const changes = {}
     this.changes.forEach((change, key) => {
@@ -276,16 +276,18 @@ export class DeltaMapBuilder extends DeltaMap {
  */
 
 /**
+ * Create a new DeltaMap, optionally supply a schema.
+ *
  * @template {{ [key:string]: any }} [Vals={ [key:string]: any }]
  * @param {s.$Schema<Vals>} $vals
  * @return {DeltaMapBuilder<Vals>}
  */
-export const createDeltaMap = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals))
+export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals))
 
 /**
  * @template {{ [key:string]: any }} Vals
  * @param {s.$Schema<Vals>} $vals
  * @return {s.$Schema<DeltaMap<Vals>>}
  */
-export const $deltaMap = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
-export const $deltaMapAny = s.$instanceOf(DeltaMap)
+export const $map = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
+export const $mapAny = s.$instanceOf(DeltaMap)

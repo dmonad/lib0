@@ -63,7 +63,7 @@ export class DeltaXml extends dabstract.AbstractDelta {
  * @param {dmap.DeltaMapBuilder<Attrs>} attributes
  * @return {DeltaXml<NodeName,Children,Attrs>}
  */
-export const createDeltaXml = (nodeName, children = darray.createDeltaArray(), attributes = /** @type {any} */ (dmap.createDeltaMap())) => new DeltaXml(nodeName, children, attributes)
+export const xml = (nodeName, children = darray.array(), attributes = /** @type {any} */ (dmap.map())) => new DeltaXml(nodeName, children, attributes)
 
 /**
  * @template {string} NodeName
@@ -74,9 +74,9 @@ export const createDeltaXml = (nodeName, children = darray.createDeltaArray(), a
  * @param {s.$Schema<Attributes>} $attributes
  * @return {s.$Schema<DeltaXml<NodeName, Children, Attributes>>}
  */
-export const $deltaXml = ($nodeName, $children, $attributes) => {
-  const $dchildren = darray.$deltaArray($children)
-  const $dattrs = dmap.$deltaMap($attributes)
+export const $xml = ($nodeName, $children, $attributes) => {
+  const $dchildren = darray.$array($children)
+  const $dattrs = dmap.$map($attributes)
   return/** @type {s.$Schema<DeltaXml<NodeName, any, any>>} */ (s.$instanceOf(DeltaXml, o => $nodeName.check(o.nodeName) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
 }
-export const $deltaXmlAny = s.$constructedBy(DeltaXml)
+export const $xmlAny = s.$constructedBy(DeltaXml)

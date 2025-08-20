@@ -23,11 +23,11 @@ export class DeltaTextBuilder extends AbstractDeltaArrayBuilder {
  * @template {any} Embeds
  * @param {s.$Schema<Embeds>} $embeds
  */
-export const createDeltaText = ($embeds = s.$never) => new DeltaTextBuilder($embeds)
+export const text = ($embeds = s.$never) => new DeltaTextBuilder($embeds)
 
 /**
  * @template {{ [key:string]: any }} Vals
  * @param {s.$Schema<Vals>} $embeds
  * @return {s.$Schema<DeltaText<Vals>>}
  */
-export const $deltaText = $embeds => /** @type {s.$Schema<DeltaText<Vals>>} */ (s.$instanceOf(DeltaTextBuilder, o => $embeds.extends(o.$insert)))
+export const $text = $embeds => /** @type {s.$Schema<DeltaText<Vals>>} */ (s.$instanceOf(DeltaTextBuilder, o => $embeds.extends(o.$insert)))
