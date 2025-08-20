@@ -132,9 +132,14 @@ export const testMapQuery = _tc => {
   const $sa = delta.$deltaMapWith(s.$object({ x: s.$string }))
   const q42 = dt.pipe(mapNumber, id)
   const a1 = dt.query('x')
+  const a1i = dt.query('x')($sa)
+  const q314 = {
+    mynum: dt.query('x')
+  }
   const xxx = dt.map({
     mynum: a1
   })($sa)
+  const xxxi = xxx($sa)
   const d = delta.createDeltaMap(s.$object({ x: s.$string })).set('x', '42').done()
   const res = xxx.init().applyA(d)
   t.assert(res.a == null)
