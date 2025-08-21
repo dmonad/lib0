@@ -160,7 +160,7 @@ export const testStaticContent = () => {
     const expectedResult = Δ.map($.$object({ myProp: $.$string })).set('myProp', 'hi').done()
     t.compare(res.b, expectedResult)
   })
-  t.group('implicitly fixed', () => {
+  t.group('implicitly fixed primitive', () => {
     const x = Λ.transform(Δ.$delta, $d =>
       Λ.map({
         myProp: 'hi'
@@ -168,6 +168,17 @@ export const testStaticContent = () => {
     )
     const res = x(Δ.$delta).init().applyA(Δ.value().set(42).done())
     const expectedResult = Δ.map($.$object({ myProp: $.$string })).set('myProp', 'hi').done()
+    t.compare(res.b, expectedResult)
+  })
+  t.group('implicitly fixed delta', () => {
+    const x = Λ.transform(Δ.$delta, $d =>
+      Λ.map({
+        myProp: Δ.array($.$number).insert([7]).done()
+      })
+    )
+    const res = x(Δ.$delta).init().applyA(Δ.value().set(42).done())
+    const darr = Δ.array($.$number).insert([7]).done()
+    const expectedResult = Δ.map($.$object({ myProp: Δ.$array($.$number) })).set('myProp', darr).done()
     t.compare(res.b, expectedResult)
   })
 }

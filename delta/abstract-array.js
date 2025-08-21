@@ -276,7 +276,7 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
   }
 
   /**
-   * @return {Type extends 'array' ? (OPS extends dops.DeltaArrayOps<infer C> ? import('./array.js').DeltaArray<C> : never) : (Type extends 'text' ? (OPS extends dops.DeltaTextOps<infer Embeds> ? import('./text.js').DeltaText<Embeds> : never) : AbstractDeltaArray<Type,OPS>)}
+   * @return {Type extends 'array' ? (OPS extends dops.InsertOp<infer C> ? import('./array.js').DeltaArray<C> : never) : (Type extends 'text' ? (OPS extends dops.DeltaTextOps<infer Embeds> ? import('./text.js').DeltaText<Embeds> : never) : AbstractDeltaArray<Type,OPS>)}
    */
   done () {
     while (this.lastOp != null && this.lastOp instanceof RetainOp && this.lastOp.attributes === null && this.lastOp.attribution === null) {

@@ -334,7 +334,9 @@ export const template = def => new Template(/** @type {any} */ (def))
 
 /**
  * @template {any} MaybeTemplate
- * @typedef {MaybeTemplate extends Template<any,any,any> ? MaybeTemplate : Template<any,any,delta.DeltaValue<MaybeTemplate>>} AnyToTemplate
+ * @typedef {MaybeTemplate extends Template<any,any,any> ? MaybeTemplate : Template<any,any,
+ *   MaybeTemplate extends delta.AbstractDelta ? MaybeTemplate : delta.DeltaValue<MaybeTemplate>
+ * >} AnyToTemplate
  */
 
 /**
@@ -590,3 +592,4 @@ export const fixed = fixedContent => {
     }
   })
 }
+
