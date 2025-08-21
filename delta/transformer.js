@@ -474,6 +474,62 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
 }
 
 /**
+ * @param {TransformResult<delta.AbstractDelta?, delta.DeltaNode<any,any,any>>} res
+ * @param {{ attrs: Transformer<any,any,any>, children: Transformer<any,any,any> }} state
+ * @param {delta.AbstractDelta?} nextAAttrs
+ * @param {delta.AbstractDelta?} nextAChildren
+ */
+const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
+  while (nextAAttrs != null && nextAChildren != null) {
+    const resChildren = state.children.applyA(nextAChildren)
+    const resAttrs = state.attrs.applyA(delta.mergeDeltas(nextAAttrs, resChildren.a))
+    nextAChildren = resAttrs.a
+    nextAAttrs = null
+    res.a = delta.mergeDeltas(delta.mergeDeltas(res.a, resChildren.a), resAttrs.a)
+    resChildren.b && res.b.children.apply(resChildren.b)
+    resAttrs.b && res.b.attributes.apply(resAttrs.b)
+  }
+}
+
+/**
+ * @template {string} NodeName
+ * @template {Template<any,any,delta.DeltaMap<any>>} Attrs
+ * @template {Template<any,any,delta.DeltaArray<any>>} Children
+ * @param {NodeName} name
+ * @param {Attrs} attributes
+ * @param {Children} children
+ * @return {Template<
+ *   any,
+ *   (Attrs | Children) extends Template<any,infer A, any> ? A : never,
+ *   delta.DeltaNode<
+ *     NodeName,
+ *     Attrs extends Template<any,any,infer BAttrs> ? BAttrs : never,
+ *     Children extends Template<any,any,infer BChildren> ? BChildren : never
+ *   >
+ * >}
+ */
+export const node = (name, attributes, children) => template({
+  $in: s.$any,
+  $out: delta.$node(s.$literal(name), s.$any, s.$any),
+  state: () => ({ attrs: attributes.init(), children: children.init() }),
+  applyA: (d, state) => {
+    const res = transformResult(null, delta.node(name))
+    _nodeApplyA(res, state, d, d)
+    return res
+  },
+  applyB: (d, state) => {
+    s.assert(d, delta.$nodeAny)
+    const res = transformResult(null, delta.node(name))
+    const childrenRes = state.children.applyB(d.children)
+    const attrsRes = state.attrs.applyB(d.attributes)
+    attrsRes.b && res.b.attributes.apply(attrsRes.b)
+    childrenRes.b && res.b.children.apply(childrenRes.b)
+    _nodeApplyA(res, state, childrenRes.a, attrsRes.a)
+    return res
+  }
+})
+
+/**
  * @template {any} D
  * @template {string[]} Path
  * @typedef {Path extends []
