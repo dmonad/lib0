@@ -4,8 +4,8 @@ import * as delta from './index.js'
 /**
  * @param {t.TestCase} _tc
  */
-export const testXmlDelta = _tc => {
-  const d = /** @type {delta.DeltaXml<string, string, { a: 1 }>} */ (delta.xml('test'))
+export const testNodeDelta = _tc => {
+  const d = /** @type {delta.DeltaNode<string, string, { a: 1 }>} */ (delta.node('test'))
   d.children.insert(['hi'])
   // @ts-expect-error
   d.children.insert([42])

@@ -29,7 +29,7 @@ import * as s from '../schema.js'
  * @return {TransformResult<DeltaA,DeltaB>}
  */
 export const transformResult = (a, b) => ({ a, b })
-export const transformResultEmpty = transformResult(null,null)
+export const transformResultEmpty = transformResult(null, null)
 
 /**
  * @template {any} State

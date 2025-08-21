@@ -146,7 +146,7 @@ export const testTransformerCreateUtility = () => {
   const idnum = idFactory($deltaA)
   Λ.$template($deltaA, $deltaA).validate(idnum)
   // @ts-expect-error expect to define output based on input
-  !Λ.$template($deltaA2, $deltaA2).validate(idnum)
+  Λ.$template($deltaA2, $deltaA2).validate(idnum)
 }
 
 export const testStaticContent = () => {

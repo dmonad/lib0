@@ -32,11 +32,11 @@ export {
  */
 
 export {
-  xml,
-  $xml,
-  $xmlAny,
-  DeltaXml
-} from './xml.js'
+  node,
+  $node,
+  $nodeAny,
+  DeltaNode
+} from './node.js'
 
 // delta map
 export {
@@ -50,8 +50,8 @@ export {
 
 export {
   text,
-  DeltaTextBuilder,
-  $text
+  $text,
+  DeltaTextBuilder
 } from './text.js'
 
 /**
@@ -59,7 +59,7 @@ export {
  */
 
 /**
- * @typedef {DeltaArray<any> | import('./xml.js').DeltaXml<string,any,any> } Delta
+ * @typedef {DeltaArray<any> | import('./node.js').DeltaNode<string,any,any> } Delta
  */
 
 export {

@@ -10,7 +10,7 @@ import * as s from '../schema.js'
  * @template {object} Attrs
  * @template {'done'|'mutable'} [Done='mutable']
  */
-export class DeltaXml extends dabstract.AbstractDelta {
+export class DeltaNode extends dabstract.AbstractDelta {
   /**
    * @param {NodeName} nodeName
    * @param {darray.DeltaArrayBuilder<Children>} children
@@ -18,7 +18,7 @@ export class DeltaXml extends dabstract.AbstractDelta {
    */
   constructor (nodeName, children, attributes) {
     super()
-    this.nodeName = nodeName
+    this.name = nodeName
     /**
      * @type {Done extends 'mutable' ? darray.DeltaArrayBuilder<Children> : darray.DeltaArray<Children>}
      */
@@ -31,14 +31,14 @@ export class DeltaXml extends dabstract.AbstractDelta {
 
   toJSON () {
     return {
-      nodeName: this.nodeName,
+      name: this.name,
       children: this.children.toJSON(),
       attributes: this.attributes.toJSON()
     }
   }
 
   /**
-   * @return {DeltaXml<Children, Attrs, 'done'>}
+   * @return {DeltaNode<Children, Attrs, 'done'>}
    */
   done () {
     /** @type {darray.DeltaArrayBuilder<any>} */ (this.children).done()
@@ -47,10 +47,10 @@ export class DeltaXml extends dabstract.AbstractDelta {
   }
 
   /**
-   * @param {DeltaXml<NodeName,Children,Attrs>} other
+   * @param {DeltaNode<NodeName,Children,Attrs>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    return this.nodeName === other.nodeName && this.children[traits.EqualityTraitSymbol](other.children) && this.attributes[traits.EqualityTraitSymbol](other.attributes)
+    return this.name === other.name && this.children[traits.EqualityTraitSymbol](other.children) && this.attributes[traits.EqualityTraitSymbol](other.attributes)
   }
 }
 
@@ -61,9 +61,9 @@ export class DeltaXml extends dabstract.AbstractDelta {
  * @param {NodeName} nodeName
  * @param {darray.DeltaArrayBuilder<Children>} children
  * @param {dmap.DeltaMapBuilder<Attrs>} attributes
- * @return {DeltaXml<NodeName,Children,Attrs>}
+ * @return {DeltaNode<NodeName,Children,Attrs>}
  */
-export const xml = (nodeName, children = darray.array(), attributes = /** @type {any} */ (dmap.map())) => new DeltaXml(nodeName, children, attributes)
+export const node = (nodeName, children = darray.array(), attributes = /** @type {any} */ (dmap.map())) => new DeltaNode(nodeName, children, attributes)
 
 /**
  * @template {string} NodeName
@@ -72,11 +72,11 @@ export const xml = (nodeName, children = darray.array(), attributes = /** @type 
  * @param {s.$Schema<NodeName>} $nodeName
  * @param {s.$Schema<Children>} $children
  * @param {s.$Schema<Attributes>} $attributes
- * @return {s.$Schema<DeltaXml<NodeName, Children, Attributes>>}
+ * @return {s.$Schema<DeltaNode<NodeName, Children, Attributes>>}
  */
-export const $xml = ($nodeName, $children, $attributes) => {
+export const $node = ($nodeName, $children, $attributes) => {
   const $dchildren = darray.$array($children)
   const $dattrs = dmap.$map($attributes)
-  return/** @type {s.$Schema<DeltaXml<NodeName, any, any>>} */ (s.$instanceOf(DeltaXml, o => $nodeName.check(o.nodeName) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
+  return/** @type {s.$Schema<DeltaNode<NodeName, any, any>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
 }
-export const $xmlAny = s.$constructedBy(DeltaXml)
+export const $nodeAny = s.$constructedBy(DeltaNode)

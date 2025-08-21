@@ -40,11 +40,11 @@ import * as cache from './cache.test.js'
 import * as symbol from './symbol.test.js'
 import * as traits from './traits.test.js'
 import * as schema from './schema.test.js'
-import * as dmap from './delta/map.test.js'
-import * as darray from './delta/array.test.js'
-import * as dtext from './delta/text.test.js'
-import * as dxml from './delta/xml.test.js'
-import * as dtransformer from './delta/transformer.test.js'
+import * as deltaMap from './delta/map.test.js'
+import * as deltaArray from './delta/array.test.js'
+import * as deltaText from './delta/text.test.js'
+import * as deltaNode from './delta/node.test.js'
+import * as deltaTransformer from './delta/transformer.test.js'
 import { isBrowser, isNode } from './environment.js'
 
 /* c8 ignore next */
@@ -93,11 +93,11 @@ runTests({
   symbol,
   traits,
   schema,
-  dmap,
-  darray,
-  dtext,
-  dxml,
-  dtransformer
+  deltaMap,
+  deltaArray,
+  deltaText,
+  deltaNode,
+  deltaTransformer
 }).then(success => {
   /* c8 ignore next */
   if (isNode) {
