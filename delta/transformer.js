@@ -29,6 +29,7 @@ import * as s from '../schema.js'
  * @return {TransformResult<DeltaA,DeltaB>}
  */
 export const transformResult = (a, b) => ({ a, b })
+export const transformResultEmpty = transformResult(null,null)
 
 /**
  * @template {any} State
@@ -332,52 +333,72 @@ export const pipe = (t1, t2) => ($d) => {
 export const template = def => new Template(/** @type {any} */ (def))
 
 /**
- * @template {{ [key:string]: Template<any,any,any> }} T
- * @param {T} def
+ * @template {any} MaybeTemplate
+ * @typedef {MaybeTemplate extends Template<any,any,any> ? MaybeTemplate : Template<any,any,delta.DeltaValue<MaybeTemplate>>} AnyToTemplate
+ */
+
+/**
+ * @template {{ [key: string]: any }} MaybeTemplateMap
+ * @typedef {{ [K in keyof MaybeTemplateMap]: AnyToTemplate<MaybeTemplateMap[K]> }} AnyMapToTemplate
+ */
+
+/**
+ * @template {{ [key:string]: any }} T
+ * @param {T} definition
  * @return {Template<
  *   any,
- *   T[keyof T] extends Template<any, infer DeltaA,any> ? DeltaA : never,
- *   delta.DeltaMap<{ [K in keyof T]: T[K] extends Template<
+ *   AnyMapToTemplate<T>[keyof T] extends Template<any, infer DeltaA,any> ? DeltaA : never,
+ *   delta.DeltaMap<{ [K in keyof T]: AnyToTemplate<T[K]> extends Template<
  *     any,
- *     T[keyof T] extends Template<any,infer DeltaA,any> ? DeltaA : never,
+ *     AnyMapToTemplate<T>[keyof T] extends Template<any,infer DeltaA,any> ? DeltaA : never,
  *     infer DeltaB
  *   > ? (DeltaB extends delta.DeltaValue<infer V> ? V : DeltaB) : never }>
  * >}
  */
-export const map = (def) => template({
-  $in: s.$any,
-  $out: s.$any,
-  state: () => {
-    const mapState = /** @type {{ [key: string]: Transformer<any,any,any> }} */ ({})
-    for (const key in def) {
-      mapState[key] = def[key].init()
-    }
-    return /** @type {{ [key in keyof T]: T extends Template<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never }} */ (mapState)
-  },
-  applyA: (d, state) => {
-    return _applyMapOpHelper(state, [{ d, src: null }])
-  },
-  applyB: (d, state) => {
-    s.assert(d, delta.$mapAny)
-    /**
-     * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
-     */
-    const reverseAChanges = []
-    d.forEach(op => {
-      if (delta.$deleteOp.check(op)) {
-        error.unexpectedCase()
-      }
-      const src = state[op.key]
-      const res = src.applyB(op.value)
-      src._pa = res.a
-      src._pb = res.b
-      if (res.a != null) {
-        reverseAChanges.push({ d: res.a, src })
-      }
-    })
-    return _applyMapOpHelper(state, reverseAChanges)
+export const map = (definition) => {
+  /**
+   * @type {{ [key:string]: Template<any,any,any> }}
+   */
+  const def = {}
+  for (const key in definition) {
+    const d = definition[key]
+    def[key] = $templateAny.check(d) ? d : fixed(d)
   }
-})
+  return template({
+    $in: s.$any,
+    $out: s.$any,
+    state: () => {
+      const mapState = /** @type {{ [key: string]: Transformer<any,any,any> }} */ ({})
+      for (const key in def) {
+        mapState[key] = def[key].init()
+      }
+      return /** @type {{ [key in keyof T]: T extends Template<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never }} */ (mapState)
+    },
+    applyA: (d, state) => {
+      return _applyMapOpHelper(state, [{ d, src: null }])
+    },
+    applyB: (d, state) => {
+      s.assert(d, delta.$mapAny)
+      /**
+       * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
+       */
+      const reverseAChanges = []
+      d.forEach(op => {
+        if (delta.$deleteOp.check(op)) {
+          error.unexpectedCase()
+        }
+        const src = state[op.key]
+        const res = src.applyB(op.value)
+        src._pa = res.a
+        src._pb = res.b
+        if (res.a != null) {
+          reverseAChanges.push({ d: res.a, src })
+        }
+      })
+      return _applyMapOpHelper(state, reverseAChanges)
+    }
+  })
+}
 
 /**
  * @param {{ [key: string]: Transformer<any, any, any> }} state
@@ -471,17 +492,17 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
 /**
  * @template {Array<string>} Path
  * @param {Path} path
- * @return {<DA extends PathToDelta<Path>>($in: s.$Schema<DA>) => Template<Path, DA, delta.DeltaValue<QueryFollowPath<DA,Path>>>}
+ * @return {<DA extends PathToDelta<Path>>($in: s.$Schema<DA>) => Template<any, DA, delta.DeltaValue<QueryFollowPath<DA,Path>>>}
  */
-export const query = (...path) => $in => template({
-  $in,
+export const query = (...path) => transformStatic(s.$any, template({
+  $in: delta.$delta,
   $out: delta.$valueAny,
-  state: () => path,
-  applyA: (d, path) => {
+  state: () => null,
+  applyA: (d) => {
     /**
      * @type {delta.DeltaMap<any>?}
      */
-    let cd = d
+    let cd = delta.$mapAny.cast(d)
     let overwritten = false
     for (let i = 0; i < path.length && cd != null; i++) {
       if (delta.$mapAny.check(d)) {
@@ -514,7 +535,7 @@ export const query = (...path) => $in => template({
     }
     return transformResult(null, dv)
   },
-  applyB: (d, path) => {
+  applyB: (d) => {
     const dop = d.change
     let resD = delta.map()
     let i = path.length - 1
@@ -533,7 +554,7 @@ export const query = (...path) => $in => template({
     }
     return /** @type {TransformResult<any,null>} */ (transformResult(resD, null))
   }
-})
+}))
 
 /**
  * @template {delta.AbstractDelta} DeltaA
@@ -543,4 +564,29 @@ export const query = (...path) => $in => template({
  * @return {s.$Schema<Template<any,DeltaA,DeltaB>>}
  */
 export const $template = ($deltaA, $deltaB) => /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template, o => o.$in.extends($deltaA) && o.$out.extends($deltaB)))
-export const $templateAny = $template(delta.$delta, delta.$delta)
+export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template))
+
+/**
+ * @template {string|any} FixedContent
+ * @param {FixedContent} fixedContent
+ * @return {Template<any,any,FixedContent extends delta.AbstractDelta ? FixedContent : delta.DeltaValue<FixedContent>>}
+ */
+export const fixed = fixedContent => {
+  const staticDelta = delta.$delta.check(fixedContent) ? fixedContent : delta.value().set(fixedContent).done()
+  return template({
+    $in: s.$any,
+    $out: s.$any,
+    state: () => ({ e: false }),
+    applyA: (_d, s) => {
+      if (!s.e) {
+        s.e = true
+        return transformResult(null, staticDelta)
+      }
+      return transformResultEmpty
+    },
+    applyB: () => {
+      // @todo should reverse the change and give back
+      error.unexpectedCase()
+    }
+  })
+}

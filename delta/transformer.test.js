@@ -132,7 +132,7 @@ export const testQuery = () => {
   const queryHiThere = Λ.query('hi', 'there')($deltaA)
   const $deltaB = Δ.$value($.$number)
   const expectedQuerySchema = Λ.$template($deltaA, $deltaB)
-  t.assert(expectedQuerySchema.validate(queryHiThere))
+  expectedQuerySchema.validate(queryHiThere)
 }
 
 export const testTransformerCreateUtility = () => {
@@ -144,7 +144,30 @@ export const testTransformerCreateUtility = () => {
     return y
   })
   const idnum = idFactory($deltaA)
-  t.assert(Λ.$template($deltaA, $deltaA).validate(idnum))
+  Λ.$template($deltaA, $deltaA).validate(idnum)
   // @ts-expect-error expect to define output based on input
-  t.assert(!Λ.$template($deltaA2, $deltaA2).validate(idnum))
+  !Λ.$template($deltaA2, $deltaA2).validate(idnum)
+}
+
+export const testStaticContent = () => {
+  t.group('fixed method', () => {
+    const x = Λ.transform(Δ.$delta, $d =>
+      Λ.map({
+        myProp: Λ.fixed('hi')
+      })
+    )
+    const res = x(Δ.$delta).init().applyA(Δ.value().set(42).done())
+    const expectedResult = Δ.map($.$object({ myProp: $.$string })).set('myProp', 'hi').done()
+    t.compare(res.b, expectedResult)
+  })
+  t.group('implicitly fixed', () => {
+    const x = Λ.transform(Δ.$delta, $d =>
+      Λ.map({
+        myProp: 'hi'
+      })
+    )
+    const res = x(Δ.$delta).init().applyA(Δ.value().set(42).done())
+    const expectedResult = Δ.map($.$object({ myProp: $.$string })).set('myProp', 'hi').done()
+    t.compare(res.b, expectedResult)
+  })
 }
