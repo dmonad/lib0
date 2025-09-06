@@ -27,7 +27,7 @@ export class DeltaValue extends AbstractDelta {
   }
 
   get () {
-    return this.change
+    return ops.$insertOp.check(this.change) ? this.change.value : undefined
   }
 
   /**

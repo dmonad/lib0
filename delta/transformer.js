@@ -70,6 +70,10 @@ class Transformer {
      */
     this._pb = null
     /**
+     * Whether this transformer value has been initially consumebd by the parent transformer.
+     */
+    this._init = false
+    /**
      * @type {Transformer<any,any,any>?}
      */
     this.parent = null
@@ -220,6 +224,16 @@ export class Template {
 
 /**
  * @template {delta.AbstractDelta} DeltaA
+ * @template {delta.AbstractDelta} DeltaB
+ * @param {s.$Schema<DeltaA>} $deltaA
+ * @param {s.$Schema<DeltaB>} $deltaB
+ * @return {s.$Schema<Template<any,DeltaA,DeltaB>>}
+ */
+export const $template = ($deltaA, $deltaB) => /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template, o => o.$in.extends($deltaA) && o.$out.extends($deltaB)))
+export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template))
+
+/**
+ * @template {delta.AbstractDelta} DeltaA
  * @template {Template<any,DeltaA,any>} Tr
  * @param {s.$Schema<DeltaA>} $deltaA
  * @param {Tr} transformer
@@ -345,6 +359,11 @@ export const template = def => new Template(/** @type {any} */ (def))
  */
 
 /**
+ * @template {Array<any>} MaybeTemplateArray
+ * @typedef {{ [K in keyof MaybeTemplateArray]: AnyToTemplate<MaybeTemplateArray[K]> }} AnyArrayToTemplate
+ */
+
+/**
  * @template {{ [key:string]: any }} T
  * @param {T} definition
  * @return {Template<
@@ -451,8 +470,15 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
   // accumulate b changes stored on transformers
   const bRes = delta.map()
   for (const key in state) {
-    const b = state[key]._pb
-    if (b) bRes.modify(key, b)
+    const s = state[key]
+    if (s._pb) {
+      if (s._init) {
+        bRes.modify(key, s._pb)
+      } else {
+        s._init = true
+        bRes.set(key, s._pb)
+      }
+    }
   }
   if (bRes.changes.size > 0) {
     // opt values (iff delta is of type DeltaValue, map the change to the map)
@@ -469,6 +495,136 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
       }
     })
     applyResult.b = bRes
+  }
+  return applyResult
+}
+
+/**
+ * @todo This is similar to dt.map. Consider the similarities and try to merge them.
+ *
+ * @template {Array<any>} T
+ * @param {T} definition
+ * @return {Template<
+ *   any,
+ *   AnyArrayToTemplate<T>[number] extends Template<any, infer DeltaA, any> ? DeltaA : never,
+ *   delta.DeltaArray<AnyArrayToTemplate<T>[number] extends Template<any, any, infer DeltaB> ? delta.DeltaValueUnwrap<DeltaB> : never>
+ * >}
+ */
+export const array = (definition) => {
+  /**
+   * @type {Array<Template<any,any,any>>}
+   */
+  const def = []
+  for (let i = 0; i < definition.length; i++) {
+    const d = definition[i]
+    def[i] = $templateAny.check(d) ? d : fixed(d)
+  }
+  return /** @type {any} */ (template({
+    $in: s.$any,
+    $out: delta.$arrayAny,
+    state: () => {
+      const arrState = /** @type {Transformer<any,any,any>[]} */ ([])
+      for (let i = 0; i < def.length; i++) {
+        arrState[i] = def[i].init()
+      }
+      return /** @type {(T extends Template<any,infer SDIn, infer SDOut> ? Transformer<any, SDIn, SDOut>: never)[]} */ (arrState)
+    },
+    applyA: (d, state) => {
+      return _applyArrayOpHelper(state, [{ d, src: null }])
+    },
+    applyB: (d, state) => {
+      s.assert(d, delta.$arrayAny)
+      /**
+       * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
+       */
+      const reverseAChanges = []
+      d.forEach((op, index) => {
+        if (delta.$deleteOp.check(op) || delta.$insertOp.check(op)) {
+          error.unexpectedCase()
+        } else if (delta.$modifyOp.check(op)) {
+          const src = state[index]
+          const res = src.applyB(op.modify)
+          src._pa = res.a
+          src._pb = res.b
+          if (res.a != null) {
+            reverseAChanges.push({ d: res.a, src })
+          }
+        }
+      })
+      return _applyArrayOpHelper(state, reverseAChanges)
+    }
+  }))
+}
+
+/**
+ * @param {Transformer<any, any, any>[]} state
+ * @param {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>} reverseAChanges
+ * @return {TransformResult<delta.AbstractDelta?,delta.DeltaArray<any>?>}
+ */
+const _applyArrayOpHelper = (state, reverseAChanges) => {
+  /**
+     * @type {TransformResult<delta.AbstractDelta?,delta.DeltaArray<any>?>}
+     */
+  const applyResult = transformResult(null, null)
+  while (reverseAChanges.length > 0) {
+    /**
+     * @type {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>}
+     */
+    let nextReverseAChanges = []
+    for (let i = 0; i < state.length; i++) {
+      const s = state[i]
+      let transformPriority = false // false until own is found
+      for (let i = 0; i < reverseAChanges.length; i++) {
+        // changes are applied in reverseAChanges order.
+        // rebase against all concurrent (the op stored on transformer), then apply
+        const r = reverseAChanges[i]
+        if (r.src === s) {
+          transformPriority = true // own has less priority, concurrent is applied with higher prio
+          continue // don't apply own
+        }
+        let rd = r.d
+        if (s._pa != null) {
+          rd = rd.clone()
+          rd.rebase(s._pa, transformPriority)
+        }
+        const res = s.applyA(rd)
+        s._pa = res.a
+        s._pb = delta.mergeDeltas(s._pb, res.b)
+        if (res.a != null) {
+          nextReverseAChanges.push({ d: res.a, src: s })
+        }
+      }
+    }
+    // merge changes for output
+    for (let i = 0; i < nextReverseAChanges.length; i++) {
+      applyResult.a = delta.mergeDeltas(applyResult.a, nextReverseAChanges[i].d)
+    }
+    reverseAChanges = nextReverseAChanges
+    nextReverseAChanges = []
+  }
+  // accumulate b changes stored on transformers
+  const bRes = delta.array()
+  let performedChange = false
+  for (let i = 0; i < state.length; i++) {
+    const s = state[i]
+    let spb = s._pb
+    if (spb) {
+      if (delta.$valueAny.check(spb)) {
+        spb = spb.get()
+      }
+      if (s._init) {
+        bRes.modify(spb)
+      } else {
+        s._init = true
+        bRes.insert([spb])
+      }
+      performedChange = true
+    } else {
+      bRes.retain(1)
+    }
+  }
+  if (performedChange) {
+    applyResult.b = bRes.done()
   }
   return applyResult
 }
@@ -613,16 +769,6 @@ export const query = (...path) => transformStatic(s.$any, template({
     return /** @type {TransformResult<any,null>} */ (transformResult(resD, null))
   }
 }))
-
-/**
- * @template {delta.AbstractDelta} DeltaA
- * @template {delta.AbstractDelta} DeltaB
- * @param {s.$Schema<DeltaA>} $deltaA
- * @param {s.$Schema<DeltaB>} $deltaB
- * @return {s.$Schema<Template<any,DeltaA,DeltaB>>}
- */
-export const $template = ($deltaA, $deltaB) => /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template, o => o.$in.extends($deltaA) && o.$out.extends($deltaB)))
-export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$instanceOf(Template))
 
 /**
  * @template {string|any} FixedContent

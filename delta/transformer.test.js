@@ -100,7 +100,7 @@ export const testMapBasics = _tc => {
   const res = m1.applyA(d)
   t.assert(res.a == null)
   const qq = Δ.map($.$object({ x: $.$number })).set('x', 42).done()
-  const q = Δ.map($.$object({ mynum: Δ.$map($.$object({ x: $.$number })) })).modify('mynum', qq).done()
+  const q = Δ.map($.$object({ mynum: Δ.$map($.$object({ x: $.$number })) })).set('mynum', qq).done()
   t.compare(res.b, q)
   // @todo make sure the result is properly typed (not any)
 }
@@ -181,4 +181,12 @@ export const testStaticContent = () => {
     const expectedResult = Δ.map($.$object({ myProp: Δ.$array($.$number) })).set('myProp', darr).done()
     t.compare(res.b, expectedResult)
   })
+}
+
+
+export const testFixedArray = () => {
+  const x = Λ.array([42])
+  const b = x.init().applyA(Δ.value($.$any).set(7).done()).b
+  const expectedB = Δ.array($.$number).insert([42]).done()
+  t.compare(b, expectedB)
 }

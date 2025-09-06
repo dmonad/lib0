@@ -69,3 +69,8 @@ export {
   DeltaValue,
   DeltaValueBuilder
 } from './value.js'
+
+/**
+ * @template V
+ * @typedef {V extends import('./value.js').DeltaValue<infer X> ? X : V} DeltaValueUnwrap
+ */

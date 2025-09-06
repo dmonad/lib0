@@ -236,7 +236,7 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
    * @param {d.Attribution?} attribution
    * @return {this}
    */
-  modify (modify, attributes, attribution) {
+  modify (modify, attributes = null, attribution = null) {
     const mergedAttributes = d.mergeAttrs(this.usedAttributes, attributes)
     const mergedAttribution = d.mergeAttrs(this.usedAttribution, attribution)
     this.ops.push(this.lastOp = /** @type {OPS} */ (new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution)))
