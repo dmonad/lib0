@@ -234,12 +234,51 @@ export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$
 
 /**
  * @template {delta.AbstractDelta} DeltaA
+ * @template {delta.AbstractDelta} DeltaB
+ * @typedef {Template<any,DeltaA,DeltaB>|(
+ *     DeltaB extends delta.DeltaMap<infer MKV>
+ *       ? (MKV|DeltaB)
+ *       : (DeltaB extends delta.DeltaArray<infer MArr> ? (MArr|DeltaB) : DeltaB))
+ * } MaybeFixedTemplate
+ */
+
+/**
+ * @template {any} MaybeFixed
+ * @typedef {MaybeFixed extends Template<any,any,any>
+ *   ? MaybeFixed
+ *   : Template<any,any,
+ *     MaybeFixed extends delta.AbstractDelta
+ *       ? MaybeFixed
+ *       : (MaybeFixed extends Array<any>
+ *         ? delta.DeltaArray<MaybeFixed[number]>
+ *         : (MaybeFixed extends {[key:string]:any} ? delta.DeltaMap<MaybeFixed> : never))
+ *   >
+ * } MaybeFixedTemplateToTemplate
+ */
+
+/**
+ * @template {MaybeFixedTemplate<any,any>} MaybeFixed
+ * @param {MaybeFixed} maybeFixed
+ * @return {MaybeFixed extends Template<any,any,any> ? MaybeFixed : Template<any,any,MaybeFixed>}
+ */
+export const maybeFixedToTemplate = maybeFixed => $templateAny.check(maybeFixed)
+  ? /** @type {any} */ (maybeFixed)
+  : (delta.$delta.check(maybeFixed)
+      ? /** @type {any} */ (fixed(maybeFixed))
+      : (s.$arrayAny.check(maybeFixed)
+          ? /** @type {any} */ (fixed(delta.array().insert(maybeFixed).done()))
+          : (s.$objectAny.check(maybeFixed) ? /** @type {any} */ (fixed(delta.map().setMany(maybeFixed).done())) : error.unexpectedCase())
+        )
+    )
+
+/**
+ * @template {delta.AbstractDelta} DeltaA
  * @template {Template<any,DeltaA,any>} Tr
- * @param {s.$Schema<DeltaA>} $deltaA
+ * @param {s.$Schema<DeltaA>} _$deltaA
  * @param {Tr} transformer
  * @return {<DA extends DeltaA>($d:s.$Schema<DA>) => Tr extends Template<any,any,infer DeltaB> ? Template<any,DA,DeltaB> : never}
  */
-export const transformStatic = ($deltaA, transformer) => () => /** @type {any} */ (transformer)
+export const transformStatic = (_$deltaA, transformer) => () => /** @type {any} */ (transformer)
 
 /**
  * @template {delta.AbstractDelta} DeltaA
@@ -382,8 +421,7 @@ export const map = (definition) => {
    */
   const def = {}
   for (const key in definition) {
-    const d = definition[key]
-    def[key] = $templateAny.check(d) ? d : fixed(d)
+    def[key] = maybeFixedToTemplate(definition[key])
   }
   return template({
     $in: s.$any,
@@ -649,41 +687,49 @@ const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
 
 /**
  * @template {string} NodeName
- * @template {Template<any,any,delta.DeltaMap<any>>} Attrs
- * @template {Template<any,any,delta.DeltaArray<any>>} Children
+ * @template {MaybeFixedTemplate<any,delta.DeltaMap>} Attrs
+ * @template {MaybeFixedTemplate<any,delta.DeltaArray<any>>} Children
  * @param {NodeName} name
  * @param {Attrs} attributes
  * @param {Children} children
  * @return {Template<
  *   any,
- *   (Attrs | Children) extends Template<any,infer A, any> ? A : never,
+ *   (Attrs | Children) extends MaybeFixedTemplate<infer A, any> ? A : never,
  *   delta.DeltaNode<
  *     NodeName,
- *     Attrs extends Template<any,any,infer BAttrs> ? BAttrs : never,
- *     Children extends Template<any,any,infer BChildren> ? BChildren : never
+ *     MaybeFixedTemplateToTemplate<Attrs> extends Template<any,any,infer B> ? (B extends delta.DeltaMap<infer BAttrs> ? BAttrs : never) : never,
+ *     MaybeFixedTemplateToTemplate<Children> extends Template<any,any,infer B> ? (B extends delta.DeltaMap<infer BChildren> ? BChildren : never) : never,
+ *     'done'
  *   >
  * >}
  */
-export const node = (name, attributes, children) => template({
-  $in: s.$any,
-  $out: delta.$node(s.$literal(name), s.$any, s.$any),
-  state: () => ({ attrs: attributes.init(), children: children.init() }),
-  applyA: (d, state) => {
-    const res = transformResult(null, delta.node(name))
-    _nodeApplyA(res, state, d, d)
-    return res
-  },
-  applyB: (d, state) => {
-    s.assert(d, delta.$nodeAny)
-    const res = transformResult(null, delta.node(name))
-    const childrenRes = state.children.applyB(d.children)
-    const attrsRes = state.attrs.applyB(d.attributes)
-    attrsRes.b && res.b.attributes.apply(attrsRes.b)
-    childrenRes.b && res.b.children.apply(childrenRes.b)
-    _nodeApplyA(res, state, childrenRes.a, attrsRes.a)
-    return res
-  }
-})
+export const node = (name, attributes, children) => {
+  const attrs = maybeFixedToTemplate(attributes)
+  const childs = maybeFixedToTemplate(children)
+  return template({
+    $in: s.$any,
+    $out: delta.$node(s.$literal(name), s.$any, s.$any),
+    state: () => ({
+      attrs: attrs.init(),
+      children: childs.init()
+    }),
+    applyA: (d, state) => {
+      const res = transformResult(null, delta.node(name))
+      _nodeApplyA(res, state, d, d)
+      return res
+    },
+    applyB: (d, state) => {
+      s.assert(d, delta.$nodeAny)
+      const res = transformResult(null, delta.node(name))
+      const childrenRes = state.children.applyB(d.children)
+      const attrsRes = state.attrs.applyB(d.attributes)
+      attrsRes.b && res.b.attributes.apply(attrsRes.b)
+      childrenRes.b && res.b.children.apply(childrenRes.b)
+      _nodeApplyA(res, state, childrenRes.a, attrsRes.a)
+      return res
+    }
+  })
+}
 
 /**
  * @template {any} D
@@ -771,7 +817,7 @@ export const query = (...path) => transformStatic(s.$any, template({
 }))
 
 /**
- * @template {string|any} FixedContent
+ * @template FixedContent
  * @param {FixedContent} fixedContent
  * @return {Template<any,any,FixedContent extends delta.AbstractDelta ? FixedContent : delta.DeltaValue<FixedContent>>}
  */
@@ -794,4 +840,3 @@ export const fixed = fixedContent => {
     }
   })
 }
-

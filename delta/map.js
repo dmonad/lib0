@@ -12,7 +12,7 @@ export const $mapJson = s.$record(s.$string, ops.$deltaMapChangeJson)
  * @typedef {{ [K in keyof OPS]: (Extract<OPS[K],ops.MapInsertOp<any>> extends ops.MapInsertOp<infer V,any> ? ops.MapInsertOp<V, K> : never) | (Extract<OPS[K],ops.MapDeleteOp<any>> extends ops.MapDeleteOp<infer V,any> ? ops.MapDeleteOp<V,K> : never) | (Extract<OPS[K],ops.MapModifyOp<any>> extends ops.MapModifyOp<infer V,any> ? (ops.MapModifyOp<V,K>&OPS[K]) : never) }} KeyedOps */
 
 /**
- * @template {{ [key: string]: any }} Vals
+ * @template {{ [key: string]: any }} [Vals={[key:string]:any}]
  * @extends AbstractDelta
  */
 export class DeltaMap extends AbstractDelta {
@@ -171,6 +171,17 @@ export class DeltaMapBuilder extends DeltaMap {
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
     const $v = valsKeySchema(this.$vals, key)
     this.changes.set(key, /** @type {any} */ (new ops.MapInsertOp(key, $v.cast(newVal), prevValue && $v.cast(prevValue), mergedAttribution)))
+    return this
+  }
+
+  /**
+   * @param {import('./abstract.js').Attribution?} attribution
+   * @param {Partial<Vals>} kv
+   */
+  setMany (kv, attribution = null) {
+    for (const key in kv) {
+      this.set(key, /** @type {Vals[any]} */ (kv[key]), undefined, attribution)
+    }
     return this
   }
 

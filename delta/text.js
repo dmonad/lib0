@@ -20,10 +20,26 @@ export class DeltaTextBuilder extends AbstractDeltaArrayBuilder {
 }
 
 /**
- * @template {any} Embeds
- * @param {s.$Schema<Embeds>} $embeds
+ * @overload
+ * @return {DeltaTextBuilder<never>}
  */
-export const text = ($embeds = s.$never) => new DeltaTextBuilder($embeds)
+/**
+ * @overload
+ * @param {string} [content]
+ * @return {DeltaTextBuilder<never>}
+ */
+/**
+ * @template Embeds
+ * @overload
+ * @param {s.$Schema<Embeds>} [$embeds]
+ * @return {DeltaTextBuilder<Embeds>}
+ */
+/**
+ * @template {s.$Schema<any>|string|undefined} Arg1
+ * @param {Arg1} arg1
+ * @return {DeltaTextBuilder<Arg1 extends s.$Schema<infer Embeds> ? Embeds : never>}
+ */
+export const text = arg1 => s.$$schema.check(arg1) ? new DeltaTextBuilder(/** @type {s.$Schema<any>} */ (arg1)) : (s.$string.check(arg1) ? new DeltaTextBuilder(s.$never).insert(arg1) : new DeltaTextBuilder(s.$never))
 
 /**
  * @template {{ [key:string]: any }} Vals

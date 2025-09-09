@@ -273,6 +273,43 @@ export const $constructedBy = (c, check = null) => new $ConstructedBy(c, check)
 export const $$constructedBy = $constructedBy($ConstructedBy)
 
 /**
+ * Check custom properties on any object. You may want to overwrite the generated $Schema<any>.
+ *
+ * @extends {$Schema<any>}
+ */
+export class $Custom extends $Schema {
+  /**
+   * @param {(o:any) => boolean} check
+   */
+  constructor (check) {
+    super()
+    /**
+     * @type {(o:any) => boolean}
+     */
+    this.shape = check
+  }
+
+  /**
+   * @param {any} o
+   * @param {ValidationError} err
+   * @return {o is any}
+   */
+  check (o, err) {
+    const c = this.shape(o)
+    /* c8 ignore next */
+    !c && err?.extend(null, 'custom prop', o?.constructor.name, 'failed to check custom prop')
+    return c
+  }
+}
+
+/**
+ * @param {(o:any) => boolean} check
+ * @return {$Schema<any>}
+ */
+export const $custom = check => new $Custom(check)
+export const $$custom = $constructedBy($Custom)
+
+/**
  * @template {LiteralType} T
  * @extends {$Schema<T>}
  */
@@ -476,6 +513,10 @@ export class $Object extends $Schema {
  */
 export const $object = def => /** @type {any} */ (new $Object(def))
 export const $$object = $constructedBy($Object)
+/**
+ * @type {$Schema<{[key:string]: any}>}
+ */
+export const $objectAny = $custom(o => o.constructor == null || o.constructor === Object)
 
 /**
  * @template {$Schema<string|number|symbol>} Keys
@@ -591,43 +632,10 @@ export class $Array extends $Schema {
  */
 export const $array = (...def) => new $Array(def)
 export const $$array = $constructedBy($Array)
-
 /**
- * Check custom properties on any object. You may want to overwrite the generated $Schema<any>.
- *
- * @extends {$Schema<any>}
+ * @type {$Schema<Array<any>>}
  */
-export class $Custom extends $Schema {
-  /**
-   * @param {(o:any) => boolean} check
-   */
-  constructor (check) {
-    super()
-    /**
-     * @type {(o:any) => boolean}
-     */
-    this.shape = check
-  }
-
-  /**
-   * @param {any} o
-   * @param {ValidationError} err
-   * @return {o is any}
-   */
-  check (o, err) {
-    const c = this.shape(o)
-    /* c8 ignore next */
-    !c && err?.extend(null, 'custom prop', o?.constructor.name, 'failed to check custom prop')
-    return c
-  }
-}
-
-/**
- * @param {(o:any) => boolean} check
- * @return {$Schema<any>}
- */
-export const $custom = check => new $Custom(check)
-export const $$custom = $constructedBy($Custom)
+export const $arrayAny = $custom(o => arr.isArray(o))
 
 /**
  * @template T

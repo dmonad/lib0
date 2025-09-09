@@ -102,7 +102,6 @@ export const testMapBasics = _tc => {
   const qq = Δ.map($.$object({ x: $.$number })).set('x', 42).done()
   const q = Δ.map($.$object({ mynum: Δ.$map($.$object({ x: $.$number })) })).set('mynum', qq).done()
   t.compare(res.b, q)
-  // @todo make sure the result is properly typed (not any)
 }
 
 /**
@@ -183,10 +182,16 @@ export const testStaticContent = () => {
   })
 }
 
-
 export const testFixedArray = () => {
   const x = Λ.array([42])
   const b = x.init().applyA(Δ.value($.$any).set(7).done()).b
   const expectedB = Δ.array($.$number).insert([42]).done()
+  t.compare(b, expectedB)
+}
+
+export const testNodeToDom = () => {
+  const x = Λ.node('h1', { bold: true }, ['hello world'])
+  const b = x.init().applyA(Δ.value().set(7).done()).b
+  const expectedB = Δ.node('h1', Δ.map($.$object({ bold: $.$boolean })).set('bold', true), Δ.array().insert(['hello world'])).done()
   t.compare(b, expectedB)
 }

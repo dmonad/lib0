@@ -5,7 +5,7 @@ import * as delta from './index.js'
  * @param {t.TestCase} _tc
  */
 export const testNodeDelta = _tc => {
-  const d = /** @type {delta.DeltaNode<string, string, { a: 1 }>} */ (delta.node('test'))
+  const d = /** @type {delta.DeltaNode<string, { a: 1 }, string>} */ (delta.node('test'))
   d.children.insert(['hi'])
   // @ts-expect-error
   d.children.insert([42])
