@@ -5,6 +5,8 @@ import * as object from '../object.js'
 import * as fun from '../function.js'
 import * as array from '../array.js'
 import * as dops from './ops.js'
+import * as error from '../error.js'
+import * as math from '../math.js'
 import { InsertOp, DeleteOp, RetainOp, ModifyOp, TextOp } from './ops.js'
 
 /**
@@ -273,6 +275,110 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
       this.ops.push(this.lastOp = new DeleteOp(len))
     }
     return this
+  }
+
+  /**
+   * @todo this is basically untested and is in dire need of randomized testing.
+   * @param {AbstractDeltaArray<Type, OPS>} other
+   */
+  apply (other) {
+    let opsI = 0
+    let offset = 0
+    other.forEach(
+      null,
+      insertOp => {
+        const o = this.ops[opsI]
+        if (o instanceof InsertOp) {
+          o.insert.splice(offset, 0, ...insertOp.insert)
+          offset += insertOp.length
+        } else if (o == null || o instanceof ModifyOp || offset === 0) {
+          const prevOp = opsI > 0 ? this.ops[opsI - 1] : null
+          if (prevOp instanceof InsertOp) {
+            prevOp.insert.push(...insertOp.insert)
+          } else {
+            this.ops.splice(opsI, 0, /** @type {OPS} */ (insertOp.clone()))
+            opsI++
+          }
+        } else if (o instanceof RetainOp || o instanceof DeleteOp) {
+          const cpy = o.clone()
+          cpy._splice(0, offset)
+          o._splice(offset, o.length - offset)
+          this.ops.splice(opsI + 1, 0, /** @type {OPS} */ (insertOp.clone()), /** @type {OPS} */ (cpy))
+          opsI += 2
+          offset = 0
+        } else {
+          error.unexpectedCase()
+        }
+      },
+      retainOp => {
+        let skipLen = retainOp.length
+        let o = this.ops[opsI]
+        while (o.length - offset <= skipLen) {
+          skipLen -= o.length - offset
+          o = this.ops[++opsI]
+          offset = 0
+        }
+        offset = skipLen
+      },
+      deleteOp => {
+        let remainingLen = deleteOp.length
+        while (remainingLen > 0) {
+          const o = this.ops[opsI]
+          if (o instanceof DeleteOp) {
+            const delLen = o.length - offset
+            // the same content can't be deleted twice, remove duplicated deletes
+            if (delLen >= remainingLen) {
+              offset = 0
+              opsI++
+            } else {
+              offset += remainingLen
+            }
+            remainingLen -= delLen
+          } else { // insert / embed / retain / modify ⇒ replace
+            // case1: delete o fully
+            // case2: delete some part of beginning
+            // case3: delete some part of end
+            // case4: delete some part of center
+            const delLen = math.min(o.length - offset, remainingLen)
+            if (o.length === delLen) {
+              // case 1
+              offset = 0
+              this.ops.splice(opsI, 1)
+            } else if (offset === 0) {
+              // case 2
+              offset = 0
+              o._splice(0, delLen)
+            } else if (offset + delLen === o.length) {
+              // case 3
+              o._splice(offset, delLen)
+              offset = 0
+              opsI++
+            } else {
+              // case 4
+              o._splice(offset, delLen)
+            }
+            remainingLen -= delLen
+          }
+        }
+      },
+      modifyOp => {
+        const o = this.ops[opsI]
+        if (o instanceof ModifyOp) {
+          o.modify.apply(modifyOp.modify)
+          return
+        }
+        if (offset > 0) {
+          const cpy = o.clone()
+          cpy._splice(0, offset)
+          o._splice(offset, o.length - offset)
+          this.ops.splice(opsI + 1, 0, /** @type {OPS} */ (modifyOp.clone()), /** @type {OPS} */ (cpy))
+          opsI += 2
+          offset = 0
+        }
+        this.ops.splice(opsI, 0, /** @type {OPS} */ (modifyOp.clone()))
+      }
+    )
+    this.lastOp = this.ops[this.ops.length - 1]
   }
 
   /**

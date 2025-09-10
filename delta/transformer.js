@@ -421,7 +421,8 @@ export const map = (definition) => {
    */
   const def = {}
   for (const key in definition) {
-    def[key] = maybeFixedToTemplate(definition[key])
+    const d = definition[key]
+    def[key] = $templateAny.check(d) ? d : fixed(d)
   }
   return template({
     $in: s.$any,

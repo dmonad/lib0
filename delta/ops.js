@@ -39,6 +39,19 @@ import * as s from '../schema.js'
  * @typedef {{ insert: string|object, attributes?: { [key: string]: any }, attribution?: d.Attribution } | { delete: number } | { retain: number, attributes?: { [key:string]: any }, attribution?: d.Attribution } | { modify: object }} DeltaJsonOp
  */
 
+/**
+ * @template {{[key:string]: any} | null} Attrs
+ * @param {Attrs} attrs
+ * @return {Attrs}
+ */
+const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
+/**
+ * @template {any} MaybeDelta
+ * @param {MaybeDelta} maybeDelta
+ * @return {MaybeDelta}
+ */
+const _cloneMaybeDelta = maybeDelta => d.$delta.check(maybeDelta) ? maybeDelta.clone() : maybeDelta
+
 export class TextOp {
   /**
    * @param {string} insert
@@ -59,7 +72,17 @@ export class TextOp {
   }
 
   get length () {
-    return (this.insert.constructor === Array || this.insert.constructor === String) ? this.insert.length : 1
+    return this.insert.length
+  }
+
+  /**
+   * Remove a part of the operation (similar to Array.splice)
+   *
+   * @param {number} offset
+   * @param {number} len
+   */
+  _splice (offset, len) {
+    this.insert = this.insert.slice(0, offset) + this.insert.slice(offset + len)    
   }
 
   /**
@@ -74,6 +97,13 @@ export class TextOp {
    */
   [traits.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.attributes, other.attributes) && fun.equalityDeep(this.attribution, other.attribution)
+  }
+
+  /**
+   * @return {TextOp}
+   */
+  clone () {
+    return new TextOp(this.insert, _cloneAttrs(this.attributes), _cloneAttrs(this.attribution))
   }
 }
 
@@ -104,6 +134,16 @@ export class InsertOp {
   }
 
   /**
+   * Remove a part of the operation (similar to Array.splice)
+   *
+   * @param {number} offset
+   * @param {number} len
+   */
+  _splice (offset, len) {
+    this.insert.splice(offset, len)
+  }
+
+  /**
    * @return {DeltaJsonOp}
    */
   toJSON () {
@@ -115,6 +155,13 @@ export class InsertOp {
    */
   [traits.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.attributes, other.attributes) && fun.equalityDeep(this.attribution, other.attribution)
+  }
+
+  /**
+   * @return {InsertOp<ArrayContent>}
+   */
+  clone () {
+    return new InsertOp(this.insert.slice(), _cloneAttrs(this.attributes), _cloneAttrs(this.attribution))
   }
 }
 
@@ -138,6 +185,16 @@ export class DeleteOp {
   }
 
   /**
+   * Remove a part of the operation (similar to Array.splice)
+   *
+   * @param {number} offset
+   * @param {number} len
+   */
+  _splice (offset, len) {
+    this.delete -= len
+  }
+
+  /**
    * @return {DeltaJsonOp}
    */
   toJSON () {
@@ -149,6 +206,10 @@ export class DeleteOp {
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.delete === other.delete
+  }
+
+  clone () {
+    return new DeleteOp(this.delete)
   }
 }
 
@@ -176,6 +237,16 @@ export class RetainOp {
   }
 
   /**
+   * Remove a part of the operation (similar to Array.splice)
+   *
+   * @param {number} _offset
+   * @param {number} len
+   */
+  _splice (_offset, len) {
+    this.retain -= len
+  }
+
+  /**
    * @return {DeltaJsonOp}
    */
   toJSON () {
@@ -187,6 +258,10 @@ export class RetainOp {
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.retain === other.retain && fun.equalityDeep(this.attributes, other.attributes) && fun.equalityDeep(this.attribution, other.attribution)
+  }
+
+  clone () {
+    return new RetainOp(this.retain, _cloneAttrs(this.attributes), _cloneAttrs(this.attribution))
   }
 }
 
@@ -219,6 +294,16 @@ export class ModifyOp {
   }
 
   /**
+   * Remove a part of the operation (similar to Array.splice)
+   *
+   * @param {number} _offset
+   * @param {number} len
+   */
+  _splice (_offset, len) {
+  }
+
+
+  /**
    * @return {DeltaJsonOp}
    */
   toJSON () {
@@ -230,6 +315,13 @@ export class ModifyOp {
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.modify[traits.EqualityTraitSymbol](other.modify) && fun.equalityDeep(this.attributes, other.attributes) && fun.equalityDeep(this.attribution, other.attribution)
+  }
+
+  /**
+   * @return {ModifyOp<DTypes>}
+   */
+  clone () {
+    return new ModifyOp(this.modify.clone(), _cloneAttrs(this.attributes), _cloneAttrs(this.attribution))
   }
 }
 
@@ -273,15 +365,18 @@ export class MapInsertOp {
     }
   }
 
-  clone () {
-    return new MapInsertOp(this.key, this.value, this.prevValue, this.attribution)
-  }
-
   /**
    * @param {MapInsertOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
+  }
+
+  /**
+   * @return {MapInsertOp<V,K>}
+   */
+  clone () {
+    return new MapInsertOp(this.key, _cloneMaybeDelta(this.value), _cloneMaybeDelta(this.prevValue), _cloneAttrs(this.attribution))
   }
 }
 
@@ -321,15 +416,15 @@ export class MapDeleteOp {
     }
   }
 
-  clone () {
-    return new MapDeleteOp(this.key, this.prevValue, this.attribution)
-  }
-
   /**
    * @param {MapDeleteOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
+  }
+
+  clone () {
+    return new MapDeleteOp(this.key, _cloneMaybeDelta(this.prevValue), _cloneAttrs(this.attribution))
   }
 }
 
@@ -365,15 +460,18 @@ export class MapModifyOp {
     }
   }
 
-  clone () {
-    return new MapModifyOp(this.key, this.value)
-  }
-
   /**
    * @param {MapModifyOp<Modifiers>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.key === other.key && this.value[traits.EqualityTraitSymbol](other.value)
+  }
+
+  /**
+   * @return {MapModifyOp<Modifiers,K>}
+   */
+  clone () {
+    return new MapModifyOp(this.key, this.value.clone())
   }
 }
 
