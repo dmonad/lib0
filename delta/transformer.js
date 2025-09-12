@@ -386,9 +386,34 @@ export const pipe = (t1, t2) => ($d) => {
 export const template = def => new Template(/** @type {any} */ (def))
 
 /**
- * @template {any} MaybeTemplate
- * @typedef {MaybeTemplate extends Template<any,any,any> ? MaybeTemplate : Template<any,any,
- *   MaybeTemplate extends delta.AbstractDelta ? MaybeTemplate : delta.DeltaValue<MaybeTemplate>
+ * @template FixedContent
+ * @param {FixedContent} fixedContent
+ * @return {Template<any,any,FixedContent extends delta.AbstractDelta ? FixedContent : delta.DeltaValue<FixedContent>>}
+ */
+export const fixed = fixedContent => {
+  const staticDelta = delta.$delta.check(fixedContent) ? fixedContent : delta.value().set(fixedContent).done()
+  return template({
+    $in: s.$any,
+    $out: s.$any,
+    state: () => ({ e: false }),
+    applyA: (_d, s) => {
+      if (!s.e) {
+        s.e = true
+        return transformResult(null, staticDelta)
+      }
+      return transformResultEmpty
+    },
+    applyB: () => {
+      // @todo should reverse the change and give back
+      error.unexpectedCase()
+    }
+  })
+}
+
+/**
+ * @template MaybeTemplate
+ * @typedef {[MaybeTemplate] extends [Template<any,any,any>] ? MaybeTemplate : Template<any,any,
+ *   [MaybeTemplate] extends [delta.AbstractDelta] ? MaybeTemplate : delta.DeltaValue<MaybeTemplate>
  * >} AnyToTemplate
  */
 
@@ -404,16 +429,18 @@ export const template = def => new Template(/** @type {any} */ (def))
 
 /**
  * @template {{ [key:string]: any }} T
- * @param {T} definition
- * @return {Template<
+ * @typedef {Template<
  *   any,
  *   AnyMapToTemplate<T>[keyof T] extends Template<any, infer DeltaA,any> ? DeltaA : never,
- *   delta.DeltaMap<{ [K in keyof T]: AnyToTemplate<T[K]> extends Template<
- *     any,
- *     AnyMapToTemplate<T>[keyof T] extends Template<any,infer DeltaA,any> ? DeltaA : never,
- *     infer DeltaB
- *   > ? (DeltaB extends delta.DeltaValue<infer V> ? V : DeltaB) : never }>
- * >}
+ *   delta.DeltaMap<{ [K in keyof T]: AnyToTemplate<T[K]> extends Template<any, any, infer DeltaB>
+ *     ? (DeltaB extends delta.DeltaValue<infer V> ? V : DeltaB) : AnyToTemplate<T[K]> }>
+ *  >} MapDefToTemplate
+ */
+
+/**
+ * @template {{ [key:string]: any }} T
+ * @param {T} definition
+ * @return {MapDefToTemplate<T> extends Template<any,infer A,infer B> ? Template<any,A,B> : never}
  */
 export const map = (definition) => {
   /**
@@ -687,25 +714,30 @@ const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
 }
 
 /**
+ * @template {{ [key:string]: any } | Template<any,any,delta.DeltaMap<any>>} T
+ * @typedef {T extends Template<any,any,any> ? T : MapDefToTemplate<T>} MapOrMapDefToTemplate
+ */
+
+/**
  * @template {string} NodeName
- * @template {MaybeFixedTemplate<any,delta.DeltaMap>} Attrs
+ * @template {{ [key:string]:any } | Template<any,any,delta.DeltaMap<any>>} Attrs - accepts map or map definition
  * @template {MaybeFixedTemplate<any,delta.DeltaArray<any>>} Children
  * @param {NodeName} name
  * @param {Attrs} attributes
  * @param {Children} children
  * @return {Template<
  *   any,
- *   (Attrs | Children) extends MaybeFixedTemplate<infer A, any> ? A : never,
+ *   MapOrMapDefToTemplate<Attrs> extends Template<any, infer A, any> ? A : never,
  *   delta.DeltaNode<
  *     NodeName,
- *     MaybeFixedTemplateToTemplate<Attrs> extends Template<any,any,infer B> ? (B extends delta.DeltaMap<infer BAttrs> ? BAttrs : never) : never,
+ *     MapOrMapDefToTemplate<Attrs> extends Template<any,any,delta.DeltaMap<infer M>> ? M : never,
  *     MaybeFixedTemplateToTemplate<Children> extends Template<any,any,infer B> ? (B extends delta.DeltaMap<infer BChildren> ? BChildren : never) : never,
  *     'done'
  *   >
  * >}
  */
 export const node = (name, attributes, children) => {
-  const attrs = maybeFixedToTemplate(attributes)
+  const attrs = $templateAny.check(attributes) ? attributes : map(attributes)
   const childs = maybeFixedToTemplate(children)
   return template({
     $in: s.$any,
@@ -817,27 +849,3 @@ export const query = (...path) => transformStatic(s.$any, template({
   }
 }))
 
-/**
- * @template FixedContent
- * @param {FixedContent} fixedContent
- * @return {Template<any,any,FixedContent extends delta.AbstractDelta ? FixedContent : delta.DeltaValue<FixedContent>>}
- */
-export const fixed = fixedContent => {
-  const staticDelta = delta.$delta.check(fixedContent) ? fixedContent : delta.value().set(fixedContent).done()
-  return template({
-    $in: s.$any,
-    $out: s.$any,
-    state: () => ({ e: false }),
-    applyA: (_d, s) => {
-      if (!s.e) {
-        s.e = true
-        return transformResult(null, staticDelta)
-      }
-      return transformResultEmpty
-    },
-    applyB: () => {
-      // @todo should reverse the change and give back
-      error.unexpectedCase()
-    }
-  })
-}

@@ -189,9 +189,25 @@ export const testFixedArray = () => {
   t.compare(b, expectedB)
 }
 
-export const testNodeToDom = () => {
+export const testNode = () => {
   const x = Λ.node('h1', { bold: true }, ['hello world'])
   const b = x.init().applyA(Δ.value().set(7).done()).b
-  const expectedB = Δ.node('h1', Δ.map($.$object({ bold: $.$boolean })).set('bold', true), Δ.array().insert(['hello world'])).done()
+  const expectedChildren = Δ.array($.$string).insert(['hello world'])
+  const expectedB = Δ.node('h1', Δ.map($.$object({ bold: $.$boolean })).set('bold', true), expectedChildren).done()
   t.compare(b, expectedB)
+}
+
+export const testNodeDomBinding = () => {
+  const x = Λ.transform(Δ.$map($.$object({ qq: $.$number })), $d => Λ.map({ x: Λ.query('qq')($d) }))
+  const $aschema = Δ.$map($.$object({ qq: $.$number }))
+  const y = Λ.transform($aschema, $d => Λ.node('h1', { bold: true, eventClicked: Λ.map({ x: Λ.query('qq')($d) }) }, ['hello world']))
+  const yD = y($aschema)
+  const z = Λ.transformStatic($aschema, Λ.node('h1', { bold: true, eventClicked: Λ.map({ x: Λ.query('qq')($aschema) }) }, ['hello world']))
+  const zD = z($aschema)
+  const initA = Δ.map($.$object({ qq: $.$number })).set('qq', 42)
+  const yDB = yD.init().applyA(initA).b
+  const zDB = zD.init().applyA(initA).b
+  const expected = Δ.map(yDB?.attributes.$vals).setMany({ bold: true, eventClicked: Δ.map($.$object({ x: $.$number })).set('x', 42) }).done()
+  t.compare(expected, yDB?.attributes)
+  t.compare(expected, zDB?.attributes)
 }
