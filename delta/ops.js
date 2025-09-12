@@ -82,7 +82,7 @@ export class TextOp {
    * @param {number} len
    */
   _splice (offset, len) {
-    this.insert = this.insert.slice(0, offset) + this.insert.slice(offset + len)    
+    this.insert = this.insert.slice(0, offset) + this.insert.slice(offset + len)
   }
 
   /**
@@ -301,7 +301,6 @@ export class ModifyOp {
    */
   _splice (_offset, len) {
   }
-
 
   /**
    * @return {DeltaJsonOp}

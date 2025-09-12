@@ -289,11 +289,11 @@ export class DeltaMapBuilder extends DeltaMap {
 /**
  * Create a new DeltaMap, optionally supply a schema.
  *
- * @template {{ [key:string]: any }} [Vals={ [key:string]: any }]
- * @param {s.$Schema<Vals>} $vals
- * @return {DeltaMapBuilder<Vals>}
+ * @template {s.$Schema<{ [key:string]: any }> | { [key:string]: s.$Schema<any> }} [$Vals=s.$Schema<{ [key:string]: any }>]
+ * @param {$Vals} $vals
+ * @return {DeltaMapBuilder<$Vals extends s.$Schema<infer $V> ? $V : (s._ObjectDefToSchema<$Vals> extends s.$Schema<infer $V> ? $V : never)>}
  */
-export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder($vals))
+export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder(/** @type {any} */ (s.$$schema.check($vals) ? $vals : s.$object($vals))))
 
 /**
  * @template {{ [key:string]: any }} Vals

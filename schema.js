@@ -504,12 +504,17 @@ export class $Object extends $Schema {
   }
 }
 
+/**
+ * @template {{ [key:string|symbol|number]: $Schema<any> }} S
+ * @typedef {$Schema<{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }>} _ObjectDefToSchema
+ */
+
 // I used an explicit type annotation instead of $ObjectToType, so that the user doesn't see the
 // weird type definitions when inspecting type definions.
 /**
  * @template {{ [key:string|symbol|number]: $Schema<any> }} S
  * @param {S} def
- * @return {$Schema<{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }>}
+ * @return {_ObjectDefToSchema<S> extends $Schema<infer S> ? $Schema<S> : never}
  */
 export const $object = def => /** @type {any} */ (new $Object(def))
 export const $$object = $constructedBy($Object)

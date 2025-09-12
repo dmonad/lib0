@@ -240,3 +240,9 @@ export const testRepeatRebaseMergeDeltas = tc => {
   console.log('2', JSON.stringify(dmerged2))
   t.compare(dmerged1, dmerged2)
 }
+
+export const testMapSimplerTyping = () => {
+  const x = delta.map(s.$object({ x: s.$number }))
+  const y = delta.map({ x: s.$number })
+  t.compare(x, y)
+}

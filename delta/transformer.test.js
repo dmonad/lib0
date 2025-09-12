@@ -198,7 +198,6 @@ export const testNode = () => {
 }
 
 export const testNodeDomBinding = () => {
-  const x = Λ.transform(Δ.$map($.$object({ qq: $.$number })), $d => Λ.map({ x: Λ.query('qq')($d) }))
   const $aschema = Δ.$map($.$object({ qq: $.$number }))
   const y = Λ.transform($aschema, $d => Λ.node('h1', { bold: true, eventClicked: Λ.map({ x: Λ.query('qq')($d) }) }, ['hello world']))
   const yD = y($aschema)

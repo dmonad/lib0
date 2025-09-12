@@ -848,4 +848,3 @@ export const query = (...path) => transformStatic(s.$any, template({
     return /** @type {TransformResult<any,null>} */ (transformResult(resD, null))
   }
 }))
-
