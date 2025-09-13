@@ -197,13 +197,13 @@ export const testNode = () => {
   t.compare(b, expectedB)
 }
 
-export const testNodeDomBinding = () => {
-  const $aschema = Δ.$map($.$object({ qq: $.$number }))
+export const testNodeTransformer = () => {
+  const $aschema = Δ.$map($.$object({ qq: $.$number, qp: $.$string }))
   const y = Λ.transform($aschema, $d => Λ.node('h1', { bold: true, eventClicked: Λ.map({ x: Λ.query('qq')($d) }) }, ['hello world']))
   const yD = y($aschema)
-  const z = Λ.transformStatic($aschema, Λ.node('h1', { bold: true, eventClicked: Λ.map({ x: Λ.query('qq')($aschema) }) }, ['hello world']))
+  const z = Λ.transformStatic($aschema, Λ.node('h1', { bold: true, eventClicked: Λ.map({ x: Λ.query('qq')($aschema) }) }, ['hello world', Λ.query('qp')($aschema)]))
   const zD = z($aschema)
-  const initA = Δ.map($.$object({ qq: $.$number })).set('qq', 42)
+  const initA = Δ.map($.$object({ qq: $.$number, qp: $.$string })).set('qq', 42).set('qp', 'hi')
   const yDB = yD.init().applyA(initA).b
   const zDB = zD.init().applyA(initA).b
   const expected = Δ.map(yDB?.attributes.$vals).setMany({ bold: true, eventClicked: Δ.map($.$object({ x: $.$number })).set('x', 42) }).done()

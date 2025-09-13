@@ -42,13 +42,6 @@ export const testMapDeltaBasics = _tc => {
   dmap.has('str')
   // @ts-expect-error should throw type error
   dmap.has('_')
-  for (const entry of dmap) {
-    // ensure that typings work correctly when iterating through changes
-    if (entry.key === 'str') {
-      t.assert(delta.$insertOpWith(s.$string).optional.check(entry))
-      t.assert(!delta.$insertOpWith(s.$number).optional.check(entry))
-    }
-  }
   dmap.done()
 }
 
@@ -151,21 +144,6 @@ export const testMapDelta = _tc => {
       throw new Error()
     }
   })
-  for (const change of d) {
-    const { key, value, prevValue } = change
-    if (key === 'v') {
-      t.assert(d.get(key)?.prevValue === 94)
-      t.assert(prevValue === 94) // should know that value is number
-    } else if (key === 'key') {
-      t.assert(value === 'value') // should know that value is string
-      // @ts-expect-error
-      t.assert(value !== 42)
-    } else if (key === 'over') {
-      t.assert(value === 'andout')
-    } else {
-      throw new Error()
-    }
-  }
 }
 
 /**
