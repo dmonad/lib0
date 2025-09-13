@@ -5,6 +5,12 @@
  */
 
 /**
+ * @template K
+ * @template V
+ * @typedef {Map<K,V>} GlobalMap
+ */
+
+/**
  * Creates a new Map instance.
  *
  * @function

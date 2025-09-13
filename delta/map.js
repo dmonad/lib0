@@ -23,7 +23,7 @@ export class DeltaMap extends AbstractDelta {
     super()
     this.$vals = $vals
     /**
-     * @type {Map<any,ops.DeltaMapOps>}
+     * @type {gmap.GlobalMap<any,ops.DeltaMapOps>}
      */
     this._changes = gmap.create()
     /**

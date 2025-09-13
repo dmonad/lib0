@@ -23,7 +23,7 @@ export {
   array,
   $array,
   $arrayAny,
-  DeltaArrayBuilder
+  DeltaArrayBuilder as ArrayBuilder
 } from './array.js'
 
 /**
@@ -35,7 +35,7 @@ export {
   node,
   $node,
   $nodeAny,
-  DeltaNode
+  DeltaNode as Node
 } from './node.js'
 
 // delta map
@@ -44,14 +44,14 @@ export {
   $map,
   $mapAny,
   $mapJson,
-  DeltaMapBuilder,
-  DeltaMap
+  DeltaMapBuilder as MapBuilder,
+  DeltaMap as Map
 } from './map.js'
 
 export {
   text,
   $text,
-  DeltaTextBuilder
+  DeltaTextBuilder as TextBuilder
 } from './text.js'
 
 /**
@@ -66,11 +66,11 @@ export {
   value,
   $value,
   $valueAny,
-  DeltaValue,
-  DeltaValueBuilder
+  DeltaValue as Value,
+  DeltaValueBuilder as ValueBuilder
 } from './value.js'
 
 /**
  * @template V
- * @typedef {V extends import('./value.js').DeltaValue<infer X> ? X : V} DeltaValueUnwrap
+ * @typedef {V extends import('./value.js').DeltaValue<infer X> ? X : V} ValueUnwrap
  */
