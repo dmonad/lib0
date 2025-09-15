@@ -39,8 +39,8 @@ export const transformResultEmpty = transformResult(null, null)
  * @property {s.$Schema<DeltaA>} TransformerDef.$in
  * @property {s.$Schema<DeltaB>} TransformerDef.$out
  * @property {function (this: Template<State,DeltaA,DeltaB>): State} TransformerDef.state
- * @property {(deltaIn:NoInfer<DeltaA>,s:NoInfer<State>,tdef:TransformerDef<State,DeltaA,DeltaB>) => TransformResult<NoInfer<DeltaA>?,NoInfer<DeltaB>?>} TransformerDef.applyA
- * @property {(deltaOut:NoInfer<DeltaB>,s:NoInfer<State>,tdef:TransformerDef<State,DeltaA,DeltaB>) => TransformResult<NoInfer<DeltaA>?,NoInfer<DeltaB>?>} TransformerDef.applyB
+ * @property {(deltaIn:NoInfer<DeltaA>,s:NoInfer<State>) => TransformResult<NoInfer<DeltaA>?,NoInfer<DeltaB>?>} TransformerDef.applyA
+ * @property {(deltaOut:NoInfer<DeltaB>,s:NoInfer<State>) => TransformResult<NoInfer<DeltaA>?,NoInfer<DeltaB>?>} TransformerDef.applyB
  */
 
 /**
@@ -84,7 +84,7 @@ class Transformer {
    * @return {TransformResult<DeltaA?,DeltaB?>}
    */
   applyA (deltaA) {
-    return this.t.applyA(deltaA, this._state, this.t)
+    return this.t._applyA(deltaA, this._state)
   }
 
   /**
@@ -92,7 +92,7 @@ class Transformer {
    * @return {TransformResult<DeltaA?,DeltaB?>}
    */
   applyB (deltaB) {
-    return this.t.applyB(deltaB, this._state, this.t)
+    return this.t._applyB(deltaB, this._state)
   }
 }
 
@@ -182,16 +182,18 @@ export class Template {
     /**
      * @type {() => State}
      */
-    this.state = state
+    this._state = state
     /**
      * @type {typeof applyA}
      */
-    this.applyA = applyA
+    this._applyA = applyA
     /**
      * @type {typeof applyB}
      */
-    this.applyB = applyB
+    this._applyB = applyB
     /**
+     * Cache for stateless transformers.
+     *
      * @type {Transformer<State,DeltaA,DeltaB>?}
      */
     this._tr = null
@@ -214,7 +216,7 @@ export class Template {
   init () {
     if (this._tr != null) return this._tr
     // reuse stateless transformers
-    const s = this.state()
+    const s = this._state()
     if (s === null) {
       return (this._tr = new Transformer(this, s))
     }
