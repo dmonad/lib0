@@ -74,18 +74,8 @@ export class Binding extends ObservableV2 {
  */
 export const bind = ({ template, state = null, a = null, b = null }) => {
   const binding = /** @type {Binding<DeltaA,DeltaB,State>} */ (new Binding(template, state))
-  if (a instanceof ObservableV2) {
-    binding.on('a', d => a.update(d))
-    a.on('change', binding.applyA)
-  } else if (a != null) {
-    binding.on('a', a)
-  }
-  if (b instanceof ObservableV2) {
-    binding.on('b', d => b.update(d))
-    b.on('change', binding.applyB)
-  } else if (b != null) {
-    binding.on('b', b)
-  }
+  a != null && binding.on('a', a instanceof ObservableV2 ? a.update : a)
+  b != null && binding.on('b', b instanceof ObservableV2 ? b.update : b)
   return binding
 }
 
@@ -226,6 +216,7 @@ class DomEventEmitter extends ObservableV2 {
         const newVal = target.getAttribute(attrName)
         const info = getChangedNodeInfo(target)
         const d = info.d
+        d.origin = this
         // go up the tree and mark that a child has been modified
         for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== observedNode; changedParent = changedParent.parentNode) {
           // nop
@@ -290,8 +281,9 @@ class DomEventEmitter extends ObservableV2 {
   /**
    * @param {delta.Node<string,any,any,"done">} delta
    */
-  update = delta =>
-    applyDeltaToDom(this.observedNode, delta)
+  update = delta => {
+    if (delta.origin != this) applyDeltaToDom(this.observedNode, delta)
+  }
 
   destroy () {
     this.observer.disconnect()
