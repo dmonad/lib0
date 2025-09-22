@@ -203,12 +203,13 @@ export class $Schema {
    * **Do not rely on these error messages!**
    * Performs an assertion check only if not in a production environment.
    *
-   * @param {any} o
-   * @return {Extract<o, T>}
+   * @template OO
+   * @param {OO} o
+   * @return {Extract<OO, T> extends never ? T : Extract<OO,T>}
    */
   cast (o) {
     assert(o, this)
-    return o
+    return /** @type {any} */ (o)
   }
 
   /**

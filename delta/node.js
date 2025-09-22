@@ -5,9 +5,9 @@ import * as dmap from './map.js'
 import * as s from '../schema.js'
 
 /**
- * @template {string|undefined} NodeName
+ * @template {string|undefined} [NodeName=string]
  * @template {{[key:string]:any}} [Attrs={[key:string]:any}]
- * @template [Children=never]
+ * @template [Children=any]
  * @template {'done'|'mutable'} [Done='mutable']
  */
 export class DeltaNode extends dabstract.AbstractDelta {
@@ -55,9 +55,9 @@ export class DeltaNode extends dabstract.AbstractDelta {
 }
 
 /**
- * @template {string|undefined} NodeName
- * @template {object} Attrs
- * @template Children
+ * @template {string|undefined} [NodeName=string]
+ * @template {object} [Attrs={[key:string]:any}]
+ * @template [Children=any]
  * @param {NodeName} nodeName
  * @param {dmap.DeltaMapBuilder<Attrs>} attributes
  * @param {darray.DeltaArrayBuilder<Children>} children
@@ -77,6 +77,6 @@ export const node = (nodeName, attributes = /** @type {any} */ (dmap.map()), chi
 export const $node = ($nodeName, $children, $attributes) => {
   const $dchildren = darray.$array($children)
   const $dattrs = dmap.$map($attributes)
-  return/** @type {s.$Schema<DeltaNode<NodeName, any, never, 'done'>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
+  return/** @type {s.$Schema<DeltaNode<NodeName, any, any, 'done'>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
 }
 export const $nodeAny = s.$constructedBy(DeltaNode)

@@ -47,3 +47,8 @@ export const text = arg1 => s.$$schema.check(arg1) ? new DeltaTextBuilder(/** @t
  * @return {s.$Schema<DeltaText<Vals>>}
  */
 export const $text = $embeds => /** @type {s.$Schema<DeltaText<Vals>>} */ (s.$instanceOf(DeltaTextBuilder, o => $embeds.extends(o.$insert)))
+
+/**
+ * @return {s.$Schema<DeltaText<any>>}
+ */
+export const $textAny = /** @type {s.$Schema<DeltaText<any>>} */ (s.$instanceOf(DeltaTextBuilder))

@@ -2,23 +2,9 @@ import * as t from '../testing.js'
 import * as Λ from './transformer.js'
 import * as Δ from './index.js'
 import * as $ from '../schema.js'
-
-/**
- * @template {Δ.AbstractDelta} Delta
- * @param {$.$Schema<Delta>} $in
- * @return {Λ.Template<null,Delta,Delta>}
- */
-const id = $in => Λ.template({
-  $in,
-  $out: $.$any,
-  state: () => null,
-  applyA: d => {
-    return Λ.transformResult(null, d)
-  },
-  applyB: d => {
-    return Λ.transformResult(d, null)
-  }
-})
+import * as binding from './binding.js'
+import * as env from '../environment.js'
+import * as dom from '../dom.js'
 
 const mapString = Λ.transformStatic(Δ.$map($.$object({ x: $.$number })), Λ.template({
   $in: Δ.$map($.$object({ x: $.$number })),
@@ -73,8 +59,8 @@ const mapNumber = Λ.transformStatic(Δ.$map($.$object({ x: $.$string })), Λ.te
  */
 export const testBasics = _tc => {
   const $snIn = Δ.$map($.$object({ x: $.$string }))
-  const _mn = mapNumber($snIn).pipe(id).pipe(mapString)
-  const _q = id(Δ.$map($.$object({ a: $.$number }))).pipe(id)
+  const _mn = mapNumber($snIn).pipe(Λ.id).pipe(mapString)
+  const _q = Λ.id(Δ.$map($.$object({ a: $.$number }))).pipe(Λ.id)
   console.log(_mn, _q)
   Λ.transform(Δ.$map($.$object({ x: $.$string })), $d => mapNumber($d).pipe(mapString))
   // @ts-expect-error
@@ -122,7 +108,7 @@ export const testMapQuery = _tc => {
 }
 
 export const testMappingTransformer = () => {
-  const q = Λ.transform(Δ.$map($.$object({ x: $.$number })), $d => id($d))
+  const q = Λ.transform(Δ.$map($.$object({ x: $.$number })), $d => Λ.id($d))
   q(Δ.$map($.$object({ x: $.$number })))
 }
 
@@ -138,8 +124,8 @@ export const testTransformerCreateUtility = () => {
   const $deltaA = Δ.$value($.$number)
   const $deltaA2 = Δ.$value($.$string)
   const idFactory = Λ.transform(Δ.$delta, $d => {
-    const x = id($d)
-    const y = x.pipe(id)
+    const x = Λ.id($d)
+    const y = x.pipe(Λ.id)
     return y
   })
   const idnum = idFactory($deltaA)
@@ -209,4 +195,14 @@ export const testNodeTransformer = () => {
   const expected = Δ.map(yDB?.attributes.$vals).setMany({ bold: true, eventClicked: Δ.map($.$object({ x: $.$number })).set('x', 42) }).done()
   t.compare(expected, yDB?.attributes)
   t.compare(expected, zDB?.attributes)
+}
+
+export const testBinding = () => {
+  if (!env.isBrowser) t.skip()
+  const el = dom.element('div')
+  const domEM = binding.domEventEmitter(el)
+  const domEM2 = binding.domEventEmitter(el)
+  const template = Λ.node('div', { height: '42' }, [])
+  const b = binding.bind({ template, state: null, a: domEM2, b: domEM })
+  console.log(b)
 }

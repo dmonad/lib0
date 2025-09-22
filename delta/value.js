@@ -55,7 +55,7 @@ export class DeltaValueBuilder extends DeltaValue {
    * @param {Extract<Vals, AbstractDelta>} delta
    */
   modify (delta) {
-    this.change = /** @type {ValueOpsFromValues<Vals>} */ (new ops.MapModifyOp('', this.$vals.cast(delta)))
+    this.change = /** @type {ValueOpsFromValues<Vals>} */ (new ops.MapModifyOp('', delta))
     return this
   }
 

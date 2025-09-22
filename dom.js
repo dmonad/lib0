@@ -8,6 +8,7 @@
 
 import * as pair from './pair.js'
 import * as map from './map.js'
+import * as $ from './schema.js'
 
 /* c8 ignore start */
 /**
@@ -25,6 +26,11 @@ export const createElement = name => doc.createElement(name)
  * @return {DocumentFragment}
  */
 export const createDocumentFragment = () => doc.createDocumentFragment()
+
+/**
+ * @type {$.$Schema<DocumentFragment>}
+ */
+export const $fragment = $.$custom(el => el.nodeType === DOCUMENT_FRAGMENT_NODE)
 
 /**
  * @param {string} text
@@ -141,6 +147,11 @@ export const element = (name, attrs = [], children = []) =>
   append(setAttributes(createElement(name), attrs), children)
 
 /**
+ * @type {$.$Schema<Element>}
+ */
+export const $element = $.$custom(el => el.nodeType === ELEMENT_NODE)
+
+/**
  * @param {number} width
  * @param {number} height
  */
@@ -156,6 +167,11 @@ export const canvas = (width, height) => {
  * @return {Text}
  */
 export const text = createTextNode
+
+/**
+ * @type {$.$Schema<Text>}
+ */
+export const $text = $.$custom(el => el.nodeType === TEXT_NODE)
 
 /**
  * @param {pair.Pair<string,string>} pair
@@ -242,6 +258,11 @@ export const COMMENT_NODE = doc.COMMENT_NODE
 export const DOCUMENT_NODE = doc.DOCUMENT_NODE
 export const DOCUMENT_TYPE_NODE = doc.DOCUMENT_TYPE_NODE
 export const DOCUMENT_FRAGMENT_NODE = doc.DOCUMENT_FRAGMENT_NODE
+
+/**
+ * @type {$.$Schema<Node>}
+ */
+export const $node = $.$custom(el => el.nodeType === DOCUMENT_NODE)
 
 /**
  * @param {any} node

@@ -28,7 +28,7 @@ export {
 
 /**
  * @template Content
- * @typedef {import('./array.js').DeltaArray<Content>} DeltaArray
+ * @typedef {import('./array.js').DeltaArray<Content>} Array
  */
 
 export {
@@ -51,15 +51,16 @@ export {
 export {
   text,
   $text,
+  $textAny,
   DeltaTextBuilder as TextBuilder
 } from './text.js'
 
 /**
- * @typedef {import('./text.js').DeltaText<any>} DeltaText
+ * @typedef {import('./text.js').DeltaText<any>} Text
  */
 
 /**
- * @typedef {DeltaArray<any> | import('./node.js').DeltaNode<string,any,any> } Delta
+ * @typedef {Array<any> | import('./node.js').DeltaNode<string,any,any> } Delta
  */
 
 export {

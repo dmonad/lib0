@@ -214,18 +214,17 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
      * @param {TextOp | InsertOp<any>} lastOp
      */
     const checkMergedEquals = lastOp => (mergedAttributes === lastOp.attributes || fun.equalityDeep(mergedAttributes, lastOp.attributes)) && (mergedAttribution === lastOp.attribution || fun.equalityDeep(mergedAttribution, lastOp.attribution))
-
     if (s.$string.check(insert)) {
       if (dops.$textOp.check(this.lastOp) && checkMergedEquals(this.lastOp)) {
         this.lastOp.insert += insert
-      } else {
+      } else if (insert.length > 0) {
         this.ops.push(this.lastOp = /** @type {OPS} */ (new TextOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution)))
       }
     } else if (array.isArray(insert)) {
       insert.forEach(/** @param {any} ins */ ins => this.$insert.expect(ins))
       if (dops.$insertOp.check(this.lastOp) && checkMergedEquals(this.lastOp)) {
         this.lastOp.insert.push(...insert)
-      } else {
+      } else if (insert.length > 0) {
         this.ops.push(this.lastOp = /** @type {OPS} */ (new InsertOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution)))
       }
     }
@@ -256,7 +255,7 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
     const mergedAttribution = d.mergeAttrs(this.usedAttribution, attribution)
     if (this.lastOp instanceof RetainOp && fun.equalityDeep(mergedAttributes, this.lastOp.attributes) && fun.equalityDeep(mergedAttribution, this.lastOp.attribution)) {
       this.lastOp.retain += retain
-    } else {
+    } else if (retain > 0) {
       // @ts-ignore
       this.ops.push(this.lastOp = new RetainOp(retain, mergedAttributes, mergedAttribution))
     }
@@ -270,7 +269,7 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
   delete (len) {
     if (this.lastOp instanceof DeleteOp) {
       this.lastOp.delete += len
-    } else {
+    } else if (len > 0) {
       // @ts-ignore
       this.ops.push(this.lastOp = new DeleteOp(len))
     }

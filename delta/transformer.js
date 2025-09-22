@@ -51,7 +51,7 @@ export const transformResultEmpty = transformResult(null, null)
  * @template {s.Unwrap<typeof delta.$delta>} DeltaA
  * @template {s.Unwrap<typeof delta.$delta>} DeltaB
  */
-class Transformer {
+export class Transformer {
   /**
    * @param {Template<State,DeltaA,DeltaB>} t
    * @param {State} s
@@ -240,7 +240,7 @@ export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$
  * @typedef {Template<any,DeltaA,DeltaB>|(
  *     DeltaB extends delta.Map<infer MKV>
  *       ? (MKV|DeltaB)
- *       : (DeltaB extends delta.DeltaArray<infer MArr> ? (MArr|DeltaB) : DeltaB))
+ *       : (DeltaB extends delta.Array<infer MArr> ? (MArr|DeltaB) : DeltaB))
  * } MaybeFixedTemplate
  */
 
@@ -257,7 +257,7 @@ export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$
  *     MaybeFixed extends delta.AbstractDelta
  *       ? MaybeFixed
  *       : (MaybeFixed extends Array<any>
- *         ? delta.DeltaArray<UnwrapTemplateForArray<MaybeFixed[number]>>
+ *         ? delta.Array<UnwrapTemplateForArray<MaybeFixed[number]>>
  *         : (MaybeFixed extends {[key:string]:any} ? delta.Map<MaybeFixed> : never))
  *   >
  * } MaybeFixedTemplateToTemplate
@@ -266,7 +266,7 @@ export const $templateAny = /** @type {s.$Schema<Template<any,any,any>>} */ (s.$
 /**
  * @template {MaybeFixedTemplate<any,any>} MaybeFixed
  * @param {MaybeFixed} maybeFixed
- * @return {MaybeFixed extends Template<any,any,any> ? MaybeFixed : Template<any,any,MaybeFixed extends delta.Delta ? MaybeFixed : delta.DeltaArray<MaybeFixed[keyof MaybeFixed]>>}
+ * @return {MaybeFixed extends Template<any,any,any> ? MaybeFixed : Template<any,any,MaybeFixed extends delta.Delta ? MaybeFixed : delta.Array<MaybeFixed[keyof MaybeFixed]>>}
  */
 export const maybeFixedToTemplate = maybeFixed => $templateAny.check(maybeFixed)
   ? /** @type {any} */ (maybeFixed)
@@ -580,7 +580,7 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
  * @return {Template<
  *   any,
  *   AnyArrayToTemplate<T>[number] extends Template<any, infer DeltaA, any> ? DeltaA : never,
- *   delta.DeltaArray<AnyArrayToTemplate<T>[number] extends Template<any, any, infer DeltaB> ? delta.ValueUnwrap<DeltaB> : never>
+ *   delta.Array<AnyArrayToTemplate<T>[number] extends Template<any, any, infer DeltaB> ? delta.ValueUnwrap<DeltaB> : never>
  * >}
  */
 export const array = (definition) => {
@@ -632,11 +632,11 @@ export const array = (definition) => {
 /**
  * @param {Transformer<any, any, any>[]} state
  * @param {Array<{ d: delta.AbstractDelta, src: Transformer<any,any,any>? }>} reverseAChanges
- * @return {TransformResult<delta.AbstractDelta?,delta.DeltaArray<any>?>}
+ * @return {TransformResult<delta.AbstractDelta?,delta.Array<any>?>}
  */
 const _applyArrayOpHelper = (state, reverseAChanges) => {
   /**
-     * @type {TransformResult<delta.AbstractDelta?,delta.DeltaArray<any>?>}
+     * @type {TransformResult<delta.AbstractDelta?,delta.Array<any>?>}
      */
   const applyResult = transformResult(null, null)
   while (reverseAChanges.length > 0) {
@@ -728,7 +728,7 @@ const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
 /**
  * @template {string} NodeName
  * @template {{ [key:string]:any } | Template<any,any,delta.Map<any>>} Attrs - accepts map or map definition
- * @template {Template<any,any,delta.DeltaArray<any>> | Array<any>} Children
+ * @template {Template<any,any,delta.Array<any>> | Array<any>} Children
  * @param {NodeName} name
  * @param {Attrs} attributes
  * @param {Children} children
@@ -738,7 +738,7 @@ const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
  *   delta.Node<
  *     NodeName,
  *     MapOrMapDefToTemplate<Attrs> extends Template<any,any,delta.Map<infer M>> ? M : never,
- *     MaybeFixedTemplateToTemplate<Children> extends Template<any,any,delta.DeltaArray<infer BChildren>> ? BChildren : never,
+ *     MaybeFixedTemplateToTemplate<Children> extends Template<any,any,delta.Array<infer BChildren>> ? BChildren : never,
  *     'done'
  *   >
  * >}
@@ -799,10 +799,7 @@ export const query = (...path) => transformStatic(s.$any, template({
   $out: delta.$valueAny,
   state: () => null,
   applyA: (d) => {
-    /**
-     * @type {delta.Map<any>?}
-     */
-    let cd = delta.$mapAny.cast(d)
+    let cd = /** @type {delta.Map<any>?} */ (delta.$mapAny.cast(d))
     let overwritten = false
     for (let i = 0; i < path.length && cd != null; i++) {
       if (delta.$mapAny.check(d)) {
@@ -855,3 +852,20 @@ export const query = (...path) => transformStatic(s.$any, template({
     return /** @type {TransformResult<any,null>} */ (transformResult(resD, null))
   }
 }))
+
+/**
+ * @template {delta.AbstractDelta} Delta
+ * @param {s.$Schema<Delta>} $in
+ * @return {Template<null,Delta,Delta>}
+ */
+export const id = $in => template({
+  $in,
+  $out: $in,
+  state: () => null,
+  applyA: d => {
+    return transformResult(null, d)
+  },
+  applyB: d => {
+    return transformResult(d, null)
+  }
+})
