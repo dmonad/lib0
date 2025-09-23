@@ -183,7 +183,7 @@ export const testSchemas = _tc => {
       s.assert('42', s.$number)
     })
   })
-  t.group('$Schema', () => {
+  t.group('Schema', () => {
     const nullVal = /** @type {unknown} */ (null)
     const numVal = /** @type {unknown} */ (42)
     const schema = s.$number.nullable
@@ -266,7 +266,7 @@ export const testObjectSchemaOptionals = _tc => {
  */
 export const testMetaSchemas = _tc => {
   /**
-   * @type {s.$Schema<any>}
+   * @type {s.Schema<any>}
    */
   const sch = s.$object({ n: s.$array(s.$number) })
   t.fails(() => {

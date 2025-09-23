@@ -28,7 +28,7 @@ export const createElement = name => doc.createElement(name)
 export const createDocumentFragment = () => doc.createDocumentFragment()
 
 /**
- * @type {$.$Schema<DocumentFragment>}
+ * @type {$.Schema<DocumentFragment>}
  */
 export const $fragment = $.$custom(el => el.nodeType === DOCUMENT_FRAGMENT_NODE)
 
@@ -147,7 +147,7 @@ export const element = (name, attrs = [], children = []) =>
   append(setAttributes(createElement(name), attrs), children)
 
 /**
- * @type {$.$Schema<Element>}
+ * @type {$.Schema<Element>}
  */
 export const $element = $.$custom(el => el.nodeType === ELEMENT_NODE)
 
@@ -169,7 +169,7 @@ export const canvas = (width, height) => {
 export const text = createTextNode
 
 /**
- * @type {$.$Schema<Text>}
+ * @type {$.Schema<Text>}
  */
 export const $text = $.$custom(el => el.nodeType === TEXT_NODE)
 
@@ -260,7 +260,7 @@ export const DOCUMENT_TYPE_NODE = doc.DOCUMENT_TYPE_NODE
 export const DOCUMENT_FRAGMENT_NODE = doc.DOCUMENT_FRAGMENT_NODE
 
 /**
- * @type {$.$Schema<Node>}
+ * @type {$.Schema<Node>}
  */
 export const $node = $.$custom(el => el.nodeType === DOCUMENT_NODE)
 

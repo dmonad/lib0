@@ -7,77 +7,119 @@ import * as set from '../set.js'
 import * as map from '../map.js'
 import * as error from '../error.js'
 import * as math from '../math.js'
-
-/**
- * @template {delta.AbstractDelta} A
- * @template {delta.AbstractDelta} B
- * @param {Binding<A,B>} binding
- * @param {dt.TransformResult<A?,B?>} result
- */
-const _emitBindingResult = (binding, result) => {
-  result.a && binding.emit('a', [result.a, binding])
-  result.b && binding.emit('b', [result.b, binding])
-  return result
-}
+import * as $ from '../schema.js'
+import * as mux from '../mutex.js'
 
 /**
  * @template {delta.AbstractDelta} DeltaA
  * @template {delta.AbstractDelta} DeltaB
- * @template [State=any]
- * @extends ObservableV2<{ 'a': (deltaA: DeltaA, binding: Binding<DeltaA,DeltaB,State>) => void, 'b': (deltaB: DeltaB, binding: Binding<DeltaA,DeltaB,State>) => void }>
  */
-export class Binding extends ObservableV2 {
+export class Binding {
   /**
+   * @param {RDT<DeltaA>} a
+   * @param {RDT<DeltaB>} b
    * @param {dt.Template<any,DeltaA,DeltaB>} template
-   * @param {State} state
    */
-  constructor (template, state) {
-    super()
+  constructor (a, b, template) {
     /**
      * @type {dt.Transformer<any,DeltaA,DeltaB>}
      */
     this.t = template.init()
-    this.state = state
+    this.a = a
+    this.b = b
+    this._achanged = this.a.on('change', d => {
+      if (d.origin !== b && d.origin !== this) {
+        const tres = this.t.applyA(d)
+        if (tres.a) {
+          tres.a.origin = this
+          a.update(tres.a)
+        }
+        if (tres.b) {
+          tres.b.origin = d.origin
+          b.update(tres.b)
+        }
+      }
+    })
+    this._bchanged = this.b.on('change', d => {
+      if (d.origin !== a && d.origin !== this) {
+        const tres = this.t.applyB(d)
+        if (tres.b) {
+          tres.b.origin = this
+          this.b.update(tres.b)
+        }
+        if (tres.a) {
+          tres.a.origin = d.origin
+          a.update(tres.a)
+        }
+      }
+    })
+  }
+
+  destroy = () => {
+    this.a.off('destroy', this.destroy)
+    this.b.off('destroy', this.destroy)
+    this.a.off('change', this._achanged)
+    this.b.off('change', this._bchanged)
+  }
+}
+
+/**
+ * Abstract Interface for a delta-based Replicated Data Type.
+ *
+ * @template {delta.AbstractDelta} Delta
+ * @typedef {ObservableV2<{ 'change': (delta: Delta) => void, 'destroy': (rdt:RDT<Delta>)=>void }> & { update: (delta: Delta) => any, destroy: () => void }} RDT
+ */
+
+/**
+ * @template {delta.AbstractDelta} DeltaA
+ * @template {delta.AbstractDelta} DeltaB
+ * @param {RDT<NoInfer<DeltaA>>} a
+ * @param {RDT<NoInfer<DeltaB>>} b
+ * @param {dt.Template<any,DeltaA,DeltaB>} template
+ */
+export const bind = (a, b, template) => new Binding(a, b, template)
+
+/**
+ * @template {delta.AbstractDelta} Delta
+ * @implements RDT<Delta>
+ * @extends {ObservableV2<{ change: (delta: Delta) => void, 'destroy': (rdt:DeltaRDT<Delta>)=>void }>}
+ */
+class DeltaRDT extends ObservableV2 {
+  /**
+   * @param {$.Schema<Delta>} $delta 
+   */
+  constructor ($delta) {
+    super()
+    this.$delta = $delta
+    /**
+     * @type {Delta?}
+     */
+    this.state = null
   }
 
   /**
-   * @param {DeltaA} deltaA
-   * @return {dt.TransformResult<DeltaA?,DeltaB?>}
+   * @param {Delta} delta
    */
-  applyA = (deltaA) => {
-    return _emitBindingResult(this, this.t.applyA(deltaA))
+  update = delta => {
+    if (this.state != null) {
+      this.state.apply(delta)
+    } else {
+      this.state = delta
+    }
+    this.emit('change', [delta])
   }
 
-  /**
-   * @param {DeltaB} deltaB
-   * @return {dt.TransformResult<DeltaA?,DeltaB?>}
-   */
-  applyB = (deltaB) => {
-    return _emitBindingResult(this, this.t.applyB(deltaB))
+  destroy() {
+    this.emit('destroy', [this])
+    super.destroy()
   }
 }
 
 /**
  * @template {delta.AbstractDelta} Delta
- * @typedef {ObservableV2<{ 'change': (delta: Delta) => void }> & { update: (delta: Delta) => any }} DeltaEmitter
+ * @param {$.Schema<Delta>} $delta
  */
-
-/**
- * @template {delta.AbstractDelta} DeltaA
- * @template {delta.AbstractDelta} DeltaB
- * @template {any} [State=any]
- * @param {object} opts
- * @param {dt.Template<any,DeltaA,DeltaB>} opts.template
- * @param {State?} [opts.state]
- * @param {((deltaA: NoInfer<DeltaA>,binding:Binding<DeltaA,DeltaB,State>)=>void) | null | DeltaEmitter<NoInfer<DeltaA>>} [opts.a]
- * @param {((deltaB: NoInfer<DeltaB>,binding:Binding<DeltaA,DeltaB,State>)=>void) | null | DeltaEmitter<NoInfer<DeltaB>>} [opts.b]
- */
-export const bind = ({ template, state = null, a = null, b = null }) => {
-  const binding = /** @type {Binding<DeltaA,DeltaB,State>} */ (new Binding(template, state))
-  a != null && binding.on('a', a instanceof ObservableV2 ? a.update : a)
-  b != null && binding.on('b', b instanceof ObservableV2 ? b.update : b)
-  return binding
-}
+export const deltaRDT = $delta => new DeltaRDT($delta)
 
 /**
  * @param {Node} domNode
@@ -178,17 +220,28 @@ const applyDeltaToDom = (el, d) => {
 }
 
 /**
- * @implements DeltaEmitter<delta.Node<string,any,any,"done">>
- * @extends {ObservableV2<{ change: (delta: delta.AbstractDelta) => void }>}
+ * @implements RDT<delta.Node<string,any,any,"done">>
+ * @extends {ObservableV2<{ change: (delta: delta.AbstractDelta)=>void, destroy: (rdt:DomRDT)=>void }>}>}
  */
-class DomEventEmitter extends ObservableV2 {
+class DomRDT extends ObservableV2 {
   /**
    * @param {Element} observedNode
    */
   constructor (observedNode) {
     super()
     this.observedNode = observedNode
-    this.observer = new MutationObserver(/** @param {MutationRecord[]} mutations */ mutations => {
+    this._mux = mux.createMutex()
+    this.observer = new MutationObserver(this._mutationHandler)
+    this.observer.observe(observedNode, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterDataOldValue: true
+    })
+  }
+
+  _mutationHandler = /** @param {MutationRecord[]} mutations */ mutations =>
+    this._mux(() => {
       /**
        * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: delta.Node<any, any,any> | delta.Text }} ChangedNodeInfo
        */
@@ -208,7 +261,7 @@ class DomEventEmitter extends ObservableV2 {
        * @return {ChangedNodeInfo}
        */
       const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: delta.node(node.nodeName) }))
-      const observedNodeInfo = getChangedNodeInfo(observedNode)
+      const observedNodeInfo = getChangedNodeInfo(this.observedNode)
       mutations.forEach(mutation => {
         const target = /** @type {HTMLElement} */ (mutation.target)
         const parent = target.parentNode
@@ -218,7 +271,7 @@ class DomEventEmitter extends ObservableV2 {
         const d = info.d
         d.origin = this
         // go up the tree and mark that a child has been modified
-        for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== observedNode; changedParent = changedParent.parentNode) {
+        for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== this.observedNode; changedParent = changedParent.parentNode) {
           // nop
         }
         switch (mutation.type) {
@@ -270,22 +323,25 @@ class DomEventEmitter extends ObservableV2 {
       })
       this.emit('change', [observedNodeInfo.d])
     })
-    this.observer.observe(observedNode, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      characterDataOldValue: true
-    })
-  }
 
   /**
    * @param {delta.Node<string,any,any,"done">} delta
    */
   update = delta => {
-    if (delta.origin != this) applyDeltaToDom(this.observedNode, delta)
+    if (delta.origin != this) {
+      // @todo the retrieved changes must be transformed agains the updated changes. need a proper
+      // transaction system
+      this._mutationHandler(this.observer.takeRecords())
+      this._mux(() => {
+        applyDeltaToDom(this.observedNode, delta)
+        this.observer.takeRecords()
+      })
+    }
   }
 
   destroy () {
+    this.emit('destroy', [this])
+    super.destroy()
     this.observer.disconnect()
   }
 }
@@ -293,4 +349,4 @@ class DomEventEmitter extends ObservableV2 {
 /**
  * @param {Element} dom
  */
-export const domEventEmitter = dom => new DomEventEmitter(dom)
+export const domRDT = dom => new DomRDT(dom)

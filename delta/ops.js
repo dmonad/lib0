@@ -481,19 +481,19 @@ export const $deltaMapChangeJson = s.$union(
 )
 
 /**
- * @type {s.$Schema<MapDeleteOp<any> | DeleteOp>}
+ * @type {s.Schema<MapDeleteOp<any> | DeleteOp>}
  */
 export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp || o.constructor === MapDeleteOp))
 
 /**
- * @type {s.$Schema<MapInsertOp<any> | InsertOp<any>>}
+ * @type {s.Schema<MapInsertOp<any> | InsertOp<any>>}
  */
 export const $insertOp = s.$custom(o => o != null && (o.constructor === MapInsertOp || o.constructor === InsertOp))
 
 /**
  * @template Content
- * @param {s.$Schema<Content>} $content
- * @return {s.$Schema<MapInsertOp<Content> | InsertOp<Content>>}
+ * @param {s.Schema<Content>} $content
+ * @return {s.Schema<MapInsertOp<Content> | InsertOp<Content>>}
  */
 export const $insertOpWith = $content => s.$custom(o =>
   o != null && (
@@ -503,24 +503,24 @@ export const $insertOpWith = $content => s.$custom(o =>
 )
 
 /**
- * @type {s.$Schema<TextOp>}
+ * @type {s.Schema<TextOp>}
  */
 export const $textOp = s.$constructedBy(TextOp)
 
 /**
- * @type {s.$Schema<RetainOp>}
+ * @type {s.Schema<RetainOp>}
  */
 export const $retainOp = s.$constructedBy(RetainOp)
 
 /**
- * @type {s.$Schema<MapModifyOp<any> | ModifyOp<any>>}
+ * @type {s.Schema<MapModifyOp<any> | ModifyOp<any>>}
  */
 export const $modifyOp = s.$custom(o => o != null && (o.constructor === MapModifyOp || o.constructor === ModifyOp))
 
 /**
  * @template {d.AbstractDelta} Modify
- * @param {s.$Schema<Modify>} $content
- * @return {s.$Schema<MapModifyOp<Modify> | ModifyOp<Modify>>}
+ * @param {s.Schema<Modify>} $content
+ * @return {s.Schema<MapModifyOp<Modify> | ModifyOp<Modify>>}
  */
 export const $modifyOpWith = $content => s.$custom(o =>
   o != null && (

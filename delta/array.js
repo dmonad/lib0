@@ -12,7 +12,7 @@ import { AbstractDeltaArrayBuilder } from './abstract-array.js'
  */
 export class DeltaArrayBuilder extends AbstractDeltaArrayBuilder {
   /**
-   * @param {s.$Schema<ArrayContent>} $insert
+   * @param {s.Schema<ArrayContent>} $insert
    */
   constructor ($insert) {
     super('array', $insert)
@@ -21,18 +21,18 @@ export class DeltaArrayBuilder extends AbstractDeltaArrayBuilder {
 
 /**
  * @template ArrayContent
- * @param {s.$Schema<ArrayContent>} $insert
- * @return {s.$Schema<DeltaArray<ArrayContent>>}
+ * @param {s.Schema<ArrayContent>} $insert
+ * @return {s.Schema<DeltaArray<ArrayContent>>}
  */
 export const $array = $insert => /** @type {any} */ (s.$instanceOf(AbstractDeltaArrayBuilder, o => o.type === 'array' && o.$insert.extends($insert)))
 /**
- * @type {s.$Schema<DeltaArray<any>>}
+ * @type {s.Schema<DeltaArray<any>>}
  */
 export const $arrayAny = /** @type {any} */ (s.$instanceOf(AbstractDeltaArrayBuilder, o => o.type === 'array'))
 
 /**
  * @template [V=any]
- * @param {s.$Schema<V>} $insert
+ * @param {s.Schema<V>} $insert
  * @return {DeltaArrayBuilder<V>}
  */
 export const array = ($insert = s.$any) => new DeltaArrayBuilder($insert)

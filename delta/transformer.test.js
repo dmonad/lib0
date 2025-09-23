@@ -196,15 +196,3 @@ export const testNodeTransformer = () => {
   t.compare(expected, yDB?.attributes)
   t.compare(expected, zDB?.attributes)
 }
-
-export const testBinding = () => {
-  if (!env.isBrowser) t.skip()
-  const el = dom.element('div')
-  const domEM = binding.domEventEmitter(el)
-  const domEM2 = binding.domEventEmitter(el)
-  const template = Λ.node('div', { height: '42' }, [])
-  const b = binding.bind({ template, state: null, a: domEM2, b: domEM })
-  b.applyA(Δ.node('test').done())
-  console.log(b)
-  console.log('dom html content:', domEM.observedNode.outerHTML)
-}

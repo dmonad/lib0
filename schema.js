@@ -22,22 +22,22 @@ import * as string from './string.js'
 
 /**
  * @template T
- * @typedef {T extends $Schema<infer X> ? X : T} Unwrap
+ * @typedef {T extends Schema<infer X> ? X : T} Unwrap
  */
 
 /**
  * @template T
- * @typedef {T extends $Schema<infer X> ? X : T} TypeOf
+ * @typedef {T extends Schema<infer X> ? X : T} TypeOf
  */
 
 /**
  * @template {readonly unknown[]} T
- * @typedef {T extends readonly [$Schema<infer First>, ...infer Rest] ? [First, ...UnwrapArray<Rest>] : [] } UnwrapArray
+ * @typedef {T extends readonly [Schema<infer First>, ...infer Rest] ? [First, ...UnwrapArray<Rest>] : [] } UnwrapArray
  */
 
 /**
  * @template T
- * @typedef {T extends $Schema<infer S> ? $Schema<S> : never} CastToSchema
+ * @typedef {T extends Schema<infer S> ? Schema<S> : never} CastToSchema
  */
 
 /**
@@ -119,8 +119,8 @@ const shapeExtends = (a, b) => {
  * @template T
  * @implements {traits.EqualityTrait}
  */
-export class $Schema {
-  // this.shape must not be defined on $Schema. Otherwise typecheck on metatypes (e.g. $$object) won't work as expected anymore
+export class Schema {
+  // this.shape must not be defined on Schema. Otherwise typecheck on metatypes (e.g. $$object) won't work as expected anymore
   /**
    * If true, the more things are added to the shape the more objects this schema will accept (e.g.
    * union). By default, the more objects are added, the the fewer objects this schema will accept.
@@ -129,18 +129,18 @@ export class $Schema {
   static _dilutes = false
 
   /**
-   * @param {$Schema<any>} other
+   * @param {Schema<any>} other
    */
   extends (other) {
     let [a, b] = [/** @type {any} */(this).shape, /** @type {any} */ (other).shape]
-    if (/** @type {typeof $Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
+    if (/** @type {typeof Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
     return shapeExtends(a, b)
   }
 
   /**
    * Overwrite this when necessary. By default, we only check the `shape` property which every shape
    * should have.
-   * @param {$Schema<any>} other
+   * @param {Schema<any>} other
    */
   equals (other) {
     // @ts-ignore
@@ -182,17 +182,17 @@ export class $Schema {
   /* c8 ignore stop */
 
   /**
-   * @type {$Schema<T?>}
+   * @type {Schema<T?>}
    */
   get nullable () {
     return $union(this, $null)
   }
 
   /**
-   * @type {$Optional<$Schema<T>>}
+   * @type {$Optional<Schema<T>>}
    */
   get optional () {
-    return new $Optional(/** @type {$Schema<T>} */ (this))
+    return new $Optional(/** @type {Schema<T>} */ (this))
   }
 
   /**
@@ -238,9 +238,9 @@ export class $Schema {
 
 /**
  * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} C
- * @extends {$Schema<Instance<C>>}
+ * @extends {Schema<Instance<C>>}
  */
-export class $ConstructedBy extends $Schema {
+export class $ConstructedBy extends Schema {
   /**
    * @param {C} c
    * @param {((o:Instance<C>)=>boolean)|null} check
@@ -274,11 +274,11 @@ export const $constructedBy = (c, check = null) => new $ConstructedBy(c, check)
 export const $$constructedBy = $constructedBy($ConstructedBy)
 
 /**
- * Check custom properties on any object. You may want to overwrite the generated $Schema<any>.
+ * Check custom properties on any object. You may want to overwrite the generated Schema<any>.
  *
- * @extends {$Schema<any>}
+ * @extends {Schema<any>}
  */
-export class $Custom extends $Schema {
+export class $Custom extends Schema {
   /**
    * @param {(o:any) => boolean} check
    */
@@ -305,16 +305,16 @@ export class $Custom extends $Schema {
 
 /**
  * @param {(o:any) => boolean} check
- * @return {$Schema<any>}
+ * @return {Schema<any>}
  */
 export const $custom = check => new $Custom(check)
 export const $$custom = $constructedBy($Custom)
 
 /**
  * @template {LiteralType} T
- * @extends {$Schema<T>}
+ * @extends {Schema<T>}
  */
-export class $Literal extends $Schema {
+export class $Literal extends Schema {
   /**
    * @param {Array<T>} literals
    */
@@ -346,8 +346,8 @@ export const $literal = (...literals) => new $Literal(literals)
 export const $$literal = $constructedBy($Literal)
 
 /**
- * @template {Array<string|$Schema<string|number>>} Ts
- * @typedef {Ts extends [] ? `` : (Ts extends [infer T] ? (Unwrap<T> extends (string|number) ? Unwrap<T> : never) : (Ts extends [infer T1, ...infer Rest] ? `${Unwrap<T1> extends (string|number) ? Unwrap<T1> : never}${Rest extends Array<string|$Schema<string|number>> ? CastStringTemplateArgsToTemplate<Rest> : never}` : never))} CastStringTemplateArgsToTemplate
+ * @template {Array<string|Schema<string|number>>} Ts
+ * @typedef {Ts extends [] ? `` : (Ts extends [infer T] ? (Unwrap<T> extends (string|number) ? Unwrap<T> : never) : (Ts extends [infer T1, ...infer Rest] ? `${Unwrap<T1> extends (string|number) ? Unwrap<T1> : never}${Rest extends Array<string|Schema<string|number>> ? CastStringTemplateArgsToTemplate<Rest> : never}` : never))} CastStringTemplateArgsToTemplate
  */
 
 /**
@@ -359,7 +359,7 @@ const _regexEscape = /** @type {any} */ (RegExp).escape || /** @type {(str:strin
 )
 
 /**
- * @param {string|$Schema<any>} s
+ * @param {string|Schema<any>} s
  * @return {string[]}
  */
 const _schemaStringTemplateToRegex = s => {
@@ -384,10 +384,10 @@ const _schemaStringTemplateToRegex = s => {
 }
 
 /**
- * @template {Array<string|$Schema<string|number>>} T
- * @extends {$Schema<CastStringTemplateArgsToTemplate<T>>}
+ * @template {Array<string|Schema<string|number>>} T
+ * @extends {Schema<CastStringTemplateArgsToTemplate<T>>}
  */
-export class $StringTemplate extends $Schema {
+export class $StringTemplate extends Schema {
   /**
    * @param {T} shape
    */
@@ -411,7 +411,7 @@ export class $StringTemplate extends $Schema {
 }
 
 /**
- * @template {Array<string|$Schema<string|number>>} T
+ * @template {Array<string|Schema<string|number>>} T
  * @param {T} literals
  * @return {CastToSchema<$StringTemplate<T>>}
  */
@@ -420,10 +420,10 @@ export const $$stringTemplate = $constructedBy($StringTemplate)
 
 const isOptionalSymbol = Symbol('optional')
 /**
- * @template {$Schema<any>} S
- * @extends $Schema<Unwrap<S>|undefined>
+ * @template {Schema<any>} S
+ * @extends Schema<Unwrap<S>|undefined>
  */
-class $Optional extends $Schema {
+class $Optional extends Schema {
   /**
    * @param {S} shape
    */
@@ -449,9 +449,9 @@ class $Optional extends $Schema {
 export const $$optional = $constructedBy($Optional)
 
 /**
- * @extends $Schema<never>
+ * @extends Schema<never>
  */
-class $Never extends $Schema {
+class $Never extends Schema {
   /**
    * @param {any} _o
    * @param {ValidationError} [err]
@@ -466,15 +466,15 @@ export const $never = new $Never()
 export const $$never = $constructedBy($Never)
 
 /**
- * @template {{ [key: string|symbol|number]: $Schema<any> }} S
- * @typedef {{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }} $ObjectToType
+ * @template {{ [key: string|symbol|number]: Schema<any> }} S
+ * @typedef {{ [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? Key : never]?: S[Key] extends $Optional<Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? never : Key]: S[Key] extends Schema<infer Type> ? Type : never }} $ObjectToType
  */
 
 /**
- * @template {{[key:string|symbol|number]: $Schema<any>}} S
- * @extends {$Schema<$ObjectToType<S>>}
+ * @template {{[key:string|symbol|number]: Schema<any>}} S
+ * @extends {Schema<$ObjectToType<S>>}
  */
-export class $Object extends $Schema {
+export class $Object extends Schema {
   /**
    * @param {S} shape
    */
@@ -506,30 +506,30 @@ export class $Object extends $Schema {
 }
 
 /**
- * @template {{ [key:string|symbol|number]: $Schema<any> }} S
- * @typedef {$Schema<{ [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? Key : never]?: S[Key] extends $Optional<$Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<$Schema<any>> ? never : Key]: S[Key] extends $Schema<infer Type> ? Type : never }>} _ObjectDefToSchema
+ * @template {{ [key:string|symbol|number]: Schema<any> }} S
+ * @typedef {Schema<{ [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? Key : never]?: S[Key] extends $Optional<Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? never : Key]: S[Key] extends Schema<infer Type> ? Type : never }>} _ObjectDefToSchema
  */
 
 // I used an explicit type annotation instead of $ObjectToType, so that the user doesn't see the
 // weird type definitions when inspecting type definions.
 /**
- * @template {{ [key:string|symbol|number]: $Schema<any> }} S
+ * @template {{ [key:string|symbol|number]: Schema<any> }} S
  * @param {S} def
- * @return {_ObjectDefToSchema<S> extends $Schema<infer S> ? $Schema<S> : never}
+ * @return {_ObjectDefToSchema<S> extends Schema<infer S> ? Schema<S> : never}
  */
 export const $object = def => /** @type {any} */ (new $Object(def))
 export const $$object = $constructedBy($Object)
 /**
- * @type {$Schema<{[key:string]: any}>}
+ * @type {Schema<{[key:string]: any}>}
  */
 export const $objectAny = $custom(o => o.constructor == null || o.constructor === Object)
 
 /**
- * @template {$Schema<string|number|symbol>} Keys
- * @template {$Schema<any>} Values
- * @extends {$Schema<{ [key in Unwrap<Keys>]: Unwrap<Values> }>}
+ * @template {Schema<string|number|symbol>} Keys
+ * @template {Schema<any>} Values
+ * @extends {Schema<{ [key in Unwrap<Keys>]: Unwrap<Values> }>}
  */
-export class $Record extends $Schema {
+export class $Record extends Schema {
   /**
    * @param {Keys} keys
    * @param {Values} values
@@ -557,8 +557,8 @@ export class $Record extends $Schema {
 }
 
 /**
- * @template {$Schema<string|number|symbol>} Keys
- * @template {$Schema<any>} Values
+ * @template {Schema<string|number|symbol>} Keys
+ * @template {Schema<any>} Values
  * @param {Keys} keys
  * @param {Values} values
  * @return {CastToSchema<$Record<Keys,Values>>}
@@ -567,10 +567,10 @@ export const $record = (keys, values) => new $Record(keys, values)
 export const $$record = $constructedBy($Record)
 
 /**
- * @template {$Schema<any>[]} S
- * @extends {$Schema<{ [Key in keyof S]: S[Key] extends $Schema<infer Type> ? Type : never }>}
+ * @template {Schema<any>[]} S
+ * @extends {Schema<{ [Key in keyof S]: S[Key] extends Schema<infer Type> ? Type : never }>}
  */
-export class $Tuple extends $Schema {
+export class $Tuple extends Schema {
   /**
    * @param {S} shape
    */
@@ -582,11 +582,11 @@ export class $Tuple extends $Schema {
   /**
    * @param {any} o
    * @param {ValidationError} err
-   * @return {o is { [K in keyof S]: S[K] extends $Schema<infer Type> ? Type : never }}
+   * @return {o is { [K in keyof S]: S[K] extends Schema<infer Type> ? Type : never }}
    */
   check (o, err) {
     return o != null && obj.every(this.shape, (vv, vk) => {
-      const c = /** @type {$Schema<any>} */ (vv).check(o[vk], err)
+      const c = /** @type {Schema<any>} */ (vv).check(o[vk], err)
       /* c8 ignore next */
       !c && err?.extend(vk.toString(), 'Tuple', typeof vv)
       return c
@@ -595,7 +595,7 @@ export class $Tuple extends $Schema {
 }
 
 /**
- * @template {Array<$Schema<any>>} T
+ * @template {Array<Schema<any>>} T
  * @param {T} def
  * @return {CastToSchema<$Tuple<T>>}
  */
@@ -603,17 +603,17 @@ export const $tuple = (...def) => new $Tuple(def)
 export const $$tuple = $constructedBy($Tuple)
 
 /**
- * @template {$Schema<any>} S
- * @extends {$Schema<Array<S extends $Schema<infer T> ? T : never>>}
+ * @template {Schema<any>} S
+ * @extends {Schema<Array<S extends Schema<infer T> ? T : never>>}
  */
-export class $Array extends $Schema {
+export class $Array extends Schema {
   /**
    * @param {Array<S>} v
    */
   constructor (v) {
     super()
     /**
-     * @type {$Schema<S extends $Schema<infer T> ? T : never>}
+     * @type {Schema<S extends Schema<infer T> ? T : never>}
      */
     this.shape = v.length === 1 ? v[0] : new $Union(v)
   }
@@ -621,7 +621,7 @@ export class $Array extends $Schema {
   /**
    * @param {any} o
    * @param {ValidationError} err
-   * @return {o is Array<S extends $Schema<infer T> ? T : never>} o
+   * @return {o is Array<S extends Schema<infer T> ? T : never>} o
    */
   check (o, err) {
     const c = arr.isArray(o) && arr.every(o, oi => this.shape.check(oi))
@@ -632,22 +632,22 @@ export class $Array extends $Schema {
 }
 
 /**
- * @template {Array<$Schema<any>>} T
+ * @template {Array<Schema<any>>} T
  * @param {T} def
- * @return {$Schema<Array<T extends Array<$Schema<infer S>> ? S : never>>}
+ * @return {Schema<Array<T extends Array<Schema<infer S>> ? S : never>>}
  */
 export const $array = (...def) => new $Array(def)
 export const $$array = $constructedBy($Array)
 /**
- * @type {$Schema<Array<any>>}
+ * @type {Schema<Array<any>>}
  */
 export const $arrayAny = $custom(o => arr.isArray(o))
 
 /**
  * @template T
- * @extends {$Schema<T>}
+ * @extends {Schema<T>}
  */
-export class $InstanceOf extends $Schema {
+export class $InstanceOf extends Schema {
   /**
    * @param {new (...args:any) => T} constructor
    * @param {((o:T) => boolean)|null} check
@@ -675,23 +675,23 @@ export class $InstanceOf extends $Schema {
  * @template T
  * @param {new (...args:any) => T} c
  * @param {((o:T) => boolean)|null} check
- * @return {$Schema<T>}
+ * @return {Schema<T>}
  */
 export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
 export const $$instanceOf = $constructedBy($InstanceOf)
 
-export const $$schema = $instanceOf($Schema)
+export const $$schema = $instanceOf(Schema)
 
 /**
- * @template {$Schema<any>[]} Args
+ * @template {Schema<any>[]} Args
  * @typedef {(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>} _LArgsToLambdaDef
  */
 
 /**
- * @template {Array<$Schema<any>>} Args
- * @extends {$Schema<_LArgsToLambdaDef<Args>>}
+ * @template {Array<Schema<any>>} Args
+ * @extends {Schema<_LArgsToLambdaDef<Args>>}
  */
-export class $Lambda extends $Schema {
+export class $Lambda extends Schema {
   /**
    * @param {Args} args
    */
@@ -716,18 +716,18 @@ export class $Lambda extends $Schema {
 }
 
 /**
- * @template {$Schema<any>[]} Args
+ * @template {Schema<any>[]} Args
  * @param {Args} args
- * @return {$Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
+ * @return {Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
  */
 export const $lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
 export const $$lambda = $constructedBy($Lambda)
 
 /**
- * @template {Array<$Schema<any>>} T
- * @extends {$Schema<Intersect<UnwrapArray<T>>>}
+ * @template {Array<Schema<any>>} T
+ * @extends {Schema<Intersect<UnwrapArray<T>>>}
  */
-export class $Intersection extends $Schema {
+export class $Intersection extends Schema {
   /**
    * @param {T} v
    */
@@ -754,7 +754,7 @@ export class $Intersection extends $Schema {
 }
 
 /**
- * @template {$Schema<any>[]} T
+ * @template {Schema<any>[]} T
  * @param {T} def
  * @return {CastToSchema<$Intersection<T>>}
  */
@@ -763,13 +763,13 @@ export const $$intersect = $constructedBy($Intersection, o => o.shape.length > 0
 
 /**
  * @template S
- * @extends {$Schema<S>}
+ * @extends {Schema<S>}
  */
-export class $Union extends $Schema {
+export class $Union extends Schema {
   static _dilutes = true
 
   /**
-   * @param {Array<$Schema<S>>} v
+   * @param {Array<Schema<S>>} v
    */
   constructor (v) {
     super()
@@ -789,67 +789,67 @@ export class $Union extends $Schema {
 }
 
 /**
- * @template {Array<$Schema<any>>} T
+ * @template {Array<Schema<any>>} T
  * @param {T} def
- * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<$Schema<infer S>> ? S : never)>>}
+ * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<Schema<infer S>> ? S : never)>>}
  */
 export const $union = (...def) => $$union.check(def[0]) ? new $Union([...def[0].shape, ...def.slice(1)]) : new $Union(def)
-export const $$union = /** @type {$Schema<$Union<any>>} */ ($constructedBy($Union))
+export const $$union = /** @type {Schema<$Union<any>>} */ ($constructedBy($Union))
 
 const _t = () => true
 /**
- * @type {$Schema<any>}
+ * @type {Schema<any>}
  */
 export const $any = $custom(_t)
-export const $$any = /** @type {$Schema<$Schema<any>>} */ ($constructedBy($Custom, o => o.shape === _t))
+export const $$any = /** @type {Schema<Schema<any>>} */ ($constructedBy($Custom, o => o.shape === _t))
 
 /**
- * @type {$Schema<bigint>}
+ * @type {Schema<bigint>}
  */
 export const $bigint = $constructedBy(BigInt)
-export const $$bigint = /** @type {$Schema<$Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.shape === BigInt))
+export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.shape === BigInt))
 
 /**
- * @type {$Schema<Symbol>}
+ * @type {Schema<Symbol>}
  */
 export const $symbol = $constructedBy(Symbol)
-export const $$symbol = /** @type {$Schema<$Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.shape === Symbol))
+export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.shape === Symbol))
 
 /**
- * @type {$Schema<number>}
+ * @type {Schema<number>}
  */
 export const $number = $constructedBy(Number)
-export const $$number = /** @type {$Schema<$Schema<number>>} */ ($constructedBy($ConstructedBy, o => o.shape === Number))
+export const $$number = /** @type {Schema<Schema<number>>} */ ($constructedBy($ConstructedBy, o => o.shape === Number))
 
 /**
- * @type {$Schema<string>}
+ * @type {Schema<string>}
  */
 export const $string = $constructedBy(String)
-export const $$string = /** @type {$Schema<$Schema<string>>} */ ($constructedBy($ConstructedBy, o => o.shape === String))
+export const $$string = /** @type {Schema<Schema<string>>} */ ($constructedBy($ConstructedBy, o => o.shape === String))
 
 /**
- * @type {$Schema<boolean>}
+ * @type {Schema<boolean>}
  */
 export const $boolean = $constructedBy(Boolean)
-export const $$boolean = /** @type {$Schema<$Schema<Boolean>>} */ ($constructedBy($ConstructedBy, o => o.shape === Boolean))
+export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ ($constructedBy($ConstructedBy, o => o.shape === Boolean))
 
 /**
- * @type {$Schema<undefined>}
+ * @type {Schema<undefined>}
  */
 export const $undefined = $literal(undefined)
-export const $$undefined = /** @type {$Schema<$Schema<undefined>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === undefined))
+export const $$undefined = /** @type {Schema<Schema<undefined>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === undefined))
 
 /**
- * @type {$Schema<void>}
+ * @type {Schema<void>}
  */
 export const $void = $literal(undefined)
-export const $$void = /** @type {$Schema<$Schema<void>>} */ ($$undefined)
+export const $$void = /** @type {Schema<Schema<void>>} */ ($$undefined)
 
 export const $null = $literal(null)
-export const $$null = /** @type {$Schema<$Schema<null>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === null))
+export const $$null = /** @type {Schema<Schema<null>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === null))
 
 /**
- * @type {$Schema<number|string|null|boolean>}
+ * @type {Schema<number|string|null|boolean>}
  */
 export const $primitive = $union($number, $string, $null, $boolean)
 
@@ -860,7 +860,7 @@ export const $primitive = $union($number, $string, $null, $boolean)
  * @typedef {Unwrap<$primitive>|JSONArray|{ [key:string]:JSON }} JSON
  */
 /**
- * @type {$Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
+ * @type {Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
  */
 export const $json = (() => {
   const $jsonArr = /** @type {$Array<$any>} */ ($array($any))
@@ -876,7 +876,7 @@ export const $json = (() => {
  * Assert that a variable is of this specific type.
  * The assertion check is only performed in non-production environments.
  *
- * @type {<T>(o:any,schema:$Schema<T>) => asserts o is T}
+ * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
  */
 export const assert = env.production
   ? () => {}

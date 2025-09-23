@@ -15,7 +15,7 @@ import { AbstractDelta } from './abstract.js'
  */
 export class DeltaValue extends AbstractDelta {
   /**
-   * @param {s.$Schema<Vals>} $vals
+   * @param {s.Schema<Vals>} $vals
    */
   constructor ($vals) {
     super()
@@ -150,19 +150,19 @@ export class DeltaValueBuilder extends DeltaValue {
 
 /**
  * @template [Vals=any]
- * @param {s.$Schema<Vals>} $vals
+ * @param {s.Schema<Vals>} $vals
  * @return {DeltaValueBuilder<Vals>}
  */
 export const value = ($vals = s.$any) => /** @type {any} */ (new DeltaValueBuilder($vals))
 
 /**
  * @template {any} Vals
- * @param {s.$Schema<Vals>} $vals
- * @return {s.$Schema<DeltaValue<Vals>>}
+ * @param {s.Schema<Vals>} $vals
+ * @return {s.Schema<DeltaValue<Vals>>}
  */
 export const $value = $vals => /** @type {any} */ (s.$instanceOf(DeltaValue, o => $vals.extends(o.$vals)))
 
 /**
- * @type {s.$Schema<DeltaValue<any>>}
+ * @type {s.Schema<DeltaValue<any>>}
  */
 export const $valueAny = s.$instanceOf(DeltaValue)

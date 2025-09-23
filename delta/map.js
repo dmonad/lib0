@@ -17,7 +17,7 @@ export const $mapJson = s.$record(s.$string, ops.$deltaMapChangeJson)
  */
 export class DeltaMap extends AbstractDelta {
   /**
-   * @param {s.$Schema<Vals>} $vals
+   * @param {s.Schema<Vals>} $vals
    */
   constructor ($vals) {
     super()
@@ -106,6 +106,10 @@ export class DeltaMap extends AbstractDelta {
     return this[traits.EqualityTraitSymbol](other)
   }
 
+  get size () {
+    return this._changes.size
+  }
+
   /**
    * @return {s.Unwrap<$mapJson>}
    */
@@ -129,11 +133,11 @@ export class DeltaMap extends AbstractDelta {
 }
 
 /**
- * @template {s.$Schema<{ [Key:string]: ops.DeltaMapOps }>} OPS
+ * @template {s.Schema<{ [Key:string]: ops.DeltaMapOps }>} OPS
  * @template {keyof s.Unwrap<OPS>} K
  * @param {OPS} $ops
  * @param {K} k
- * @return {s.$Schema<s.Unwrap<OPS>[K]>}
+ * @return {s.Schema<s.Unwrap<OPS>[K]>}
  */
 const valsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.shape.keys.check(k)) ? ($ops.shape.values) : s.$never)
 
@@ -281,16 +285,16 @@ export class DeltaMapBuilder extends DeltaMap {
 /**
  * Create a new DeltaMap, optionally supply a schema.
  *
- * @template {s.$Schema<{ [key:string]: any }> | { [key:string]: s.$Schema<any> }} [$Vals=s.$Schema<{ [key:string]: any }>]
+ * @template {s.Schema<{ [key:string]: any }> | { [key:string]: s.Schema<any> }} [$Vals=s.Schema<{ [key:string]: any }>]
  * @param {$Vals} $vals
- * @return {DeltaMapBuilder<$Vals extends s.$Schema<infer $V> ? $V : (s._ObjectDefToSchema<$Vals> extends s.$Schema<infer $V> ? $V : never)>}
+ * @return {DeltaMapBuilder<$Vals extends s.Schema<infer $V> ? $V : (s._ObjectDefToSchema<$Vals> extends s.Schema<infer $V> ? $V : never)>}
  */
 export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder(/** @type {any} */ (s.$$schema.check($vals) ? $vals : s.$object($vals))))
 
 /**
  * @template {{ [key:string]: any }} Vals
- * @param {s.$Schema<Vals>} $vals
- * @return {s.$Schema<DeltaMap<Vals>>}
+ * @param {s.Schema<Vals>} $vals
+ * @return {s.Schema<DeltaMap<Vals>>}
  */
 export const $map = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
 export const $mapAny = s.$instanceOf(DeltaMap)

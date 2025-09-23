@@ -112,6 +112,10 @@ export class AbstractDeltaArray extends d.AbstractDelta {
     return this.ops.map(o => o.toJSON())
   }
 
+  get size () {
+    return this.ops.length
+  }
+
   /**
    * @param {AbstractDeltaArray<Type,OPS>} other
    */
@@ -128,7 +132,7 @@ export class AbstractDeltaArray extends d.AbstractDelta {
 export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
   /**
    * @param {Type} type
-   * @param {s.$Schema<OPS extends dops.AbstractDeltaArrayOps<infer V> ? V : never>} $insert
+   * @param {s.Schema<OPS extends dops.AbstractDeltaArrayOps<infer V> ? V : never>} $insert
    */
   constructor (type, $insert) {
     super(type)

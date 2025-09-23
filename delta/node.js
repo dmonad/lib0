@@ -29,6 +29,14 @@ export class DeltaNode extends dabstract.AbstractDelta {
     this.children = /** @type {any} */ (children)
   }
 
+  /**
+   * @param {DeltaNode<NodeName,Attrs,Children>} other
+   */
+  apply (other) {
+    this.attributes.apply(other.attributes)
+    this.children.apply(other.children)
+  }
+
   toJSON () {
     return {
       name: this.name,
@@ -69,14 +77,14 @@ export const node = (nodeName, attributes = /** @type {any} */ (dmap.map()), chi
  * @template {string} NodeName
  * @template Children
  * @template {{ [key:string]: any }} Attributes
- * @param {s.$Schema<NodeName>} $nodeName
- * @param {s.$Schema<Children>} $children
- * @param {s.$Schema<Attributes>} $attributes
- * @return {s.$Schema<DeltaNode<NodeName, Children, Attributes, 'done'>>}
+ * @param {s.Schema<NodeName>} $nodeName
+ * @param {s.Schema<Children>} $children
+ * @param {s.Schema<Attributes>} $attributes
+ * @return {s.Schema<DeltaNode<NodeName, Children, Attributes, 'done'>>}
  */
 export const $node = ($nodeName, $children, $attributes) => {
   const $dchildren = darray.$array($children)
   const $dattrs = dmap.$map($attributes)
-  return/** @type {s.$Schema<DeltaNode<NodeName, any, any, 'done'>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
+  return/** @type {s.Schema<DeltaNode<NodeName, any, any, 'done'>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
 }
 export const $nodeAny = s.$constructedBy(DeltaNode)
