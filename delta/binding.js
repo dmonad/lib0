@@ -7,8 +7,12 @@ import * as set from '../set.js'
 import * as map from '../map.js'
 import * as error from '../error.js'
 import * as math from '../math.js'
-import * as $ from '../schema.js'
 import * as mux from '../mutex.js'
+
+/**
+ * @template T
+ * @typedef {import('../schema.js').Schema<T>} Schema
+ */
 
 /**
  * @template {delta.AbstractDelta} DeltaA
@@ -86,7 +90,7 @@ export const bind = (a, b, template) => new Binding(a, b, template)
  */
 class DeltaRDT extends ObservableV2 {
   /**
-   * @param {$.Schema<Delta>} $delta 
+   * @param {Schema<Delta>} $delta
    */
   constructor ($delta) {
     super()
@@ -109,7 +113,7 @@ class DeltaRDT extends ObservableV2 {
     this.emit('change', [delta])
   }
 
-  destroy() {
+  destroy () {
     this.emit('destroy', [this])
     super.destroy()
   }
@@ -117,7 +121,7 @@ class DeltaRDT extends ObservableV2 {
 
 /**
  * @template {delta.AbstractDelta} Delta
- * @param {$.Schema<Delta>} $delta
+ * @param {Schema<Delta>} $delta
  */
 export const deltaRDT = $delta => new DeltaRDT($delta)
 
@@ -328,7 +332,7 @@ class DomRDT extends ObservableV2 {
    * @param {delta.Node<string,any,any,"done">} delta
    */
   update = delta => {
-    if (delta.origin != this) {
+    if (delta.origin !== this) {
       // @todo the retrieved changes must be transformed agains the updated changes. need a proper
       // transaction system
       this._mutationHandler(this.observer.takeRecords())

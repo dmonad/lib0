@@ -2,9 +2,6 @@ import * as t from '../testing.js'
 import * as Λ from './transformer.js'
 import * as Δ from './index.js'
 import * as $ from '../schema.js'
-import * as binding from './binding.js'
-import * as env from '../environment.js'
-import * as dom from '../dom.js'
 
 const mapString = Λ.transformStatic(Δ.$map($.$object({ x: $.$number })), Λ.template({
   $in: Δ.$map($.$object({ x: $.$number })),
