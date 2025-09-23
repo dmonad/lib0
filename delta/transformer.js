@@ -772,21 +772,31 @@ export const node = (name, attributes, children) => {
 }
 
 /**
+ * @template {{[k:string]:any}} KV
+ * @typedef {delta.Map<KV> | delta.Node<any,KV,any,any>} _FollowPath
+ */
+
+/**
  * @template {any} D
  * @template {string[]} Path
  * @typedef {Path extends []
  *   ? D
  *   : Path extends [infer P, ...infer PRest]
  *     ? (
- *       P extends string ? (D extends delta.Map<{ [K in P]: infer V }> ? QueryFollowPath<V,PRest extends string[] ? PRest : never> : never) : never
+ *       P extends string ? (D extends _AttrDeltaType<{ [K in P]: infer V }> ? QueryFollowPath<V,PRest extends string[] ? PRest : never> : never) : never
  *     )
  *     : never
  * } QueryFollowPath
  */
 
 /**
+ * @template {{[k:string]:any}} Attrs
+ * @typedef {delta.Map<Attrs> | delta.Node<any,Attrs,any,any>} _AttrDeltaType
+ */
+
+/**
  * @template {Array<string>} Path
- * @typedef {Path extends [infer P, ...infer PRest] ? delta.Map<{ [K in (P extends string ? P : any)]: PathToDelta<PRest extends Array<string> ? PRest : any> }> : any} PathToDelta
+ * @typedef {Path extends [infer P, ...infer PRest] ? (_AttrDeltaType<{ [K in (P extends string ? P : any)]: PathToDelta<PRest extends Array<string> ? PRest : any> }>) : any} PathToDelta
  */
 
 /**
@@ -798,11 +808,12 @@ export const query = (...path) => transformStatic(s.$any, template({
   $in: delta.$delta,
   $out: delta.$valueAny,
   state: () => null,
-  applyA: (d) => {
+  applyA: d => {
+    d = delta.$nodeAny.check(d) ? d.attributes : d
     let cd = /** @type {delta.Map<any>?} */ (delta.$mapAny.cast(d))
     let overwritten = false
     for (let i = 0; i < path.length && cd != null; i++) {
-      if (delta.$mapAny.check(d)) {
+      if (delta.$mapAny.check(cd)) {
         const c = cd.get(path[i])
         if (delta.$insertOp.check(c)) {
           overwritten = true
@@ -828,11 +839,12 @@ export const query = (...path) => transformStatic(s.$any, template({
         dv.set(cd)
       }
     } else {
-      dv.modify(delta)
+      dv.modify(cd)
     }
     return transformResult(null, dv)
   },
   applyB: (d) => {
+    debugger
     const dop = d.change
     let resD = delta.map()
     let i = path.length - 1

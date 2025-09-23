@@ -13,7 +13,7 @@ import * as s from '../schema.js'
 export class DeltaNode extends dabstract.AbstractDelta {
   /**
    * @param {NodeName} nodeName
-   * @param {dmap.DeltaMapBuilder<Attrs>} attributes
+   * @param {Done extends 'mutable' ? dmap.DeltaMapBuilder<Attrs> : dmap.DeltaMap<Attrs>} attributes
    * @param {darray.DeltaArrayBuilder<Children>} children
    */
   constructor (nodeName, attributes, children) {
@@ -64,14 +64,29 @@ export class DeltaNode extends dabstract.AbstractDelta {
 
 /**
  * @template {string|undefined} [NodeName=string]
- * @template {object} [Attrs={[key:string]:any}]
- * @template [Children=any]
+ * @template {{[key:string]:any} | dmap.DeltaMapBuilder<any>} [Attrs={[key:string]:any}]
+ * @template {Array<any> | darray.DeltaArrayBuilder<any>} [Children=Array<any>]
  * @param {NodeName} nodeName
- * @param {dmap.DeltaMapBuilder<Attrs>} attributes
- * @param {darray.DeltaArrayBuilder<Children>} children
- * @return {DeltaNode<NodeName,Attrs,Children>}
+ * @param {Attrs} [attributes]
+ * @param {Children} [children]
+ * @return {DeltaNode<NodeName,Attrs extends dmap.DeltaMapBuilder<infer AttrsDef> ? AttrsDef : Attrs,Children extends Array<infer ChildTypes> ? ChildTypes : (Children extends darray.DeltaArrayBuilder<infer ChildTypes> ? ChildTypes : never)>}
  */
-export const node = (nodeName, attributes = /** @type {any} */ (dmap.map()), children = darray.array()) => new DeltaNode(nodeName, attributes, children)
+export const node = (nodeName, attributes, children) =>
+  new DeltaNode(
+    nodeName,
+    attributes == null
+      ? dmap.map()
+      : (dmap.$mapAny.check(attributes)
+          ? /** @type {dmap.DeltaMapBuilder<any>} */ (attributes)
+          : dmap.map().setMany(/** @type {any} */ (attributes))
+        ),
+    children == null
+      ? darray.array()
+      : (darray.$arrayAny.check(children)
+          ? /** @type {darray.DeltaArrayBuilder<any>} */ (children)
+          : darray.array().insert(children)
+        )
+  )
 
 /**
  * @template {string} NodeName
