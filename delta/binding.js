@@ -8,6 +8,7 @@ import * as map from '../map.js'
 import * as error from '../error.js'
 import * as math from '../math.js'
 import * as mux from '../mutex.js'
+import * as s from '../schema.js'
 
 /**
  * @template T
@@ -173,7 +174,7 @@ const deltaToDom = d => {
 
 /**
  * @param {Element} el
- * @param {delta.Node<string,any,any,"done">} d
+ * @param {delta.Node<string,any,any,any>} d
  */
 const applyDeltaToDom = (el, d) => {
   d.attributes.forEach(change => {
@@ -223,8 +224,10 @@ const applyDeltaToDom = (el, d) => {
   })
 }
 
+export const $domDelta = delta.$node(s.$any, s.$record(s.$string, s.$string), s.$never, { recursive: true, withText: true })
+
 /**
- * @implements RDT<delta.Node<string,any,any,"done">>
+ * @implements RDT<delta.Node<string,any,any,any>>
  * @extends {ObservableV2<{ change: (delta: delta.AbstractDelta)=>void, destroy: (rdt:DomRDT)=>void }>}>}
  */
 class DomRDT extends ObservableV2 {
@@ -329,7 +332,7 @@ class DomRDT extends ObservableV2 {
     })
 
   /**
-   * @param {delta.Node<string,any,any,"done">} delta
+   * @param {delta.Node<string,any,any,any>} delta
    */
   update = delta => {
     if (delta.origin !== this) {

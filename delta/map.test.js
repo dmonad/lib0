@@ -60,10 +60,11 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test extensibility', () => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
-    const d = delta.map($d)
+    const d = delta.map().set('num', 42)
     t.assert(delta.$map($d).check(d))
     t.assert(delta.$map($dsmaller).check(d))
-    t.assert(!delta.$map($d).check(delta.map($dsmaller)))
+    t.assert(delta.$map($d).check(delta.map().set('x', 99))) // this should work, since this is a unknown property
+    t.assert(!delta.$map($d).check(delta.map().set('str', 99))) // this shoul fail, since str is supposed to be a string
   })
   t.group('test delta insert', () => {
     const d = delta.map($d)

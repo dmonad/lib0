@@ -21,7 +21,7 @@ export class DeltaMap extends AbstractDelta {
    */
   constructor ($vals) {
     super()
-    this.$vals = $vals
+    this.$vals = s.$$object.check($vals) ? $vals.partial : $vals
     /**
      * @type {gmap.GlobalMap<any,ops.DeltaMapOps>}
      */
@@ -125,28 +125,6 @@ export class DeltaMap extends AbstractDelta {
   }
 
   /**
-   * @param {DeltaMap<Vals>} other
-   */
-  [traits.EqualityTraitSymbol] (other) {
-    return fun.equalityDeep(this._changes, other._changes)
-  }
-}
-
-/**
- * @template {s.Schema<{ [Key:string]: ops.DeltaMapOps }>} OPS
- * @template {keyof s.Unwrap<OPS>} K
- * @param {OPS} $ops
- * @param {K} k
- * @return {s.Schema<s.Unwrap<OPS>[K]>}
- */
-const valsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.shape.keys.check(k)) ? ($ops.shape.values) : s.$never)
-
-/**
- * @template {{ [key: string]: any }} Vals
- * @extends DeltaMap<Vals>
- */
-export class DeltaMapBuilder extends DeltaMap {
-  /**
    * @template {keyof Vals} K
    * @param {K} key
    * @param {Extract<Vals[K], AbstractDelta>} delta
@@ -210,7 +188,7 @@ export class DeltaMapBuilder extends DeltaMap {
    * - delete vs delete ⇒ current delete op is removed because item has already been deleted
    * - modify vs modify ⇒ rebase using priority
    *
-   * @param {DeltaMapBuilder<Vals>} other
+   * @param {DeltaMap<Vals>} other
    * @param {boolean} priority
    */
   rebase (other, priority) {
@@ -247,7 +225,7 @@ export class DeltaMapBuilder extends DeltaMap {
       const c = this._changes.get(op.key)
       if (ops.$modifyOp.check(op)) {
         if ($delta.check(c?.value)) {
-          /** @type {DeltaMapBuilder<any>} */ (c.value).apply(op.value)
+          /** @type {DeltaMap<any>} */ (c.value).apply(op.value)
         } else {
           // then this is a simple modify
           this._changes.set(op.key, /** @type {any} */ (op))
@@ -263,7 +241,7 @@ export class DeltaMapBuilder extends DeltaMap {
    * @return {this}
    */
   clone () {
-    const d = /** @type {this} */ (new DeltaMapBuilder(this.$vals))
+    const d = /** @type {this} */ (new DeltaMap(this.$vals))
     this.forEach(change => {
       d._changes.set(change.key, /** @type {any} */ (change))
     })
@@ -275,7 +253,23 @@ export class DeltaMapBuilder extends DeltaMap {
   done () {
     return /** @type {DeltaMap<Vals>} */ (this)
   }
+
+  /**
+   * @param {DeltaMap<Vals>} other
+   */
+  [traits.EqualityTraitSymbol] (other) {
+    return fun.equalityDeep(this._changes, other._changes)
+  }
 }
+
+/**
+ * @template {s.Schema<{ [Key:string]: ops.DeltaMapOps }>} OPS
+ * @template {keyof s.Unwrap<OPS>} K
+ * @param {OPS} $ops
+ * @param {K} k
+ * @return {s.Schema<s.Unwrap<OPS>[K]>}
+ */
+const valsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.$never) : ((s.$$record.check($ops) && $ops.shape.keys.check(k)) ? ($ops.shape.values) : s.$never)
 
 /**
  * @template {{ [key:string]: any }} Vals
@@ -287,14 +281,19 @@ export class DeltaMapBuilder extends DeltaMap {
  *
  * @template {s.Schema<{ [key:string]: any }> | { [key:string]: s.Schema<any> }} [$Vals=s.Schema<{ [key:string]: any }>]
  * @param {$Vals} $vals
- * @return {DeltaMapBuilder<$Vals extends s.Schema<infer $V> ? $V : (s._ObjectDefToSchema<$Vals> extends s.Schema<infer $V> ? $V : never)>}
+ * @return {DeltaMap<$Vals extends s.Schema<infer $V> ? $V : (s._ObjectDefToSchema<$Vals> extends s.Schema<infer $V> ? $V : never)>}
  */
-export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMapBuilder(/** @type {any} */ (s.$$schema.check($vals) ? $vals : s.$object($vals))))
+export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMap(/** @type {any} */ (s.$$schema.check($vals) ? $vals : s.$object($vals))))
 
 /**
  * @template {{ [key:string]: any }} Vals
  * @param {s.Schema<Vals>} $vals
  * @return {s.Schema<DeltaMap<Vals>>}
  */
-export const $map = $vals => /** @type {any} */ (s.$instanceOf(DeltaMap, o => $vals.extends(o.$vals)))
+export const $map = $vals => {
+  const $valsPartial = s.$$object.check($vals) ? $vals.partial : $vals
+  return /** @type {any} */ (s.$instanceOf(DeltaMap, o => Array.from(o._changes.entries()).every(([k, op]) =>
+    !ops.$insertOp.check(op) || $valsPartial.check({ [k]: op.value })
+  )))
+}
 export const $mapAny = s.$instanceOf(DeltaMap)

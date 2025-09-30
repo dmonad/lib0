@@ -23,13 +23,8 @@ export {
   array,
   $array,
   $arrayAny,
-  DeltaArrayBuilder as ArrayBuilder
+  DeltaArray as Array
 } from './array.js'
-
-/**
- * @template Content
- * @typedef {import('./array.js').DeltaArray<Content>} Array
- */
 
 export {
   node,
@@ -44,7 +39,6 @@ export {
   $map,
   $mapAny,
   $mapJson,
-  DeltaMapBuilder as MapBuilder,
   DeltaMap as Map
 } from './map.js'
 
@@ -60,7 +54,7 @@ export {
  */
 
 /**
- * @typedef {Array<any> | import('./node.js').DeltaNode<string,any,any> } Delta
+ * @typedef {Array<any> | import('./node.js').DeltaNode<string,any,any,any> } Delta
  */
 
 export {

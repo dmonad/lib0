@@ -477,13 +477,22 @@ export const $$never = $constructedBy($Never)
 export class $Object extends Schema {
   /**
    * @param {S} shape
+   * @param {boolean} partial
    */
-  constructor (shape) {
+  constructor (shape, partial = false) {
     super()
     /**
      * @type {S}
      */
     this.shape = shape
+    this._isPartial = partial
+  }
+
+  /**
+   * @type {Schema<Partial<$ObjectToType<S>>>}
+   */
+  get partial () {
+    return new $Object(this.shape, true)
   }
 
   /**
@@ -498,7 +507,7 @@ export class $Object extends Schema {
       return false
     }
     return obj.every(this.shape, (vv, vk) => {
-      const c = vv.check(o[vk], err)
+      const c = (this._isPartial && !obj.hasProperty(o, vk)) || vv.check(o[vk], err)
       !c && err?.extend(vk.toString(), vv.toString(), typeof o[vk], 'Object property does not match')
       return c
     })

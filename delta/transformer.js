@@ -264,9 +264,9 @@ export const $templateAny = /** @type {s.Schema<Template<any,any,any>>} */ (s.$i
  */
 
 /**
- * @template {MaybeFixedTemplate<any,any>} MaybeFixed
+ * @template MaybeFixed
  * @param {MaybeFixed} maybeFixed
- * @return {MaybeFixed extends Template<any,any,any> ? MaybeFixed : Template<any,any,MaybeFixed extends delta.Delta ? MaybeFixed : delta.Array<MaybeFixed[keyof MaybeFixed]>>}
+ * @return {MaybeFixed extends Template<any,any,delta.Delta> ? (Extract<MaybeFixed,Template<any,any,any>>) : Template<any,any,MaybeFixed extends delta.Delta ? Extract<MaybeFixed,delta.Delta> : delta.Array<MaybeFixed[keyof MaybeFixed]>>}
  */
 export const maybeFixedToTemplate = maybeFixed => $templateAny.check(maybeFixed)
   ? /** @type {any} */ (maybeFixed)
@@ -501,7 +501,7 @@ export const map = (definition) => {
  */
 const _applyMapOpHelper = (state, reverseAChanges) => {
   /**
-     * @type {TransformResult<delta.AbstractDelta?,delta.MapBuilder<any>?>}
+     * @type {TransformResult<delta.AbstractDelta?,delta.Map<any>?>}
      */
   const applyResult = transformResult(null, null)
   while (reverseAChanges.length > 0) {
@@ -727,8 +727,8 @@ const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
 
 /**
  * @template {string} NodeName
- * @template {{ [key:string]:any } | Template<any,any,delta.Map<any>>} Attrs - accepts map or map definition
- * @template {Template<any,any,delta.Array<any>> | Array<any>} Children
+ * @template {{ [key:string]:any } | Template<any,any,delta.Map<{[key:string]:any}>>} Attrs - accepts map or map definition
+ * @template {Template<any,any,delta.Array<any,any>> | Array<any>} Children
  * @param {NodeName} name
  * @param {Attrs} attributes
  * @param {Children} children
@@ -738,15 +738,16 @@ const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
  *   delta.Node<
  *     NodeName,
  *     MapOrMapDefToTemplate<Attrs> extends Template<any,any,delta.Map<infer M>> ? M : never,
- *     MaybeFixedTemplateToTemplate<Children> extends Template<any,any,delta.Array<infer BChildren>> ? BChildren : never,
- *     'done'
+ *     MaybeFixedTemplateToTemplate<Children> extends Template<any,any,delta.Array<infer BChildren,any>> ? BChildren : never,
+ *     any
  *   >
  * >}
  */
 export const node = (name, attributes, children) => {
-  const attrs = $templateAny.check(attributes) ? attributes : map(attributes)
-  const childs = maybeFixedToTemplate(children)
-  return template({
+  const attrs = /** @type {Template<any,any,delta.Map<any>>} */ ($templateAny.check(attributes) ? attributes : map(attributes))
+  const childs = /** @type {Template<any,any,delta.Array<any>>} */ (maybeFixedToTemplate(children))
+  // @todo this should be properly inferred
+  return /** @type {any} */ (template({
     $in: s.$any,
     $out: delta.$node(s.$literal(name), s.$any, s.$any),
     state: () => ({
@@ -764,11 +765,11 @@ export const node = (name, attributes, children) => {
       const childrenRes = d.children.ops.length === 0 ? transformResultEmpty : state.children.applyB(d.children)
       const attrsRes = d.attributes._changes.size === 0 ? transformResultEmpty : state.attrs.applyB(d.attributes)
       attrsRes.b && res.b.attributes.apply(attrsRes.b)
-      childrenRes.b && res.b.children.apply(childrenRes.b)
+      childrenRes.b && res.b.children.apply(/** @type {delta.Array<any,false>} */ (childrenRes.b))
       _nodeApplyA(res, state, childrenRes.a, attrsRes.a)
       return res
     }
-  })
+  }))
 }
 
 /**
@@ -791,7 +792,7 @@ export const node = (name, attributes, children) => {
 
 /**
  * @template {{[k:string]:any}} Attrs
- * @typedef {delta.Map<Attrs> | delta.Node<any,Attrs,any,any>} _AttrDeltaType
+ * @typedef {delta.Map<Partial<Attrs>> | delta.Node<any,Partial<Attrs>,any,any>} _AttrDeltaType
  */
 
 /**
@@ -844,7 +845,6 @@ export const query = (...path) => transformStatic(s.$any, template({
     return transformResult(null, dv)
   },
   applyB: (d) => {
-    debugger
     const dop = d.change
     let resD = delta.map()
     let i = path.length - 1

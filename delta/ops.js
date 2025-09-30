@@ -11,12 +11,18 @@ import * as s from '../schema.js'
 
 /**
  * @template Content
- * @typedef {InsertOp<Content>|RetainOp|DeleteOp|(Content extends d.AbstractDelta ? ModifyOp<Extract<Content,d.AbstractDelta>> : never)} DeltaArrayOps
+ * @template {boolean} [WithText=false]
+ * @typedef {InsertOp<Content>|RetainOp|DeleteOp|(Content extends d.AbstractDelta ? ModifyOp<Extract<Content,d.AbstractDelta>> : never)|(WithText extends true ? TextOp : never)} DeltaArrayOps
  */
 
 /**
  * @template Embeds
  * @typedef {TextOp|InsertOp<Embeds>|RetainOp|DeleteOp|(Embeds extends d.AbstractDelta ? ModifyOp<Extract<Embeds,d.AbstractDelta>> : never)} DeltaTextOps
+ */
+
+/**
+ * @template {any} Content
+ * @typedef {AbstractDeltaArrayOps<Content>} NodeChildrenOps
  */
 
 /**

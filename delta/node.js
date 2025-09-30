@@ -8,23 +8,23 @@ import * as s from '../schema.js'
  * @template {string|undefined} [NodeName=string]
  * @template {{[key:string]:any}} [Attrs={[key:string]:any}]
  * @template [Children=any]
- * @template {'done'|'mutable'} [Done='mutable']
+ * @template {boolean} [WithText=true]
  */
 export class DeltaNode extends dabstract.AbstractDelta {
   /**
    * @param {NodeName} nodeName
-   * @param {Done extends 'mutable' ? dmap.DeltaMapBuilder<Attrs> : dmap.DeltaMap<Attrs>} attributes
-   * @param {darray.DeltaArrayBuilder<Children>} children
+   * @param {dmap.DeltaMap<Attrs>} attributes
+   * @param {darray.DeltaArray<Children,WithText>} children
    */
   constructor (nodeName, attributes, children) {
     super()
     this.name = nodeName
     /**
-     * @type {Done extends 'mutable' ? dmap.DeltaMapBuilder<Attrs> : dmap.DeltaMap<Attrs>}
+     * @type {dmap.DeltaMap<Attrs>}
      */
     this.attributes = /** @type {any} */ (attributes)
     /**
-     * @type {Done extends 'mutable' ? darray.DeltaArrayBuilder<Children> : darray.DeltaArray<Children>}
+     * @type {darray.DeltaArray<Children>}
      */
     this.children = /** @type {any} */ (children)
   }
@@ -46,11 +46,11 @@ export class DeltaNode extends dabstract.AbstractDelta {
   }
 
   /**
-   * @return {DeltaNode<NodeName, Attrs, Children, 'done'>}
+   * @return {DeltaNode<NodeName, Attrs, Children, WithText>}
    */
   done () {
-    /** @type {darray.DeltaArrayBuilder<any>} */ (this.children).done()
-    ;/** @type {dmap.DeltaMapBuilder<any>} */ (this.attributes).done()
+    /** @type {darray.DeltaArray<any>} */ (this.children).done()
+    ;/** @type {dmap.DeltaMap<any>} */ (this.attributes).done()
     return /** @type {any} */ (this)
   }
 
@@ -64,12 +64,12 @@ export class DeltaNode extends dabstract.AbstractDelta {
 
 /**
  * @template {string|undefined} [NodeName=string]
- * @template {{[key:string]:any} | dmap.DeltaMapBuilder<any>} [Attrs={[key:string]:any}]
- * @template {Array<any> | darray.DeltaArrayBuilder<any>} [Children=Array<any>]
+ * @template {{[key:string]:any} | dmap.DeltaMap<any>} [Attrs={[key:string]:any}]
+ * @template {Array<any> | string | darray.DeltaArray<any,any>} [Children=Array<any>]
  * @param {NodeName} nodeName
  * @param {Attrs} [attributes]
  * @param {Children} [children]
- * @return {DeltaNode<NodeName,Attrs extends dmap.DeltaMapBuilder<infer AttrsDef> ? AttrsDef : Attrs,Children extends Array<infer ChildTypes> ? ChildTypes : (Children extends darray.DeltaArrayBuilder<infer ChildTypes> ? ChildTypes : never)>}
+ * @return {DeltaNode<NodeName,Partial<Attrs extends dmap.DeltaMap<infer AttrsDef> ? AttrsDef : Attrs>,Children extends Array<infer ChildTypes> ? ChildTypes : (Children extends darray.DeltaArray<infer ChildTypes,any> ? ChildTypes : never)>}
  */
 export const node = (nodeName, attributes, children) =>
   new DeltaNode(
@@ -77,29 +77,49 @@ export const node = (nodeName, attributes, children) =>
     attributes == null
       ? dmap.map()
       : (dmap.$mapAny.check(attributes)
-          ? /** @type {dmap.DeltaMapBuilder<any>} */ (attributes)
+          ? /** @type {dmap.DeltaMap<any>} */ (attributes)
           : dmap.map().setMany(/** @type {any} */ (attributes))
         ),
     children == null
       ? darray.array()
       : (darray.$arrayAny.check(children)
-          ? /** @type {darray.DeltaArrayBuilder<any>} */ (children)
+          ? /** @type {darray.DeltaArray<any>} */ (children)
           : darray.array().insert(children)
         )
   )
 
 /**
  * @template {string} NodeName
- * @template Children
  * @template {{ [key:string]: any }} Attributes
+ * @template Children
+ * @template {boolean} WithText
+ * @typedef {DeltaNode<NodeName, Attributes, Children | RecursiveDeltaNode<NodeName,Attributes,Children,WithText>, WithText>} RecursiveDeltaNode
+ */
+
+/**
+ * @template {string} NodeName
+ * @template {{ [key:string]: any }} Attributes
+ * @template Children
+ * @template {boolean} [Recursive=false]
+ * @template {boolean} [WithText=false]
  * @param {s.Schema<NodeName>} $nodeName
  * @param {s.Schema<Children>} $children
  * @param {s.Schema<Attributes>} $attributes
- * @return {s.Schema<DeltaNode<NodeName, Children, Attributes, 'done'>>}
+ * @param {object} [opts]
+ * @param {Recursive} [opts.recursive]
+ * @param {WithText} [opts.withText]
+ * @return {s.Schema<Recursive extends true ? RecursiveDeltaNode<NodeName, Partial<Attributes>, Children, WithText> : DeltaNode<NodeName, Partial<Attributes>, Children, withText>>}
  */
-export const $node = ($nodeName, $children, $attributes) => {
-  const $dchildren = darray.$array($children)
+export const $node = ($nodeName, $attributes, $children, { recursive, withText } = {}) => {
+  /**
+   * @type {s.Schema<darray.DeltaArray<any,any>>}
+   */
+  let $dchildren = darray.$array($children)
   const $dattrs = dmap.$map($attributes)
-  return/** @type {s.Schema<DeltaNode<NodeName, any, any, 'done'>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
+  const $nodeSchema = /** @type {s.Schema<DeltaNode<NodeName, any, any, any>>} */ (s.$instanceOf(DeltaNode, o => $nodeName.check(o.name) && $dchildren.check(o.children) && $dattrs.check(o.attributes)))
+  if (recursive) {
+    $dchildren = darray.$array(s.$union($children, $nodeSchema), withText)
+  }
+  return /** @type {any} */ ($nodeSchema)
 }
 export const $nodeAny = s.$constructedBy(DeltaNode)
