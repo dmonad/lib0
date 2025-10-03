@@ -12,7 +12,7 @@ export const $mapJson = s.$record(s.$string, ops.$deltaMapChangeJson)
  * @typedef {{ [K in keyof OPS]: (Extract<OPS[K],ops.MapInsertOp<any>> extends ops.MapInsertOp<infer V,any> ? ops.MapInsertOp<V, K> : never) | (Extract<OPS[K],ops.MapDeleteOp<any>> extends ops.MapDeleteOp<infer V,any> ? ops.MapDeleteOp<V,K> : never) | (Extract<OPS[K],ops.MapModifyOp<any>> extends ops.MapModifyOp<infer V,any> ? (ops.MapModifyOp<V,K>&OPS[K]) : never) }[keyof OPS]} KeyedOps */
 
 /**
- * @template {{ [key: string]: any }} [out Vals={[key:string]:any}]
+ * @template {{ [key: string]: any }} [Vals={[key:string]:any}]
  * @extends AbstractDelta
  */
 export class DeltaMap extends AbstractDelta {
@@ -218,10 +218,10 @@ export class DeltaMap extends AbstractDelta {
   }
 
   /**
-   * @param {DeltaMap<Vals>} other
+   * @param {DeltaMap<Partial<Vals>>} other
    */
   apply (other) {
-    other.forEach(op => {
+    /** @type {DeltaMap<Vals>} */ (other).forEach(op => {
       const c = this._changes.get(op.key)
       if (ops.$modifyOp.check(op)) {
         if ($delta.check(c?.value)) {
@@ -234,7 +234,8 @@ export class DeltaMap extends AbstractDelta {
         op.prevValue = c?.value
         this._changes.set(op.key, /** @type {any} */ (op))
       }
-    })
+    }
+    )
   }
 
   /**
@@ -255,7 +256,7 @@ export class DeltaMap extends AbstractDelta {
   }
 
   /**
-   * @param {DeltaMap<Vals>} other
+   * @param {DeltaMap<Partial<Vals>>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this._changes, other._changes)

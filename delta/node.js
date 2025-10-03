@@ -30,7 +30,7 @@ export class DeltaNode extends dabstract.AbstractDelta {
   }
 
   /**
-   * @param {DeltaNode<NodeName,Attrs,Children>} other
+   * @param {DeltaNode<NodeName,Partial<Attrs>,Children>} other
    */
   apply (other) {
     this.attributes.apply(other.attributes)
@@ -55,7 +55,7 @@ export class DeltaNode extends dabstract.AbstractDelta {
   }
 
   /**
-   * @param {DeltaNode<NodeName,Attrs,Children>} other
+   * @param {DeltaNode<NodeName,Partial<Attrs>,Children>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.name === other.name && this.children[traits.EqualityTraitSymbol](other.children) && this.attributes[traits.EqualityTraitSymbol](other.attributes)
@@ -69,7 +69,7 @@ export class DeltaNode extends dabstract.AbstractDelta {
  * @param {NodeName} nodeName
  * @param {Attrs} [attributes]
  * @param {Children} [children]
- * @return {DeltaNode<NodeName,Partial<Attrs extends dmap.DeltaMap<infer AttrsDef> ? AttrsDef : Attrs>,Children extends Array<infer ChildTypes> ? ChildTypes : (Children extends darray.DeltaArray<infer ChildTypes,any> ? ChildTypes : never)>}
+ * @return {DeltaNode<NodeName,Attrs extends dmap.DeltaMap<infer AttrsDef> ? AttrsDef : Attrs,Children extends Array<infer ChildTypes> ? ChildTypes : (Children extends darray.DeltaArray<infer ChildTypes,any> ? ChildTypes : never)>}
  */
 export const node = (nodeName, attributes, children) =>
   new DeltaNode(
