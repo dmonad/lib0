@@ -29,32 +29,36 @@ export class DeltaNode extends dabstract.AbstractDelta {
     this.children = /** @type {any} */ (children)
   }
 
-  // /**
-  //  * @param {(WithText extends true ? string : never) | Array<Children>} insert
-  //  */
-  // insert (insert) {
-  //   // @ts-ignore
-  //   this.children.insert(insert)
-  //   return this
-  // }
-  //
-  // /**
-  //  * @param {keyof Attrs} key
-  //  * @param {Attrs[keyof Attrs]} value
-  //  */
-  // set (key, value) {
-  //   this.attributes.set(key, value)
-  //   return this
-  // }
-  //
-  // /**
-  //  * @param {Partial<Attrs>} attrs
-  //  */
-  // setMany (attrs) {
-  //   this.attributes.setMany(attrs)
-  //   return this
-  // }
-  //
+  /**
+   * @param {(WithText extends true ? string : never) | Array<Children>} insert
+   */
+  insert (insert) {
+    // @ts-ignore
+    this.children.insert(insert)
+    return this
+  }
+
+  /**
+   * @template {keyof Attrs} K
+   * @param {K} key
+   * @param {Attrs[K]} newVal
+   * @param {Attrs[K]|undefined} prevVal
+   * @param {import('./abstract.js').Attribution?} attribution
+   */
+  set (key, newVal, prevVal, attribution) {
+    this.attributes.set(key, newVal, prevVal, attribution)
+    return this
+  }
+
+  /**
+   * @param {import('./abstract.js').Attribution?} attribution
+   * @param {Partial<Attrs>} kv
+   */
+  setMany (kv, attribution = null) {
+    this.attributes.setMany(kv, attribution)
+    return this
+  }
+
   /**
    * @param {DeltaNode<NodeName,Partial<Attrs>,Children,WithText>} other
    */

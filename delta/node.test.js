@@ -38,7 +38,7 @@ export const testNodeDelta = _tc => {
 }
 
 export const testRecursiveNode = () => {
-  const $d = delta.$node($.$string, $.$object({ q: $.$number }), $.$never, { recursive: true, withText: true })
+  const $d = delta.$node($.$string, $.$object({ q: $.$number, m: $.$string }), $.$never, { recursive: true, withText: true })
   const d = delta.node('hi', { q: 42 })
   $d.expect(d)
   // should detect invalid attrs

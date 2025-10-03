@@ -221,6 +221,8 @@ const applyDeltaToDom = (el, d) => {
       el.insertBefore(dom.fragment(change.insert.map(deltaToDom)), child?.nextSibling)
     } else if (delta.$modifyOp.check(change)) {
       applyDeltaToDom(dom.$element.cast(child), change.modify)
+    } else if (delta.$textOp.check(change)) {
+      el.insertBefore(dom.text(change.insert), child?.nextSibling)
     } else {
       error.unexpectedCase()
     }

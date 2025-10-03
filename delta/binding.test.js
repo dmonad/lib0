@@ -42,7 +42,7 @@ export const testDomBindingNodeTypes = () => {
   if (!env.isBrowser) t.skip()
   const el = dom.element('div')
   const domRDT = binding.domRDT(el)
-  domRDT.update(Δ.node('div', { id: '42' }, [Δ.node('p', {}, 'some text')]))
   domRDT.update(Δ.node('div', { id: '43' }, [Δ.node('p', {}, 'some text')]))
+  domRDT.update(Δ.node('div', { id: '42' }, Δ.array(binding.$domDelta).modify(Δ.node('p', {}, ' & some more text'))))
   console.log(el.outerHTML)
 }

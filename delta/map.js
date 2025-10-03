@@ -274,7 +274,7 @@ const valsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.
 
 /**
  * @template {{ [key:string]: any }} Vals
- * @typedef {{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? ops.MapInsertOp<Vals[K]>|ops.MapDeleteOp<Vals[K]>|ops.MapModifyOp<DeltaMap<DM>> : ops.MapInsertOp<Vals[K]>|ops.MapDeleteOp<Vals[K]> }} MapOpsFromValues
+ * @typedef {{ [K in keyof Vals]: Vals[K] extends DeltaMap<infer DM> ? ops.MapInsertOp<Vals[K]>|ops.MapDeleteOp<Vals[K]>|ops.MapModifyOp<DeltaMap<DM>> : (ops.MapInsertOp<Exclude<Vals[K],undefined>>|ops.MapDeleteOp<Exclude<Vals[K],undefined>>) }} MapOpsFromValues
  */
 
 /**
