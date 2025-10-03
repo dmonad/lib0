@@ -755,13 +755,13 @@ export const node = (name, attributes, children) => {
       children: childs.init()
     }),
     applyA: (d, state) => {
-      const res = transformResult(null, delta.node(name))
+      const res = transformResult(null, /** @type {delta.Node<NodeName,any,any,any>} */ (delta.node(name)))
       _nodeApplyA(res, state, d, d)
       return res
     },
     applyB: (d, state) => {
       s.assert(d, delta.$nodeAny)
-      const res = transformResult(null, delta.node(name))
+      const res = transformResult(null, /** @type {delta.Node<NodeName,any,any,any>} */ (delta.node(name)))
       const childrenRes = d.children.ops.length === 0 ? transformResultEmpty : state.children.applyB(d.children)
       const attrsRes = d.attributes._changes.size === 0 ? transformResultEmpty : state.attrs.applyB(d.attributes)
       attrsRes.b && res.b.attributes.apply(attrsRes.b)

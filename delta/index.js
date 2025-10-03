@@ -57,6 +57,14 @@ export {
  * @typedef {Array<any> | import('./node.js').DeltaNode<string,any,any,any> } Delta
  */
 
+/**
+ * @template {string} NodeName
+ * @template {{ [key:string]: any }} Attributes
+ * @template Children
+ * @template {boolean} WithText
+ * @typedef {import('./node.js').RecursiveDeltaNode<NodeName, Attributes, Children, WithText>} RecursiveNode
+ */
+
 export {
   value,
   $value,

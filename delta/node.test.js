@@ -13,7 +13,7 @@ export const testNodeDelta = _tc => {
   d.attributes.set('a', 1)
   d.attributes.delete('a', 1)
   /**
-   * @type {Array<Array<string>| number>}
+   * @type {Array<Array<string|number>| string | number>}
    */
   const arr = []
   d.children.forEach(

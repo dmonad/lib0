@@ -152,7 +152,7 @@ const domToDelta = domNode => {
 }
 
 /**
- * @param {delta.Node} d
+ * @param {DomDelta} d
  */
 const deltaToDom = d => {
   if (delta.$nodeAny.check(d)) {
@@ -165,6 +165,8 @@ const deltaToDom = d => {
     d.children.forEach(child => {
       if (delta.$insertOp.check(child)) {
         n.append(...child.insert.map(deltaToDom))
+      } else if (delta.$textOp.check(child)) {
+        n.append(dom.text(child.insert))
       }
     })
     return n
@@ -187,7 +189,7 @@ const applyDeltaToDom = (el, d) => {
   let childIndex = 0
   let childOffset = 0
   d.children.forEach(change => {
-    let child = el.childNodes[childIndex]
+    let child = el.childNodes[childIndex] || null
     if (delta.$deleteOp.check(change)) {
       let len = change.length
       while (len > 0) {
@@ -216,19 +218,25 @@ const applyDeltaToDom = (el, d) => {
         childIndex++
         childOffset = 0
       }
-      el.insertBefore(dom.fragment(change.insert.map(deltaToDom)), child.nextSibling)
+      el.insertBefore(dom.fragment(change.insert.map(deltaToDom)), child?.nextSibling)
     } else if (delta.$modifyOp.check(change)) {
       applyDeltaToDom(dom.$element.cast(child), change.modify)
+    } else {
+      error.unexpectedCase()
     }
-    error.unexpectedCase()
   })
 }
 
-export const $domDelta = delta.$node(s.$any, s.$record(s.$string, s.$string), s.$never, { recursive: true, withText: true })
+export const $domDelta = delta.$node(s.$string, s.$record(s.$string, s.$string), s.$never, { recursive: true, withText: true })
 
 /**
- * @implements RDT<delta.Node<string,any,any,any>>
- * @extends {ObservableV2<{ change: (delta: delta.AbstractDelta)=>void, destroy: (rdt:DomRDT)=>void }>}>}
+ * @typedef {delta.RecursiveNode<string, { [key:string]: string }, never, true>} DomDelta
+ */
+
+/**
+ * @template {DomDelta} [D=DomDelta]
+ * @implements RDT<D>
+ * @extends {ObservableV2<{ change: (delta: D)=>void, destroy: (rdt:DomRDT<D>)=>void }>}>}
  */
 class DomRDT extends ObservableV2 {
   /**
@@ -250,7 +258,7 @@ class DomRDT extends ObservableV2 {
   _mutationHandler = /** @param {MutationRecord[]} mutations */ mutations =>
     this._mux(() => {
       /**
-       * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: delta.Node<any, any,any> | delta.Text }} ChangedNodeInfo
+       * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: D }} ChangedNodeInfo
        */
       /**
        * Compute all deltas without recursion.
@@ -267,7 +275,7 @@ class DomRDT extends ObservableV2 {
        * @param {Node} node
        * @return {ChangedNodeInfo}
        */
-      const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: delta.node(node.nodeName) }))
+      const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: /** @type {D} */ (delta.node(node.nodeName)) }))
       const observedNodeInfo = getChangedNodeInfo(this.observedNode)
       mutations.forEach(mutation => {
         const target = /** @type {HTMLElement} */ (mutation.target)
@@ -332,7 +340,7 @@ class DomRDT extends ObservableV2 {
     })
 
   /**
-   * @param {delta.Node<string,any,any,any>} delta
+   * @param {D} delta
    */
   update = delta => {
     if (delta.origin !== this) {

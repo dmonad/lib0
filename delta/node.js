@@ -24,13 +24,39 @@ export class DeltaNode extends dabstract.AbstractDelta {
      */
     this.attributes = /** @type {any} */ (attributes)
     /**
-     * @type {darray.DeltaArray<Children>}
+     * @type {darray.DeltaArray<Children,WithText>}
      */
     this.children = /** @type {any} */ (children)
   }
 
+  // /**
+  //  * @param {(WithText extends true ? string : never) | Array<Children>} insert
+  //  */
+  // insert (insert) {
+  //   // @ts-ignore
+  //   this.children.insert(insert)
+  //   return this
+  // }
+  //
+  // /**
+  //  * @param {keyof Attrs} key
+  //  * @param {Attrs[keyof Attrs]} value
+  //  */
+  // set (key, value) {
+  //   this.attributes.set(key, value)
+  //   return this
+  // }
+  //
+  // /**
+  //  * @param {Partial<Attrs>} attrs
+  //  */
+  // setMany (attrs) {
+  //   this.attributes.setMany(attrs)
+  //   return this
+  // }
+  //
   /**
-   * @param {DeltaNode<NodeName,Partial<Attrs>,Children>} other
+   * @param {DeltaNode<NodeName,Partial<Attrs>,Children,WithText>} other
    */
   apply (other) {
     this.attributes.apply(other.attributes)
@@ -55,7 +81,7 @@ export class DeltaNode extends dabstract.AbstractDelta {
   }
 
   /**
-   * @param {DeltaNode<NodeName,Partial<Attrs>,Children>} other
+   * @param {DeltaNode<NodeName,Partial<Attrs>,Children,WithText>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.name === other.name && this.children[traits.EqualityTraitSymbol](other.children) && this.attributes[traits.EqualityTraitSymbol](other.attributes)
