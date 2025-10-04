@@ -72,3 +72,22 @@ export const testDomBindingBackAndForth = () => {
   console.log('d1', deltaRDT1.state?.toJSON())
   console.log('d2', deltaRDT2.state?.toJSON())
 }
+
+export const testDataToDom = () => {
+  if (!env.isBrowser) t.skip()
+  const $data = Δ.$node($.$literal('data'), $.$object({ version: $.$number, description: $.$string }), $.$any, { withText: true })
+  const Λdata = Λ.transform($data, $d => Λ.node('h1', Λ.map({ bold: 'true', content: Λ.query('description')($d) }), []))
+  const dataRDT = binding.deltaRDT($data)
+  const domRDT = binding.domRDT(dom.element('div'))
+  binding.bind(dataRDT, domRDT, Λdata($data))
+  dataRDT.update(Δ.node('data', { version: 42, description: 'good description' }))
+  console.log('el1', domRDT.observedNode.outerHTML)
+  console.log('d1', dataRDT.state?.toJSON())
+  domRDT.update(Δ.node('h1', { content: 'new description' }))
+  console.log('el1', domRDT.observedNode.outerHTML)
+  console.log('d1', dataRDT.state?.toJSON())
+  t.compare(
+    dataRDT.state,
+    Δ.node('data', { version: 42, description: 'new description' })
+  )
+}

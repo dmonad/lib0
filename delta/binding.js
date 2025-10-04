@@ -32,32 +32,25 @@ export class Binding {
     this.t = template.init()
     this.a = a
     this.b = b
-    this._achanged = this.a.on('change', d => {
-      if (d.origin !== b && d.origin !== this) {
-        const tres = this.t.applyA(d)
-        if (tres.a) {
-          tres.a.origin = this
-          a.update(tres.a)
-        }
-        if (tres.b) {
-          tres.b.origin = d.origin
-          b.update(tres.b)
-        }
+    this._mux = mux.createMutex()
+    this._achanged = this.a.on('change', d => this._mux(() => {
+      const tres = this.t.applyA(d)
+      if (tres.a) {
+        a.update(tres.a)
       }
-    })
-    this._bchanged = this.b.on('change', d => {
-      if (d.origin !== a && d.origin !== this) {
-        const tres = this.t.applyB(d)
-        if (tres.b) {
-          tres.b.origin = this
-          this.b.update(tres.b)
-        }
-        if (tres.a) {
-          tres.a.origin = d.origin
-          a.update(tres.a)
-        }
+      if (tres.b) {
+        b.update(tres.b)
       }
-    })
+    }))
+    this._bchanged = this.b.on('change', d => this._mux(() => {
+      const tres = this.t.applyB(d)
+      if (tres.b) {
+        this.b.update(tres.b)
+      }
+      if (tres.a) {
+        a.update(tres.a)
+      }
+    }))
   }
 
   destroy = () => {
@@ -309,7 +302,7 @@ const _mutationsToDelta = (observedNode, mutations, origin) => {
     }
     d.done()
   })
-  observedNodeInfo.d.origin = origin 
+  observedNodeInfo.d.origin = origin
   return observedNodeInfo.d
 }
 
@@ -344,7 +337,7 @@ class DomRDT extends ObservableV2 {
    */
   _mutationHandler = mutations =>
     mutations.length > 0 && this._mux(() => {
-      this.emit('change', [/** @type {D} */ (_mutationsToDelta(this.observedNode, mutations, this))])
+      this.emit('change', [/** @type {D} */(_mutationsToDelta(this.observedNode, mutations, this))])
     })
 
   /**
@@ -358,7 +351,7 @@ class DomRDT extends ObservableV2 {
       this._mux(() => {
         applyDeltaToDom(this.observedNode, delta)
         const mutations = this.observer.takeRecords()
-        this.emit('change', [/** @type {D} */ (_mutationsToDelta(this.observedNode, mutations, delta.origin))])
+        this.emit('change', [/** @type {D} */(_mutationsToDelta(this.observedNode, mutations, delta.origin))])
       })
     }
   }

@@ -482,7 +482,8 @@ export const map = (definition) => {
           error.unexpectedCase()
         }
         const src = state[op.key]
-        const res = src.applyB(op.value)
+        // src expects a delta value
+        const res = src.applyB(delta.$modifyOp.check(op) ? delta.value().modify(op.value) : delta.value().set(op.value))
         src._pa = res.a
         src._pb = res.b
         if (res.a != null) {
@@ -534,8 +535,11 @@ const _applyMapOpHelper = (state, reverseAChanges) => {
       }
     }
     // merge changes for output
-    for (let i = 0; i < nextReverseAChanges.length; i++) {
-      applyResult.a = delta.mergeDeltas(applyResult.a, nextReverseAChanges[i].d)
+    for (let i = 0; i < reverseAChanges.length; i++) {
+      const rc = reverseAChanges[i]
+      if (rc.src != null) { // don't apply received deltas
+        applyResult.a = delta.mergeDeltas(applyResult.a, rc.d)
+      }
     }
     reverseAChanges = nextReverseAChanges
     nextReverseAChanges = []
@@ -705,18 +709,18 @@ const _applyArrayOpHelper = (state, reverseAChanges) => {
 /**
  * @param {TransformResult<delta.AbstractDelta?, delta.Node<any,any,any>>} res
  * @param {{ attrs: Transformer<any,any,any>, children: Transformer<any,any,any> }} state
- * @param {delta.AbstractDelta?} nextAAttrs
+ * @param {delta.AbstractDelta?} nextAAttrs apply this in reverse!
  * @param {delta.AbstractDelta?} nextAChildren
  */
 const _nodeApplyA = (res, state, nextAAttrs, nextAChildren) => {
-  while (nextAAttrs != null && nextAChildren != null) {
-    const resChildren = state.children.applyA(nextAChildren)
-    const resAttrs = state.attrs.applyA(delta.mergeDeltas(nextAAttrs, resChildren.a))
-    nextAChildren = resAttrs.a
+  while (nextAAttrs != null || nextAChildren != null) {
+    const resChildren = nextAChildren && state.children.applyA(nextAChildren)
+    const resAttrs = (nextAAttrs || resChildren?.a) ? state.attrs.applyA(delta.mergeDeltas(nextAAttrs, resChildren?.a)) : null
+    nextAChildren = resAttrs?.a
     nextAAttrs = null
-    res.a = delta.mergeDeltas(delta.mergeDeltas(res.a, resChildren.a), resAttrs.a)
-    resChildren.b && res.b.children.apply(resChildren.b)
-    resAttrs.b && res.b.attributes.apply(resAttrs.b)
+    res.a = delta.mergeDeltas(delta.mergeDeltas(res.a, resChildren?.a), resAttrs?.a)
+    resChildren?.b && res.b.children.apply(resChildren.b)
+    resAttrs?.b && res.b.attributes.apply(resAttrs.b)
   }
 }
 
@@ -762,10 +766,11 @@ export const node = (name, attributes, children) => {
     applyB: (d, state) => {
       s.assert(d, delta.$nodeAny)
       const res = transformResult(null, /** @type {delta.Node<NodeName,any,any,any>} */ (delta.node(name)))
-      const childrenRes = d.children.ops.length === 0 ? transformResultEmpty : state.children.applyB(d.children)
+      const childrenRes = d.children.ops.length === 0 ? transformResultEmpty : state.children.applyB(/** @type {delta.Array<any,any>} */(d.children))
       const attrsRes = d.attributes._changes.size === 0 ? transformResultEmpty : state.attrs.applyB(d.attributes)
       attrsRes.b && res.b.attributes.apply(attrsRes.b)
       childrenRes.b && res.b.children.apply(/** @type {delta.Array<any,false>} */ (childrenRes.b))
+      res.a = delta.mergeDeltas(attrsRes.a, childrenRes.a)
       _nodeApplyA(res, state, childrenRes.a, attrsRes.a)
       return res
     }

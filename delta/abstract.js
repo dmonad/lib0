@@ -93,10 +93,10 @@ export const mergeAttrs = (a, b) => object.isEmpty(a) ? b : (object.isEmpty(b) ?
  * @return {D}
  */
 export const mergeDeltas = (a, b) => {
-  if (a !== null && b !== null) {
+  if (a != null && b != null) {
     const c = /** @type {D & AbstractDelta} */ (a.clone())
     c.apply(b)
     return c
   }
-  return a === null ? b : a
+  return a == null ? b : (a || null)
 }

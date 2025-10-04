@@ -3,6 +3,7 @@ import * as dabstract from './abstract.js'
 import * as darray from './array.js'
 import * as dmap from './map.js'
 import * as s from '../schema.js'
+import * as error from '../error.js'
 
 /**
  * @template {string|undefined} [NodeName=string]
@@ -71,11 +72,23 @@ export class DeltaNode extends dabstract.AbstractDelta {
   }
 
   /**
-   * @param {DeltaNode<NodeName,Partial<Attrs>,Children,WithText>} other
+   * @param {dabstract.AbstractDelta} other
    */
   apply (other) {
-    this.attributes.apply(other.attributes)
-    this.children.apply(other.children)
+    if ($nodeAny.check(other)) {
+      // @ts-ignore
+      this.attributes.apply(other.attributes)
+      // @ts-ignore
+      this.children.apply(other.children)
+    } else if (dmap.$mapAny.check(other)) {
+      // @ts-ignore
+      this.attributes.apply(other)
+    } else if (darray.$arrayAny.check(other)) {
+      // @ts-ignore
+      this.children.apply(other)
+    } else {
+      error.unexpectedCase()
+    }
   }
 
   toJSON () {
@@ -163,4 +176,8 @@ export const $node = ($nodeName, $attributes, $children, { recursive, withText }
   }
   return /** @type {any} */ ($nodeSchema)
 }
+
+/**
+ * @type {s.Schema<DeltaNode<any,{[key:string]: any},any,any>>}
+ */
 export const $nodeAny = s.$constructedBy(DeltaNode)

@@ -193,3 +193,13 @@ export const testNodeTransformer = () => {
   t.compare(expected, yDB?.attributes)
   t.compare(expected, zDB?.attributes)
 }
+
+export const testNodeTransformerFromNode = () => {
+  const $aschema = Δ.$node($.$literal('data'), $.$object({ qq: $.$number, qp: $.$string }), $.$never, { withText: true })
+  const y = Λ.transform($aschema, $d => Λ.node('h1', Λ.map({ bold: true, eventClicked: Λ.query('qq')($d) }), ['hello world']))
+  const yD = y($aschema)
+  const initA = Δ.node('data', { qq: 42, qp: 'hi' }, [])
+  const yDB = yD.init().applyA(initA).b
+  const expected = Δ.map(yDB?.attributes.$vals).setMany({ bold: true, eventClicked: 42 })
+  t.compare(expected, yDB?.attributes)
+}
