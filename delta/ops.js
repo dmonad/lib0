@@ -153,7 +153,7 @@ export class InsertOp {
    * @return {DeltaJsonOp}
    */
   toJSON () {
-    return object.assign({ insert: this.insert }, this.attributes ? { attributes: this.attributes } : ({}), this.attribution ? { attribution: this.attribution } : ({}))
+    return object.assign({ insert: this.insert.map(ins => d.$delta.check(ins) ? ins.toJSON() : ins) }, this.attributes ? { attributes: this.attributes } : ({}), this.attribution ? { attribution: this.attribution } : ({}))
   }
 
   /**

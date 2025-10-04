@@ -77,10 +77,10 @@ export class Binding {
 
 /**
  * @template {delta.AbstractDelta} DeltaA
- * @template {delta.AbstractDelta} DeltaB
- * @param {RDT<NoInfer<DeltaA>>} a
- * @param {RDT<NoInfer<DeltaB>>} b
- * @param {dt.Template<any,DeltaA,DeltaB>} template
+ * @template {dt.Template<any,DeltaA,any>} Transformer
+ * @param {RDT<DeltaA>} a
+ * @param {RDT<Transformer extends dt.Template<any,DeltaA,infer DeltaB> ? DeltaB : never>} b
+ * @param {dt.Template<any,DeltaA,any>} template
  */
 export const bind = (a, b, template) => new Binding(a, b, template)
 
@@ -100,19 +100,20 @@ class DeltaRDT extends ObservableV2 {
      * @type {Delta?}
      */
     this.state = null
+    this._mux = mux.createMutex()
   }
 
   /**
    * @param {Delta} delta
    */
-  update = delta => {
+  update = delta => delta.isEmpty() || this._mux(() => {
     if (this.state != null) {
       this.state.apply(delta)
     } else {
       this.state = delta
     }
     this.emit('change', [delta])
-  }
+  })
 
   destroy () {
     this.emit('destroy', [this])
@@ -131,22 +132,15 @@ export const deltaRDT = $delta => new DeltaRDT($delta)
  */
 const domToDelta = domNode => {
   if (dom.$element.check(domNode)) {
-    const d = delta.node(domNode.nodeName)
+    const d = delta.node(domNode.nodeName.toLowerCase())
     for (let i = 0; i < domNode.attributes.length; i++) {
       const attr = /** @type {Attr} */ (domNode.attributes.item(i))
       d.attributes.set(attr.nodeName, attr.value)
     }
-    /**
-     * @type {Array<delta.Node | delta.Text>}
-     */
-    const childrenInsert = []
     domNode.childNodes.forEach(child => {
-      childrenInsert.push(domToDelta(child))
+      d.children.insert(dom.$text.check(child) ? child.textContent : [domToDelta(child)])
     })
     return d
-  } else if (dom.$text.check(domNode)) {
-    // @todo text should simply be included in the parent node content
-    return delta.text(domNode.textContent)
   }
   error.unexpectedCase()
 }
@@ -218,11 +212,11 @@ const applyDeltaToDom = (el, d) => {
         childIndex++
         childOffset = 0
       }
-      el.insertBefore(dom.fragment(change.insert.map(deltaToDom)), child?.nextSibling)
+      el.insertBefore(dom.fragment(change.insert.map(deltaToDom)), child)
     } else if (delta.$modifyOp.check(change)) {
       applyDeltaToDom(dom.$element.cast(child), change.modify)
     } else if (delta.$textOp.check(change)) {
-      el.insertBefore(dom.text(change.insert), child?.nextSibling)
+      el.insertBefore(dom.text(change.insert), child)
     } else {
       error.unexpectedCase()
     }
@@ -230,6 +224,94 @@ const applyDeltaToDom = (el, d) => {
 }
 
 export const $domDelta = delta.$node(s.$string, s.$record(s.$string, s.$string), s.$never, { recursive: true, withText: true })
+
+/**
+ * @param {Element} observedNode
+ * @param {MutationRecord[]} mutations
+ * @param {any} origin assign this origin to the generated delta
+ */
+const _mutationsToDelta = (observedNode, mutations, origin) => {
+  /**
+   * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: delta.Node }} ChangedNodeInfo
+   */
+  /**
+   * Compute all deltas without recursion.
+   *
+   * 1. mark all changed parents in parentsChanged
+   * 2. fill out necessary information for each changed parent ()
+   */
+  //
+  /**
+   * @type {Map<Node,ChangedNodeInfo>}
+   */
+  const changedNodes = map.create()
+  /**
+   * @param {Node} node
+   * @return {ChangedNodeInfo}
+   */
+  const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: delta.node(node.nodeName.toLowerCase()) }))
+  const observedNodeInfo = getChangedNodeInfo(observedNode)
+  mutations.forEach(mutation => {
+    const target = /** @type {HTMLElement} */ (mutation.target)
+    const parent = target.parentNode
+    const attrName = /** @type {string} */ (mutation.attributeName)
+    const newVal = target.getAttribute(attrName)
+    const info = getChangedNodeInfo(target)
+    const d = info.d
+    // go up the tree and mark that a child has been modified
+    for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== observedNode; changedParent = changedParent.parentNode) {
+      // nop
+    }
+    switch (mutation.type) {
+      case 'attributes': {
+        const attrs = /** @type {delta.Node<any,any,any>} */ (d).attributes
+        if (newVal == null) {
+          attrs.delete(attrName)
+        } else {
+          attrs.set(/** @type {string} */ (attrName), newVal)
+        }
+        break
+      }
+      case 'characterData': {
+        error.methodUnimplemented()
+        break
+      }
+      case 'childList': {
+        const targetInfo = getChangedNodeInfo(target)
+        mutation.addedNodes.forEach(node => {
+          targetInfo.added.add(node)
+        })
+        const removed = mutation.removedNodes.length
+        if (removed > 0) {
+          // @todo this can't work because next can be null
+          targetInfo.removedBefore.set(mutation.nextSibling, removed)
+        }
+        break
+      }
+    }
+  })
+  changedNodes.forEach((info, node) => {
+    const numOfChildChanges = info.modified + info.removedBefore.size + info.added.size
+    const d = /** @type {delta.Node<any,any,any>} */ (info.d)
+    if (numOfChildChanges > 0) {
+      node.childNodes.forEach(nchild => {
+        if (info.removedBefore.has(nchild)) { // can happen separately
+          d.children.delete(/** @type {number} */ (info.removedBefore.get(nchild)))
+        }
+        if (info.added.has(nchild)) {
+          d.children.insert(dom.$text.check(nchild) ? nchild.textContent : [domToDelta(nchild)])
+        } else if (changedNodes.has(nchild)) {
+          d.children.modify(getChangedNodeInfo(nchild).d)
+        }
+      })
+      // remove items to the end, if necessary
+      d.children.delete(info.removedBefore.get(null) ?? 0)
+    }
+    d.done()
+  })
+  observedNodeInfo.d.origin = origin 
+  return observedNodeInfo.d
+}
 
 /**
  * @typedef {delta.RecursiveNode<string, { [key:string]: string }, never, true>} DomDelta
@@ -257,88 +339,12 @@ class DomRDT extends ObservableV2 {
     })
   }
 
-  _mutationHandler = /** @param {MutationRecord[]} mutations */ mutations =>
-    this._mux(() => {
-      /**
-       * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: D }} ChangedNodeInfo
-       */
-      /**
-       * Compute all deltas without recursion.
-       *
-       * 1. mark all changed parents in parentsChanged
-       * 2. fill out necessary information for each changed parent ()
-       */
-      //
-      /**
-       * @type {Map<Node,ChangedNodeInfo>}
-       */
-      const changedNodes = map.create()
-      /**
-       * @param {Node} node
-       * @return {ChangedNodeInfo}
-       */
-      const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: /** @type {D} */ (delta.node(node.nodeName)) }))
-      const observedNodeInfo = getChangedNodeInfo(this.observedNode)
-      mutations.forEach(mutation => {
-        const target = /** @type {HTMLElement} */ (mutation.target)
-        const parent = target.parentNode
-        const attrName = /** @type {string} */ (mutation.attributeName)
-        const newVal = target.getAttribute(attrName)
-        const info = getChangedNodeInfo(target)
-        const d = info.d
-        d.origin = this
-        // go up the tree and mark that a child has been modified
-        for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== this.observedNode; changedParent = changedParent.parentNode) {
-          // nop
-        }
-        switch (mutation.type) {
-          case 'attributes': {
-            const attrs = /** @type {delta.Node<any,any,any>} */ (d).attributes
-            if (newVal == null) {
-              attrs.delete(attrName)
-            } else {
-              attrs.set(/** @type {string} */ (attrName), newVal)
-            }
-            break
-          }
-          case 'characterData': {
-            error.methodUnimplemented()
-            break
-          }
-          case 'childList': {
-            const targetInfo = getChangedNodeInfo(target)
-            mutation.addedNodes.forEach(node => {
-              targetInfo.added.add(node)
-            })
-            const removed = mutation.removedNodes.length
-            if (removed > 0) {
-              // @todo this can't work because next can be null
-              targetInfo.removedBefore.set(mutation.nextSibling, removed)
-            }
-            break
-          }
-        }
-      })
-      changedNodes.forEach((info, node) => {
-        const numOfChildChanges = info.modified + info.removedBefore.size + info.added.size
-        const d = /** @type {delta.Node<any,any,any>} */ (info.d)
-        if (numOfChildChanges > 0) {
-          node.childNodes.forEach(nchild => {
-            if (info.removedBefore.has(nchild)) { // can happen separately
-              d.children.delete(/** @type {number} */ (info.removedBefore.get(nchild)))
-            }
-            if (info.added.has(nchild)) {
-              d.children.insert([domToDelta(nchild)])
-            } else if (changedNodes.has(nchild)) {
-              d.children.modify(getChangedNodeInfo(nchild).d)
-            }
-          })
-          // remove items to the end, if necessary
-          d.children.delete(info.removedBefore.get(null) ?? 0)
-        }
-        d.done()
-      })
-      this.emit('change', [observedNodeInfo.d])
+  /**
+   * @param {MutationRecord[]} mutations
+   */
+  _mutationHandler = mutations =>
+    mutations.length > 0 && this._mux(() => {
+      this.emit('change', [/** @type {D} */ (_mutationsToDelta(this.observedNode, mutations, this))])
     })
 
   /**
@@ -351,7 +357,8 @@ class DomRDT extends ObservableV2 {
       this._mutationHandler(this.observer.takeRecords())
       this._mux(() => {
         applyDeltaToDom(this.observedNode, delta)
-        this.observer.takeRecords()
+        const mutations = this.observer.takeRecords()
+        this.emit('change', [/** @type {D} */ (_mutationsToDelta(this.observedNode, mutations, delta.origin))])
       })
     }
   }

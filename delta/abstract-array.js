@@ -31,6 +31,10 @@ export class AbstractDeltaArray extends d.AbstractDelta {
     this.ops = []
   }
 
+  isEmpty () {
+    return this.ops.length === 0
+  }
+
   /**
    * @template M
    * @param {(d:OPS) => dops.AbstractDeltaArrayOps<M>} f
@@ -149,6 +153,17 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
      * @type {dops.AbstractDeltaArrayOps<any>?}
      */
     this.lastOp = null
+  }
+
+  /**
+   * @return {this}
+   */
+  clone () {
+    const d = /** @type {this} */ (new AbstractDeltaArrayBuilder(this.type, this.$insert))
+    d.ops = /** @type {OPS[]} */ (this.ops.map(op => op.clone()))
+    d.origin = this.origin
+    d.isDiff = this.isDiff
+    return d
   }
 
   /**
@@ -291,26 +306,16 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
       null,
       insertOp => {
         const o = this.ops[opsI]
-        if (o instanceof InsertOp) {
-          o.insert.splice(offset, 0, ...insertOp.insert)
-          offset += insertOp.length
-        } else if (o == null || o instanceof ModifyOp || offset === 0) {
-          const prevOp = opsI > 0 ? this.ops[opsI - 1] : null
-          if (prevOp instanceof InsertOp) {
-            prevOp.insert.push(...insertOp.insert)
-          } else {
-            this.ops.splice(opsI, 0, /** @type {OPS} */ (insertOp.clone()))
-            opsI++
-          }
-        } else if (o instanceof RetainOp || o instanceof DeleteOp) {
+        if (offset === 0) {
+          this.ops.splice(opsI, 0, /** @type {OPS} */ (insertOp.clone()))
+          opsI++
+        } else {
           const cpy = o.clone()
           cpy._splice(0, offset)
           o._splice(offset, o.length - offset)
           this.ops.splice(opsI + 1, 0, /** @type {OPS} */ (insertOp.clone()), /** @type {OPS} */ (cpy))
           opsI += 2
           offset = 0
-        } else {
-          error.unexpectedCase()
         }
       },
       retainOp => {
@@ -365,20 +370,39 @@ export class AbstractDeltaArrayBuilder extends AbstractDeltaArray {
         }
       },
       modifyOp => {
-        const o = this.ops[opsI]
-        if (o instanceof ModifyOp) {
-          o.modify.apply(modifyOp.modify)
+        if (opsI >= this.ops.length) {
+          this.ops.push(/** @type {OPS} */ (modifyOp.clone()))
           return
         }
-        if (offset > 0) {
-          const cpy = o.clone()
-          cpy._splice(0, offset)
-          o._splice(offset, o.length - offset)
-          this.ops.splice(opsI + 1, 0, /** @type {OPS} */ (modifyOp.clone()), /** @type {OPS} */ (cpy))
-          opsI += 2
-          offset = 0
+        let o = this.ops[opsI]
+        if (dops.$modifyOp.check(o)) {
+          o.modify.apply(modifyOp.modify)
+        } else if (dops.$insertOp.check(o)) {
+          const d = o.insert[offset]
+          d.apply(modifyOp.modify)
+        } else if (dops.$retainOp.check(o)) {
+          if (offset > 0) {
+            const cpy = o.clone()
+            cpy._splice(0, offset)
+            o._splice(offset, o.length - offset)
+            this.ops.splice(opsI + 1, 0, /** @type {OPS} */ (cpy))
+            opsI++
+            o = /** @type {OPS} */ (cpy)
+            offset = 0
+          }
+          if (o.length === 1) {
+            this.ops[opsI] = /** @type {OPS} */ (modifyOp.clone())
+            opsI++
+          } else {
+            this.ops.splice(opsI, 0, /** @type {OPS} */ (modifyOp.clone()))
+            o._splice(0, 1)
+            opsI++
+          }
+        } else if (dops.$deleteOp.check(o)) {
+          // nop
+        } else {
+          error.unexpectedCase()
         }
-        this.ops.splice(opsI, 0, /** @type {OPS} */ (modifyOp.clone()))
       }
     )
     this.lastOp = this.ops[this.ops.length - 1]

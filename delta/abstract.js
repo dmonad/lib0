@@ -37,6 +37,13 @@ export class AbstractDelta {
   }
 
   /**
+   * @return {boolean}
+   */
+  isEmpty () {
+    error.methodUnimplemented()
+  }
+
+  /**
    * @param {AbstractDelta} other
    * @param {boolean} priority
    */

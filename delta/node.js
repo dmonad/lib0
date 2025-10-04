@@ -29,6 +29,17 @@ export class DeltaNode extends dabstract.AbstractDelta {
     this.children = /** @type {any} */ (children)
   }
 
+  isEmpty () {
+    return this.children.isEmpty() && this.attributes.isEmpty()
+  }
+
+  /**
+   * @return {this}
+   */
+  clone () {
+    return /** @type {this} */ (new DeltaNode(this.name, this.attributes.clone(), this.children.clone()))
+  }
+
   /**
    * @param {(WithText extends true ? string : never) | Array<Children>} insert
    */

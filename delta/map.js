@@ -32,6 +32,10 @@ export class DeltaMap extends AbstractDelta {
     this.usedAttribution = null
   }
 
+  isEmpty () {
+    return this._changes.size === 0
+  }
+
   /**
    *
    * Iterate through the changes. There are two approches to iterate through changes. The
@@ -149,8 +153,8 @@ export class DeltaMap extends AbstractDelta {
   }
 
   /**
-   * @param {import('./abstract.js').Attribution?} attribution
    * @param {Partial<Vals>} kv
+   * @param {import('./abstract.js').Attribution?} attribution
    */
   setMany (kv, attribution = null) {
     for (const key in kv) {

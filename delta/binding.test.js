@@ -38,11 +38,37 @@ export const testDomBindingBasics = () => {
   console.log('delta rdt content:', deltaRDT.state)
 }
 
-export const testDomBindingNodeTypes = () => {
+export const testDomBindingBackAndForth = () => {
   if (!env.isBrowser) t.skip()
-  const el = dom.element('div')
-  const domRDT = binding.domRDT(el)
-  domRDT.update(Δ.node('div', { id: '43' }, [Δ.node('p', {}, 'some text')]))
-  domRDT.update(Δ.node('div', { id: '42' }, Δ.array(binding.$domDelta).modify(Δ.node('p', {}, ' & some more text'))))
-  console.log(el.outerHTML)
+  const $deltaRDT = binding.$domDelta
+  const el1 = dom.element('div')
+  const domRDT1 = binding.domRDT(el1)
+  const el2 = dom.element('div')
+  const domRDT2 = binding.domRDT(el2)
+  const deltaRDT1 = binding.deltaRDT($deltaRDT)
+  const deltaRDT2 = binding.deltaRDT($deltaRDT)
+  binding.bind(deltaRDT1, domRDT1, Λ.id($deltaRDT))
+  binding.bind(domRDT1, deltaRDT2, Λ.id($deltaRDT))
+  binding.bind(deltaRDT2, domRDT2, Λ.id($deltaRDT))
+
+  /**
+   * @param {string} description
+   * @param {() => void} f
+   */
+  const test = (description, f) =>
+    t.group(description, () => {
+      f()
+      t.compare(el1.outerHTML, el2.outerHTML, 'dom nodes match')
+      t.compare(deltaRDT1.state, deltaRDT2.state, 'generated deltas match')
+    })
+  test('insert paragraph', () => {
+    deltaRDT1.update(Δ.node('div', { id: '43' }, [Δ.node('p', {}, 'text')]))
+  })
+  test('modify paragraph attr & paragraph content', () => {
+    deltaRDT1.update(Δ.node('div', { id: '42' }, Δ.array(binding.$domDelta).modify(Δ.node('p', {}, 'new text & old '))))
+  })
+  console.log('el1', el1.outerHTML)
+  console.log('el2', el2.outerHTML)
+  console.log('d1', deltaRDT1.state?.toJSON())
+  console.log('d2', deltaRDT2.state?.toJSON())
 }
