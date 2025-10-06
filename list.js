@@ -29,6 +29,21 @@ export class List {
     this.end = null
     this.len = 0
   }
+
+  *[Symbol.iterator]() {
+    let n = this.start
+    while (n) {
+      yield n
+      n = n.next
+    }
+  }
+
+  /**
+   * @param {function(N):any} f
+   */
+  forEach (f) {
+    forEach(this, f)
+  }
 }
 
 /**
@@ -53,23 +68,23 @@ export const isEmpty = queue => queue.start === null
  *
  * @template {ListNode} N
  *
- * @param {List<N>} queue
+ * @param {List<N>} list
  * @param {N} node
  */
-export const remove = (queue, node) => {
+export const remove = (list, node) => {
   const prev = node.prev
   const next = node.next
   if (prev) {
     prev.next = next
   } else {
-    queue.start = next
+    list.start = next
   }
   if (next) {
     next.prev = prev
   } else {
-    queue.end = prev
+    list.end = prev
   }
-  queue.len--
+  list.len--
   return node
 }
 
@@ -187,10 +202,8 @@ export const toArray = list => map(list, id)
 
 /**
  * @template {ListNode} N
- * @template M
- *
  * @param {List<N>} list
- * @param {function(N):M} f
+ * @param {function(N):any} f
  */
 export const forEach = (list, f) => {
   let n = list.start

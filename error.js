@@ -28,3 +28,9 @@ export const methodUnimplemented = () => {
 export const unexpectedCase = () => {
   throw create('Unexpected case')
 }
+
+/**
+ * @param {boolean} property
+ * @return {asserts property is true}
+ */
+export const assert = property => { if (!property) throw create('Assert failed') }

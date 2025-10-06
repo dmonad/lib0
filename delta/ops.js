@@ -3,6 +3,7 @@ import * as object from '../object.js'
 import * as traits from '../traits.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
+import * as list from '../list.js'
 
 /**
  * @template {any} Content
@@ -58,13 +59,14 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  */
 const _cloneMaybeDelta = maybeDelta => d.$delta.check(maybeDelta) ? maybeDelta.clone() : maybeDelta
 
-export class TextOp {
+export class TextOp extends list.ListNode {
   /**
    * @param {string} insert
    * @param {FormattingAttributes|null} attributes
    * @param {d.Attribution|null} attribution
    */
   constructor (insert, attributes, attribution) {
+    super()
     this.insert = insert
     this.attributes = attributes
     this.attribution = attribution
@@ -116,13 +118,14 @@ export class TextOp {
 /**
  * @template {any} ArrayContent
  */
-export class InsertOp {
+export class InsertOp extends list.ListNode {
   /**
    * @param {Array<ArrayContent>} insert
    * @param {FormattingAttributes|null} attributes
    * @param {d.Attribution|null} attribution
    */
   constructor (insert, attributes, attribution) {
+    super()
     this.insert = insert
     this.attributes = attributes
     this.attribution = attribution
@@ -171,11 +174,12 @@ export class InsertOp {
   }
 }
 
-export class DeleteOp {
+export class DeleteOp extends list.ListNode {
   /**
    * @param {number} len
    */
   constructor (len) {
+    super()
     this.delete = len
   }
 
@@ -219,13 +223,14 @@ export class DeleteOp {
   }
 }
 
-export class RetainOp {
+export class RetainOp extends list.ListNode {
   /**
    * @param {number} retain
    * @param {FormattingAttributes|null} attributes
    * @param {d.Attribution|null} attribution
    */
   constructor (retain, attributes, attribution) {
+    super()
     this.retain = retain
     this.attributes = attributes
     this.attribution = attribution
@@ -274,15 +279,16 @@ export class RetainOp {
 /**
  * Delta that can be applied on a YType Embed
  *
- * @template {d.AbstractDelta} DTypes
+ * @template {{ toJSON(): any } & traits.EqualityTrait & { clone: any }} DTypes
  */
-export class ModifyOp {
+export class ModifyOp extends list.ListNode {
   /**
    * @param {DTypes} delta
    * @param {FormattingAttributes|null} attributes
    * @param {d.Attribution|null} attribution
    */
   constructor (delta, attributes, attribution) {
+    super()
     this.modify = delta
     this.attributes = attributes
     this.attribution = attribution
