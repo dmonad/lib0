@@ -40,6 +40,7 @@ import * as cache from './cache.test.js'
 import * as symbol from './symbol.test.js'
 import * as traits from './traits.test.js'
 import * as schema from './schema.test.js'
+import * as d2 from './delta/d2.test.js'
 import * as deltaMap from './delta/map.test.js'
 import * as deltaArray from './delta/array.test.js'
 import * as deltaText from './delta/text.test.js'
@@ -94,6 +95,7 @@ runTests({
   symbol,
   traits,
   schema,
+  d2,
   deltaMap,
   deltaArray,
   deltaText,

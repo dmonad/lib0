@@ -531,7 +531,7 @@ export const $$object = $constructedBy($Object)
 /**
  * @type {Schema<{[key:string]: any}>}
  */
-export const $objectAny = $custom(o => o.constructor == null || o.constructor === Object)
+export const $objectAny = $custom(o => o != null && (o.constructor == null || o.constructor === Object))
 
 /**
  * @template {Schema<string|number|symbol>} Keys

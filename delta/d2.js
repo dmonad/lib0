@@ -1,8 +1,8 @@
-import * as ops from './ops.js'
 import * as list from '../list.js'
 import * as map from '../map.js'
 import * as object from '../object.js'
 import * as traits from '../traits.js'
+import * as array from '../array.js'
 import * as error from '../error.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
@@ -41,7 +41,7 @@ export const $attribution = s.$object({
  */
 
 /**
- * @typedef {{ type: 'insert', insert: any, attribution?: Attribution } | { type: 'delete', attribution?: Attribution } | { type: 'modify', modify: DeltaJSON }} DeltaAttrOpJSON
+ * @typedef {{ type: 'insert', value: any, prevValue?: any, attribution?: Attribution } | { type: 'delete', attribution?: Attribution } | { type: 'modify', modify: DeltaJSON }} DeltaAttrOpJSON
  */
 
 /**
@@ -61,7 +61,7 @@ export class TextOp extends list.ListNode {
   /**
    * @param {string} insert
    * @param {FormattingAttributes|null} format
-   * @param {Attribution|null} attribution
+   * @param {Attribution?} attribution
    */
   constructor (insert, format, attribution) {
     super()
@@ -120,7 +120,7 @@ export class InsertOp extends list.ListNode {
   /**
    * @param {Array<ArrayContent>} insert
    * @param {FormattingAttributes|null} format
-   * @param {Attribution|null} attribution
+   * @param {Attribution?} attribution
    */
   constructor (insert, format, attribution) {
     super()
@@ -225,7 +225,7 @@ export class RetainOp extends list.ListNode {
   /**
    * @param {number} retain
    * @param {FormattingAttributes|null} format
-   * @param {Attribution|null} attribution
+   * @param {Attribution?} attribution
    */
   constructor (retain, format, attribution) {
     super()
@@ -283,7 +283,7 @@ export class ModifyOp extends list.ListNode {
   /**
    * @param {DTypes} delta
    * @param {FormattingAttributes|null} format
-   * @param {Attribution|null} attribution
+   * @param {Attribution?} attribution
    */
   constructor (delta, format, attribution) {
     super()
@@ -397,7 +397,7 @@ export class MapDeleteOp {
   /**
    * @param {K} key
    * @param {V|undefined} prevValue
-   * @param {Attribution} attribution
+   * @param {Attribution?} attribution
    */
   constructor (key, prevValue, attribution) {
     /**
@@ -422,10 +422,7 @@ export class MapDeleteOp {
    * @return {DeltaAttrOpJSON}
    */
   toJSON () {
-    return {
-      type: this.type,
-      attribution: this.attribution
-    }
+    return object.assign({ type: this.type }, this.attribution ? { attribution: this.attribution } : {})
   }
 
   /**
@@ -588,16 +585,16 @@ class Delta {
     this.name = name || null
     this.$schema = $schema || null
     /**
-     * @type {Map<keyof Attrs, { [K in keyof Attrs]: ops.MapInsertOp<Attrs[K],K>|ops.MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? ops.MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]>}
+     * @type {Map<keyof Attrs, { [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]>}
      */
     this.attrs = map.create()
     /**
      * @type {list.List<
-     *   ops.RetainOp
-     *   | ops.DeleteOp
-     *   | (string extends List ? ops.TextOp : never)
-     *   | (Array<any> extends List ? ops.InsertOp<Extract<List,Array<any>>> : never)
-     *   | (Delta extends List ? ops.ModifyOp<Extract<List,Delta>> : never)
+     *   RetainOp
+     *   | DeleteOp
+     *   | (string extends List ? TextOp : never)
+     *   | (Array<any> extends List ? InsertOp<Extract<List,Array<any>>> : never)
+     *   | (Delta extends List ? ModifyOp<Extract<List,Delta>> : never)
      * >}
      */
     this.children = /** @type {any} */ (list.create())
@@ -639,8 +636,8 @@ class Delta {
     })
     return object.assign(
       (this.name != null ? { name: this.name } : {}),
-      (attrs != null ? { attrs } : {}),
-      (children != null ? { children } : {}),
+      (object.isEmpty(attrs) ? {} : { attrs }),
+      (children.length > 0 ? { children } : {}),
     )
   }
 
@@ -678,7 +675,7 @@ class Delta {
   }
 
   /**
-   * @param {import('./abstract.js').Attribution?} attribution
+   * @param {Attribution?} attribution
    */
   useAttribution (attribution) {
     this.usedAttribution = attribution
@@ -734,8 +731,9 @@ class Delta {
 
   /**
    * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer L> ? L : never} NewContent
-   * @param {NewContent} listContent
-   * @param {FormattingAttributes} [formatting]
+   * @param {NewContent} insert
+   * @param {FormattingAttributes?} [formatting]
+   * @param {Attribution?} [attribution]
    * @return {Delta<
    *   NodeName,
    *   Attrs,
@@ -744,7 +742,27 @@ class Delta {
    *   Schema
    * >}
    */
-  insert (listContent, formatting) {
+  insert (insert, formatting = null, attribution = null) {
+    const mergedAttributes = mergeAttrs(this.usedAttributes, formatting)
+    const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
+    /**
+     * @param {TextOp | InsertOp<any>} lastOp
+     */
+    const checkMergedEquals = lastOp => (mergedAttributes === lastOp.format || fun.equalityDeep(mergedAttributes, lastOp.format)) && (mergedAttribution === lastOp.attribution || fun.equalityDeep(mergedAttribution, lastOp.attribution))
+    const end = this.children.end
+    if (s.$string.check(insert)) {
+      if ($textOp.check(end) && checkMergedEquals(end)) {
+        end.insert += insert
+      } else if (insert.length > 0) {
+        list.pushEnd(this.children, new TextOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+      }
+    } else if (array.isArray(insert)) {
+      if ($insertOp.check(end) && checkMergedEquals(end)) {
+        end.insert.push(...insert)
+      } else if (insert.length > 0) {
+        list.pushEnd(this.children, new InsertOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+      }
+    }
     return /** @type {any} */ (this)
   }
 
@@ -753,7 +771,7 @@ class Delta {
    * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any> ? (Attrs[Key]) : never} Val
    * @param {Key} key
    * @param {Val} val
-   * @param {import('./abstract.js').Attribution?} attribution
+   * @param {Attribution?} attribution
    * @return {Delta<
    *   NodeName,
    *   { [K in keyof AddToAttrs<Attrs,Key,Val>]: AddToAttrs<Attrs,Key,Val>[K]  },
@@ -762,14 +780,14 @@ class Delta {
    * >}
    */
   set (key, val, attribution = null) {
-    this.attrs.set(key, /** @type {any} */ (new ops.MapInsertOp(key, val, null, mergeAttrs(this.usedAttribution, attribution))))
+    this.attrs.set(key, /** @type {any} */ (new MapInsertOp(key, val, null, mergeAttrs(this.usedAttribution, attribution))))
     return /** @type {any} */ (this)
   }
 
   /**
    * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any> ? Attrs : never} NewAttrs
    * @param {NewAttrs} attrs
-   * @param {import('./abstract.js').Attribution?} attribution
+   * @param {Attribution?} attribution
    * @return {Delta<
    *   NodeName,
    *   { [K in keyof MergeAttrs<Attrs,NewAttrs>]: MergeAttrs<Attrs,NewAttrs>[K]  },
@@ -787,7 +805,7 @@ class Delta {
   /**
    * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? keyof As : never} Key
    * @param {Key} key
-   * @param {import('./abstract.js').Attribution?} attribution
+   * @param {Attribution?} attribution
    * @return {Delta<
    *   NodeName,
    *   { [K in keyof AddToAttrs<Attrs,Key,never>]: AddToAttrs<Attrs,Key,never>[K] },
@@ -796,12 +814,12 @@ class Delta {
    * >}
    */
   unset (key, attribution = null) {
-    this.attrs.set(key, /** @type {any} */ (new ops.MapDeleteOp(key, null, mergeAttrs(this.usedAttribution, attribution))))
+    this.attrs.set(key, /** @type {any} */ (new MapDeleteOp(key, null, mergeAttrs(this.usedAttribution, attribution))))
     return this
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? { [K in keyof As]: Delta<any,any,any,any> extends As[K] ? K : never }[keyof As] : never} Key
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? { [K in keyof As]: Extract<As[K],Delta<any,any,any,any>> extends never ? never : K }[keyof As] : never} Key
    * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? Extract<As[Key],Delta<any,any,any,any>> : never} D
    * @param {Key} key
    * @param {D} modify
@@ -813,7 +831,7 @@ class Delta {
    * >}
    */
   modify (key, modify) {
-    this.attrs.set(key, /** @type {any} */ (new ops.MapModifyOp(key, modify)))
+    this.attrs.set(key, /** @type {any} */ (new MapModifyOp(key, modify)))
     return this
   }
 
@@ -825,7 +843,7 @@ class Delta {
     this.$schema?.expect(other)
     ;/** @type {Delta<NodeName,Attrs,List,any>} */ (other).attrs.forEach(op => {
       const c = this.attrs.get(op.key)
-      if (ops.$modifyOp.check(op)) {
+      if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
           /** @type {Delta} */ (c.value).apply(op.value)
         } else {
@@ -833,7 +851,7 @@ class Delta {
           this.attrs.set(op.key, /** @type {any} */ (op))
         }
       } else {
-        /** @type {ops.MapInsertOp<any>} */ (op).prevValue = c?.value
+        /** @type {MapInsertOp<any>} */ (op).prevValue = c?.value
         this.attrs.set(op.key, /** @type {any} */ (op))
       }
     })
@@ -856,20 +874,20 @@ class Delta {
      * - modify vs modify ⇒ rebase using priority
      */
     this.attrs.forEach(op => {
-      if (ops.$insertOp.check(op)) {
-        if (ops.$insertOp.check(other.attrs.get(op.key)) && !priority) {
+      if ($insertOp.check(op)) {
+        if ($insertOp.check(other.attrs.get(op.key)) && !priority) {
           this.attrs.delete(op.key)
         }
-      } else if (ops.$deleteOp.check(op)) {
+      } else if ($deleteOp.check(op)) {
         const otherOp = other.attrs.get(op.key)
-        if (ops.$insertOp.check(otherOp)) {
+        if ($insertOp.check(otherOp)) {
           this.attrs.delete(otherOp.key)
         }
-      } else if (ops.$modifyOp.check(op)) {
+      } else if ($modifyOp.check(op)) {
         const otherOp = other.attrs.get(op.key)
         if (otherOp == null) {
           // nop
-        } else if (ops.$modifyOp.check(otherOp)) {
+        } else if ($modifyOp.check(otherOp)) {
           op.value.rebase(otherOp.value, priority)
         } else {
           this.attrs.delete(otherOp.key)
@@ -881,24 +899,26 @@ class Delta {
 
 /**
  * @template {string} NodeName
- * @template {{ [key: string|number|symbol]: any }} Attrs
- * @template {any} List
- * @param {s.Schema<NodeName>} $nodeName
- * @param {s.Schema<Attrs>} $attrs
- * @param {s.Schema<List>} $list
+ * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
+ * @template {any} [List=never]
+ * @param {s.Schema<NodeName>?} [$nodeName]
+ * @param {s.Schema<Attrs>?} [$attrs]
+ * @param {s.Schema<List>?} [$list]
  * @return {s.Schema<Delta<NodeName,Attrs,List>>}
  */
 export const $delta = ($nodeName, $attrs, $list) => {
-  const $attrsPartial = s.$$object.check($attrs) ? $attrs.partial : $attrs
+  $nodeName = $nodeName == null ? s.$any : $nodeName
+  $list = $list == null ? s.$never : $list
+  const $attrsPartial = $attrs == null ? s.$object({}) : (s.$$object.check($attrs) ? $attrs.partial : $attrs)
   return /** @type {any} */ (s.$instanceOf(Delta, /** @param {Delta<any,any,any>} d */ d => {
     if (
       !$nodeName.check(d.name)
-      || Array.from(d.attrs.entries()).every(
-          ([k, op]) => !ops.$insertOp.check(op) || $attrsPartial.check({ [k]: op.value })
+      || Array.from(d.attrs.entries()).some(
+          ([k, op]) => $insertOp.check(op) && !$attrsPartial.check({ [k]: op.value })
          )
     ) return false
     for (const op of d.children) {
-      if ((ops.$insertOp.check(op) || ops.$textOp.check(op)) && !$list.check(op.insert)) {
+      if (($insertOp.check(op) || $textOp.check(op)) && !$list.check(op.insert)) {
         return false
       }
     }
@@ -986,43 +1006,3 @@ export const create = (nodeNameOrSchema, attrsOrSchema, ...children) => {
   }
   return d
 }
-
-const ds_ = create($delta(s.$string, s.$object({ k: s.$number }), s.$string))
-const ds = create('root', $delta(s.$string, s.$object({ k: s.$number, d: $delta(s.$literal('sub'), s.$object({  }), s.$string) }), s.$string))
-ds.insert('dtrn')
-ds.modify('d', create('sub', null, 'hi'))
-ds.apply(create('root', { k: 42 }, 'content'))
-ds.apply(create('root', { k: 42 }))
-// @ts-expect-error
-ds.apply(create('root', { k: 'hi' }, 'content'))
-
-const m42 = create('42').insert([42])
-
-
-const d1 = create().insert('hi')
-const q = d1.insert([42]).insert('hi').insert([{ there: 42 }]).insert(['']).insert(['dtrn']).insert('stri').insert('dtruniae')
-const p = d1.set('hi', 'there').set('test', 42).set(42, 43)
-const t = create().insert('dtrn').insert([42]).insert(['', { q: 42} ]).set('kv', false).set('x', 42)
-
-// @ts-expect-error
-const applyTest = create().insert('hi').apply(create().insert('there').insert([42]))
-// @ts-expect-error
-const applyTestMap = create().set('x', 42).apply(create().set('x', '42'))
-// @ts-expect-error
-const applyTestMap2 = create().set('x', 42).apply(create().set('y', '42'))
-const applyMapTest3 = create().set('x', 42).apply(create().unset('x'))
-const t2 = create().insert('hi').insert(['there']).set('k', '42').set('k', 42)
-const applyTest2 = t2.apply(create().insert('there').insert(['dtrn']).set('k', 42))
-
-const m = create().set('x', 42).set('y', 'str').insert('hi').insert([42])
-m.apply(create().set('y', undefined).insert('hi'))
-
-const m2 = m.set('k', m).modify('k', m)
-
-/**
- * @type {Delta<any,Record<string,number>>}
- */
-const tRecord = create()
-
-const gen1 = create('node-name', { kv: 42 }, [42], 'str')
-const gen2 = create('node-name', null, [42], 'str')
