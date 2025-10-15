@@ -7,6 +7,20 @@ import * as error from '../error.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
 
+/**
+ * @typedef {{
+ *   insert?: string[]
+ *   insertAt?: number
+ *   delete?: string[]
+ *   deleteAt?: number
+ *   format?: Record<string,string[]>
+ *   formatAt?: number
+ * }} Attribution
+ */
+
+/**
+ * @type {s.Schema<Attribution>}
+ */
 export const $attribution = s.$object({
   insert: s.$array(s.$string).optional,
   insertAt: s.$number.optional,
@@ -15,10 +29,6 @@ export const $attribution = s.$object({
   format: s.$record(s.$string, s.$array(s.$string)).optional,
   formatAt: s.$number.optional
 })
-
-/**
- * @typedef {s.TypeOf<$attribution>} Attribution
- */
 
 /**
  * @typedef {s.Unwrap<$anyOp>} DeltaOps
@@ -367,11 +377,10 @@ export class MapInsertOp {
   get type () { return 'insert' }
 
   toJSON () {
-    return {
+    return object.assign({
       type: this.type,
-      value: $deltaAny.check(this.value) ? this.value.toJSON() : this.value,
-      attribution: this.attribution
-    }
+      value: $deltaAny.check(this.value) ? this.value.toJSON() : this.value
+    }, this.attribution ? { attribution: this.attribution } : {})
   }
 
   /**
@@ -657,6 +666,7 @@ class Delta {
      * @type {Delta<any,{[k:string|number|symbol]:any},any>}
      */
     const d = new Delta(/** @type {any} */ (this.name), this.$schema)
+    d.origin = this.origin
     this.attrs.forEach(op => {
       d.attrs.set(op.key, /** @type {any} */ (op))
     })

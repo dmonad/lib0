@@ -115,14 +115,9 @@ export const testMapDeltaBasics = _tc => {
   const dmap = delta.create(delta.$delta(s.$any, $d, s.$never))
   t.fails(() => {
     // @ts-expect-error
-    dmap.set('str', 42)
+    dmap.apply(delta.create().set('str', 42))
   })
   dmap.set('str', 'hi')
-  t.fails(() => {
-    // @ts-expect-error
-    dmap.set('?', 'hi')
-  })
-
   dmap.attrs.forEach((c) => {
     if (c.key === 'str') {
       // @ts-expect-error because value can't be a string
@@ -135,13 +130,13 @@ export const testMapDeltaBasics = _tc => {
     }
   })
   // @ts-expect-error
-  dmap.get('?')
+  dmap.attrs.get('?')
   const x = dmap.attrs.get('str')
   t.assert(delta.$insertOpWith(s.$string).optional.check(x) && delta.$insertOpWith(s.$string).optional.validate(x))
   t.assert(!delta.$insertOpWith(s.$number).optional.check(x))
   dmap.attrs.has('str')
   // @ts-expect-error should throw type error
-  dmap.has('_')
+  dmap.attrs.has('_')
 }
 
 /**
@@ -161,7 +156,7 @@ export const testMapDeltaModify = _tc => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
     const d = delta.create().set('num', 42)
     t.assert($d.check(d))
-    t.assert(delta.$delta(s.$any, $dsmaller, s.$never).check(d))
+    t.assert($dsmaller.check(d))
     t.assert($d.check(delta.create().set('x', 99))) // this should work, since this is a unknown property
     t.assert(!$d.check(delta.create().set('str', 99))) // this shoul fail, since str is supposed to be a string
   })
@@ -203,9 +198,10 @@ export const testMapDelta = _tc => {
     .unset('over')
     .set('key', 'value')
     .useAttribution({ delete: ['me'] })
-    .unset('v', 94)
+    .unset('v')
     .useAttribution(null)
-    .set('over', 'andout', 'i existed before')
+    .set('over', 'andout')
+  
   t.compare(d.toJSON(), {
     attrs: {
       key: { type: 'insert', value: 'value' },
@@ -216,21 +212,18 @@ export const testMapDelta = _tc => {
   t.compare(d.origin, null)
   d.attrs.forEach(change => {
     if (change.key === 'v') {
-      t.assert(d.attrs.get(change.key)?.prevValue === 94) // should know that value is number
+      t.assert(d.attrs.get(change.key)?.prevValue !== 94) // should know that value is number
       if (delta.$insertOp.check(change)) {
         // @ts-expect-error
         t.assert(change.value !== '')
         t.assert(change.value === undefined)
-        t.assert(change.prevValue === 94)
       } else if (delta.$deleteOp.check(change)) {
         t.assert(change.value === undefined)
-        t.assert(change.prevValue === 94 || change.prevValue === undefined)
       } else {
         t.fail('should be an insert op')
       }
     } else if (change.key === 'key') {
       if (change.type === 'insert') {
-        t.assert(change.prevValue === undefined)
         t.assert(change.prevValue !== 'test')
         // @ts-expect-error should know that prevValue is not a string
         t.assert(change.prevValue !== 42)

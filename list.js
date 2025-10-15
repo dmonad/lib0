@@ -1,5 +1,6 @@
 import { id } from './function.js'
 import * as error from './error.js'
+import * as traits from './traits.js'
 
 export class ListNode {
   constructor () {
@@ -44,6 +45,21 @@ export class List {
   forEach (f) {
     forEach(this, f)
   }
+
+  /**
+   * @param {List<any>} other
+   */
+  [traits.EqualityTraitSymbol] (other) {
+    let n = this.start
+    let m = other.start
+    while (n && m) {
+      if (!traits.equals(n, m)) return false
+      n = n.next
+      m = m.next
+    }
+    return n === m // only true iff n == null && m == null
+  }
+
 }
 
 /**
