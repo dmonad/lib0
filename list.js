@@ -31,7 +31,7 @@ export class List {
     this.len = 0
   }
 
-  *[Symbol.iterator]() {
+  * [Symbol.iterator] () {
     let n = this.start
     while (n) {
       yield n
@@ -59,7 +59,6 @@ export class List {
     }
     return n === m // only true iff n == null && m == null
   }
-
 }
 
 /**

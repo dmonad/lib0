@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 
-const roots = ['./', './crypto/', './hash/', './diff/']
+const roots = ['./', './crypto/', './hash/', './diff/', './delta/']
 
 const files = roots.map(root => fs.readdirSync(root).map(f => root + f)).flat().filter(file => /(?<!(test|config))\.js$/.test(file))
 console.log(files)

@@ -92,6 +92,12 @@
       "import": "./crypto/aes-gcm.js",
       "require": "./dist/aes-gcm.cjs"
     },
+    "./delta": {
+      "types": "./delta/d2.d.ts",
+      "module": "./delta/d2.js",
+      "import": "./delta/d2.js",
+      "require": "./dist/d2.cjs"
+    },
     "./crypto/ecdsa": {
       "types": "./crypto/ecdsa.d.ts",
       "module": "./crypto/ecdsa.js",

@@ -65,7 +65,8 @@ export const testDomBindingBackAndForth = () => {
     deltaRDT1.update(Δ.node('div', { id: '43' }, [Δ.node('p', {}, 'text')]))
   })
   test('modify paragraph attr & paragraph content', () => {
-    deltaRDT1.update(Δ.node('div', { id: '42' }, Δ.array(binding.$domDelta).modify(Δ.node('p', {}, 'new text & old '))))
+    // @todo fix typings below
+    deltaRDT1.update(Δ.node('div', { id: '42' }, Δ.array(binding.$domDelta).modify(/** @type {never} */ (Δ.node('p', {}, 'new text & old ')))))
   })
   console.log('el1', el1.outerHTML)
   console.log('el2', el2.outerHTML)

@@ -3,7 +3,6 @@ import * as map from '../map.js'
 import * as object from '../object.js'
 import * as traits from '../traits.js'
 import * as array from '../array.js'
-import * as error from '../error.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
 
@@ -124,7 +123,7 @@ export class TextOp extends list.ListNode {
 }
 
 /**
- * @template {any} ArrayContent
+ * @template ArrayContent
  */
 export class InsertOp extends list.ListNode {
   /**
@@ -556,8 +555,8 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 /**
  * @template {Array<any>|string} C1
  * @template {Array<any>|string} C2
- * @typedef {Extract<C1 | C2, Array<any>> extends never 
- *   ? never 
+ * @typedef {Extract<C1 | C2, Array<any>> extends never
+ *   ? never
  *   : (Array<(Extract<C1 | C2,Array<any>> extends Array<infer AC1> ? AC1 : never)>)} MergeListArrays
  */
 
@@ -585,7 +584,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  * @template {Array<any>|string} [out List=never]
  * @template {s.Schema<Delta<any,any,any>>|null} [Schema=any]
  */
-class Delta {
+export class Delta {
   /**
    * @param {NodeName} [name]
    * @param {Schema} [$schema]
@@ -602,7 +601,7 @@ class Delta {
      *   RetainOp
      *   | DeleteOp
      *   | (string extends List ? TextOp : never)
-     *   | (Array<any> extends List ? InsertOp<Extract<List,Array<any>>> : never)
+     *   | (Array<any> extends List ? InsertOp<Extract<List,Array<any>> extends Array<infer AC> ? AC : never> : never)
      *   | (Delta extends List ? ModifyOp<Extract<List,Delta>> : never)
      * >}
      */
@@ -646,7 +645,7 @@ class Delta {
     return object.assign(
       (this.name != null ? { name: this.name } : {}),
       (object.isEmpty(attrs) ? {} : { attrs }),
-      (children.length > 0 ? { children } : {}),
+      (children.length > 0 ? { children } : {})
     )
   }
 
@@ -738,7 +737,6 @@ class Delta {
     return this
   }
 
-
   /**
    * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer L> ? L : never} NewContent
    * @param {NewContent} insert
@@ -806,7 +804,7 @@ class Delta {
    * >}
    */
   setMany (attrs, attribution = null) {
-    for (let k in attrs) {
+    for (const k in attrs) {
       this.set(/** @type {any} */ (k), attrs[k], attribution)
     }
     return this
@@ -910,30 +908,47 @@ class Delta {
 /**
  * @template {string} NodeName
  * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
- * @template {any} [List=never]
+ * @template {Array<any>|string} [List=never]
+ * @typedef {Delta<NodeName,Attrs,(string extends List ? string : never) | (Extract<List,Array<any>> ) extends Array<infer AC> ? Array<(unknown extends AC ? never : AC) | RecursiveDelta<NodeName,Attrs,List>> : never>} RecursiveDelta
+ */
+
+/**
+ * @template {string} NodeName
+ * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
+ * @template {Array<any>|string} [List=never]
+ * @template {boolean} [Recursive=false]
  * @param {s.Schema<NodeName>?} [$nodeName]
  * @param {s.Schema<Attrs>?} [$attrs]
  * @param {s.Schema<List>?} [$list]
- * @return {s.Schema<Delta<NodeName,Attrs,List>>}
+ * @param {Recursive} [recursive]
+ * @return {s.Schema<Delta<NodeName,Attrs,(string extends List ? string : never) | ((Extract<List,Array<any>> | (Recursive extends true ? Array<RecursiveDelta<NodeName,Attrs,List>> : never)) extends Array<infer AC> ? (unknown extends AC ? never : Array<AC>) : never)>>}
  */
-export const $delta = ($nodeName, $attrs, $list) => {
+export const $delta = ($nodeName, $attrs, $list, recursive) => {
   $nodeName = $nodeName == null ? s.$any : $nodeName
-  $list = $list == null ? s.$never : $list
+  const hasText = s.$$string.check($list) || (s.$$union.check($list) && $list.shape.some(ls => s.$$string.check(ls)))
+  /**
+   * @type {s.Schema<Array<any>>}
+   */
+  let $arrContent = ($list == null ? null : (s.$$array.check($list) ? $list : (s.$$union.check($list) ? ($list.shape.find(ls => s.$$array.check(ls)) || null) : null))) || (recursive ? s.$array() : s.$never)
   const $attrsPartial = $attrs == null ? s.$object({}) : (s.$$object.check($attrs) ? $attrs.partial : $attrs)
-  return /** @type {any} */ (s.$instanceOf(Delta, /** @param {Delta<any,any,any>} d */ d => {
+  const $d = s.$instanceOf(Delta, /** @param {Delta<any,any,any>} d */ d => {
     if (
-      !$nodeName.check(d.name)
-      || Array.from(d.attrs.entries()).some(
-          ([k, op]) => $insertOp.check(op) && !$attrsPartial.check({ [k]: op.value })
-         )
+      !$nodeName.check(d.name) ||
+      Array.from(d.attrs.entries()).some(
+        ([k, op]) => $insertOp.check(op) && !$attrsPartial.check({ [k]: op.value })
+      )
     ) return false
     for (const op of d.children) {
-      if (($insertOp.check(op) || $textOp.check(op)) && !$list.check(op.insert)) {
+      if ((!hasText && $textOp.check(op)) || ($insertOp.check(op) && !$arrContent.check(op.insert))) {
         return false
       }
     }
     return true
-  }))
+  })
+  if (recursive) {
+    $arrContent = s.$array(s.$union(/** @type {s.$Array<any>} */ ($arrContent).shape, $d))
+  }
+  return /** @type {any} */ ($d)
 }
 
 export const $deltaAny = s.$instanceOf(Delta)

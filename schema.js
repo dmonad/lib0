@@ -462,6 +462,10 @@ class $Never extends Schema {
     return false
   }
 }
+
+/**
+ * @type {Schema<never>}
+ */
 export const $never = new $Never()
 export const $$never = $constructedBy($Never)
 
@@ -629,7 +633,7 @@ export class $Array extends Schema {
 
   /**
    * @param {any} o
-   * @param {ValidationError} err
+   * @param {ValidationError} [err]
    * @return {o is Array<S extends Schema<infer T> ? T : never>} o
    */
   check (o, err) {
