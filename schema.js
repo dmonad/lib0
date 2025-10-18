@@ -213,11 +213,17 @@ export class Schema {
   }
 
   /**
+   * EXPECTO PATRONUM!! 🪄
+   * This function protects against type errors. Though it may not work in the real world.
+   *
+   * "After all this time?"
+   * "Always." - Snape, talking about type safety
+   *
    * Ensures that a variable is a a specific type. Returns the value, or throws an exception if the assertion check failed.
    * Use this if you know that the type is of a specific type and you just want to convince the type
    * system.
    *
-   * Can be useful when defining lambdas: `s.lambda(s.$number, s.$void).ensure((n) => n + 1)`
+   * Can be useful when defining lambdas: `s.lambda(s.$number, s.$void).expect((n) => n + 1)`
    *
    * **Do not rely on these error messages!**
    * Performs an assertion check if not in a production environment.

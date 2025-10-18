@@ -5,21 +5,21 @@ import * as error from '../error.js'
 import * as prng from '../prng.js'
 
 export const testDeltaBasics = () => {
-  const $ds = delta.$delta(s.$string, s.$object({ k: s.$number, d: delta.$delta(s.$literal('sub'), s.$object({ }), s.$string) }), s.$string)
+  const $ds = delta.$delta({ name: s.$string, attrs: s.$object({ k: s.$number, d: delta.$delta({ name: s.$literal('sub'), attrs: s.$object({ }), hasText: true }) }), children: s.$number, hasText: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
-  ds.modify('d', delta.create('sub', null, 'hi'))
+  ds.modify('d', delta.create('sub', [null, 'hi']))
   ds.apply(delta.create('root', { k: 42 }, 'content'))
+  ds.apply(delta.create('root', { k: 42 }, 'content', [42]))
   ds.apply(delta.create('root', { k: 42 }))
   // @ts-expect-error
   t.fails(() => ds.apply(delta.create('root', { k: 'hi' }, 'content')))
   const d1 = delta.create().insert('hi')
   d1.insert([42]).insert('hi').insert([{ there: 42 }]).insert(['']).insert(['dtrn']).insert('stri').insert('dtruniae')
   d1.set('hi', 'there').set('test', 42).set(42, 43)
-  /**
-   * @type {delta.Delta<any,{ kv: boolean, x: number }, string | (number|string|{ q: number })[]>}
-   */
   const _tdelta = delta.create().insert('dtrn').insert([42]).insert(['', { q: 42 }]).set('kv', false).set('x', 42) // eslint-disable-line
+  delta.$delta({ name: s.$any, attrs: s.$object({ kv: s.$boolean, x: s.$number }), children: s.$union(s.$string,s.$number,s.$object({q: s.$number})), hasText: true }).expect(_tdelta)
+  console.log(_tdelta)
   // @ts-expect-error
   delta.create().insert('hi').apply(delta.create().insert('there').insert([42]))
   // @ts-expect-error
@@ -28,7 +28,7 @@ export const testDeltaBasics = () => {
   delta.create().set('x', 42).apply(delta.create().set('y', '42'))
   delta.create().set('x', 42).apply(delta.create().unset('x'))
   const t2 = delta.create().insert('hi').insert(['there']).set('k', '42').set('k', 42)
-  t2.apply(delta.create().insert('there').insert(['dtrn']).set('k', 42))
+  t2.apply(delta.create().insert('there').insert(['??']).set('k', 42))
   const m = delta.create().set('x', 42).set('y', 'str').insert('hi').insert([42])
   m.apply(delta.create().set('y', undefined).insert('hi'))
   m.set('k', m).modify('k', m)
@@ -36,12 +36,15 @@ export const testDeltaBasics = () => {
 
 export const testText = () => {
   // only allow certain embeds
-  const q = delta.text(delta.$text(s.$object({m: s.$number})))
+  const $q = delta.$text(s.$object({m: s.$number}))
+  const q = delta.text($q)
+  q.insert('hi')
   q.insert([{ m: 42 }])
   // @ts-expect-error
   q.insert([{ q: 42 }])
-  // @ts-expect-error
-  text().insert([{ m: 42 }])
+  delta.text()
+    // @ts-expect-error
+    .insert([{ m: 42 }])
 }
 
 /**
@@ -56,7 +59,7 @@ export const testDelta = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaMerging = _tc => {
-  const $d = delta.$delta(s.$string, s.$union(s.$object({})), s.$union(s.$string, s.$array(s.$number, s.$object({}))), true)
+  const $d = delta.$delta({ name: s.$string, children: s.$union(s.$number, s.$object({})), hasText: true })
   const d = delta.create($d)
     .insert('hello')
     .insert('world')
@@ -126,7 +129,7 @@ export const testMapDeltaBasics = _tc => {
     num: s.$union(s.$number, s.$string),
     str: s.$string
   })
-  const dmap = delta.create(delta.$delta(s.$any, $d, s.$never))
+  const dmap = delta.create(delta.$delta({ attrs: $d }))
   t.fails(() => {
     // @ts-expect-error
     dmap.apply(delta.create().set('str', 42))
@@ -158,14 +161,12 @@ export const testMapDeltaBasics = _tc => {
  */
 export const testMapDeltaModify = _tc => {
   // Yjs users will create nested Yjs types like this (instead of $mapDelta they would use $yarray):
-  const $d = delta.$delta(s.$any, s.$object({
+  const $d = delta.$delta({ attrs: s.$object({
     num: s.$union(s.$number, s.$string),
     str: s.$string,
-    map: delta.$delta(s.$any, s.$object({ x: s.$number }), s.$never)
-  }), s.$never)
-  const $dsmaller = delta.$delta(s.$any, s.$object({
-    str: s.$string
-  }), s.$never)
+    map: delta.$delta({ attrs: s.$object({ x: s.$number }) })
+  }) })
+  const $dsmaller = delta.$delta({ attrs: s.$object({ str: s.$string }) })
   t.group('test extensibility', () => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
     const d = delta.create().set('num', 42)
@@ -176,11 +177,11 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test delta insert', () => {
     const d = delta.create($d)
-    const testDeleteThis = delta.create(delta.$delta(null, s.$object({ x: s.$number }))).set('x', 42)
+    const testDeleteThis = delta.create(delta.$delta({ attrs: s.$object({ x: s.$number }) })).set('x', 42)
     d.set('map', testDeleteThis)
     d.attrs.forEach(change => {
       if (change.key === 'map' && change.type === 'insert') {
-        delta.$delta(s.$any, s.$object({ x: s.$number }), s.$never).validate(change.value)
+        delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
       } else {
         error.unexpectedCase()
       }
@@ -191,7 +192,7 @@ export const testMapDeltaModify = _tc => {
     d.modify('map', delta.create().unset('x'))
     d.attrs.forEach(change => {
       if (change.key === 'map' && change.type === 'modify') {
-        delta.$delta(null, s.$object({ x: s.$number })).validate(change.value)
+        delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
       } else {
         error.unexpectedCase()
       }
@@ -203,11 +204,11 @@ export const testMapDeltaModify = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testMapDelta = _tc => {
-  const x = delta.$delta(null, s.$object({
+  const x = delta.$delta({ attrs: s.$object({
     key: s.$string,
     v: s.$number,
     over: s.$string
-  }), null)
+  })})
   const d = delta.create(x)
     .unset('over')
     .set('key', 'value')
@@ -256,7 +257,7 @@ export const testMapDelta = _tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatRebaseMergeDeltas = tc => {
-  const $d = delta.$delta(null, s.$object({ a: s.$number, b: delta.$delta(null, s.$object({ x: s.$string })) }))
+  const $d = delta.$delta({ attrs: s.$object({ a: s.$number, b: delta.$delta({ attrs: s.$object({ x: s.$string }) }) }) })
   const gen = tc.prng
   const createDelta = () => {
     const d = delta.create($d)
@@ -327,11 +328,13 @@ export const testRepeatRebaseMergeDeltas = tc => {
  * @param {t.TestCase} _tc
  */
 export const testNodeDelta = _tc => {
-  const $d = delta.$delta(s.$string, s.$object({ a: s.$number }), s.$array(s.$string))
+  const $d = delta.$delta({ name: s.$string, attrs: s.$object({ a: s.$number }), children: s.$string })
   const d = delta.create('test', $d)
   d.insert(['hi'])
   // @ts-expect-error
   d.insert([42])
+  // @ts-expect-error
+  d.insert('hi')
   d.set('a', 1)
   d.unset('a')
   /**
@@ -349,7 +352,7 @@ export const testNodeDelta = _tc => {
 }
 
 export const testRecursiveNode = () => {
-  const $d = delta.$delta(s.$string, s.$object({ q: s.$number }), s.$string, true)
+  const $d = delta.$delta({ name: s.$string, attrs: s.$object({ q: s.$number }), hasText: true, recursive: true })
   const rd = delta.create($d)
   // should allow inserting deltas
   rd.insert([delta.create('hi', { q: 342 })])

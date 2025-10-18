@@ -204,10 +204,10 @@ export class DeleteOp extends list.ListNode {
   /**
    * Remove a part of the operation (similar to Array.splice)
    *
-   * @param {number} offset
+   * @param {number} _offset
    * @param {number} len
    */
-  _splice (offset, len) {
+  _splice (_offset, len) {
     this.delete -= len
   }
 
@@ -316,9 +316,9 @@ export class ModifyOp extends list.ListNode {
    * Remove a part of the operation (similar to Array.splice)
    *
    * @param {number} _offset
-   * @param {number} len
+   * @param {number} _len
    */
-  _splice (_offset, len) {
+  _splice (_offset, _len) {
   }
 
   /**
@@ -575,19 +575,20 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
 /**
  * @template X
- * @typedef {0 extends (1 & X) ? null : X} AnyToNull
+ * @typedef {0 extends (1 & X) ? null : X} _AnyToNull
  */
 
 /**
- * @template {s.Schema<Delta<any,any,any>>|null} Schema
- * @typedef {AnyToNull<Schema> extends null ? Delta<any,{[key:string|number|symbol]:any},Array<any>|string> : (Schema extends s.Schema<infer D> ? D : never)} AllowedDeltaFromSchema
+ * @template {s.Schema<Delta<any,any,any,any,any>>|null} Schema
+ * @typedef {_AnyToNull<Schema> extends null ? Delta<any,{[key:string|number|symbol]:any},any,string> : (Schema extends s.Schema<infer D> ? D : never)} AllowedDeltaFromSchema
  */
 
 /**
  * @template {string} [NodeName=any]
  * @template {{[key:string|number|symbol]:any}} [out Attrs={}]
- * @template {Array<any>|string} [out List=never]
- * @template {s.Schema<Delta<any,any,any>>|null} [Schema=any]
+ * @template {any} [out Children=never]
+ * @template {string|never} [out Text=never]
+ * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
  */
 export class Delta {
   /**
@@ -605,9 +606,9 @@ export class Delta {
      * @type {list.List<
      *   RetainOp
      *   | DeleteOp
-     *   | (string extends List ? TextOp : never)
-     *   | (Array<any> extends List ? InsertOp<Extract<List,Array<any>> extends Array<infer AC> ? AC : never> : never)
-     *   | (Delta extends List ? ModifyOp<Extract<List,Delta>> : never)
+     *   | (Text extends never ? never : TextOp)
+     *   | (Children extends never ? never : InsertOp<Children>)
+     *   | (Delta extends Children ? ModifyOp<Extract<Children,Delta>> : never)
      * >}
      */
     this.children = /** @type {any} */ (list.create())
@@ -655,7 +656,7 @@ export class Delta {
   }
 
   /**
-   * @param {Delta<any,any,any,any>} other
+   * @param {Delta<any,any,any,any,any>} other
    * @return {boolean}
    */
   equals (other) {
@@ -667,7 +668,7 @@ export class Delta {
    */
   clone () {
     /**
-     * @type {Delta<any,{[k:string|number|symbol]:any},any>}
+     * @type {Delta<any,{[k:string|number|symbol]:any},any,any>}
      */
     const d = new Delta(/** @type {any} */ (this.name), this.$schema)
     d.origin = this.origin
@@ -743,15 +744,15 @@ export class Delta {
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer L> ? L : never} NewContent
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer Children,infer Text,infer Schema> ? ((Children extends never ? never : Array<Children>) | Text) : never} NewContent
    * @param {NewContent} insert
    * @param {FormattingAttributes?} [formatting]
    * @param {Attribution?} [attribution]
    * @return {Delta<
    *   NodeName,
    *   Attrs,
-   *   (string extends (List|NewContent) ? string : never)
-   *     | (MergeListArrays<List,NewContent> extends Array<infer AC> ? (unknown extends AC ? never : Array<AC>) : never),
+   *   Exclude<NewContent,string>[number]|Children,
+   *   (Extract<NewContent,string>|Text) extends string ? string : never,
    *   Schema
    * >}
    */
@@ -780,31 +781,65 @@ export class Delta {
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any> ? (keyof Attrs) : never} Key
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any> ? (Attrs[Key]) : never} Val
+   * @param {number} len
+   * @param {FormattingAttributes?} [format]
+   * @param {Attribution?} [attribution]
+   */
+  retain (len, format = null, attribution = null) {
+    const mergedFormats = mergeAttrs(this.usedAttributes, format)
+    const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
+    const lastOp = /** @type {RetainOp|InsertOp<any>} */ (this.children.end)
+    if (lastOp instanceof RetainOp && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
+      lastOp.retain += len
+    } else if (len > 0) {
+      list.pushEnd(this.children, new RetainOp(len, mergedFormats, mergedAttribution))
+    }
+    return this
+  }
+
+  /**
+   * @param {number} len
+   * @return {this}
+   */
+  delete (len) {
+    const lastOp = /** @type {DeleteOp|InsertOp<any>} */ (this.children.end)
+    if (lastOp instanceof DeleteOp) {
+      lastOp.delete += len
+    } else if (len > 0) {
+      list.pushEnd(this.children, new DeleteOp(len))
+    }
+    return this
+  }
+
+  /**
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any,any,any> ? (keyof Attrs) : never} Key
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any,any,any> ? (Attrs[Key]) : never} Val
    * @param {Key} key
    * @param {Val} val
    * @param {Attribution?} attribution
+   * @param {Val|undefined} [prevValue]
    * @return {Delta<
    *   NodeName,
    *   { [K in keyof AddToAttrs<Attrs,Key,Val>]: AddToAttrs<Attrs,Key,Val>[K]  },
-   *   List,
+   *   Children,
+   *   Text,
    *   Schema
    * >}
    */
-  set (key, val, attribution = null) {
-    this.attrs.set(key, /** @type {any} */ (new MapInsertOp(key, val, null, mergeAttrs(this.usedAttribution, attribution))))
+  set (key, val, attribution = null, prevValue) {
+    this.attrs.set(key, /** @type {any} */ (new MapInsertOp(key, val, prevValue, mergeAttrs(this.usedAttribution, attribution))))
     return /** @type {any} */ (this)
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any> ? Attrs : never} NewAttrs
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer Attrs,any,any,any> ? Attrs : never} NewAttrs
    * @param {NewAttrs} attrs
    * @param {Attribution?} attribution
    * @return {Delta<
    *   NodeName,
-   *   { [K in keyof MergeAttrs<Attrs,NewAttrs>]: MergeAttrs<Attrs,NewAttrs>[K]  },
-   *   List,
+   *   { [K in keyof MergeAttrs<Attrs,NewAttrs>]: MergeAttrs<Attrs,NewAttrs>[K] },
+   *   Children,
+   *   Text,
    *   Schema
    * >}
    */
@@ -816,30 +851,33 @@ export class Delta {
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? keyof As : never} Key
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? keyof As : never} Key
    * @param {Key} key
    * @param {Attribution?} attribution
+   * @param {any} [prevValue]
    * @return {Delta<
    *   NodeName,
    *   { [K in keyof AddToAttrs<Attrs,Key,never>]: AddToAttrs<Attrs,Key,never>[K] },
-   *   List,
+   *   Children,
+   *   Text,
    *   Schema
    * >}
    */
-  unset (key, attribution = null) {
-    this.attrs.set(key, /** @type {any} */ (new MapDeleteOp(key, null, mergeAttrs(this.usedAttribution, attribution))))
+  unset (key, attribution = null, prevValue) {
+    this.attrs.set(key, /** @type {any} */ (new MapDeleteOp(key, prevValue, mergeAttrs(this.usedAttribution, attribution))))
     return this
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? { [K in keyof As]: Extract<As[K],Delta<any,any,any,any>> extends never ? never : K }[keyof As] : never} Key
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any> ? Extract<As[Key],Delta<any,any,any,any>> : never} D
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? { [K in keyof As]: Extract<As[K],Delta<any,any,any,any,any>> extends never ? never : K }[keyof As] : never} Key
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? Extract<As[Key],Delta<any,any,any,any,any>> : never} D
    * @param {Key} key
    * @param {D} modify
    * @return {Delta<
    *   NodeName,
    *   { [K in keyof AddToAttrs<Attrs,Key,D>]: AddToAttrs<Attrs,Key,D>[K]  },
-   *   List,
+   *   Children,
+   *   Text,
    *   Schema
    * >}
    */
@@ -849,12 +887,12 @@ export class Delta {
   }
 
   /**
-   * @param {Delta<NodeName,Partial<Attrs>,List,any>} other
+   * @param {Delta<NodeName,Partial<Attrs>,Children,Text,any>} other
    * @return {this}
    */
   apply (other) {
     this.$schema?.expect(other)
-    ;/** @type {Delta<NodeName,Attrs,List,any>} */ (other).attrs.forEach(op => {
+    ;/** @type {Delta<NodeName,Attrs,Children,Text,any>} */ (other).attrs.forEach(op => {
       const c = this.attrs.get(op.key)
       if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
@@ -913,39 +951,40 @@ export class Delta {
 /**
  * @template {string} NodeName
  * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
- * @template {Array<any>|string} [List=never]
- * @typedef {Delta<NodeName,Attrs,(string extends List ? string : never) | (Extract<List,Array<any>> ) extends Array<infer AC> ? Array<(unknown extends AC ? never : AC) | RecursiveDelta<NodeName,Attrs,List>> : never>} RecursiveDelta
+ * @template {any} [Children=never]
+ * @template {string|never} [Text=never]
+ * @typedef {Delta<NodeName,Attrs,Children|RecursiveDelta<NodeName,Attrs,Children>,Text>} RecursiveDelta
  */
 
 /**
  * @template {string} [NodeName=any]
  * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
- * @template {Array<any>|string} [List=never]
+ * @template {any} [Children=never]
+ * @template {boolean} [HasText=false]
  * @template {boolean} [Recursive=false]
- * @param {s.Schema<NodeName>?} [$nodeName]
- * @param {s.Schema<Attrs>?} [$attrs]
- * @param {s.Schema<List>?} [$list]
- * @param {Recursive} [recursive]
+ * @param {object} opts
+ * @param {s.Schema<NodeName>?} [opts.name]
+ * @param {s.Schema<Attrs>?} [opts.attrs]
+ * @param {s.Schema<Children>?} [opts.children]
+ * @param {HasText} [opts.hasText]
+ * @param {Recursive} [opts.recursive]
  * @return {s.Schema<Delta<
  *     NodeName,
  *     Attrs,
- *     (string extends List ? string : never) 
- *       | (
- *         (Extract<List,Array<any>> | (Recursive extends true ? Array<RecursiveDelta<NodeName,Attrs,List>> : never)) extends Array<infer AC> ? (unknown extends AC ? never : Array<AC>) : never
- *       )
+ *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,Text> : never),
+ *     HasText extends true ? string : never
  * >>}
  */
-export const $delta = ($nodeName, $attrs, $list, recursive) => {
-  $nodeName = $nodeName == null ? s.$any : $nodeName
-  const hasText = s.$$string.check($list) || (s.$$union.check($list) && $list.shape.some(ls => s.$$string.check(ls)))
+export const $delta = ({ name, attrs, children, hasText, recursive }) => {
+  name = name == null ? s.$any : name
   /**
    * @type {s.Schema<Array<any>>}
    */
-  let $arrContent = ($list == null ? null : (s.$$array.check($list) ? $list : (s.$$union.check($list) ? ($list.shape.find(ls => s.$$array.check(ls)) || null) : null))) || (recursive ? s.$array() : s.$never)
-  const $attrsPartial = $attrs == null ? s.$object({}) : (s.$$object.check($attrs) ? $attrs.partial : $attrs)
-  const $d = s.$instanceOf(Delta, /** @param {Delta<any,any,any>} d */ d => {
+  let $arrContent = children == null ? s.$never : s.$array(children)
+  const $attrsPartial = attrs == null ? s.$object({}) : (s.$$object.check(attrs) ? attrs.partial : attrs)
+  const $d = s.$instanceOf(Delta, /** @param {Delta<any,any,any,any,any>} d */ d => {
     if (
-      !$nodeName.check(d.name) ||
+      !name.check(d.name) ||
       Array.from(d.attrs.entries()).some(
         ([k, op]) => $insertOp.check(op) && !$attrsPartial.check({ [k]: op.value })
       )
@@ -958,7 +997,7 @@ export const $delta = ($nodeName, $attrs, $list, recursive) => {
     return true
   })
   if (recursive) {
-    $arrContent = s.$array(s.$union(/** @type {s.$Array<any>} */ ($arrContent).shape, $d))
+    $arrContent = children == null ? s.$array($d) : s.$array(children,$d)
   }
   return /** @type {any} */ ($d)
 }
@@ -991,48 +1030,54 @@ export const mergeDeltas = (a, b) => {
 
 /**
  * @overload
- * @return {Delta<any,{},never,null>}
+ * @return {Delta<any,{},never,never,null>}
  */
 /**
  * @template {string} NodeName
  * @overload
  * @param {NodeName} nodeName
- * @return {Delta<NodeName,{},never,null>}
+ * @return {Delta<NodeName,{},never,never,null>}
  */
 /**
  * @template {string} NodeName
- * @template {s.Schema<Delta<any,any,any,any>>} Schema
+ * @template {s.Schema<Delta<any,any,any,any,any>>} Schema
  * @overload
  * @param {NodeName} nodeName
  * @param {Schema} schema
- * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer List,any>> ? Delta<NodeName,Attrs,List,Schema> : never}
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? Delta<NodeName,Attrs,Children,Text,Schema> : never}
  */
 /**
- * @template {s.Schema<Delta<any,any,any,any>>} Schema
+ * @template {s.Schema<Delta<any,any,any,any,any>>} Schema
  * @overload
  * @param {Schema} schema
- * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer List,any>> ? Delta<N,Attrs,List,Schema> : never}
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? Delta<N,Attrs,Children,Text,Schema> : never}
  */
 /**
  * @template {string|null} NodeName
  * @template {{[k:string|number|symbol]:any}|null} Attrs
- * @template {Array<any>|string} Children
+ * @template {Array<Array<any>|string>} Children
  * @overload
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
  * @param {...Children} children
- * @return {Delta<NodeName extends null ? any : NodeName,Attrs extends null ? {} : Attrs,Children[number],null>}
+ * @return {Delta<
+ *   NodeName extends null ? any : NodeName,
+ *   Attrs extends null ? {} : Attrs,
+ *   Extract<Children[number],Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
+ *   Extract<Children[number],string>,
+ *   null
+ * >}
  */
 /**
- * @param {string|s.Schema<Delta<any,any,any,any>>} [nodeNameOrSchema]
- * @param {{[K:string|number|symbol]:any}|s.Schema<Delta<any,any,any,any>>} [attrsOrSchema]
+ * @param {string|s.Schema<Delta<any,any,any,any,any>>} [nodeNameOrSchema]
+ * @param {{[K:string|number|symbol]:any}|s.Schema<Delta<any,any,any,any,any>>} [attrsOrSchema]
  * @param {Array<Array<any>|string>} children
- * @return {Delta<any,any,any,any>}
+ * @return {Delta<any,any,any,any,any>}
  */
 export const create = (nodeNameOrSchema, attrsOrSchema, ...children) => {
   const nodeName = /** @type {any} */ (s.$string.check(nodeNameOrSchema) ? nodeNameOrSchema : null)
   const schema = /** @type {any} */ (s.$$schema.check(nodeNameOrSchema) ? nodeNameOrSchema : (s.$$schema.check(attrsOrSchema) ? attrsOrSchema : null))
-  const d = /** @type {Delta<any,any,any,null>} */ (new Delta(nodeName, schema))
+  const d = /** @type {Delta<any,any,any,string,null>} */ (new Delta(nodeName, schema))
   if (s.$objectAny.check(attrsOrSchema)) {
     d.setMany(attrsOrSchema)
   }
@@ -1044,17 +1089,24 @@ export const create = (nodeNameOrSchema, attrsOrSchema, ...children) => {
   return d
 }
 
+// DELTA TEXT
+
+/**
+ * @template [Embeds=never]
+ * @typedef {Delta<any,{},Embeds,string>} Text
+ */
+
 /**
  * @template {Array<s.Schema<any>>} [$Embeds=any]
  * @param {$Embeds} $embeds
- * @return {s.Schema<Delta<any,{},string|(AnyToNull<$Embeds> extends null ? never : ($Embeds extends Array<s.Schema<infer $C>> ? Array<$C> : never))>>}
+ * @return {s.Schema<Text<_AnyToNull<$Embeds> extends null ? never : ($Embeds extends Array<s.Schema<infer $C>> ? $C : never)>>}
  */
-export const $text = (...$embeds) => /** @type {any} */ ($delta(null, null, $embeds.length === 0 ? s.$string : s.$union(s.$array(...$embeds), s.$string)))
+export const $text = (...$embeds) => /** @type {any} */ ($delta({ children: s.$union(...$embeds), hasText: true }))
 export const $textOnly = $text()
 
 /**
- * @template {s.Schema<Delta<any,{},string|Array<any>,any>>} [Schema=s.Schema<Delta<any,{},string>>]
+ * @template {s.Schema<Delta<any,{},any,any,any>>} [Schema=s.Schema<Delta<any,{},never,string>>]
  * @param {Schema} [$schema]
- * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer List,any>> ? Delta<N,Attrs,List,Schema> : never}
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? Delta<N,Attrs,Children,Text,Schema> : never}
  */
 export const text = $schema => /** @type {any} */ (create($schema || $textOnly))
