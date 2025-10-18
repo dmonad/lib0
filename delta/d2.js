@@ -1,8 +1,8 @@
 import * as list from '../list.js'
-import * as map from '../map.js'
+import * as map_ from '../map.js'
 import * as object from '../object.js'
 import * as traits from '../traits.js'
-import * as array from '../array.js'
+import * as arr from '../array.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
 
@@ -601,7 +601,7 @@ export class Delta {
     /**
      * @type {Map<keyof Attrs, { [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]>}
      */
-    this.attrs = map.create()
+    this.attrs = map_.create()
     /**
      * @type {list.List<
      *   RetainOp
@@ -770,7 +770,7 @@ export class Delta {
       } else if (insert.length > 0) {
         list.pushEnd(this.children, new TextOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
       }
-    } else if (array.isArray(insert)) {
+    } else if (arr.isArray(insert)) {
       if ($insertOp.check(end) && checkMergedEquals(end)) {
         end.insert.push(...insert)
       } else if (insert.length > 0) {
@@ -971,7 +971,7 @@ export class Delta {
  * @return {s.Schema<Delta<
  *     NodeName,
  *     Attrs,
- *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,Text> : never),
+ *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,TextDelta> : never),
  *     HasText extends true ? string : never
  * >>}
  */
@@ -1093,13 +1093,13 @@ export const create = (nodeNameOrSchema, attrsOrSchema, ...children) => {
 
 /**
  * @template [Embeds=never]
- * @typedef {Delta<any,{},Embeds,string>} Text
+ * @typedef {Delta<any,{},Embeds,string>} TextDelta
  */
 
 /**
  * @template {Array<s.Schema<any>>} [$Embeds=any]
  * @param {$Embeds} $embeds
- * @return {s.Schema<Text<_AnyToNull<$Embeds> extends null ? never : ($Embeds extends Array<s.Schema<infer $C>> ? $C : never)>>}
+ * @return {s.Schema<TextDelta<_AnyToNull<$Embeds> extends null ? never : ($Embeds extends Array<s.Schema<infer $C>> ? $C : never)>>}
  */
 export const $text = (...$embeds) => /** @type {any} */ ($delta({ children: s.$union(...$embeds), hasText: true }))
 export const $textOnly = $text()
@@ -1110,3 +1110,43 @@ export const $textOnly = $text()
  * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? Delta<N,Attrs,Children,Text,Schema> : never}
  */
 export const text = $schema => /** @type {any} */ (create($schema || $textOnly))
+
+/**
+ * @template {any} Children
+ * @typedef {Delta<any,{},Children,never>} ArrayDelta
+ */
+
+/**
+ * @template {s.Schema<any>} $Children
+ * @param {$Children} [$children]
+ * @return {s.Schema<ArrayDelta<$Children>>}
+ */
+export const $array = $children => $delta({ children: $children })
+
+/**
+ * @template {s.Schema<ArrayDelta<any>>} [$Schema=never]
+ * @param {$Schema} $schema
+ * @return {$Schema extends never ? ArrayDelta<never> : Delta<any,{},never,never,$Schema>}
+ */
+export const array = $schema => /** @type {any} */ ($schema ? create($schema) : create())
+
+/**
+ * @template {{ [K: string|number|symbol]: any }} Attrs
+ * @typedef {Delta<any,Attrs,never,never>} MapDelta
+ */
+
+/**
+ * @template {{ [K: string|number|symbol]: any }} $Attrs
+ * @param {s.Schema<$Attrs>} $attrs
+ * @return {s.Schema<MapDelta<$Attrs>>}
+ */
+export const $map = $attrs => /** @type {any} */ ($delta({ attrs: $attrs }))
+
+/**
+ * @template {s.Schema<MapDelta<any>>|undefined} [$Schema=undefined]
+ * @param {$Schema} [$schema]
+ * @return {$Schema extends s.Schema<MapDelta<infer Attrs>> ? Delta<any,Attrs,never,never,$Schema> : MapDelta<{}>}
+ */
+export const map = $schema => /** @type {any} */ (create(/** @type {any} */ ($schema)))
+
+

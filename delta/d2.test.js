@@ -121,6 +121,19 @@ export const testUseAttribution = _tc => {
   t.compare(d, d2)
 }
 
+export const testMapTyping = () => {
+  const $q = delta.$map(s.$object({x: s.$number}))
+  const mmm = delta.map().set('x', 42)
+  $q.expect(mmm)
+  const mmm2 = delta.map().set('x', 'xx')
+  // @ts-expect-error
+  $q.expect(mmm2)
+  const q = delta.map($q)
+  q.set('x', 42)
+  // @ts-expect-error
+  q.set('y', 42)
+}
+
 /**
  * @param {t.TestCase} _tc
  */
