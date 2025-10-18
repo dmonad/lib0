@@ -34,6 +34,16 @@ export const testDeltaBasics = () => {
   m.set('k', m).modify('k', m)
 }
 
+export const testText = () => {
+  // only allow certain embeds
+  const q = delta.text(delta.$text(s.$object({m: s.$number})))
+  q.insert([{ m: 42 }])
+  // @ts-expect-error
+  q.insert([{ q: 42 }])
+  // @ts-expect-error
+  text().insert([{ m: 42 }])
+}
+
 /**
  * @param {t.TestCase} _tc
  */

@@ -557,7 +557,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  * @template {Array<any>|string} C2
  * @typedef {Extract<C1 | C2, Array<any>> extends never
  *   ? never
- *   : (Array<(Extract<C1 | C2,Array<any>> extends Array<infer AC1> ? AC1 : never)>)} MergeListArrays
+ *   : (Array<(Extract<C1 | C2,Array<any>> extends Array<infer AC1> ? (unknown extends AC1 ? never : AC1) : never)>)} MergeListArrays
  */
 
 /**
@@ -574,8 +574,13 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  */
 
 /**
+ * @template X
+ * @typedef {0 extends (1 & X) ? null : X} AnyToNull
+ */
+
+/**
  * @template {s.Schema<Delta<any,any,any>>|null} Schema
- * @typedef {Schema extends null ? Delta<any,{[key:string|number|symbol]:any},Array<any>|string> : (Schema extends s.Schema<infer D> ? D : never)} AllowedDeltaFromSchema
+ * @typedef {AnyToNull<Schema> extends null ? Delta<any,{[key:string|number|symbol]:any},Array<any>|string> : (Schema extends s.Schema<infer D> ? D : never)} AllowedDeltaFromSchema
  */
 
 /**
@@ -745,7 +750,7 @@ export class Delta {
    * @return {Delta<
    *   NodeName,
    *   Attrs,
-   *   (string extends (List|(NewContent extends string ? string : never)) ? string : never)
+   *   (string extends (List|NewContent) ? string : never)
    *     | (MergeListArrays<List,NewContent> extends Array<infer AC> ? (unknown extends AC ? never : Array<AC>) : never),
    *   Schema
    * >}
@@ -913,7 +918,7 @@ export class Delta {
  */
 
 /**
- * @template {string} NodeName
+ * @template {string} [NodeName=any]
  * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
  * @template {Array<any>|string} [List=never]
  * @template {boolean} [Recursive=false]
@@ -921,7 +926,14 @@ export class Delta {
  * @param {s.Schema<Attrs>?} [$attrs]
  * @param {s.Schema<List>?} [$list]
  * @param {Recursive} [recursive]
- * @return {s.Schema<Delta<NodeName,Attrs,(string extends List ? string : never) | ((Extract<List,Array<any>> | (Recursive extends true ? Array<RecursiveDelta<NodeName,Attrs,List>> : never)) extends Array<infer AC> ? (unknown extends AC ? never : Array<AC>) : never)>>}
+ * @return {s.Schema<Delta<
+ *     NodeName,
+ *     Attrs,
+ *     (string extends List ? string : never) 
+ *       | (
+ *         (Extract<List,Array<any>> | (Recursive extends true ? Array<RecursiveDelta<NodeName,Attrs,List>> : never)) extends Array<infer AC> ? (unknown extends AC ? never : Array<AC>) : never
+ *       )
+ * >>}
  */
 export const $delta = ($nodeName, $attrs, $list, recursive) => {
   $nodeName = $nodeName == null ? s.$any : $nodeName
@@ -1031,3 +1043,18 @@ export const create = (nodeNameOrSchema, attrsOrSchema, ...children) => {
   }
   return d
 }
+
+/**
+ * @template {Array<s.Schema<any>>} [$Embeds=any]
+ * @param {$Embeds} $embeds
+ * @return {s.Schema<Delta<any,{},string|(AnyToNull<$Embeds> extends null ? never : ($Embeds extends Array<s.Schema<infer $C>> ? Array<$C> : never))>>}
+ */
+export const $text = (...$embeds) => /** @type {any} */ ($delta(null, null, $embeds.length === 0 ? s.$string : s.$union(s.$array(...$embeds), s.$string)))
+export const $textOnly = $text()
+
+/**
+ * @template {s.Schema<Delta<any,{},string|Array<any>,any>>} [Schema=s.Schema<Delta<any,{},string>>]
+ * @param {Schema} [$schema]
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer List,any>> ? Delta<N,Attrs,List,Schema> : never}
+ */
+export const text = $schema => /** @type {any} */ (create($schema || $textOnly))

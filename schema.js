@@ -205,7 +205,7 @@ export class Schema {
    *
    * @template OO
    * @param {OO} o
-   * @return {Extract<OO, T> extends never ? T : Extract<OO,T>}
+   * @return {Extract<OO, T> extends never ? T : (OO extends Array<never> ? T : Extract<OO,T>)}
    */
   cast (o) {
     assert(o, this)
@@ -803,10 +803,10 @@ export class $Union extends Schema {
 
 /**
  * @template {Array<Schema<any>>} T
- * @param {T} def
+ * @param {T} schemas
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<Schema<infer S>> ? S : never)>>}
  */
-export const $union = (...def) => $$union.check(def[0]) ? new $Union([...def[0].shape, ...def.slice(1)]) : new $Union(def)
+export const $union = (...schemas) => $$union.check(schemas[0]) ? new $Union([...schemas[0].shape, ...schemas.slice(1)]) : (schemas.length === 1 ? schemas[0] : new $Union(schemas))
 export const $$union = /** @type {Schema<$Union<any>>} */ ($constructedBy($Union))
 
 const _t = () => true

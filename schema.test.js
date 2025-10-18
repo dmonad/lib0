@@ -241,6 +241,14 @@ export const testSchemas = _tc => {
   })
 }
 
+export const testSchemaExpect = () => {
+  // Array<never> is an edge case
+  const q = s.$array(s.$string)
+  const m = q.cast([]) // should be of type string[]
+  // @ts-expect-error
+  s.$array(s.$never).expect(m)
+}
+
 /**
  * @param {t.TestCase} _tc
  */
