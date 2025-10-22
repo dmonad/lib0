@@ -8,7 +8,7 @@ export const testDeltaBasics = () => {
   const $ds = delta.$delta({ name: s.$string, attrs: s.$object({ k: s.$number, d: delta.$delta({ name: s.$literal('sub'), attrs: s.$object({ }), hasText: true }) }), children: s.$number, hasText: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
-  ds.modify('d', delta.create('sub', [null, 'hi']))
+  ds.update('d', delta.create('sub', [null, 'hi']))
   ds.apply(delta.create('root', { k: 42 }, 'content'))
   ds.apply(delta.create('root', { k: 42 }, 'content', [42]))
   ds.apply(delta.create('root', { k: 42 }))
@@ -18,7 +18,7 @@ export const testDeltaBasics = () => {
   d1.insert([42]).insert('hi').insert([{ there: 42 }]).insert(['']).insert(['dtrn']).insert('stri').insert('dtruniae')
   d1.set('hi', 'there').set('test', 42).set(42, 43)
   const _tdelta = delta.create().insert('dtrn').insert([42]).insert(['', { q: 42 }]).set('kv', false).set('x', 42) // eslint-disable-line
-  delta.$delta({ name: s.$any, attrs: s.$object({ kv: s.$boolean, x: s.$number }), children: s.$union(s.$string,s.$number,s.$object({q: s.$number})), hasText: true }).expect(_tdelta)
+  delta.$delta({ name: s.$any, attrs: s.$object({ kv: s.$boolean, x: s.$number }), children: s.$union(s.$string, s.$number, s.$object({ q: s.$number })), hasText: true }).expect(_tdelta)
   console.log(_tdelta)
   // @ts-expect-error
   delta.create().insert('hi').apply(delta.create().insert('there').insert([42]))
@@ -31,12 +31,12 @@ export const testDeltaBasics = () => {
   t2.apply(delta.create().insert('there').insert(['??']).set('k', 42))
   const m = delta.create().set('x', 42).set('y', 'str').insert('hi').insert([42])
   m.apply(delta.create().set('y', undefined).insert('hi'))
-  m.set('k', m).modify('k', m)
+  m.set('k', m).update('k', m)
 }
 
 export const testText = () => {
   // only allow certain embeds
-  const $q = delta.$text(s.$object({m: s.$number}))
+  const $q = delta.$text(s.$object({ m: s.$number }))
   const q = delta.text($q)
   q.insert('hi')
   q.insert([{ m: 42 }])
@@ -122,12 +122,14 @@ export const testUseAttribution = _tc => {
 }
 
 export const testMapTyping = () => {
-  const $q = delta.$map(s.$object({x: s.$number}))
+  const $q = delta.$map(s.$object({ x: s.$number }))
   const mmm = delta.map().set('x', 42)
   $q.expect(mmm)
   const mmm2 = delta.map().set('x', 'xx')
-  // @ts-expect-error
-  $q.expect(mmm2)
+  t.fails(() => {
+    // @ts-expect-error
+    $q.expect(mmm2)
+  })
   const q = delta.map($q)
   q.set('x', 42)
   // @ts-expect-error
@@ -174,11 +176,13 @@ export const testMapDeltaBasics = _tc => {
  */
 export const testMapDeltaModify = _tc => {
   // Yjs users will create nested Yjs types like this (instead of $mapDelta they would use $yarray):
-  const $d = delta.$delta({ attrs: s.$object({
-    num: s.$union(s.$number, s.$string),
-    str: s.$string,
-    map: delta.$delta({ attrs: s.$object({ x: s.$number }) })
-  }) })
+  const $d = delta.$delta({
+    attrs: s.$object({
+      num: s.$union(s.$number, s.$string),
+      str: s.$string,
+      map: delta.$delta({ attrs: s.$object({ x: s.$number }) })
+    })
+  })
   const $dsmaller = delta.$delta({ attrs: s.$object({ str: s.$string }) })
   t.group('test extensibility', () => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
@@ -202,7 +206,7 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test modify', () => {
     const d = delta.create($d)
-    d.modify('map', delta.create().unset('x'))
+    d.update('map', delta.create().unset('x'))
     d.attrs.forEach(change => {
       if (change.key === 'map' && change.type === 'modify') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
@@ -217,11 +221,13 @@ export const testMapDeltaModify = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testMapDelta = _tc => {
-  const x = delta.$delta({ attrs: s.$object({
-    key: s.$string,
-    v: s.$number,
-    over: s.$string
-  })})
+  const x = delta.$delta({
+    attrs: s.$object({
+      key: s.$string,
+      v: s.$number,
+      over: s.$string
+    })
+  })
   const d = delta.create(x)
     .unset('over')
     .set('key', 'value')
@@ -285,7 +291,7 @@ export const testRepeatRebaseMergeDeltas = tc => {
           d.set('b', delta.create().set('x', prng.utf16String(gen)))
         } else {
           // 25% chance to create a modify op on 'b'
-          d.modify('b', delta.create().set('x', prng.utf16String(gen)))
+          d.update('b', delta.create().set('x', prng.utf16String(gen)))
         }
       },
       // create delete

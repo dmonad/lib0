@@ -5,6 +5,8 @@ import * as traits from '../traits.js'
 import * as arr from '../array.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
+import * as error from '../error.js'
+import * as math from '../math.js'
 
 /**
  * @typedef {{
@@ -50,8 +52,17 @@ export const $attribution = s.$object({
  */
 
 /**
- * @typedef {{ type: 'insert', value: any, prevValue?: any, attribution?: Attribution } | { type: 'delete', attribution?: Attribution } | { type: 'modify', modify: DeltaJSON }} DeltaAttrOpJSON
+ * @typedef {{ type: 'insert', value: any, prevValue?: any, attribution?: Attribution } | { type: 'delete', prevValue?: any, attribution?: Attribution } | { type: 'modify', modify: DeltaJSON }} DeltaAttrOpJSON
  */
+
+/**
+ * @type {s.Schema<DeltaAttrOpJSON>}
+ */
+export const $deltaMapChangeJson = s.$union(
+  s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.optional }),
+  s.$object({ type: s.$literal('modify'), modify: s.$any }),
+  s.$object({ type: s.$literal('delete'), prevValue: s.$any.optional, attribution: $attribution.optional })
+)
 
 /**
  * @template {{[key:string]: any} | null} Attrs
@@ -104,7 +115,8 @@ export class TextOp extends list.ListNode {
    * @return {DeltaListOpJSON}
    */
   toJSON () {
-    return object.assign({ insert: this.insert }, this.format ? { format: this.format } : ({}), this.attribution ? { attribution: this.attribution } : ({}))
+    const { insert, format, attribution } = this
+    return object.assign({ insert }, format != null ? { format } : ({}), attribution != null ? { attribution } : ({}))
   }
 
   /**
@@ -163,7 +175,8 @@ export class InsertOp extends list.ListNode {
    * @return {DeltaListOpJSON}
    */
   toJSON () {
-    return object.assign({ insert: this.insert.map(ins => $deltaAny.check(ins) ? ins.toJSON() : ins) }, this.format ? { format: this.format } : ({}), this.attribution ? { attribution: this.attribution } : ({}))
+    const { insert, format, attribution } = this
+    return object.assign({ insert: insert.map(ins => $deltaAny.check(ins) ? ins.toJSON() : ins) }, format ? { format } : ({}), attribution != null ? { attribution } : ({}))
   }
 
   /**
@@ -268,7 +281,8 @@ export class RetainOp extends list.ListNode {
    * @return {DeltaListOpJSON}
    */
   toJSON () {
-    return object.assign({ retain: this.retain }, this.format ? { format: this.format } : {}, this.attribution ? { attribution: this.attribution } : {})
+    const { retain, format, attribution } = this
+    return object.assign({ retain }, format ? { format } : {}, attribution != null ? { attribution } : {})
   }
 
   /**
@@ -286,7 +300,7 @@ export class RetainOp extends list.ListNode {
 /**
  * Delta that can be applied on a YType Embed
  *
- * @template {{ toJSON(): any } & traits.EqualityTrait & { clone: any }} DTypes
+ * @template {Delta<any,any,any,any,any>} DTypes
  */
 export class ModifyOp extends list.ListNode {
   /**
@@ -325,7 +339,8 @@ export class ModifyOp extends list.ListNode {
    * @return {DeltaListOpJSON}
    */
   toJSON () {
-    return object.assign({ modify: this.modify.toJSON() }, this.format ? { format: this.format } : {}, this.attribution ? { attribution: this.attribution } : {})
+    const { modify, attribution, format } = this
+    return object.assign({ modify: modify.toJSON() }, format ? { format } : {}, attribution != null ? { attribution } : {})
   }
 
   /**
@@ -376,10 +391,13 @@ export class MapInsertOp {
   get type () { return 'insert' }
 
   toJSON () {
+    const v = this.value
+    const prevValue = this.prevValue
+    const attribution = this.attribution
     return object.assign({
       type: this.type,
-      value: $deltaAny.check(this.value) ? this.value.toJSON() : this.value
-    }, this.attribution ? { attribution: this.attribution } : {})
+      value: $deltaAny.check(v) ? v.toJSON() : v
+    }, attribution != null ? { attribution } : {}, prevValue !== undefined ? { prevValue } : {})
   }
 
   /**
@@ -430,7 +448,10 @@ export class MapDeleteOp {
    * @return {DeltaAttrOpJSON}
    */
   toJSON () {
-    return object.assign({ type: this.type }, this.attribution ? { attribution: this.attribution } : {})
+    const {
+      type, attribution, prevValue
+    } = this
+    return object.assign({ type }, attribution != null ? { attribution } : {}, prevValue !== undefined ? { prevValue } : {})
   }
 
   /**
@@ -494,12 +515,6 @@ export class MapModifyOp {
     return new MapModifyOp(this.key, this.value.clone())
   }
 }
-
-export const $deltaMapChangeJson = s.$union(
-  s.$object({ type: s.$literal('insert'), value: s.$any, attribution: $attribution.nullable.optional }),
-  s.$object({ type: s.$literal('modify'), value: s.$any }),
-  s.$object({ type: s.$literal('delete'), attribution: $attribution.nullable.optional })
-)
 
 /**
  * @type {s.Schema<MapDeleteOp<any> | DeleteOp>}
@@ -781,6 +796,26 @@ export class Delta {
   }
 
   /**
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer Children,any,any> ? Extract<Children,Delta<any,any,any,any,any>> : never} NewContent
+   * @param {NewContent} modify
+   * @param {FormattingAttributes?} formatting
+   * @param {Attribution?} attribution
+   * @return {Delta<
+   *   NodeName,
+   *   Attrs,
+   *   Exclude<NewContent,string>[number]|Children,
+   *   (Extract<NewContent,string>|Text) extends string ? string : never,
+   *   Schema
+   * >}
+   */
+  modify (modify, formatting = null, attribution = null) {
+    const mergedAttributes = mergeAttrs(this.usedAttributes, formatting)
+    const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
+    list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+    return /** @type {any} */ (this)
+  }
+
+  /**
    * @param {number} len
    * @param {FormattingAttributes?} [format]
    * @param {Attribution?} [attribution]
@@ -847,7 +882,7 @@ export class Delta {
     for (const k in attrs) {
       this.set(/** @type {any} */ (k), attrs[k], attribution)
     }
-    return this
+    return /** @type {any} */ (this)
   }
 
   /**
@@ -881,9 +916,9 @@ export class Delta {
    *   Schema
    * >}
    */
-  modify (key, modify) {
+  update (key, modify) {
     this.attrs.set(key, /** @type {any} */ (new MapModifyOp(key, modify)))
-    return this
+    return /** @type {any} */ (this)
   }
 
   /**
@@ -892,7 +927,8 @@ export class Delta {
    */
   apply (other) {
     this.$schema?.expect(other)
-    ;/** @type {Delta<NodeName,Attrs,Children,Text,any>} */ (other).attrs.forEach(op => {
+    // apply attrs
+    ;/** @type {Delta<NodeName,Attrs,Children,Text,any>} */ (/** @type {any} */ (other)).attrs.forEach(op => {
       const c = this.attrs.get(op.key)
       if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
@@ -906,14 +942,124 @@ export class Delta {
         this.attrs.set(op.key, /** @type {any} */ (op))
       }
     })
+    // apply children
+    let opsI = this.children.start 
+    let offset = 0
+    other.children.forEach(op => {
+      if ($textOp.check(op) || $insertOp.check(op)) {
+        if (offset === 0) {
+          list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, op.clone())
+        } else {
+          if (opsI == null) error.unexpectedCase()
+          const cpy = opsI.clone()
+          cpy._splice(0, offset)
+          opsI._splice(offset, opsI.length - offset)
+          list.insertBetween(this.children, opsI, opsI.next || null, cpy)
+          list.insertBetween(this.children, opsI, cpy || null, op)
+          offset = 0
+        }
+      } else if ($retainOp.check(op)) {
+        let skipLen = op.length
+        while (opsI != null && opsI.length - offset <= skipLen) {
+          skipLen -= opsI.length - offset
+          opsI = opsI?.next || null
+          offset = 0
+        }
+        if (opsI != null) {
+          offset += skipLen
+        } else {
+          list.pushEnd(this.children, new RetainOp(skipLen, op.format, op.attribution))
+        }
+      } else if ($deleteOp.check(op)) {
+        let remainingLen = op.delete
+        while (remainingLen > 0) {
+          if (opsI == null) {
+            list.pushEnd(this.children, new DeleteOp(remainingLen))
+            break
+          } else if (opsI instanceof DeleteOp) {
+            const delLen = opsI.length - offset
+            // the same content can't be deleted twice, remove duplicated deletes
+            if (delLen >= remainingLen) {
+              offset = 0
+              opsI = opsI.next
+            } else {
+              offset += remainingLen
+            }
+            remainingLen -= delLen
+          } else { // insert / embed / retain / modify ⇒ replace
+            // case1: delete o fully
+            // case2: delete some part of beginning
+            // case3: delete some part of end
+            // case4: delete some part of center
+            const delLen = math.min(opsI.length - offset, remainingLen)
+            if (opsI.length === delLen) {
+              // case 1
+              offset = 0
+              list.remove(this.children, opsI)
+            } else if (offset === 0) {
+              // case 2
+              offset = 0
+              opsI._splice(0, delLen)
+            } else if (offset + delLen === opsI.length) {
+              // case 3
+              opsI._splice(offset, delLen)
+              offset = 0
+              opsI = opsI.next
+            } else {
+              // case 4
+              opsI._splice(offset, delLen)
+            }
+            remainingLen -= delLen
+          }
+        }       
+      } else if ($modifyOp.check(op)) {
+        if (opsI == null) {
+          list.pushEnd(this.children, op.clone())
+          return
+        }
+        if ($modifyOp.check(opsI)) {
+          opsI.modify.apply(op.modify)
+        } else if ($textOp.check(opsI) || $insertOp.check(opsI)) {
+          const d = opsI.insert[offset]
+          if (!$deltaAny.check(d)) {
+            // probably incompatible delta. can only modify deltas
+            error.unexpectedCase()
+          }
+          d.apply(op.modify)
+        } else if ($retainOp.check(opsI)) {
+          if (offset > 0) {
+            const cpy = opsI.clone()
+            cpy._splice(offset, opsI.length - offset) // skipped len
+            opsI._splice(0, offset) // new remainder
+            list.insertBetween(this.children, opsI.prev, opsI, cpy) // insert skipped len
+            offset = 0
+          }
+          // not deleting opsI, because current idea is that modify should not
+          // advance content
+          list.insertBetween(this.children, opsI.prev, opsI, op.clone()) // insert skipped len
+          if (opsI.length === 1) {
+            list.remove(this.children, opsI)
+          } else {
+            opsI._splice(0, 1)
+          }
+        } else if ($deleteOp.check(opsI)) {
+          // nop
+        } else {
+          error.unexpectedCase()
+        }
+      } else {
+        error.unexpectedCase()
+      }
+    })
     return this
   }
 
   /**
-   * @param {Delta} other
+   * @param {Delta<any,any,any,any,any>} other
    * @param {boolean} priority
    */
   rebase (other, priority) {
+    // @todo rebase children
     /**
      * Rebase attributes
      *
@@ -945,6 +1091,15 @@ export class Delta {
         }
       }
     })
+    return this
+  }
+
+  done () {
+    const cs = this.children
+    for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null; end = cs.end) {
+      list.popEnd(cs)      
+    }
+    return this
   }
 }
 
@@ -971,7 +1126,7 @@ export class Delta {
  * @return {s.Schema<Delta<
  *     NodeName,
  *     Attrs,
- *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,TextDelta> : never),
+ *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,HasText extends true ? string : never> : never),
  *     HasText extends true ? string : never
  * >>}
  */
@@ -997,7 +1152,7 @@ export const $delta = ({ name, attrs, children, hasText, recursive }) => {
     return true
   })
   if (recursive) {
-    $arrContent = children == null ? s.$array($d) : s.$array(children,$d)
+    $arrContent = children == null ? s.$array($d) : s.$array(children, $d)
   }
   return /** @type {any} */ ($d)
 }
@@ -1105,7 +1260,7 @@ export const $text = (...$embeds) => /** @type {any} */ ($delta({ children: s.$u
 export const $textOnly = $text()
 
 /**
- * @template {s.Schema<Delta<any,{},any,any,any>>} [Schema=s.Schema<Delta<any,{},never,string>>]
+ * @template {s.Schema<Delta<any,{},any,any,null>>} [Schema=s.Schema<Delta<any,{},never,string,null>>]
  * @param {Schema} [$schema]
  * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? Delta<N,Attrs,Children,Text,Schema> : never}
  */
@@ -1148,5 +1303,3 @@ export const $map = $attrs => /** @type {any} */ ($delta({ attrs: $attrs }))
  * @return {$Schema extends s.Schema<MapDelta<infer Attrs>> ? Delta<any,Attrs,never,never,$Schema> : MapDelta<{}>}
  */
 export const map = $schema => /** @type {any} */ (create(/** @type {any} */ ($schema)))
-
-

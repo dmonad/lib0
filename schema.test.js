@@ -324,8 +324,8 @@ export const testStringTemplate = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testSchemaExtends = _tc => {
-  const t1 = s.$union(s.$number)
-  const t2 = s.$union(s.$number, s.$string)
+  const t1 = s.$union(s.$number, s.$string)
+  const t2 = s.$union(s.$number, s.$string, s.$null)
 
   t.assert(t2.extends(t1))
   t.assert(!t1.extends(t2))
