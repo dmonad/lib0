@@ -943,7 +943,7 @@ export class Delta {
       }
     })
     // apply children
-    let opsI = this.children.start 
+    let opsI = this.children.start
     let offset = 0
     other.children.forEach(op => {
       if ($textOp.check(op) || $insertOp.check(op)) {
@@ -1011,7 +1011,7 @@ export class Delta {
             }
             remainingLen -= delLen
           }
-        }       
+        }
       } else if ($modifyOp.check(op)) {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
@@ -1097,7 +1097,7 @@ export class Delta {
   done () {
     const cs = this.children
     for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null; end = cs.end) {
-      list.popEnd(cs)      
+      list.popEnd(cs)
     }
     return this
   }
