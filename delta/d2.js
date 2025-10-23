@@ -1,3 +1,7 @@
+/**
+ * @beta this API is about to change
+ */
+
 import * as list from '../list.js'
 import * as map_ from '../map.js'
 import * as object from '../object.js'

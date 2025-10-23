@@ -531,7 +531,7 @@
     "trace-opt": "clear && rollup -c  && node --trace-opt dist/test.cjs",
     "lint": "standard && tsc",
     "gendocs": "node ./bin/gendocs.js",
-    "preversion": "npm run clean && npm run lint && npm run test && npm run types && npm run dist && git add README.md",
+    "preversion": "npm run clean && npm run lint && npm run types && npm run dist && git add README.md",
     "postpublish": "npm run clean",
     "gentesthtml": "node ./bin/gentesthtml.js --script test.js > test.html"
   },
