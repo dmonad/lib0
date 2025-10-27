@@ -8,9 +8,9 @@ export const testDeltaBasics = () => {
   const $ds = delta.$delta({ name: s.$string, attrs: s.$object({ k: s.$number, d: delta.$delta({ name: s.$literal('sub'), attrs: s.$object({ }), hasText: true }) }), children: s.$number, hasText: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
-  ds.update('d', delta.create('sub', [null, 'hi']))
+  ds.update('d', delta.create('sub', null, 'hi'))
   ds.apply(delta.create('root', { k: 42 }, 'content'))
-  ds.apply(delta.create('root', { k: 42 }, 'content', [42]))
+  ds.apply(delta.create('root', { k: 42 }, [42]))
   ds.apply(delta.create('root', { k: 42 }))
   // @ts-expect-error
   t.fails(() => ds.apply(delta.create('root', { k: 'hi' }, 'content')))
@@ -34,6 +34,131 @@ export const testDeltaBasics = () => {
   m.set('k', m).update('k', m)
 }
 
+/**
+ * It should be possible to assign delta "subsets" to "supersets", but not the other way around
+ */
+export const testAssignability = () => {
+  t.group('map - prop is a subset of the other', () => {
+    /**
+     * @type {delta.Delta<any,{ a: number },any,any,any>}
+     */
+    let subset = delta.create(delta.$delta({ attrs: s.$object({ a: s.$number }) })).done()
+    /**
+     * @type {delta.Delta<any,{ a: number|string },any,any,any>}
+     */
+    let superset = delta.create(delta.$delta({ attrs: s.$object({ a: s.$union(s.$number, s.$string) }) })).done()
+    superset = subset
+    // @ts-expect-error
+    subset = superset
+  })
+  t.group('map - map is a subset of the other', () => {
+    /**
+     * @type {delta.Delta<any,{ a: number },any,any,any>}
+     */
+    const d = delta.create(delta.$delta({ attrs: s.$object({ a: s.$number }) })).done()
+    /**
+     * @type {delta.Delta<any,{ a: number, b: string },any,any,any>}
+     */
+    let m = delta.create(delta.$delta({ attrs: s.$object({ a: s.$number, b: s.$string }) })).done()
+    m = d
+    return m
+  })
+
+  t.group('children - are different', () => {
+    /**
+     * @type {delta.Delta<any,{},number,any,any>}
+     */
+    let a = delta.create(delta.$delta({ children: s.$number })).done()
+    /**
+     * @type {delta.Delta<any,{},string,any,any>}
+     */
+    let b = delta.create(delta.$delta({ children: s.$string })).done()
+    // @ts-expect-error
+    a = b
+    // @ts-expect-error
+    b = a
+  })
+  t.group('children - is a subset of the other', () => {
+    /**
+     * @type {delta.Delta<any,{},number,any,any>}
+     */
+    let a = delta.create(delta.$delta({ children: s.$number })).done()
+    /**
+     * @type {delta.Delta<any,{},number|string,any,any>}
+     */
+    let b = delta.create(delta.$delta({ children: s.$union(s.$string,s.$number) })).done()
+    b = a
+    // @ts-expect-error
+    a = b
+  })
+  t.group('children - is a subset of the other - with modify', () => {
+    const $child = delta.$delta({ name: s.$literal('string'), attrs: s.$object({ a: s.$number }) })
+    /**
+     * @type {delta.Delta<any,{},number,any,any>}
+     */
+    let a = delta.create(delta.$delta({ children: s.$number })).done()
+    /**
+     * @type {delta.Delta<any,{},number|string|s.Unwrap<$child>,any,any>}
+     */
+    let b = delta.create(delta.$delta({ children: s.$union(s.$string,s.$number,$child) })).done()
+    b = a
+    // @ts-expect-error
+    a = b
+  })
+  t.group('children - is a subset of the other - with different modify', () => {
+    const $child = delta.$delta({ name: s.$literal('string'), attrs: s.$object({ a: s.$string }), hasText: false })
+    const $child2 = delta.$delta({ name: s.$literal('number'), attrs: s.$object({ a: s.$number }), hasText: false })
+    /**
+     * @type {delta.Delta<any,{},s.Unwrap<$child>,never,any>}
+     */
+    let a = delta.create(delta.$delta({ children: $child })).done()
+    /**
+     * @type {delta.Delta<any,{},s.Unwrap<$child>|s.Unwrap<$child2>,never,any>}
+     */
+    let b = delta.create(delta.$delta({ children: s.$union($child,$child2) })).done()
+    /**
+     * @type {delta.Delta<any,{},s.Unwrap<$child2>,never,any>}
+     */
+    let c = delta.create(delta.$delta({ children: $child2 })).done()
+    // d is a superset of a and b
+    let d = delta.create(delta.$delta({ children: delta.$delta({ attrs: s.$object({a: s.$union(s.$string,s.$number)}) }), hasText: false })).done()
+    b = a
+    // @ts-expect-error
+    a = b
+    // @ts-expect-error different children
+    c = a
+    d = a
+    d = b
+  })
+  t.group('text+array builder - text and array builder support', () => {
+    const $d = delta.$delta({ name: s.$literal('string'), children: s.$number, hasText: true })
+    /**
+     * @type {delta.Delta<'string', {}, number, string>}
+     */
+    let d = delta.create($d)
+    const b1 = delta.create('string', null, 'hi')
+    $d.expect(b1)
+    const b2 = delta.create('string', null, ['there'])
+    // @ts-expect-error
+    d = b2
+    t.fails(() => {
+      // @ts-expect-error
+      $d.expect(b2)
+    })
+    const b3 = delta.create('string', null, 'hi').insert([42])
+    d = b3
+    $d.expect(b3)
+    const b4 = delta.create('string', null, [42])
+    d = b4
+    $d.expect(b4)
+  })
+  // @todo
+  // val subset
+  // string subset
+  // DeltaAny is greates set
+  // Default Delta is smallest set
+}
+
 export const testText = () => {
   // only allow certain embeds
   const $q = delta.$text(s.$object({ m: s.$number }))
@@ -52,7 +177,7 @@ export const testText = () => {
  */
 export const testDelta = _tc => {
   const d = delta.create().insert('hello').insert(' ').useAttributes({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!')
-  t.compare(d.toJSON(), { children: [{ insert: 'hello ' }, { insert: 'world', format: { bold: true } }, { insert: '!', format: { bold: true }, attribution: { insert: ['tester'] } }] })
+  t.compare(d.toJSON(), { children: [{ type: 'insert', insert: 'hello ' }, { type: 'insert', insert: 'world', format: { bold: true } }, { type: 'insert', insert: '!', format: { bold: true }, attribution: { insert: ['tester'] } }] })
 }
 
 /**
@@ -67,7 +192,7 @@ export const testDeltaMerging = _tc => {
     .insert([{}])
     .insert([1])
     .insert([2])
-  t.compare(d.toJSON(), { children: [{ insert: 'helloworld' }, { insert: ' ', format: { italic: true } }, { insert: [{}, 1, 2] }] })
+  t.compare(d.toJSON(), { children: [{ type: 'insert', insert: 'helloworld' }, { type: 'insert', insert: ' ', format: { italic: true } }, { type: 'insert', insert: [{}, 1, 2] }] })
 }
 
 /**
@@ -150,7 +275,7 @@ export const testMapDeltaBasics = _tc => {
     dmap.apply(delta.create().set('str', 42))
   })
   dmap.set('str', 'hi')
-  dmap.attrs.forEach((c) => {
+  delta.forEachAttr(dmap, c => {
     if (c.key === 'str') {
       // @ts-expect-error because value can't be a string
       t.assert(c.value !== 42)
@@ -161,14 +286,10 @@ export const testMapDeltaBasics = _tc => {
       s.assert(c, s.$never)
     }
   })
-  // @ts-expect-error
-  dmap.attrs.get('?')
-  const x = dmap.attrs.get('str')
+  const x = dmap.attrs.str
   t.assert(delta.$insertOpWith(s.$string).optional.check(x) && delta.$insertOpWith(s.$string).optional.validate(x))
   t.assert(!delta.$insertOpWith(s.$number).optional.check(x))
-  dmap.attrs.has('str')
-  // @ts-expect-error should throw type error
-  dmap.attrs.has('_')
+  t.assert(dmap.attrs.str !== null)
 }
 
 /**
@@ -196,7 +317,7 @@ export const testMapDeltaModify = _tc => {
     const d = delta.create($d)
     const testDeleteThis = delta.create(delta.$delta({ attrs: s.$object({ x: s.$number }) })).set('x', 42)
     d.set('map', testDeleteThis)
-    d.attrs.forEach(change => {
+    delta.forEachAttr(d, change => {
       if (change.key === 'map' && change.type === 'insert') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
       } else {
@@ -207,7 +328,7 @@ export const testMapDeltaModify = _tc => {
   t.group('test modify', () => {
     const d = delta.create($d)
     d.update('map', delta.create().unset('x'))
-    d.attrs.forEach(change => {
+    delta.forEachAttr(d, change => {
       if (change.key === 'map' && change.type === 'modify') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
       } else {
@@ -244,9 +365,9 @@ export const testMapDelta = _tc => {
     }
   })
   t.compare(d.origin, null)
-  d.attrs.forEach(change => {
+  delta.forEachAttr(d, change => {
     if (change.key === 'v') {
-      t.assert(d.attrs.get(change.key)?.prevValue !== 94) // should know that value is number
+      t.assert(d.attrs[change.key]?.prevValue !== 94) // should know that value is number
       if (delta.$insertOp.check(change)) {
         // @ts-expect-error
         t.assert(change.value !== '')
@@ -262,7 +383,7 @@ export const testMapDelta = _tc => {
         // @ts-expect-error should know that prevValue is not a string
         t.assert(change.prevValue !== 42)
       }
-      t.assert(d.attrs.get(change.key)?.value === 'value') // show know that value is a string
+      t.assert(d.attrs[change.key]?.value === 'value') // show know that value is a string
       t.assert(change.value === 'value')
     } else if (change.key === 'over') {
       t.assert(change.value === 'andout')
@@ -320,7 +441,7 @@ export const testRepeatRebaseMergeDeltas = tc => {
   const rebase = (ops) => {
     for (let i = 1; i < ops.length; i++) {
       for (let j = 0; j < i; j++) {
-        ops[i].rebase(ops[j], ops[i].origin < ops[j].origin)
+        /** @type {delta.DeltaBuilder} */ (ops[i]).rebase(ops[j], ops[i].origin < ops[j].origin)
       }
     }
   }
@@ -374,7 +495,8 @@ export const testRecursiveNode = () => {
   const $d = delta.$delta({ name: s.$string, attrs: s.$object({ q: s.$number }), hasText: true, recursive: true })
   const rd = delta.create($d)
   // should allow inserting deltas
-  rd.insert([delta.create('hi', { q: 342 })])
+  const recC = delta.create('hi', { q: 342 })
+  rd.insert([recC])
   const d = delta.create('hi', { q: 42 })
   $d.expect(d)
   // should detect invalid attrs

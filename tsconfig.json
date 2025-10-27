@@ -21,6 +21,6 @@
       "lib0/logging": ["./logging.node.js"]
     }
   },
-  "include": ["./*.js", "./diff/*.js", "./hash/*.js", "./crypto/*.js", "./bin/*.js", "./delta/d2.js"],
-  "exclude": ["./dist/**/*"]
+  "include": ["./*.js", "./diff/*.js", "./hash/*.js", "./crypto/*.js", "./bin/*.js", "./delta/*.js"],
+  "exclude": ["./dist/**/*", "./isomorphic.js"]
 }

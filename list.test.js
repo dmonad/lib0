@@ -1,14 +1,34 @@
 import * as t from './testing.js'
 import * as list from './list.js'
 
+/**
+ * @template [out V=number]
+ */
 class QueueItem extends list.ListNode {
   /**
-   * @param {number} v
+   * @param {V} v
    */
   constructor (v) {
     super()
     this.v = v
   }
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testAssignability = _tc => {
+  /**
+   * @type {list.List<QueueItem<number>>}
+   */
+  let l1 = list.create()
+  /**
+   * @type {list.List<QueueItem<number|string>>}
+   */
+  let l2 = list.create()
+  l2 = l1
+  // @ts-expect-error
+  l1 = l2
 }
 
 /**
