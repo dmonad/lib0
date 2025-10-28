@@ -602,7 +602,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  */
 
 /**
- * @typedef {Delta<any,any,any,any,any>} DeltaAny
+ * @typedef {Delta<any,{ [k:string]: any },any,any,any>} DeltaAny
  */
 
 // note: simply copy the values from Delta.attrs as the parameter of the function
@@ -613,12 +613,12 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  */
 export const forEachAttr = (d, handler) => {
   for (const k in d.attrs) {
-    handler(/** @type {Attrs[any]} */ (d.attrs[k]))
+    handler(/** @type {any} */ (d.attrs[k]))
   }
 }
 
 /**
- * @template {string} [out NodeName=any]
+ * @template {string} [NodeName=any]
  * @template {{[key:string|number|symbol]:any}} [Attrs={}]
  * @template {any} [Children=never]
  * @template {string|never} [Text=never]
@@ -636,6 +636,7 @@ export class Delta {
      * @type {{ [K in keyof Attrs]?: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }}
      */
     this.attrs = {}
+
     /**
      * @type {list.List<
      *   RetainOp
@@ -653,15 +654,23 @@ export class Delta {
   }
 
   /**
-   * @template {{[key:string|number|symbol]:any}} [Attrs={}]
    * @param {(v:{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs])=>any} attrHandler
    */
-  forEach (attrHandler) {
+  forEachAttr (attrHandler) {
     for (const k in this.attrs) {
       attrHandler(/** @type {Attrs[any]} */ (this.attrs[k]))
     }
   }
 
+  /**
+   * @return {Generator<{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]>}
+   */
+  * iterAttrs () {
+    for (const key in this.attrs) {
+      // @ts-ignore
+      yield this.attrs[key]
+    }
+  }
 
   isEmpty () {
     return object.isEmpty(this.attrs) && list.isEmpty(this.children)
@@ -680,7 +689,7 @@ export class Delta {
      */
     const children = []
     forEachAttr(this, attr => {
-      attrs[attr.key] = attr
+      attrs[attr.key] = attr.toJSON()
     })
     this.children.forEach(val => {
       children.push(val.toJSON())
@@ -707,7 +716,7 @@ export class Delta {
     /**
      * @type {Delta<any,Attrs,any,any,any>}
      */
-    const d = new Delta(/** @type {any} */ (this.name), this.$schema)
+    const d = new DeltaBuilder(/** @type {any} */ (this.name), this.$schema)
     d.origin = this.origin
     forEachAttr(this, op => {
       d.attrs[op.key] = op
@@ -969,7 +978,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @param {Delta<NodeName,Partial<Attrs>,Children,Text,any>} other
+   * @param {Delta<NodeName,Attrs,Children,Text,any>} other
    */
   apply (other) {
     this.$schema?.expect(other)
@@ -980,12 +989,10 @@ export class DeltaBuilder extends Delta {
           /** @type {DeltaBuilder} */ (c.value).apply(op.value)
         } else {
           // then this is a simple modify
-          // @ts-ignore
-          this.attrs[op.key] = op
+          this.attrs[op.key] = /** @type {any} */ (op)
         }
       } else {
         /** @type {MapInsertOp<any>} */ (op).prevValue = c?.value
-        // @ts-ignore
         this.attrs[op.key] = op
       }
     })
@@ -1123,12 +1130,12 @@ export class DeltaBuilder extends Delta {
           delete this.attrs[op.key]
         }
       } else if ($deleteOp.check(op)) {
-        const otherOp = other.attrs[op.key]
+        const otherOp = other.attrs[/** @type {any} */ (op.key)]
         if ($insertOp.check(otherOp)) {
           delete this.attrs[otherOp.key]
         }
       } else if ($modifyOp.check(op)) {
-        const otherOp = other.attrs[op.key]
+        const otherOp = other.attrs[/** @type {any} */ (op.key)]
         if (otherOp == null) {
           // nop
         } else if ($modifyOp.check(otherOp)) {
@@ -1207,7 +1214,10 @@ export const $delta = ({ name, attrs, children, hasText, recursive }) => {
   return /** @type {any} */ ($d)
 }
 
-export const $deltaAny = s.$instanceOf(Delta)
+/**
+ * @type {s.Schema<DeltaAny>}
+ */
+export const $deltaAny = /** @type {any} */ (s.$instanceOf(Delta))
 
 /**
  * Helper function to merge attribution and attributes. The latter input "wins".
@@ -1252,7 +1262,7 @@ export const mergeDeltas = (a, b) => {
  * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
  */
 /**
- * @template {s.Schema<Delta<any,any,any,any,any>>} Schema
+ * @template {s.Schema<DeltaAny>} Schema
  * @overload
  * @param {Schema} schema
  * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? DeltaBuilder<N,Attrs,Children,Text,Schema> : never}
@@ -1274,15 +1284,15 @@ export const mergeDeltas = (a, b) => {
  * >}
  */
 /**
- * @param {string|s.Schema<Delta<any,any,any,any,any>>} [nodeNameOrSchema]
- * @param {{[K:string|number|symbol]:any}|s.Schema<Delta<any,any,any,any,any>>} [attrsOrSchema]
+ * @param {string|s.Schema<DeltaAny>} [nodeNameOrSchema]
+ * @param {{[K:string|number|symbol]:any}|s.Schema<DeltaAny>} [attrsOrSchema]
  * @param {(Array<any>|string)} [children]
  * @return {DeltaBuilder<any,any,any,any,any>}
  */
 export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
   const nodeName = /** @type {any} */ (s.$string.check(nodeNameOrSchema) ? nodeNameOrSchema : null)
   const schema = /** @type {any} */ (s.$$schema.check(nodeNameOrSchema) ? nodeNameOrSchema : (s.$$schema.check(attrsOrSchema) ? attrsOrSchema : null))
-  const d = /** @type {DeltaBuilder<any,any,any,string,null>} */ (new Delta(nodeName, schema))
+  const d = /** @type {DeltaBuilder<any,any,any,string,null>} */ (new DeltaBuilder(nodeName, schema))
   if (s.$objectAny.check(attrsOrSchema)) {
     d.setMany(attrsOrSchema)
   }

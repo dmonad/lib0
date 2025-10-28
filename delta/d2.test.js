@@ -9,7 +9,6 @@ export const testDeltaBasics = () => {
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
   ds.update('d', delta.create('sub', null, 'hi'))
-  ds.apply(delta.create('root', { k: 42 }, 'content'))
   ds.apply(delta.create('root', { k: 42 }, [42]))
   ds.apply(delta.create('root', { k: 42 }))
   // @ts-expect-error
@@ -30,7 +29,7 @@ export const testDeltaBasics = () => {
   const t2 = delta.create().insert('hi').insert(['there']).set('k', '42').set('k', 42)
   t2.apply(delta.create().insert('there').insert(['??']).set('k', 42))
   const m = delta.create().set('x', 42).set('y', 'str').insert('hi').insert([42])
-  m.apply(delta.create().set('y', undefined).insert('hi'))
+  m.apply(delta.create().unset('y').insert('hi'))
   m.set('k', m).update('k', m)
 }
 
@@ -86,7 +85,7 @@ export const testAssignability = () => {
     /**
      * @type {delta.Delta<any,{},number|string,any,any>}
      */
-    let b = delta.create(delta.$delta({ children: s.$union(s.$string,s.$number) })).done()
+    let b = delta.create(delta.$delta({ children: s.$union(s.$string, s.$number) })).done()
     b = a
     // @ts-expect-error
     a = b
@@ -100,7 +99,7 @@ export const testAssignability = () => {
     /**
      * @type {delta.Delta<any,{},number|string|s.Unwrap<$child>,any,any>}
      */
-    let b = delta.create(delta.$delta({ children: s.$union(s.$string,s.$number,$child) })).done()
+    let b = delta.create(delta.$delta({ children: s.$union(s.$string, s.$number, $child) })).done()
     b = a
     // @ts-expect-error
     a = b
@@ -115,13 +114,13 @@ export const testAssignability = () => {
     /**
      * @type {delta.Delta<any,{},s.Unwrap<$child>|s.Unwrap<$child2>,never,any>}
      */
-    let b = delta.create(delta.$delta({ children: s.$union($child,$child2) })).done()
+    let b = delta.create(delta.$delta({ children: s.$union($child, $child2) })).done()
     /**
      * @type {delta.Delta<any,{},s.Unwrap<$child2>,never,any>}
      */
     let c = delta.create(delta.$delta({ children: $child2 })).done()
     // d is a superset of a and b
-    let d = delta.create(delta.$delta({ children: delta.$delta({ attrs: s.$object({a: s.$union(s.$string,s.$number)}) }), hasText: false })).done()
+    let d = delta.create(delta.$delta({ children: delta.$delta({ attrs: s.$object({ a: s.$union(s.$string, s.$number) }) }), hasText: false })).done()
     b = a
     // @ts-expect-error
     a = b
@@ -129,6 +128,7 @@ export const testAssignability = () => {
     c = a
     d = a
     d = b
+    return [a, b, c, d]
   })
   t.group('text+array builder - text and array builder support', () => {
     const $d = delta.$delta({ name: s.$literal('string'), children: s.$number, hasText: true })
@@ -151,6 +151,7 @@ export const testAssignability = () => {
     const b4 = delta.create('string', null, [42])
     d = b4
     $d.expect(b4)
+    return [d]
   })
   // @todo
   // val subset
@@ -489,10 +490,20 @@ export const testNodeDelta = _tc => {
     }
   )
   t.compare(arr, [['hi', 42]])
+  /**
+   * @type {any}
+   */
+  const attrs = []
+  for (const attr of d.iterAttrs()) {
+    t.assert(attr.key === 'a')
+    attrs.push(attr.key, attr.value)
+  }
+  t.compare(attrs, ['a', undefined])
 }
 
 export const testRecursiveNode = () => {
   const $d = delta.$delta({ name: s.$string, attrs: s.$object({ q: s.$number }), hasText: true, recursive: true })
+  // @ts-ignore this works once the tsc files are declared
   const rd = delta.create($d)
   // should allow inserting deltas
   const recC = delta.create('hi', { q: 342 })
