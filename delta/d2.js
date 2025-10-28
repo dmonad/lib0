@@ -636,7 +636,7 @@ export class Delta {
      * @type {{ [K in keyof Attrs]?: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) } & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]> }}
      */
     this.attrs = /** @type {any} */ ({
-      *[Symbol.iterator]() {
+      * [Symbol.iterator] () {
         for (const k in this) {
           yield this[k]
         }
