@@ -276,7 +276,7 @@ export const testMapDeltaBasics = _tc => {
     dmap.apply(delta.create().set('str', 42))
   })
   dmap.set('str', 'hi')
-  delta.forEachAttr(dmap, c => {
+  for (const c of dmap.attrs) {
     if (c.key === 'str') {
       // @ts-expect-error because value can't be a string
       t.assert(c.value !== 42)
@@ -286,7 +286,7 @@ export const testMapDeltaBasics = _tc => {
       // no other option, this will always throw if called
       s.assert(c, s.$never)
     }
-  })
+  }
   const x = dmap.attrs.str
   t.assert(delta.$insertOpWith(s.$string).optional.check(x) && delta.$insertOpWith(s.$string).optional.validate(x))
   t.assert(!delta.$insertOpWith(s.$number).optional.check(x))
@@ -318,24 +318,24 @@ export const testMapDeltaModify = _tc => {
     const d = delta.create($d)
     const testDeleteThis = delta.create(delta.$delta({ attrs: s.$object({ x: s.$number }) })).set('x', 42)
     d.set('map', testDeleteThis)
-    delta.forEachAttr(d, change => {
+    for (const change of d.attrs) {
       if (change.key === 'map' && change.type === 'insert') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
       } else {
         error.unexpectedCase()
       }
-    })
+    }
   })
   t.group('test modify', () => {
     const d = delta.create($d)
     d.update('map', delta.create().unset('x'))
-    delta.forEachAttr(d, change => {
+    for (const change of d.attrs) {
       if (change.key === 'map' && change.type === 'modify') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
       } else {
         error.unexpectedCase()
       }
-    })
+    }
   })
 }
 
@@ -366,7 +366,7 @@ export const testMapDelta = _tc => {
     }
   })
   t.compare(d.origin, null)
-  delta.forEachAttr(d, change => {
+  for (const change of d.attrs) {
     if (change.key === 'v') {
       t.assert(d.attrs[change.key]?.prevValue !== 94) // should know that value is number
       if (delta.$insertOp.check(change)) {
@@ -391,7 +391,7 @@ export const testMapDelta = _tc => {
     } else {
       throw new Error()
     }
-  })
+  }
 }
 
 /**
@@ -494,7 +494,7 @@ export const testNodeDelta = _tc => {
    * @type {any}
    */
   const attrs = []
-  for (const attr of d.iterAttrs()) {
+  for (const attr of d.attrs) {
     t.assert(attr.key === 'a')
     attrs.push(attr.key, attr.value)
   }

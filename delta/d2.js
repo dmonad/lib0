@@ -633,9 +633,15 @@ export class Delta {
     this.name = name || null
     this.$schema = $schema || null
     /**
-     * @type {{ [K in keyof Attrs]?: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }}
+     * @type {{ [K in keyof Attrs]?: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) } & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]> }}
      */
-    this.attrs = {}
+    this.attrs = /** @type {any} */ ({
+      *[Symbol.iterator]() {
+        for (const k in this) {
+          yield this[k]
+        }
+      }
+    })
 
     /**
      * @type {list.List<
@@ -651,25 +657,6 @@ export class Delta {
      * @type {any}
      */
     this.origin = null
-  }
-
-  /**
-   * @param {(v:{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs])=>any} attrHandler
-   */
-  forEachAttr (attrHandler) {
-    for (const k in this.attrs) {
-      attrHandler(/** @type {Attrs[any]} */ (this.attrs[k]))
-    }
-  }
-
-  /**
-   * @return {Generator<{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs]>}
-   */
-  * iterAttrs () {
-    for (const key in this.attrs) {
-      // @ts-ignore
-      yield this.attrs[key]
-    }
   }
 
   isEmpty () {
@@ -718,9 +705,9 @@ export class Delta {
      */
     const d = new DeltaBuilder(/** @type {any} */ (this.name), this.$schema)
     d.origin = this.origin
-    forEachAttr(this, op => {
-      d.attrs[op.key] = op
-    })
+    for (const op of this.attrs) {
+      d.attrs[op.key] = /** @type {any} */ (op)
+    }
     this.children.forEach(op => {
       list.pushEnd(d.children, op.clone())
     })
@@ -993,7 +980,7 @@ export class DeltaBuilder extends Delta {
         }
       } else {
         /** @type {MapInsertOp<any>} */ (op).prevValue = c?.value
-        this.attrs[op.key] = op
+        this.attrs[op.key] = /** @type {any} */ (op)
       }
     })
     // apply children
