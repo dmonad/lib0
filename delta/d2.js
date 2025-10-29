@@ -605,18 +605,6 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  * @typedef {Delta<any,{ [k:string]: any },any,any,any>} DeltaAny
  */
 
-// note: simply copy the values from Delta.attrs as the parameter of the function
-/**
- * @template {{[key:string|number|symbol]:any}} [Attrs={}]
- * @param {Delta<any,Attrs,any,any,any>} d
- * @param {(v:{ [K in keyof Attrs]: MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],Delta>,K> : never) }[keyof Attrs])=>any} handler
- */
-export const forEachAttr = (d, handler) => {
-  for (const k in d.attrs) {
-    handler(/** @type {any} */ (d.attrs[k]))
-  }
-}
-
 /**
  * @template {string} [NodeName=any]
  * @template {{[key:string|number|symbol]:any}} [Attrs={}]
@@ -667,6 +655,7 @@ export class Delta {
    * @return {DeltaJSON}
    */
   toJSON () {
+    const name = this.name
     /**
      * @type {any}
      */
@@ -675,14 +664,15 @@ export class Delta {
      * @type {any}
      */
     const children = []
-    forEachAttr(this, attr => {
+    for (const attr of this.attrs) {
       attrs[attr.key] = attr.toJSON()
-    })
+    }
     this.children.forEach(val => {
       children.push(val.toJSON())
     })
     return object.assign(
-      (this.name != null ? { name: this.name } : {}),
+      { type: 'delta' },
+      (name != null ? { name } : {}),
       (object.isEmpty(attrs) ? {} : { attrs }),
       (children.length > 0 ? { children } : {})
     )
@@ -969,7 +959,7 @@ export class DeltaBuilder extends Delta {
    */
   apply (other) {
     this.$schema?.expect(other)
-    forEachAttr(/** @type {Delta<NodeName,Attrs,Children,Text,any>} */ (/** @type {any} */ (other)), op => {
+    for (const op of other.attrs) {
       const c = this.attrs[op.key]
       if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
@@ -982,7 +972,7 @@ export class DeltaBuilder extends Delta {
         /** @type {MapInsertOp<any>} */ (op).prevValue = c?.value
         this.attrs[op.key] = /** @type {any} */ (op)
       }
-    })
+    }
     // apply children
     let opsI = this.children.start
     let offset = 0
@@ -1111,7 +1101,7 @@ export class DeltaBuilder extends Delta {
      * - delete vs delete ⇒ current delete op is removed because item has already been deleted
      * - modify vs modify ⇒ rebase using priority
      */
-    forEachAttr(this, op => {
+    for (const op of this.attrs) {
       if ($insertOp.check(op)) {
         if ($insertOp.check(other.attrs[op.key]) && !priority) {
           delete this.attrs[op.key]
@@ -1131,7 +1121,7 @@ export class DeltaBuilder extends Delta {
           delete this.attrs[otherOp.key]
         }
       }
-    })
+    }
     return this
   }
 
