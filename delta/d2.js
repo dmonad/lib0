@@ -44,7 +44,8 @@ export const $attribution = s.$object({
 
 /**
  * @typedef {{
- *   name?: string
+ *   type: 'delta',
+ *   name?: string,
  *   attrs?: { [Key in string|number|symbol]: DeltaAttrOpJSON },
  *   children?: Array<DeltaListOpJSON>
  * }} DeltaJSON
@@ -671,7 +672,7 @@ export class Delta {
       children.push(val.toJSON())
     })
     return object.assign(
-      { type: 'delta' },
+      { type: /** @type {'delta'} */ ('delta') },
       (name != null ? { name } : {}),
       (object.isEmpty(attrs) ? {} : { attrs }),
       (children.length > 0 ? { children } : {})
@@ -711,6 +712,37 @@ export class Delta {
   [traits.EqualityTraitSymbol] (other) {
     return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children)
   }
+}
+
+/**
+ * Try merging this op with the previous op
+ * @param {list.List<any>} parent
+ * @param {InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>} op
+ */
+const tryMergeWithPrev = (parent, op) => {
+  const prevOp = op.prev
+  if (
+    prevOp?.constructor !== op.constructor ||
+    (
+      (!$deleteOp.check(op) && !$modifyOp.check(op)) && (!fun.equalityDeep(op.format, /** @type {InsertOp<any>} */ (prevOp).format) || !fun.equalityDeep(op.attribution, /** @type {InsertOp<any>} */ (prevOp).attribution))
+    )
+  ) {
+    // constructor mismatch or format/attribution mismatch
+    return
+  }
+  // can be merged
+  if ($insertOp.check(op)) {
+    /** @type {InsertOp<any>} */ (prevOp).insert.push(...op.insert)
+  } else if ($retainOp.check(op)) {
+    /** @type {RetainOp} */ (prevOp).retain += op.retain
+  } else if ($deleteOp.check(op)) {
+    /** @type {DeleteOp} */ (prevOp).delete += op.delete
+  } else if ($textOp.check(op)) {
+    /** @type {TextOp} */ (prevOp).insert += op.insert
+  } else {
+    error.unexpectedCase()
+  }
+  list.remove(parent, op)
 }
 
 /**
@@ -1082,6 +1114,11 @@ export class DeltaBuilder extends Delta {
         error.unexpectedCase()
       }
     })
+    // @todo this can be heavily optimized
+    // try to merge each changed item
+    this.children.forEach(op => {
+      tryMergeWithPrev(this.children, op)
+    })
     return this
   }
 
@@ -1130,7 +1167,7 @@ export class DeltaBuilder extends Delta {
    */
   done () {
     const cs = this.children
-    for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null; end = cs.end) {
+    for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null && end.attribution == null; end = cs.end) {
       list.popEnd(cs)
     }
     return this
