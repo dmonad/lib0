@@ -229,11 +229,35 @@ export const testAssignability = () => {
     $d.expect(b4)
     return [d]
   })
-  // @todo
-  // val subset
-  // string subset
-  // DeltaAny is greates set
-  // Default Delta is smallest set
+  t.group('Delta children sub and superset', () => {
+    /**
+     * @type {delta.DeltaAny}
+     */
+    let deltaAny = delta.create().done()
+    let deltaNone = delta.create().done()
+    let deltaNoneWithString = delta.create(delta.$delta({ hasText: true })).done()
+    let deltaNoneWithNumberContent = delta.create(delta.$delta({ children: s.$number })).done()
+    // @ts-expect-error
+    deltaNone = deltaAny
+    deltaNone = delta.create()
+    deltaAny = delta.create().set('x', 42)
+    // @ts-expect-error
+    deltaNone = deltaNoneWithString
+    // i can assign non-string content to with-string content
+    deltaNoneWithString = deltaNone
+    deltaNoneWithString = delta.create().insert('hi')
+    // @ts-expect-error no numbers allowed
+    deltaNoneWithString = delta.create().insert([42]).done()
+    // @ts-expect-error no children allowed
+    deltaNone = deltaNoneWithNumberContent
+    // i can assign non-children content to with-children content
+    deltaNoneWithNumberContent = deltaNone
+    // @ts-expect-error no strings
+    deltaNoneWithNumberContent  = delta.create().insert('hi')
+    deltaNoneWithNumberContent  = delta.create().insert([42]).done()
+    // @ts-expect-error because it contains object
+    deltaNoneWithNumberContent  = delta.create().insert([42]).insert([{}]).done()
+  })
 }
 
 export const testText = () => {

@@ -608,8 +608,8 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
 /**
  * @template {string} [NodeName=any]
- * @template {{[key:string|number|symbol]:any}} [Attrs={}]
- * @template {any} [Children=never]
+ * @template {{[key:string|number|symbol]:any}} [Attrs = {}]
+ * @template {any|never} [Children=never]
  * @template {string|never} [Text=never]
  * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
  */
@@ -833,11 +833,14 @@ export class DeltaBuilder extends Delta {
    *   NodeName,
    *   Attrs,
    *   Exclude<NewContent,string>[number]|Children,
-   *   (Extract<NewContent,string>|Text) extends string ? string : never,
+   *   (Extract<NewContent,string>|Text) extends never ? never : string,
    *   Schema
    * >}
    */
   insert (insert, formatting = null, attribution = null) {
+    /**
+     * @typedef {string extends never ? 1 : 2} X
+     */
     const mergedAttributes = mergeAttrs(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
     /**
@@ -1008,17 +1011,43 @@ export class DeltaBuilder extends Delta {
     // apply children
     let opsI = this.children.start
     let offset = 0
+    /**
+     * At the end, we will try to merge this op, and op.next op with their respective previous op.
+     *
+     * Hence, anytime an op is cloned, deleted, or inserted (anytime list.* api is used) we must add
+     * an opp to maybeMergeable.
+     *
+     * @type {Array<InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>>}
+     */
+    const maybeMergeable = []
+    /**
+     * @param {InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>} op
+     */
+    const cloneAndScheduleForMerge = op => {
+      const c = op.clone()
+      maybeMergeable.push(c)
+      return c
+    }
+    /**
+     * @template {InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>|null} OP
+     * @param {OP} op
+     * @return {OP}
+     */
+    const scheduleForMerge = op => {
+      op && maybeMergeable.push(op)
+      return op
+    }
     other.children.forEach(op => {
       if ($textOp.check(op) || $insertOp.check(op)) {
         if (offset === 0) {
-          list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, op.clone())
+          list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, cloneAndScheduleForMerge(op))
         } else {
           if (opsI == null) error.unexpectedCase()
-          const cpy = opsI.clone()
+          const cpy = cloneAndScheduleForMerge(opsI)
           cpy._splice(0, offset)
           opsI._splice(offset, opsI.length - offset)
           list.insertBetween(this.children, opsI, opsI.next || null, cpy)
-          list.insertBetween(this.children, opsI, cpy || null, op)
+          list.insertBetween(this.children, opsI, cpy || null, cloneAndScheduleForMerge(op))
           offset = 0
         }
       } else if ($retainOp.check(op)) {
@@ -1031,13 +1060,13 @@ export class DeltaBuilder extends Delta {
         if (opsI != null) {
           offset += skipLen
         } else {
-          list.pushEnd(this.children, new RetainOp(skipLen, op.format, op.attribution))
+          list.pushEnd(this.children, scheduleForMerge(new RetainOp(skipLen, op.format, op.attribution)))
         }
       } else if ($deleteOp.check(op)) {
         let remainingLen = op.delete
         while (remainingLen > 0) {
           if (opsI == null) {
-            list.pushEnd(this.children, new DeleteOp(remainingLen))
+            list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen)))
             break
           } else if (opsI instanceof DeleteOp) {
             const delLen = opsI.length - offset
@@ -1058,6 +1087,7 @@ export class DeltaBuilder extends Delta {
             if (opsI.length === delLen) {
               // case 1
               offset = 0
+              scheduleForMerge(opsI.next)
               list.remove(this.children, opsI)
             } else if (offset === 0) {
               // case 2
@@ -1091,7 +1121,7 @@ export class DeltaBuilder extends Delta {
           /** @type {any} */ (d).apply(op.value)
         } else if ($retainOp.check(opsI)) {
           if (offset > 0) {
-            const cpy = opsI.clone()
+            const cpy = cloneAndScheduleForMerge(opsI)
             cpy._splice(offset, opsI.length - offset) // skipped len
             opsI._splice(0, offset) // new remainder
             list.insertBetween(this.children, opsI.prev, opsI, cpy) // insert skipped len
@@ -1099,11 +1129,12 @@ export class DeltaBuilder extends Delta {
           }
           // not deleting opsI, because current idea is that modify should not
           // advance content
-          list.insertBetween(this.children, opsI.prev, opsI, op.clone()) // insert skipped len
+          list.insertBetween(this.children, opsI.prev, opsI, cloneAndScheduleForMerge(op)) // insert skipped len
           if (opsI.length === 1) {
-            list.remove(this.children, opsI)
+            list.remove(this.children, scheduleForMerge(opsI))
           } else {
             opsI._splice(0, 1)
+            scheduleForMerge(opsI)
           }
         } else if ($deleteOp.check(opsI)) {
           // nop
@@ -1114,10 +1145,12 @@ export class DeltaBuilder extends Delta {
         error.unexpectedCase()
       }
     })
-    // @todo this can be heavily optimized
-    // try to merge each changed item
-    this.children.forEach(op => {
-      tryMergeWithPrev(this.children, op)
+    maybeMergeable.forEach(op => {
+      // check if this is still integrated
+      if (op.prev?.next === op) {
+        tryMergeWithPrev(this.children, op)
+        op.next && tryMergeWithPrev(this.children, op.next)
+      }
     })
     return this
   }
