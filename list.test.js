@@ -1,5 +1,6 @@
 import * as t from './testing.js'
 import * as list from './list.js'
+import * as traits from './traits.js'
 
 /**
  * @template [out V=number]
@@ -11,6 +12,13 @@ class QueueItem extends list.ListNode {
   constructor (v) {
     super()
     this.v = v
+  }
+
+  /**
+   * @param {QueueItem<any>} other
+   */
+  [traits.EqualityTraitSymbol] (other) {
+    this.v === other.v
   }
 }
 
@@ -96,4 +104,22 @@ export const testSelectivePop = _tc => {
   t.assert(l.start === null)
   t.assert(l.end === null)
   t.assert(l.len === 0)
+}
+
+export const testEquality = () => {
+  /**
+   * @type {list.List<QueueItem>}
+   */
+  const a = list.create()
+  /**
+   * @type {list.List<QueueItem>}
+   */
+  const b = list.create()
+  list.pushEnd(a, new QueueItem(1))
+  list.pushEnd(b, new QueueItem(1))
+  t.compare(a, b)
+  list.pushFront(b, new QueueItem(0))
+  t.fails(() => {
+    t.compare(a, b)
+  })
 }

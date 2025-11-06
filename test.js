@@ -46,6 +46,7 @@ import * as deltaText from './delta/text.test.js'
 import * as deltaNode from './delta/node.test.js'
 import * as deltaTransformer from './delta/transformer.test.js'
 import * as deltaBinding from './delta/binding.test.js'
+import * as mutex from './mutex.test.js'
 import { isBrowser, isNode } from './environment.js'
 
 /* c8 ignore next */
@@ -99,7 +100,8 @@ runTests({
   deltaText,
   deltaNode,
   deltaTransformer,
-  deltaBinding
+  deltaBinding,
+  mutex
 }).then(success => {
   /* c8 ignore next */
   if (isNode) {

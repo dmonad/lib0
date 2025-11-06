@@ -239,6 +239,14 @@ export const testSchemas = _tc => {
       x.toString()
     }
   })
+  t.group('custom', () => {
+    /**
+     * @type {s.Schema<Number>}
+     */
+    const $c = s.$custom(a => typeof a === 'number')
+    t.assert($c.check(42))
+    t.assert(!$c.check('42'))
+  })
 }
 
 export const testSchemaExpect = () => {
@@ -326,9 +334,11 @@ export const testStringTemplate = _tc => {
 export const testSchemaExtends = _tc => {
   const t1 = s.$union(s.$number, s.$string)
   const t2 = s.$union(s.$number, s.$string, s.$null)
-
   t.assert(t2.extends(t1))
   t.assert(!t1.extends(t2))
+  t.assert(s.$object({ a: s.$number, b: s.$number}).extends(s.$object({ a: s.$number })))
+  t.assert(!s.$object({ a: s.$number }).extends(s.$object({ a: s.$number, b: s.$number })))
+  t.assert(!s.$constructedBy(Number).extends(s.$constructedBy(Object)))
 }
 
 /**
@@ -340,5 +350,23 @@ export const testSchemaErrors = _tc => {
     s.assert({ a: 42, b: 43 }, x)
   } catch (err) {
     console.log(err + '')
+  }
+}
+
+/**
+ * expect
+ * @param {t.TestCase} _tc
+ */
+export const testUnionMerging = _tc => {
+  // should be merged into a single $union construct
+  const $numOrStr = s.$union(s.$union(s.$union(s.$number)), s.$string)
+  if (s.$$union.check($numOrStr)) {
+    t.assert($numOrStr.shape.length === 2)
+    t.assert($numOrStr.shape[0].extends(s.$number))
+    t.assert($numOrStr.shape[1].extends(s.$string))
+    t.assert($numOrStr.extends(s.$union(s.$number, s.$string)))
+    t.assert($numOrStr.extends(s.$union(s.$number, s.$union(s.$string, s.$number))))
+  } else {
+    t.fail('should be a union')
   }
 }

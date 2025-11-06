@@ -87,6 +87,7 @@ class ValidationError {
     const s = []
     for (let i = this._rerrs.length - 1; i > 0; i--) {
       const r = this._rerrs[i]
+      /* c8 ignore next */
       s.push(string.repeat(' ', (this._rerrs.length - i) * 2) + `${r.path != null ? `[${r.path}] ` : ''}${r.has} doesn't match ${r.expected}. ${r.message}`)
     }
     return s.join('\n')
@@ -464,6 +465,7 @@ class $Never extends Schema {
    * @return {_o is never}
    */
   check (_o, err) {
+    /* c8 ignore next */
     err?.extend(null, 'never', typeof _o)
     return false
   }
@@ -497,6 +499,8 @@ export class $Object extends Schema {
     this.shape = shape
     this._isPartial = partial
   }
+
+  static _dilutes = true
 
   /**
    * @type {Schema<Partial<$ObjectToType<S>>>}
@@ -812,7 +816,11 @@ export class $Union extends Schema {
  * @param {T} schemas
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<Schema<infer S>> ? S : never)>>}
  */
-export const $union = (...schemas) => $$union.check(schemas[0]) ? new $Union([...schemas[0].shape, ...schemas.slice(1)]) : (schemas.length === 1 ? schemas[0] : new $Union(schemas))
+export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0 
+  ? $union(...schemas.map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
+  : (schemas.length === 1 
+    ? schemas[0] 
+    : new $Union(schemas))
 export const $$union = /** @type {Schema<$Union<any>>} */ ($constructedBy($Union))
 
 const _t = () => true
