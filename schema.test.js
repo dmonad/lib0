@@ -370,3 +370,26 @@ export const testUnionMerging = _tc => {
     t.fail('should be a union')
   }
 }
+
+export const testConvenienceHelper = () => {
+  class Base { x () {} }
+  /**
+   * @type {s.Schema<{ x: 42|string|null, y: true, z: Base, a: { b: number|string } }>}
+   */
+  const $o = s.$({ x: [/** @type {42} */ (42), s.$string, null], y: /** @type {true} */ (true), z: Base, a: { b: [s.$union(s.$number,s.$string)] } })
+  /**
+   * @type {s.Schema<{ x: 42|string|null, y: true, z: Base, a: { b: number|string } }>}
+   */
+  const $oCpy = s.$object({ x: s.$union(s.$literal(42), s.$string).nullable, y: s.$literal(true), z: s.$constructedBy(Base), a: s.$object({ b: s.$union(s.$number, s.$string) }) })
+  t.assert($o.extends($oCpy))
+  /**
+   * @type {s.Schema<{ x?: number }>}
+   */
+  const $o2 = s.$({ x: s.$number.optional })
+  /**
+   * @type {s.Schema<{ x?: number }>}
+   */
+  const $o2Cpy = s.$object({ x: s.$number.optional })
+  t.assert($o2.extends($o2Cpy))
+  t.assert($o2.check({}))
+}

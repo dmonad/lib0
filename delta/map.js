@@ -286,7 +286,7 @@ const valsKeySchema = ($ops, k) => s.$$object.check($ops) ? ($ops.shape[k] || s.
  *
  * @template {s.Schema<{ [key:string]: any }> | { [key:string]: s.Schema<any> }} [$Vals=s.Schema<{ [key:string]: any }>]
  * @param {$Vals} $vals
- * @return {DeltaMap<$Vals extends s.Schema<infer $V> ? $V : (s._ObjectDefToSchema<$Vals> extends s.Schema<infer $V> ? $V : never)>}
+ * @return {DeltaMap<$Vals extends s.Schema<infer $V> ? $V : (s._ReadObjectDef<$Vals> extends s.Schema<infer $V> ? $V : never)>}
  */
 export const map = ($vals = /** @type {any} */ (s.$record(s.$string, s.$any))) => /** @type {any} */ (new DeltaMap(/** @type {any} */ (s.$$schema.check($vals) ? $vals : s.$object($vals))))
 

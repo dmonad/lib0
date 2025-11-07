@@ -13,7 +13,7 @@ import * as fun from './function.js'
 import * as string from './string.js'
 
 /**
- * @typedef {string|number|bigint|boolean|null|undefined} LiteralType
+ * @typedef {string|number|bigint|boolean|null|undefined|symbol} Primitive
  */
 
 /**
@@ -318,7 +318,7 @@ export const $custom = check => new $Custom(check)
 export const $$custom = $constructedBy($Custom)
 
 /**
- * @template {LiteralType} T
+ * @template {Primitive} T
  * @extends {Schema<T>}
  */
 export class $Literal extends Schema {
@@ -345,7 +345,7 @@ export class $Literal extends Schema {
 }
 
 /**
- * @template {LiteralType[]} T
+ * @template {Primitive[]} T
  * @param {T} literals
  * @return {CastToSchema<$Literal<T[number]>>}
  */
@@ -374,7 +374,7 @@ const _schemaStringTemplateToRegex = s => {
     return [_regexEscape(s)]
   }
   if ($$literal.check(s)) {
-    return s.shape.map(v => v + '')
+    return /** @type {Array<string|number>} */ (s.shape).map(v => v + '')
   }
   if ($$number.check(s)) {
     return ['[+-]?\\d+.?\\d*']
@@ -538,14 +538,14 @@ export class $Object extends Schema {
 /**
  * @template {{ [key:string|symbol|number]: Schema<any> }} S
  * @param {S} def
- * @return {_ObjectDefToSchema<S> extends Schema<infer S> ? Schema<S> : never}
+ * @return {_ObjectDefToSchema<S> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never}
  */
 export const $object = def => /** @type {any} */ (new $Object(def))
 export const $$object = $constructedBy($Object)
 /**
  * @type {Schema<{[key:string]: any}>}
  */
-export const $objectAny = $custom(o => o != null && (o.constructor == null || o.constructor === Object))
+export const $objectAny = $custom(o => o != null && (o.constructor == Object || o.constructor === null))
 
 /**
  * @template {Schema<string|number|symbol>} Keys
@@ -747,6 +747,11 @@ export const $lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void]
 export const $$lambda = $constructedBy($Lambda)
 
 /**
+ * @type {Schema<Function>}
+ */
+export const $function = $custom(o => typeof o === 'function')
+
+/**
  * @template {Array<Schema<any>>} T
  * @extends {Schema<Intersect<UnwrapArray<T>>>}
  */
@@ -837,7 +842,7 @@ export const $bigint = $constructedBy(BigInt)
 export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.shape === BigInt))
 
 /**
- * @type {Schema<Symbol>}
+ * @type {Schema<symbol>}
  */
 export const $symbol = $constructedBy(Symbol)
 export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.shape === Symbol))
@@ -876,15 +881,15 @@ export const $null = $literal(null)
 export const $$null = /** @type {Schema<Schema<null>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === null))
 
 /**
- * @type {Schema<number|string|null|boolean>}
+ * @type {Schema<Primitive>}
  */
-export const $primitive = $union($number, $string, $null, $boolean)
+export const $primitive = $union($number, $string, $null, $undefined, $bigint, $boolean, $symbol)
 
 /**
  * @typedef {JSON[]} JSONArray
  */
 /**
- * @typedef {Unwrap<$primitive>|JSONArray|{ [key:string]:JSON }} JSON
+ * @typedef {Primitive|JSONArray|{ [key:string]:JSON }} JSON
  */
 /**
  * @type {Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
@@ -897,6 +902,47 @@ export const $json = (() => {
   $jsonRecord.shape.values = $json
   return $json
 })()
+
+/**
+ * @template {any} IN
+ * @typedef {IN extends Schema<any> ? IN
+ *   : (IN extends string|number|boolean|null ? Schema<IN>
+ *     : (IN extends new (...args:any[])=>any ? Schema<InstanceType<IN>>
+ *       : (IN extends any[] ? Schema<{ [K in keyof IN]: Unwrap<ReadSchema<IN[K]>> }[number]>
+   *       : (IN extends object ? (_ObjectDefToSchema<{[K in keyof IN]:ReadSchema<IN[K]>}> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never)
+   *         : never)
+ *         )
+ *       )
+ *     )
+ * } ReadSchema
+ */
+
+/**
+ * @template IN
+ * @param {IN} o
+ * @return {ReadSchema<IN>}
+ */
+export const $ = o => {
+  if ($$schema.check(o)) {
+    return /** @type {any} */ (o)
+  } else if ($objectAny.check(o)) {
+    /**
+     * @type {any}
+     */
+    const o2 = {}
+    for (const k in o) {
+      o2[k] = $(o[k])
+    }
+    return /** @type {any} */ ($object(o2))
+  } else if ($arrayAny.check(o)) {
+    return /** @type {any} */ ($union(...o.map($)))
+  } else if ($primitive.check(o)) {
+    return /** @type {any} */ ($literal(o))
+  } else if ($function.check(o)) {
+    return /** @type {any} */ ($constructedBy(/** @type {any} */ (o)))
+  }
+  error.unexpectedCase()
+}
 
 /* c8 ignore start */
 /**
