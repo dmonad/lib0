@@ -253,10 +253,10 @@ export const testAssignability = () => {
     // i can assign non-children content to with-children content
     deltaNoneWithNumberContent = deltaNone
     // @ts-expect-error no strings
-    deltaNoneWithNumberContent  = delta.create().insert('hi')
-    deltaNoneWithNumberContent  = delta.create().insert([42]).done()
+    deltaNoneWithNumberContent = delta.create().insert('hi')
+    deltaNoneWithNumberContent = delta.create().insert([42]).done()
     // @ts-expect-error because it contains object
-    deltaNoneWithNumberContent  = delta.create().insert([42]).insert([{}]).done()
+    deltaNoneWithNumberContent = delta.create().insert([42]).insert([{}]).done()
   })
 }
 

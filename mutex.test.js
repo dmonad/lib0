@@ -22,4 +22,3 @@ export const testMutex = _tc => {
   })
   t.assert(res === '123')
 }
-

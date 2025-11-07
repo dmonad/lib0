@@ -545,7 +545,7 @@ export const $$object = $constructedBy($Object)
 /**
  * @type {Schema<{[key:string]: any}>}
  */
-export const $objectAny = $custom(o => o != null && (o.constructor == Object || o.constructor === null))
+export const $objectAny = $custom(o => o != null && (o.constructor === Object || o.constructor == null))
 
 /**
  * @template {Schema<string|number|symbol>} Keys
@@ -821,11 +821,11 @@ export class $Union extends Schema {
  * @param {T} schemas
  * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<Schema<infer S>> ? S : never)>>}
  */
-export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0 
+export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0
   ? $union(...schemas.map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
-  : (schemas.length === 1 
-    ? schemas[0] 
-    : new $Union(schemas))
+  : (schemas.length === 1
+      ? schemas[0]
+      : new $Union(schemas))
 export const $$union = /** @type {Schema<$Union<any>>} */ ($constructedBy($Union))
 
 const _t = () => true

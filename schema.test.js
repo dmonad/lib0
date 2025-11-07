@@ -336,7 +336,7 @@ export const testSchemaExtends = _tc => {
   const t2 = s.$union(s.$number, s.$string, s.$null)
   t.assert(t2.extends(t1))
   t.assert(!t1.extends(t2))
-  t.assert(s.$object({ a: s.$number, b: s.$number}).extends(s.$object({ a: s.$number })))
+  t.assert(s.$object({ a: s.$number, b: s.$number }).extends(s.$object({ a: s.$number })))
   t.assert(!s.$object({ a: s.$number }).extends(s.$object({ a: s.$number, b: s.$number })))
   t.assert(!s.$constructedBy(Number).extends(s.$constructedBy(Object)))
 }
@@ -376,7 +376,7 @@ export const testConvenienceHelper = () => {
   /**
    * @type {s.Schema<{ x: 42|string|null, y: true, z: Base, a: { b: number|string } }>}
    */
-  const $o = s.$({ x: [/** @type {42} */ (42), s.$string, null], y: /** @type {true} */ (true), z: Base, a: { b: [s.$union(s.$number,s.$string)] } })
+  const $o = s.$({ x: [/** @type {42} */(42), s.$string, null], y: /** @type {true} */ (true), z: Base, a: { b: [s.$union(s.$number, s.$string)] } })
   /**
    * @type {s.Schema<{ x: 42|string|null, y: true, z: Base, a: { b: number|string } }>}
    */

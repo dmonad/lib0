@@ -18,7 +18,7 @@ class QueueItem extends list.ListNode {
    * @param {QueueItem<any>} other
    */
   [traits.EqualityTraitSymbol] (other) {
-    this.v === other.v
+    return this.v === other.v
   }
 }
 
