@@ -1216,47 +1216,47 @@ export class DeltaBuilder extends Delta {
  */
 
 /**
- * @template {string} [NodeName=any]
- * @template {{ [key: string|number|symbol]: any }} [Attrs={}]
- * @template {any} [Children=never]
+ * @template {s.Schema<string>|string|Array<string>} [NodeNameSchema=s.Schema<any>]
+ * @template {s.Schema<{ [key: string|number|symbol]: any }>|{ [key:string|number|symbol]:any }} [AttrsSchema=s.Schema<{}>]
+ * @template {any} [ChildrenSchema=s.Schema<never>]
  * @template {boolean} [HasText=false]
  * @template {boolean} [Recursive=false]
  * @param {object} opts
- * @param {s.Schema<NodeName>?} [opts.name]
- * @param {s.Schema<Attrs>?} [opts.attrs]
- * @param {s.Schema<Children>?} [opts.children]
- * @param {HasText} [opts.hasText]
+ * @param {NodeNameSchema?} [opts.name]
+ * @param {AttrsSchema?} [opts.attrs]
+ * @param {ChildrenSchema?} [opts.children]
+ * @param {HasText} [opts.text]
  * @param {Recursive} [opts.recursive]
- * @return {s.Schema<Delta<
+ * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<
  *     NodeName,
  *     Attrs,
  *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,HasText extends true ? string : never> : never),
  *     HasText extends true ? string : never
- * >>}
+ * >> : never}
  */
-export const $delta = ({ name, attrs, children, hasText, recursive }) => {
-  name = name == null ? s.$any : name
+export const $delta = ({ name, attrs, children, text, recursive }) => {
   /**
    * @type {s.Schema<Array<any>>}
    */
-  let $arrContent = children == null ? s.$never : s.$array(children)
-  const $attrsPartial = attrs == null ? s.$object({}) : (s.$$object.check(attrs) ? attrs.partial : attrs)
+  let $arrContent = children == null ? s.$never : s.$array(s.$(children))
+  const $name = name == null ? s.$any : s.$(name)
+  const $attrsPartial = attrs == null ? s.$object({}) : (s.$$record.check(attrs) ? attrs : /** @type {any} */ (s.$(attrs)).partial)
   const $d = s.$instanceOf(Delta, /** @param {Delta<any,any,any,any,any>} d */ d => {
     if (
-      !name.check(d.name) ||
+      !$name.check(d.name) ||
       object.some(d.attrs,
         (op, k) => $insertOp.check(op) && !$attrsPartial.check({ [k]: op.value })
       )
     ) return false
     for (const op of d.children) {
-      if ((!hasText && $textOp.check(op)) || ($insertOp.check(op) && !$arrContent.check(op.insert))) {
+      if ((!text && $textOp.check(op)) || ($insertOp.check(op) && !$arrContent.check(op.insert))) {
         return false
       }
     }
     return true
   })
   if (recursive) {
-    $arrContent = children == null ? s.$array($d) : s.$array(children, $d)
+    $arrContent = children == null ? s.$array($d) : s.$array(s.$(children), $d)
   }
   return /** @type {any} */ ($d)
 }
@@ -1364,7 +1364,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @param {$Embeds} $embeds
  * @return {s.Schema<TextDelta<_AnyToNull<$Embeds> extends null ? never : ($Embeds extends Array<s.Schema<infer $C>> ? $C : never)>>}
  */
-export const $text = (...$embeds) => /** @type {any} */ ($delta({ children: s.$union(...$embeds), hasText: true }))
+export const $text = (...$embeds) => /** @type {any} */ ($delta({ children: s.$union(...$embeds), text: true }))
 export const $textOnly = $text()
 
 /**
@@ -1385,11 +1385,11 @@ export const text = $schema => /** @type {any} */ (create($schema || $textOnly))
  */
 
 /**
- * @template {s.Schema<any>} $Children
+ * @template {any|s.Schema<any>} $Children
  * @param {$Children} [$children]
- * @return {s.Schema<ArrayDelta<$Children>>}
+ * @return {s.Schema<ArrayDelta<s.Unwrap<s.ReadSchema<$Children>>>>}
  */
-export const $array = $children => $delta({ children: $children })
+export const $array = $children => /** @type {any} */ ($delta({ children: $children }))
 
 /**
  * @template {s.Schema<ArrayDelta<any>>} [$Schema=never]
