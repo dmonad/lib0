@@ -304,7 +304,7 @@ export class RetainOp extends list.ListNode {
 /**
  * Delta that can be applied on a YType Embed
  *
- * @template {Delta<any,any,any,any,any>} DTypes
+ * @template {DeltaAny} [DTypes=DeltaAny]
  */
 export class ModifyOp extends list.ListNode {
   /**
@@ -314,6 +314,9 @@ export class ModifyOp extends list.ListNode {
    */
   constructor (delta, format, attribution) {
     super()
+    /**
+     * @type {DTypes}
+     */
     this.value = delta
     this.format = format
     this.attribution = attribution
@@ -471,7 +474,7 @@ export class MapDeleteOp {
 }
 
 /**
- * @template {DeltaAny} Modifier
+ * @template {DeltaAny} [Modifier=DeltaAny]
  * @template [K=string]
  */
 export class MapModifyOp {
@@ -553,7 +556,7 @@ export const $textOp = s.$constructedBy(TextOp)
 export const $retainOp = s.$constructedBy(RetainOp)
 
 /**
- * @type {s.Schema<MapModifyOp<any> | ModifyOp<any>>}
+ * @type {s.Schema<MapModifyOp | ModifyOp>}
  */
 export const $modifyOp = s.$custom(o => o != null && (o.constructor === MapModifyOp || o.constructor === ModifyOp))
 
@@ -604,6 +607,9 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
 /**
  * @typedef {Delta<any,{ [k:string]: any },any,any,any>} DeltaAny
+ */
+/**
+ * @typedef {DeltaBuilder<any,{ [k:string]: any },any,any,any>} DeltaBuilderAny
  */
 
 /**
@@ -688,13 +694,10 @@ export class Delta {
   }
 
   /**
-   * @return {this}
+   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>}
    */
   clone () {
-    /**
-     * @type {Delta<any,Attrs,any,any,any>}
-     */
-    const d = new DeltaBuilder(/** @type {any} */ (this.name), this.$schema)
+    const d = /** @type {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>} */ (new DeltaBuilder(/** @type {any} */ (this.name), this.$schema))
     d.origin = this.origin
     for (const op of this.attrs) {
       d.attrs[op.key] = /** @type {any} */ (op)
@@ -702,7 +705,7 @@ export class Delta {
     this.children.forEach(op => {
       list.pushEnd(d.children, op.clone())
     })
-    return /** @type {any} */ (d)
+    return d
   }
 
   /**
@@ -1156,11 +1159,10 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @param {Delta<any,any,any,any,any>} other
+   * @param {DeltaAny} other
    * @param {boolean} priority
    */
   rebase (other, priority) {
-    // @todo rebase children
     /**
      * Rebase attributes
      *
@@ -1192,6 +1194,110 @@ export class DeltaBuilder extends Delta {
         }
       }
     }
+    /**
+     * Rebase children.
+     *
+     * Precedence: insert with higher priority comes first. Op with less priority is transformed to
+     * be inserted later.
+     *
+     * @todo always check if inser OR text
+     */
+    let currChild = this.children.start
+    let currOffset = 0
+    let otherChild = other.children.start
+    let otherOffset = 0
+    while (currChild != null && otherChild != null) {
+      if ($insertOp.check(currChild) || $textOp.check(currChild)) {
+        /**
+         * Transforming *insert*. If other is..
+         * - insert: transform based on priority
+         * - retain/delete/modify: transform next op against other
+         */
+        if ($insertOp.check(otherChild) || $modifyOp.check(otherChild) || $textOp.check(otherChild)) {
+          if (!priority) {
+            list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
+            // curr is transformed against other, transform curr against next
+            otherOffset = otherChild.length
+          } else {
+            // curr stays as is, transform next op
+            currOffset = currChild.length
+          }
+        } else { // otherChild = delete | retain | modify - curr stays as is, transform next op
+          currOffset = currChild.length
+        }
+      } else if ($modifyOp.check(currChild)) {
+        /**
+         * Transforming *modify*. If other is..
+         * - insert: adjust position
+         * - modify: rebase curr modify on other modify
+         * - delete: remove modify
+         * - retain: adjust offset
+         */
+        if ($insertOp.check(otherChild) || $textOp.check(otherChild)) {
+          // @todo: with all list changes (retain insertions, removal), try to merge the surrounding
+          // ops later
+          list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
+          // curr is transformed against other, transform curr against next
+          otherOffset = otherChild.length
+        } else {
+          if ($modifyOp.check(otherChild)) {
+            /** @type {any} */ (currChild.value).rebase(otherChild, priority)
+          } else if ($deleteOp.check(otherChild)) {
+            list.remove(this.children, currChild)
+          }
+          currOffset += 1
+          otherOffset += 1
+        }
+      } else { // DeleteOp | RetainOp
+        const maxCommonLen = math.min(currChild.length - currOffset, otherChild.length - otherOffset)
+        /**
+         * Transforming *retain* OR *delete*. If other is..
+         * - retain / modify: adjust offsets
+         * - delete: shorten curr op
+         * - insert: split curr op and insert retain
+         */
+        if ($retainOp.check(otherChild) || $modifyOp.check(otherChild)) {
+          currOffset += maxCommonLen
+          otherOffset += maxCommonLen
+        } else if ($deleteOp.check(otherChild)) {
+          if ($retainOp.check(currChild)) {
+            currChild.retain -= maxCommonLen
+          } else {
+            currChild.delete -= maxCommonLen
+          }
+        } else { // insert/text.check(currOp)
+          if (currOffset > 0) {
+            const leftPart = currChild.clone()
+            leftPart._splice(0, currOffset)
+            list.insertBetween(this.children, currChild.prev, currChild, leftPart)
+            currChild._splice(currOffset, currChild.length - currOffset)
+            currOffset = 0
+          }
+          list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
+          otherOffset = otherChild.length
+        }
+      }
+      if (currOffset >= currChild.length) {
+        currChild = currChild.next
+        currOffset = 0
+      }
+      if (otherOffset >= otherChild.length) {
+        otherChild = otherChild.next
+        otherOffset = 0
+      }
+    }
+    return this
+  }
+
+  /**
+   * Same as doing `delta.rebase(other.inverse())`, without creating a temporary delta.
+   *
+   * @param {DeltaAny} other
+   * @param {boolean} priority
+   */
+  rebaseOnInverse (other, priority) {
+    // @todo
+    console.info('method rebaseOnInverse unimplemented')
     return this
   }
 
@@ -1276,7 +1382,7 @@ export const $deltaAny = /** @type {any} */ (s.$instanceOf(Delta))
 export const mergeAttrs = (a, b) => object.isEmpty(a) ? b : (object.isEmpty(b) ? a : object.assign({}, a, b))
 
 /**
- * @template {DeltaBuilder?} D
+ * @template {DeltaAny?} D
  * @param {D} a
  * @param {D} b
  * @return {D}
@@ -1317,7 +1423,7 @@ export const mergeDeltas = (a, b) => {
 /**
  * @template {string|null} NodeName
  * @template {{[k:string|number|symbol]:any}|null} Attrs
- * @template {Array<any>|string} Children
+ * @template {Array<any>|string} [Children=never]
  * @overload
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
