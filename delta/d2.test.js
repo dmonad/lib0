@@ -547,7 +547,9 @@ export const testRepeatRebaseMergeDeltas = tc => {
       }
     }
   }
+  // @ts-ignore
   rebase(order1)
+  // @ts-ignore
   rebase(order2)
   /**
    * @param {Array<s.Unwrap<typeof $d>>} ops
@@ -559,7 +561,9 @@ export const testRepeatRebaseMergeDeltas = tc => {
     }
     return d
   }
+  // @ts-ignore
   const dmerged1 = apply(order1)
+  // @ts-ignore
   const dmerged2 = apply(order2)
   console.log('1', JSON.stringify(dmerged1))
   console.log('2', JSON.stringify(dmerged2))
@@ -631,4 +635,11 @@ export const testSimplifiedDeltaSchemaDefinition = () => {
   const $d = delta.$delta({ name: 'div', attrs: { a: s.$number, b: s.$string.optional }, children: [s.$number], text: true })
   t.assert($d.check(delta.create('div', { a: 42 }).insert([42]).insert('str')))
   t.assert(!$d.check(delta.create('dove', { a: 42 }).insert([42]).insert('str')))
+}
+
+export const testDiffing = () => {
+  const d1 = delta.create().insert([1]).insert('hello').insert([2]).set('key', 42).done()
+  const d2 = delta.create().insert('hello').set('key', 1).done()
+  const d = delta.diff(d1, d2)
+  t.compare(d, delta.create().delete(1).retain(1).delete(1).set('key', 1))
 }

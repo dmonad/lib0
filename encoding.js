@@ -497,6 +497,14 @@ const isFloat32 = num => {
 }
 
 /**
+ * @typedef {Array<AnyEncodable>} AnyEncodableArray
+ */
+
+/**
+ * @typedef {undefined|null|number|bigint|boolean|string|{[k:string]:AnyEncodable}|AnyEncodableArray|Uint8Array} AnyEncodable
+ */
+
+/**
  * Encode data with efficient binary format.
  *
  * Differences to JSON:
@@ -531,7 +539,7 @@ const isFloat32 = num => {
  *          lib0/encoding.js
  *
  * @param {Encoder} encoder
- * @param {undefined|null|number|bigint|boolean|string|Object<string,any>|Array<any>|Uint8Array} data
+ * @param {AnyEncodable} data
  */
 export const writeAny = (encoder, data) => {
   switch (typeof data) {
