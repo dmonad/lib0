@@ -1,6 +1,6 @@
-import * as t from '../testing.js'
+import * as t from '../testing.js' // eslint-disable-line
+import * as s from '../schema.js' // eslint-disable-line
 import * as d from './d2.js'
-import * as s from '../schema.js'
 
 /**
  * @template {d.DeltaAny|null} [DeltaA=null]
@@ -56,6 +56,7 @@ export class Transformer {
      */
     this.parent = null
   }
+
   /**
    * @param {DeltaA} da
    * @return {TransformResult<DeltaA?,DeltaB?>}
@@ -63,6 +64,7 @@ export class Transformer {
   applyA (da) {
     return transformResultEmpty
   }
+
   /**
    * @param {DeltaB} db
    * @return {TransformResult<DeltaA?,DeltaB?>}
@@ -85,6 +87,7 @@ export class IdTransformer extends Transformer {
   applyA (a) {
     return transformResult(null, a)
   }
+
   /**
    * @template {D} DB
    * @param {DB} b
@@ -127,6 +130,7 @@ export class PipeTransformer extends Transformer {
     this.t1 = t1
     this.t2 = t2
   }
+
   /**
    * @template {T1 extends ({ applyA: (a:infer TDA)=>any }) ? TDA : never} DA
    * @param {DA} a
@@ -138,6 +142,7 @@ export class PipeTransformer extends Transformer {
     // @ts-ignore
     return q
   }
+
   /**
    * @template {d.DeltaAny} DB
    * @param {DB} b
@@ -165,6 +170,3 @@ const r2 = new RenameTransformer().applyA(d.create('x').set('42', 42).done())
 const pt = new PipeTransformer(new RenameTransformer(), id)
 const ptRes = pt.applyA(d.create('x').set('q', 42).done())
 const ptRes2 = pt.t1.applyA(d.create('x').set('x', 42).done())
-
-
-

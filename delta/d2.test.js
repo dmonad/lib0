@@ -535,8 +535,8 @@ export const testRepeatRebaseMergeDeltas = tc => {
   const dc = createDelta()
   dc.origin = 3
 
-  const order1 = [da.clone(), db.clone(), dc.clone()]
-  const order2 = [dc.clone(), db.clone(), da.clone()]
+  const order1 = [da, db, dc].map(delta.clone)
+  const order2 = [dc, db, da].map(delta.clone)
   /**
    * @param {Array<s.Unwrap<$d>>} ops
    */
@@ -547,9 +547,7 @@ export const testRepeatRebaseMergeDeltas = tc => {
       }
     }
   }
-  // @ts-ignore
   rebase(order1)
-  // @ts-ignore
   rebase(order2)
   /**
    * @param {Array<s.Unwrap<typeof $d>>} ops
@@ -561,9 +559,7 @@ export const testRepeatRebaseMergeDeltas = tc => {
     }
     return d
   }
-  // @ts-ignore
   const dmerged1 = apply(order1)
-  // @ts-ignore
   const dmerged2 = apply(order2)
   console.log('1', JSON.stringify(dmerged1))
   console.log('2', JSON.stringify(dmerged2))
@@ -608,7 +604,6 @@ export const testNodeDelta = _tc => {
 
 export const testRecursiveNode = () => {
   const $d = delta.$delta({ name: 'hi', attrs: { q: s.$number }, text: true, recursive: true })
-  // @ts-ignore this works once the tsc files are declared
   const rd = delta.create($d)
   // should allow inserting deltas
   const recC = delta.create('hi', { q: 342 })

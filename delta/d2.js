@@ -1,5 +1,11 @@
 /**
  * @beta this API is about to change
+ *
+ * ## Mutability
+ *
+ * Deltas are mutable by default. But references are often shared, by marking a Delta as "done". You
+ * may only modify deltas by applying other deltas to them. Casting a Delta to a DeltaBuilder
+ * manually, will likely modify "shared" state.
  */
 
 import * as list from '../list.js'
@@ -64,7 +70,15 @@ export const $attribution = s.$object({
  */
 
 /**
- * @typedef {TextOp|InsertOp<any>|DeleteOp|RetainOp|ModifyOp<any>} OpAny
+ * @typedef {TextOp|InsertOp<any>|DeleteOp|RetainOp|ModifyOp<any>} ChildrenOpAny
+ */
+
+/**
+ * @typedef {AttrInsertOp<any>|AttrDeleteOp<any>|AttrModifyOp} AttrOpAny
+ */
+
+/**
+ * @typedef {ChildrenOpAny|AttrOpAny} _OpAny
  */
 
 /**
@@ -87,7 +101,11 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  * @param {MaybeDelta} maybeDelta
  * @return {MaybeDelta}
  */
-const _cloneMaybeDelta = maybeDelta => $deltaAny.check(maybeDelta) ? /** @type {MaybeDelta} */ (maybeDelta.clone()) : maybeDelta
+const _markMaybeDeltaAsDone = maybeDelta => $deltaAny.check(maybeDelta) ? /** @type {MaybeDelta} */ (maybeDelta.done()) : maybeDelta
+
+/**
+ * @typedef {unknown & DeltaAny} Q
+ */
 
 export class TextOp extends list.ListNode {
   /**
@@ -118,7 +136,7 @@ export class TextOp extends list.ListNode {
   /**
    * @param {string} newVal
    */
-  set _insert (newVal) {
+  _updateInsert (newVal) {
     // @ts-ignore
     this.insert = newVal
     this._fingerprint = null
@@ -150,9 +168,9 @@ export class TextOp extends list.ListNode {
    * @param {number} len
    */
   _splice (offset, len) {
+    this._fingerprint = null
     // @ts-ignore
     this.insert = this.insert.slice(0, offset) + this.insert.slice(offset + len)
-    this._fingerprint = null
   }
 
   /**
@@ -194,7 +212,15 @@ export class InsertOp extends list.ListNode {
      * @type {Array<ArrayContent>}
      */
     this.insert = insert
+    /**
+     * @readonly
+     * @type {FormattingAttributes?}
+     */
     this.format = format
+    /**
+     * @readonly
+     * @type {Attribution?}
+     */
     this.attribution = attribution
     /**
      * @type {string?}
@@ -205,7 +231,7 @@ export class InsertOp extends list.ListNode {
   /**
    * @param {ArrayContent} newVal
    */
-  set _insert (newVal) {
+  _updateInsert (newVal) {
     // @ts-ignore
     this.insert = newVal
     this._fingerprint = null
@@ -220,6 +246,25 @@ export class InsertOp extends list.ListNode {
 
   get length () {
     return this.insert.length
+  }
+
+  /**
+   * @param {number} i
+   * @return {Extract<ArrayContent,DeltaAny>}
+   */
+  _modValue (i) {
+    /**
+     * @type {any}
+     */
+    let d = this.insert[i]
+    this._fingerprint = null
+    $deltaAny.expect(d)
+    if (d.isDone) {
+      // @ts-ignore
+      this.insert[i] = (d = clone(d))
+      return d
+    }
+    return d
   }
 
   get fingerprint () {
@@ -269,10 +314,14 @@ export class InsertOp extends list.ListNode {
    * @return {InsertOp<ArrayContent>}
    */
   clone () {
-    return new InsertOp(this.insert.slice(), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    return new InsertOp(this.insert.slice().map(_markMaybeDeltaAsDone), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
+/**
+ * @template {encoding.AnyEncodable|DeltaAny} [Children=never]
+ * @template {string} [Text=never]
+ */
 export class DeleteOp extends list.ListNode {
   /**
    * @param {number} len
@@ -280,6 +329,10 @@ export class DeleteOp extends list.ListNode {
   constructor (len) {
     super()
     this.delete = len
+    /**
+     * @type {(Children|Text) extends never ? null : Delta<any,{},Children,Text>?}
+     */
+    this.prevValue = null
     /**
      * @type {string|null}
      */
@@ -311,6 +364,8 @@ export class DeleteOp extends list.ListNode {
    * @param {number} len
    */
   _splice (_offset, len) {
+    this.prevValue = this.prevValue?.slice(_offset, len)
+    this._fingerprint = null
     this.delete -= len
   }
 
@@ -341,8 +396,20 @@ export class RetainOp extends list.ListNode {
    */
   constructor (retain, format, attribution) {
     super()
+    /**
+     * @readonly
+     * @type {number}
+     */
     this.retain = retain
+    /**
+     * @readonly
+     * @type {FormattingAttributes?}
+     */
     this.format = format
+    /**
+     * @readonly
+     * @type {Attribution?}
+     */
     this.attribution = attribution
     /**
      * @type {string|null}
@@ -376,7 +443,9 @@ export class RetainOp extends list.ListNode {
    * @param {number} len
    */
   _splice (_offset, len) {
+    // @ts-ignore
     this.retain -= len
+    this._fingerprint = null
   }
 
   /**
@@ -413,10 +482,19 @@ export class ModifyOp extends list.ListNode {
   constructor (delta, format, attribution) {
     super()
     /**
+     * @readonly
      * @type {DTypes}
      */
     this.value = delta
+    /**
+     * @readonly
+     * @type {FormattingAttributes?}
+     */
     this.format = format
+    /**
+     * @readonly
+     * @type {Attribution?}
+     */
     this.attribution = attribution
     /**
      * @type {string|null}
@@ -435,7 +513,24 @@ export class ModifyOp extends list.ListNode {
     return 1
   }
 
+  /**
+   * @type {DeltaBuilderAny}
+   */
+  get _modValue () {
+    /**
+     * @type {any}
+     */
+    const d = this.value
+    this._fingerprint = null
+    if (d.isDone) {
+      // @ts-ignore
+      return this.value = clone(d)
+    }
+    return d
+  }
+
   get fingerprint () {
+    // don't cache fingerprint because we don't know when delta changes
     return this._fingerprint || (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
       encoding.writeVarUint(encoder, 4) // modifyOp type: 4
       encoding.writeVarString(encoder, this.value.fingerprint)
@@ -471,7 +566,7 @@ export class ModifyOp extends list.ListNode {
    * @return {ModifyOp<DTypes>}
    */
   clone () {
-    return new ModifyOp(/** @type {any} */ (this.value.clone()), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    return new ModifyOp(/** @type {DTypes} */ (this.value.done()), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -479,7 +574,7 @@ export class ModifyOp extends list.ListNode {
  * @template {encoding.AnyEncodable|DeltaAny} V
  * @template {string|number} [K=any]
  */
-export class MapInsertOp {
+export class AttrInsertOp {
   /**
    * @param {K} key
    * @param {V} value
@@ -488,17 +583,24 @@ export class MapInsertOp {
    */
   constructor (key, value, prevValue, attribution) {
     /**
+     * @readonly
      * @type {K}
      */
     this.key = key
     /**
+     * @readonly
      * @type {V}
      */
     this.value = value
     /**
+     * @readonly
      * @type {V|undefined}
      */
     this.prevValue = prevValue
+    /**
+     * @readonly
+     * @type {Attribution?}
+     */
     this.attribution = attribution
     /**
      * @type {string|null}
@@ -510,6 +612,22 @@ export class MapInsertOp {
    * @return {'insert'}
    */
   get type () { return 'insert' }
+
+  /**
+   * @type {DeltaBuilderAny}
+   */
+  get _modValue () {
+    /**
+     * @type {any}
+     */
+    const v = this.value
+    this._fingerprint = null
+    if ($deltaAny.check(v) && v.isDone) {
+      // @ts-ignore
+      return this.value = clone(v)
+    }
+    return v
+  }
 
   get fingerprint () {
     return this._fingerprint || (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
@@ -525,7 +643,6 @@ export class MapInsertOp {
     })))
   }
 
-
   toJSON () {
     const v = this.value
     const prevValue = this.prevValue
@@ -537,17 +654,17 @@ export class MapInsertOp {
   }
 
   /**
-   * @param {MapInsertOp<V>} other
+   * @param {AttrInsertOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
-   * @return {MapInsertOp<V,K>}
+   * @return {AttrInsertOp<V,K>}
    */
   clone () {
-    return new MapInsertOp(this.key, _cloneMaybeDelta(this.value), _cloneMaybeDelta(this.prevValue), _cloneAttrs(this.attribution))
+    return new AttrInsertOp(this.key, _markMaybeDeltaAsDone(this.value), _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
   }
 }
 
@@ -555,7 +672,7 @@ export class MapInsertOp {
  * @template V
  * @template {string|number} [K=string]
  */
-export class MapDeleteOp {
+export class AttrDeleteOp {
   /**
    * @param {K} key
    * @param {V|undefined} prevValue
@@ -602,14 +719,14 @@ export class MapDeleteOp {
   }
 
   /**
-   * @param {MapDeleteOp<V>} other
+   * @param {AttrDeleteOp<V>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   clone () {
-    return new MapDeleteOp(this.key, _cloneMaybeDelta(this.prevValue), _cloneAttrs(this.attribution))
+    return new AttrDeleteOp(this.key, _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
   }
 }
 
@@ -617,17 +734,19 @@ export class MapDeleteOp {
  * @template {DeltaAny} [Modifier=DeltaAny]
  * @template {string|number} [K=string]
  */
-export class MapModifyOp {
+export class AttrModifyOp {
   /**
    * @param {K} key
    * @param {Modifier} delta
    */
   constructor (key, delta) {
     /**
+     * @readonly
      * @type {K}
      */
     this.key = key
     /**
+     * @readonly
      * @type {Modifier}
      */
     this.value = delta
@@ -650,6 +769,18 @@ export class MapModifyOp {
     })))
   }
 
+  /**
+   * @return {DeltaBuilder}
+   */
+  get _modValue () {
+    this._fingerprint = null
+    if (this.value.isDone) {
+      // @ts-ignore
+      this.value = /** @type {any} */ (clone(this.value))
+    }
+    // @ts-ignore
+    return this.value
+  }
 
   /**
    * @return {DeltaAttrOpJSON}
@@ -662,38 +793,38 @@ export class MapModifyOp {
   }
 
   /**
-   * @param {MapModifyOp<Modifier>} other
+   * @param {AttrModifyOp<Modifier>} other
    */
   [traits.EqualityTraitSymbol] (other) {
     return this.key === other.key && this.value[traits.EqualityTraitSymbol](other.value)
   }
 
   /**
-   * @return {MapModifyOp<Modifier,K>}
+   * @return {AttrModifyOp<Modifier,K>}
    */
   clone () {
-    return new MapModifyOp(this.key, /** @type {any} */ (this.value.clone()))
+    return new AttrModifyOp(this.key, /** @type {Modifier} */ (this.value.done()))
   }
 }
 
 /**
- * @type {s.Schema<MapDeleteOp<any> | DeleteOp>}
+ * @type {s.Schema<AttrDeleteOp<any> | DeleteOp>}
  */
-export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp || o.constructor === MapDeleteOp))
+export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp || o.constructor === AttrDeleteOp))
 
 /**
- * @type {s.Schema<MapInsertOp<any> | InsertOp<any>>}
+ * @type {s.Schema<AttrInsertOp<any> | InsertOp<any>>}
  */
-export const $insertOp = s.$custom(o => o != null && (o.constructor === MapInsertOp || o.constructor === InsertOp))
+export const $insertOp = s.$custom(o => o != null && (o.constructor === AttrInsertOp || o.constructor === InsertOp))
 
 /**
  * @template {encoding.AnyEncodable|DeltaAny} Content
  * @param {s.Schema<Content>} $content
- * @return {s.Schema<MapInsertOp<Content> | InsertOp<Content>>}
+ * @return {s.Schema<AttrInsertOp<Content> | InsertOp<Content>>}
  */
 export const $insertOpWith = $content => s.$custom(o =>
   o != null && (
-    (o.constructor === MapInsertOp && $content.check(/** @type {MapInsertOp<Content>} */ (o).value)) ||
+    (o.constructor === AttrInsertOp && $content.check(/** @type {AttrInsertOp<Content>} */ (o).value)) ||
       (o.constructor === InsertOp && /** @type {InsertOp<Content>} */ (o).insert.every(ins => $content.check(ins)))
   )
 )
@@ -709,18 +840,18 @@ export const $textOp = s.$constructedBy(TextOp)
 export const $retainOp = s.$constructedBy(RetainOp)
 
 /**
- * @type {s.Schema<MapModifyOp | ModifyOp>}
+ * @type {s.Schema<AttrModifyOp | ModifyOp>}
  */
-export const $modifyOp = s.$custom(o => o != null && (o.constructor === MapModifyOp || o.constructor === ModifyOp))
+export const $modifyOp = s.$custom(o => o != null && (o.constructor === AttrModifyOp || o.constructor === ModifyOp))
 
 /**
  * @template {DeltaAny} Modify
  * @param {s.Schema<Modify>} $content
- * @return {s.Schema<MapModifyOp<Modify> | ModifyOp<Modify>>}
+ * @return {s.Schema<AttrModifyOp<Modify> | ModifyOp<Modify>>}
  */
 export const $modifyOpWith = $content => s.$custom(o =>
   o != null && (
-    (o.constructor === MapModifyOp && $content.check(/** @type {MapModifyOp<Modify>} */ (o).value)) ||
+    (o.constructor === AttrModifyOp && $content.check(/** @type {AttrModifyOp<Modify>} */ (o).value)) ||
       (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).value))
   )
 )
@@ -781,8 +912,8 @@ export class Delta {
     this.name = name || null
     this.$schema = $schema || null
     /**
-     * @type {{ [K in keyof Attrs]?: K extends string|number ? (MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],DeltaAny>,K> : never)) : never }
-     *   & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (MapInsertOp<Attrs[K],K>|MapDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? MapModifyOp<Extract<Attrs[K],DeltaAny>,K> : never)) : never }[keyof Attrs]> }
+     * @type {{ [K in keyof Attrs]?: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? AttrModifyOp<Extract<Attrs[K],DeltaAny>,K> : never)) : never }
+     *   & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? AttrModifyOp<Extract<Attrs[K],DeltaAny>,K> : never)) : never }[keyof Attrs]> }
      * }
      */
     this.attrs = /** @type {any} */ ({
@@ -803,6 +934,7 @@ export class Delta {
      * >}
      */
     this.children = /** @type {any} */ (list.create())
+    this.childCnt = 0
     /**
      * @type {any}
      */
@@ -811,6 +943,7 @@ export class Delta {
      * @type {string|null}
      */
     this._fingerprint = null
+    this.isDone = false
   }
 
   /**
@@ -836,7 +969,7 @@ export class Delta {
           : (aIsString ? 1 : (bIsString ? -1 : (a - b)))
       })
       encoding.writeVarUint(encoder, keys.length)
-      for (let key of keys) {
+      for (const key of keys) {
         encoding.writeVarString(encoder, /** @type {any} */ (this.attrs[/** @type {keyof Attrs} */ (key)]).fingerprint)
       }
       encoding.writeVarUint(encoder, this.children.len)
@@ -887,28 +1020,56 @@ export class Delta {
   }
 
   /**
-   * @return {DeltaAny}
-   */
-  clone () {
-    const d = /** @type {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>} */ (new DeltaBuilder(/** @type {any} */ (this.name), this.$schema))
-    d.origin = this.origin
-    for (const op of this.attrs) {
-      /** @type {any} */ (d).attrs[op.key] = op
-    }
-    this.children.forEach(op => {
-      list.pushEnd(d.children, op.clone())
-    })
-    return d
-  }
-
-  /**
    * @param {any} other
    * @return {boolean}
    */
   [traits.EqualityTraitSymbol] (other) {
-    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children)
+    // @todo it is only necessary to compare finrerprints OR do a deep equality check
+    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt && this.fingerprint === other.fingerprint
+  }
+
+
+  /**
+   * @param {number} start
+   * @param {number} end
+   * @return {this}
+   */
+  slice (start, end) {
+    const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(/** @type {any} */ (this.name), this.$schema))
+    cpy.origin = this.origin
+    for (const op of this.attrs) {
+      cpy.attrs[op.key] = /** @type {any} */ (op.clone())
+    }
+    if (start === 0 && end === this.childCnt) {
+      cpy.children.forEach(op => {
+        list.pushEnd(cpy.children, op.clone())
+      })
+    }
+    // @ts-ignore
+    return cpy
+  }
+
+  /**
+   * @return {Delta<NodeName,Attrs,Children,Text,Schema>}
+   */
+  done () {
+    if (!this.isDone) {
+      this.isDone = true
+      const cs = this.children
+      for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null && end.attribution == null; end = cs.end) {
+        list.popEnd(cs)
+      }
+    }
+    return this
   }
 }
+
+/**
+ * @template {DeltaAny} D
+ * @param {D} d
+ * @return {D extends Delta<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
+ */
+export const clone = d => /** @type {any} */ (d.slice(0, d.childCnt))
 
 /**
  * Try merging this op with the previous op
@@ -930,15 +1091,31 @@ const tryMergeWithPrev = (parent, op) => {
   if ($insertOp.check(op)) {
     /** @type {InsertOp<any>} */ (prevOp).insert.push(...op.insert)
   } else if ($retainOp.check(op)) {
+    // @ts-ignore
     /** @type {RetainOp} */ (prevOp).retain += op.retain
   } else if ($deleteOp.check(op)) {
     /** @type {DeleteOp} */ (prevOp).delete += op.delete
   } else if ($textOp.check(op)) {
-    /** @type {TextOp} */ (prevOp)._insert = /** @type {TextOp} */ (prevOp).insert + op.insert
+    /** @type {TextOp} */ (prevOp)._updateInsert(/** @type {TextOp} */ (prevOp).insert + op.insert)
   } else {
     error.unexpectedCase()
   }
   list.remove(parent, op)
+}
+
+/**
+ * Ensures that the delta can be edited. clears _fingerprint cache.
+ *
+ * @param {any} d
+ */
+const modDeltaCheck = d => {
+  if (d.isDone) {
+    /**
+     * You tried to modify a delta after it has been marked as "done".
+     */
+    throw error.create("Readonly Delta can't be modified")
+  }
+  d._fingerprint = null
 }
 
 /**
@@ -970,6 +1147,7 @@ export class DeltaBuilder extends Delta {
    * @param {Attribution?} attribution
    */
   useAttribution (attribution) {
+    modDeltaCheck(this)
     this.usedAttribution = attribution
     return this
   }
@@ -979,6 +1157,7 @@ export class DeltaBuilder extends Delta {
    * @return {this}
    */
   useAttributes (attributes) {
+    modDeltaCheck(this)
     this.usedAttributes = attributes
     return this
   }
@@ -988,6 +1167,7 @@ export class DeltaBuilder extends Delta {
    * @param {any} value
    */
   updateUsedAttributes (name, value) {
+    modDeltaCheck(this)
     if (value == null) {
       this.usedAttributes = object.assign({}, this.usedAttributes)
       delete this.usedAttributes?.[name]
@@ -1007,6 +1187,7 @@ export class DeltaBuilder extends Delta {
    * @param {Attribution[NAME]?} value
    */
   updateUsedAttribution (name, value) {
+    modDeltaCheck(this)
     if (value == null) {
       this.usedAttribution = object.assign({}, this.usedAttribution)
       delete this.usedAttribution?.[name]
@@ -1034,6 +1215,7 @@ export class DeltaBuilder extends Delta {
    * >}
    */
   insert (insert, formatting = null, attribution = null) {
+    modDeltaCheck(this)
     const mergedAttributes = mergeAttrs(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
     /**
@@ -1043,10 +1225,11 @@ export class DeltaBuilder extends Delta {
     const end = this.children.end
     if (s.$string.check(insert)) {
       if ($textOp.check(end) && checkMergedEquals(end)) {
-        end._insert = end.insert + insert
+        end._updateInsert(end.insert + insert)
       } else if (insert.length > 0) {
         list.pushEnd(this.children, new TextOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
       }
+      this.childCnt += insert.length
     } else if (arr.isArray(insert)) {
       if ($insertOp.check(end) && checkMergedEquals(end)) {
         // @ts-ignore
@@ -1055,6 +1238,7 @@ export class DeltaBuilder extends Delta {
       } else if (insert.length > 0) {
         list.pushEnd(this.children, new InsertOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
       }
+      this.childCnt += insert.length
     }
     return /** @type {any} */ (this)
   }
@@ -1073,9 +1257,11 @@ export class DeltaBuilder extends Delta {
    * >}
    */
   modify (modify, formatting = null, attribution = null) {
+    modDeltaCheck(this)
     const mergedAttributes = mergeAttrs(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
     list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+    this.childCnt += 1
     return /** @type {any} */ (this)
   }
 
@@ -1085,14 +1271,17 @@ export class DeltaBuilder extends Delta {
    * @param {Attribution?} [attribution]
    */
   retain (len, format = null, attribution = null) {
+    modDeltaCheck(this)
     const mergedFormats = mergeAttrs(this.usedAttributes, format)
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
     const lastOp = /** @type {RetainOp|InsertOp<any>} */ (this.children.end)
     if (lastOp instanceof RetainOp && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
+      // @ts-ignore
       lastOp.retain += len
     } else if (len > 0) {
       list.pushEnd(this.children, new RetainOp(len, mergedFormats, mergedAttribution))
     }
+    this.childCnt += len
     return this
   }
 
@@ -1100,12 +1289,14 @@ export class DeltaBuilder extends Delta {
    * @param {number} len
    */
   delete (len) {
+    modDeltaCheck(this)
     const lastOp = /** @type {DeleteOp|InsertOp<any>} */ (this.children.end)
     if (lastOp instanceof DeleteOp) {
       lastOp.delete += len
     } else if (len > 0) {
       list.pushEnd(this.children, new DeleteOp(len))
     }
+    this.childCnt += len
     return this
   }
 
@@ -1125,7 +1316,8 @@ export class DeltaBuilder extends Delta {
    * >}
    */
   set (key, val, attribution = null, prevValue) {
-    this.attrs[key] = /** @type {any} */ (new MapInsertOp(key, val, prevValue, mergeAttrs(this.usedAttribution, attribution)))
+    modDeltaCheck(this)
+    this.attrs[key] = /** @type {any} */ (new AttrInsertOp(key, val, prevValue, mergeAttrs(this.usedAttribution, attribution)))
     return /** @type {any} */ (this)
   }
 
@@ -1142,6 +1334,7 @@ export class DeltaBuilder extends Delta {
    * >}
    */
   setMany (attrs, attribution = null) {
+    modDeltaCheck(this)
     for (const k in attrs) {
       this.set(/** @type {any} */ (k), attrs[k], attribution)
     }
@@ -1162,7 +1355,8 @@ export class DeltaBuilder extends Delta {
    * >}
    */
   unset (key, attribution = null, prevValue) {
-    this.attrs[key] = /** @type {any} */ (new MapDeleteOp(key, prevValue, mergeAttrs(this.usedAttribution, attribution)))
+    modDeltaCheck(this)
+    this.attrs[key] = /** @type {any} */ (new AttrDeleteOp(key, prevValue, mergeAttrs(this.usedAttribution, attribution)))
     return /** @type {any} */ (this)
   }
 
@@ -1180,7 +1374,8 @@ export class DeltaBuilder extends Delta {
    * >}
    */
   update (key, modify) {
-    this.attrs[key] = /** @type {any} */ (new MapModifyOp(key, modify))
+    modDeltaCheck(this)
+    this.attrs[key] = /** @type {any} */ (new AttrModifyOp(key, modify))
     return /** @type {any} */ (this)
   }
 
@@ -1188,26 +1383,30 @@ export class DeltaBuilder extends Delta {
    * @param {Delta<NodeName,Attrs,Children,Text,any>} other
    */
   apply (other) {
+    modDeltaCheck(this)
     this.$schema?.expect(other)
-    for (const op of other.attrs) {
-      const c = this.attrs[op.key]
+    // apply attrs
+    for (let op of other.attrs) {
+      let c = /** @type {AttrInsertOp<any,any>|AttrDeleteOp<any>|AttrModifyOp<any,any>} */ (this.attrs[op.key])
       if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
-          /** @type {DeltaBuilder} */ (c.value).apply(op.value)
+          c._modValue.apply(op.value)
         } else {
           // then this is a simple modify
           // @ts-ignore
-          this.attrs[op.key] = op
+          this.attrs[op.key] = op.clone()
         }
       } else {
-        /** @type {MapInsertOp<any>} */ (op).prevValue = c?.value
+        op = /** @type {any} */ (op.clone())
+        // @ts-ignore
+        op.prevValue = c?.value
         // @ts-ignore
         this.attrs[op.key] = op
       }
     }
     // apply children
     /**
-     * @type {OpAny?}
+     * @type {ChildrenOpAny?}
      */
     let opsI = this.children.start
     let offset = 0
@@ -1250,6 +1449,7 @@ export class DeltaBuilder extends Delta {
           list.insertBetween(this.children, opsI, cpy || null, cloneAndScheduleForMerge(op))
           offset = 0
         }
+        this.childCnt += op.insert.length
       } else if ($retainOp.check(op)) {
         let skipLen = op.length
         while (opsI != null && opsI.length - offset <= skipLen) {
@@ -1261,12 +1461,14 @@ export class DeltaBuilder extends Delta {
           offset += skipLen
         } else {
           list.pushEnd(this.children, scheduleForMerge(new RetainOp(skipLen, op.format, op.attribution)))
+          this.childCnt += skipLen
         }
       } else if ($deleteOp.check(op)) {
         let remainingLen = op.delete
         while (remainingLen > 0) {
           if (opsI == null) {
             list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen)))
+            this.childCnt += remainingLen
             break
           } else if (opsI instanceof DeleteOp) {
             const delLen = opsI.length - offset
@@ -1284,6 +1486,7 @@ export class DeltaBuilder extends Delta {
             // case3: delete some part of end
             // case4: delete some part of center
             const delLen = math.min(opsI.length - offset, remainingLen)
+            this.childCnt -= delLen
             if (opsI.length === delLen) {
               // case 1
               offset = 0
@@ -1308,17 +1511,13 @@ export class DeltaBuilder extends Delta {
       } else if ($modifyOp.check(op)) {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
+          this.childCnt += 1
           return
         }
         if ($modifyOp.check(opsI)) {
-          /** @type {any} */ (opsI.value).apply(op.value)
-        } else if ($textOp.check(opsI) || $insertOp.check(opsI)) {
-          const d = opsI.insert[offset]
-          if (!$deltaAny.check(d)) {
-            // probably incompatible delta. can only modify deltas
-            error.unexpectedCase()
-          }
-          /** @type {any} */ (d).apply(op.value)
+          opsI._modValue.apply(op.value)
+        } else if ($insertOp.check(opsI)) {
+          opsI._modValue(offset).apply(op.value)
         } else if ($retainOp.check(opsI)) {
           if (offset > 0) {
             const cpy = cloneAndScheduleForMerge(opsI)
@@ -1327,11 +1526,9 @@ export class DeltaBuilder extends Delta {
             list.insertBetween(this.children, opsI.prev, opsI, cpy) // insert skipped len
             offset = 0
           }
-          // not deleting opsI, because current idea is that modify should not
-          // advance content
           list.insertBetween(this.children, opsI.prev, opsI, cloneAndScheduleForMerge(op)) // insert skipped len
           if (opsI.length === 1) {
-            list.remove(this.children, scheduleForMerge(opsI))
+            list.remove(this.children, opsI)
           } else {
             opsI._splice(0, 1)
             scheduleForMerge(opsI)
@@ -1360,6 +1557,7 @@ export class DeltaBuilder extends Delta {
    * @param {boolean} priority
    */
   rebase (other, priority) {
+    modDeltaCheck(this)
     /**
      * Rebase attributes
      *
@@ -1385,7 +1583,7 @@ export class DeltaBuilder extends Delta {
         if (otherOp == null) {
           // nop
         } else if ($modifyOp.check(otherOp)) {
-          op.value.rebase(otherOp.value, priority)
+          op._modValue.rebase(otherOp.value, priority)
         } else {
           delete this.attrs[otherOp.key]
         }
@@ -1400,12 +1598,12 @@ export class DeltaBuilder extends Delta {
      * @todo always check if inser OR text
      */
     /**
-     * @type {OpAny?}
+     * @type {ChildrenOpAny?}
      */
     let currChild = this.children.start
     let currOffset = 0
     /**
-     * @type {OpAny?}
+     * @type {ChildrenOpAny?}
      */
     let otherChild = other.children.start
     let otherOffset = 0
@@ -1419,6 +1617,7 @@ export class DeltaBuilder extends Delta {
         if ($insertOp.check(otherChild) || $modifyOp.check(otherChild) || $textOp.check(otherChild)) {
           if (!priority) {
             list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
+            this.childCnt += otherChild.length
             // curr is transformed against other, transform curr against next
             otherOffset = otherChild.length
           } else {
@@ -1440,6 +1639,7 @@ export class DeltaBuilder extends Delta {
           // @todo: with all list changes (retain insertions, removal), try to merge the surrounding
           // ops later
           list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
+          this.childCnt += otherChild.length
           // curr is transformed against other, transform curr against next
           otherOffset = otherChild.length
         } else {
@@ -1447,6 +1647,7 @@ export class DeltaBuilder extends Delta {
             /** @type {any} */ (currChild.value).rebase(otherChild, priority)
           } else if ($deleteOp.check(otherChild)) {
             list.remove(this.children, currChild)
+            this.childCnt -= 1
           }
           currOffset += 1
           otherOffset += 1
@@ -1464,10 +1665,12 @@ export class DeltaBuilder extends Delta {
           otherOffset += maxCommonLen
         } else if ($deleteOp.check(otherChild)) {
           if ($retainOp.check(currChild)) {
+            // @ts-ignore
             currChild.retain -= maxCommonLen
           } else if ($deleteOp.check(currChild)) {
             currChild.delete -= maxCommonLen
           }
+          this.childCnt -= maxCommonLen
         } else { // insert/text.check(currOp)
           if (currOffset > 0) {
             const leftPart = currChild.clone()
@@ -1477,6 +1680,7 @@ export class DeltaBuilder extends Delta {
             currOffset = 0
           }
           list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
+          this.childCnt += otherChild.length
           otherOffset = otherChild.length
         }
       }
@@ -1499,19 +1703,9 @@ export class DeltaBuilder extends Delta {
    * @param {boolean} priority
    */
   rebaseOnInverse (other, priority) {
+    modDeltaCheck(this)
     // @todo
     console.info('method rebaseOnInverse unimplemented')
-    return this
-  }
-
-  /**
-   * @return {Delta<NodeName,Attrs,Children,Text,Schema>}
-   */
-  done () {
-    const cs = this.children
-    for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null && end.attribution == null; end = cs.end) {
-      list.popEnd(cs)
-    }
     return this
   }
 }
@@ -1592,9 +1786,9 @@ export const mergeAttrs = (a, b) => object.isEmpty(a) ? b : (object.isEmpty(b) ?
  */
 export const mergeDeltas = (a, b) => {
   if (a != null && b != null) {
-    const c = /** @type {DeltaBuilderAny} */ (a.clone())
+    const c = clone(a)
     c.apply(b)
-    return /** @type {D} */ (c.done())
+    return /** @type {any} */ (c)
   }
   return a == null ? b : (a || null)
 }
@@ -1757,25 +1951,23 @@ export const diff = (d1, d2) => {
       left1 = left1.next
       left2 = left2.next
     }
-    while (right1 != null && right1 != left1 && right1.fingerprint === right2?.fingerprint) {
+    while (right1 !== null && right1 !== left1 && right1.fingerprint === right2?.fingerprint) {
       right1 = right1.prev
       right2 = right2.prev
     }
-    const diffStart1 = left1
-    const diffStart2 = left2
     /**
-     * @type {Array<OpAny>}
+     * @type {Array<ChildrenOpAny>}
      */
     const ops1 = []
     /**
-     * @type {Array<OpAny>}
+     * @type {Array<ChildrenOpAny>}
      */
     const ops2 = []
-    while (left1 != null && left1 != right1?.next) {
+    while (left1 !== null && left1 !== right1?.next) {
       ops1.push(left1)
       left1 = left1.next
     }
-    while (left2 != null && left2 != right2?.next) {
+    while (left2 !== null && left2 !== right2?.next) {
       ops2.push(left2)
       left2 = left2.next
     }
@@ -1786,20 +1978,28 @@ export const diff = (d1, d2) => {
     for (let i = 0, lastIndex1 = 0, currIndexOffset2 = 0; i < changeset.length; i++) {
       const change = changeset[i]
       d.retain(change.index - lastIndex1)
-      // delete: figure out the len of the ops to delete and delete them
-      d.delete(ops1.slice(change.index, change.index + change.remove.length).map(op => op.length).reduce((a, b) => a + b, 0))
-      // insert: copy the actions of the ops
-      ops2.slice(change.index + currIndexOffset2, change.insert.length).forEach(newIns => {
-        if ($insertOp.check(newIns) || $textOp.check(newIns)) {
-          d.insert(newIns.insert)
-        } else {
-          error.unexpectedCase()
-        }
-      })
+      // insert minimal diff at curred position in d
+      /**
+       * @param {DeltaBuilderAny} d
+       * @param {ChildrenOpAny[]} opsIs
+       * @param {ChildrenOpAny[]} opsShould
+       *
+       */
+      const diffAndApply = (d, opsIs, opsShould) => {
+        // naive implementation
+        d.delete(opsIs.reduce((currLen, op) => currLen + op.length, 0))
+        opsShould.forEach(newIns => {
+          if ($insertOp.check(newIns) || $textOp.check(newIns)) {
+            d.insert(newIns.insert)
+          } else {
+            error.unexpectedCase()
+          }
+        })
+      }
+      diffAndApply(d, ops1.slice(change.index, change.index + change.remove.length), ops2.slice(change.index + currIndexOffset2, change.insert.length))
       lastIndex1 = change.index + change.remove.length
       currIndexOffset2 += change.insert.length - change.remove.length
     }
-
     for (const attr2 of d2.attrs) {
       const attr1 = d1.attrs[attr2.key]
       if (attr1 == null || (attr1.fingerprint !== attr2.fingerprint)) {
