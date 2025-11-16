@@ -171,6 +171,7 @@ export class TextOp extends list.ListNode {
     this._fingerprint = null
     // @ts-ignore
     this.insert = this.insert.slice(0, offset) + this.insert.slice(offset + len)
+    return this
   }
 
   /**
@@ -191,8 +192,8 @@ export class TextOp extends list.ListNode {
   /**
    * @return {TextOp}
    */
-  clone () {
-    return new TextOp(this.insert, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+  clone (start = 0, end = this.length) {
+    return new TextOp(this.insert.slice(start, end), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -293,6 +294,7 @@ export class InsertOp extends list.ListNode {
   _splice (offset, len) {
     this._fingerprint = null
     this.insert.splice(offset, len)
+    return this
   }
 
   /**
@@ -313,8 +315,8 @@ export class InsertOp extends list.ListNode {
   /**
    * @return {InsertOp<ArrayContent>}
    */
-  clone () {
-    return new InsertOp(this.insert.slice().map(_markMaybeDeltaAsDone), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+  clone (start = 0, end = this.length) {
+    return new InsertOp(this.insert.slice(start, end).map(_markMaybeDeltaAsDone), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -330,7 +332,7 @@ export class DeleteOp extends list.ListNode {
     super()
     this.delete = len
     /**
-     * @type {(Children|Text) extends never ? null : Delta<any,{},Children,Text>?}
+     * @type {(Children|Text) extends never ? null : (Delta<any,{},Children,Text>?)}
      */
     this.prevValue = null
     /**
@@ -364,9 +366,10 @@ export class DeleteOp extends list.ListNode {
    * @param {number} len
    */
   _splice (_offset, len) {
-    this.prevValue = this.prevValue?.slice(_offset, len)
+    this.prevValue = /** @type {any} */ (this.prevValue?.slice(_offset, len) || null)
     this._fingerprint = null
     this.delete -= len
+    return this
   }
 
   /**
@@ -383,8 +386,8 @@ export class DeleteOp extends list.ListNode {
     return this.delete === other.delete
   }
 
-  clone () {
-    return new DeleteOp(this.delete)
+  clone (start = 0, end = this.delete) {
+    return new DeleteOp(end - start)
   }
 }
 
@@ -446,6 +449,7 @@ export class RetainOp extends list.ListNode {
     // @ts-ignore
     this.retain -= len
     this._fingerprint = null
+    return this
   }
 
   /**
@@ -463,8 +467,8 @@ export class RetainOp extends list.ListNode {
     return this.retain === other.retain && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
-  clone () {
-    return new RetainOp(this.retain, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+  clone (start = 0, end = this.retain) {
+    return new RetainOp(end - start, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -545,6 +549,7 @@ export class ModifyOp extends list.ListNode {
    * @param {number} _len
    */
   _splice (_offset, _len) {
+    return this
   }
 
   /**
@@ -1032,19 +1037,46 @@ export class Delta {
   /**
    * @param {number} start
    * @param {number} end
-   * @return {this}
+   * @return {Delta<NodeName,Attrs,Children,Text,Schema>}
    */
-  slice (start, end) {
+  slice (start = 0, end = this.childCnt) {
     const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(/** @type {any} */ (this.name), this.$schema))
     cpy.origin = this.origin
+    // copy attrs
     for (const op of this.attrs) {
       cpy.attrs[op.key] = /** @type {any} */ (op.clone())
     }
-    if (start === 0 && end === this.childCnt) {
-      cpy.children.forEach(op => {
-        list.pushEnd(cpy.children, op.clone())
-      })
+    // copy children
+    const slicedLen = end - start
+    let remainingLen = slicedLen
+    /**
+     * @type {ChildrenOpAny?}
+     */
+    let currNode = this.children.start
+    let currNodeOffset = 0
+    while (start > 0 && currNode != null) {
+      if (currNode.length <= start) {
+        start -= currNode.length
+        currNode = currNode.next
+      } else {
+        currNodeOffset = start
+        start = 0
+      }
     }
+    if (currNodeOffset > 0 && currNode) {
+      const ncpy = currNode.clone(currNodeOffset, currNodeOffset + math.min(remainingLen, currNode.length - currNodeOffset))
+      list.pushEnd(cpy.children, ncpy)
+      remainingLen -= ncpy.length
+      currNode = currNode.next
+    }
+    while (currNode != null && currNode.length <= remainingLen) {
+      list.pushEnd(cpy.children, currNode.clone())
+      currNode = currNode.next
+    }
+    if (currNode != null && remainingLen > 0) {
+      list.pushEnd(cpy.children, currNode.clone(0, remainingLen))
+    }
+    cpy.childCnt = slicedLen - remainingLen
     // @ts-ignore
     return cpy
   }
@@ -1057,6 +1089,7 @@ export class Delta {
       this.isDone = true
       const cs = this.children
       for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null && end.attribution == null; end = cs.end) {
+        this.childCnt -= end.length
         list.popEnd(cs)
       }
     }
@@ -1414,19 +1447,11 @@ export class DeltaBuilder extends Delta {
      * At the end, we will try to merge this op, and op.next op with their respective previous op.
      *
      * Hence, anytime an op is cloned, deleted, or inserted (anytime list.* api is used) we must add
-     * an opp to maybeMergeable.
+     * an op to maybeMergeable.
      *
      * @type {Array<InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>>}
      */
     const maybeMergeable = []
-    /**
-     * @param {InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>} op
-     */
-    const cloneAndScheduleForMerge = op => {
-      const c = op.clone()
-      maybeMergeable.push(c)
-      return c
-    }
     /**
      * @template {InsertOp<any>|RetainOp|DeleteOp|TextOp|ModifyOp<any>|null} OP
      * @param {OP} op
@@ -1439,14 +1464,13 @@ export class DeltaBuilder extends Delta {
     other.children.forEach(op => {
       if ($textOp.check(op) || $insertOp.check(op)) {
         if (offset === 0) {
-          list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, cloneAndScheduleForMerge(op))
+          list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
         } else {
           if (opsI == null) error.unexpectedCase()
-          const cpy = cloneAndScheduleForMerge(opsI)
-          cpy._splice(0, offset)
+          const cpy = scheduleForMerge(opsI.clone(offset))
           opsI._splice(offset, opsI.length - offset)
           list.insertBetween(this.children, opsI, opsI.next || null, cpy)
-          list.insertBetween(this.children, opsI, cpy || null, cloneAndScheduleForMerge(op))
+          list.insertBetween(this.children, opsI, cpy || null, scheduleForMerge(op.clone()))
           offset = 0
         }
         this.childCnt += op.insert.length
@@ -1520,13 +1544,12 @@ export class DeltaBuilder extends Delta {
           opsI._modValue(offset).apply(op.value)
         } else if ($retainOp.check(opsI)) {
           if (offset > 0) {
-            const cpy = cloneAndScheduleForMerge(opsI)
-            cpy._splice(offset, opsI.length - offset) // skipped len
+            const cpy = scheduleForMerge(opsI.clone(0, offset)) // skipped len
             opsI._splice(0, offset) // new remainder
             list.insertBetween(this.children, opsI.prev, opsI, cpy) // insert skipped len
             offset = 0
           }
-          list.insertBetween(this.children, opsI.prev, opsI, cloneAndScheduleForMerge(op)) // insert skipped len
+          list.insertBetween(this.children, opsI.prev, opsI, scheduleForMerge(op.clone())) // insert skipped len
           if (opsI.length === 1) {
             list.remove(this.children, opsI)
           } else {
@@ -1673,8 +1696,7 @@ export class DeltaBuilder extends Delta {
           this.childCnt -= maxCommonLen
         } else { // insert/text.check(currOp)
           if (currOffset > 0) {
-            const leftPart = currChild.clone()
-            leftPart._splice(0, currOffset)
+            const leftPart = currChild.clone(currOffset)
             list.insertBetween(this.children, currChild.prev, currChild, leftPart)
             currChild._splice(currOffset, currChild.length - currOffset)
             currOffset = 0

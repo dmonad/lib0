@@ -638,3 +638,8 @@ export const testDiffing = () => {
   const d = delta.diff(d1, d2)
   t.compare(d, delta.create().delete(1).retain(1).delete(1).set('key', 1))
 }
+
+export const testSlice = () => {
+  const d1 = delta.create().insert('abcde').slice(1, 3)
+  t.assert(d1.equals(delta.create().insert('bc')))
+}
