@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 import * as delta from './d2.js'
 import * as s from '../schema.js'
 import * as error from '../error.js'

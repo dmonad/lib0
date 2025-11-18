@@ -285,6 +285,7 @@ export const testAnyEncodeUnknowns = _tc => {
   // @ts-ignore
   encoding.writeAny(encoder, Symbol('a'))
   encoding.writeAny(encoder, undefined)
+  // @ts-ignore
   encoding.writeAny(encoder, () => {})
   const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
   t.assert(decoding.readAny(decoder) === undefined)
