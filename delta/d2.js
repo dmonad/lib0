@@ -1029,8 +1029,9 @@ export class Delta {
    * @return {boolean}
    */
   [traits.EqualityTraitSymbol] (other) {
-    // @todo it is only necessary to compare finrerprints OR do a deep equality check
-    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt && this.fingerprint === other.fingerprint
+    // @todo it is only necessary to compare finrerprints OR do a deep equality check (remove
+    // childCnt as well)
+    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
   }
 
   /**
