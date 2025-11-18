@@ -880,6 +880,9 @@ export const $$void = /** @type {Schema<Schema<void>>} */ ($$undefined)
 export const $null = $literal(null)
 export const $$null = /** @type {Schema<Schema<null>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === null))
 
+export const $uint8Array = $constructedBy(Uint8Array)
+export const $$uint8Array = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Uint8Array))
+
 /**
  * @type {Schema<Primitive>}
  */

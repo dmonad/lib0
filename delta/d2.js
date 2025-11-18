@@ -1082,11 +1082,15 @@ export class Delta {
   }
 
   /**
+   * Mark this delta as done and perform some cleanup (e.g. remove appended retains without
+   * formats&attributions). In the future, there might be additional merge operations that can be
+   * performed to result in smaller deltas. Set `markAsDone=false` to only perform the cleanup.
+   *
    * @return {Delta<NodeName,Attrs,Children,Text,Schema>}
    */
-  done () {
+  done (markAsDone = true) {
     if (!this.isDone) {
-      this.isDone = true
+      this.isDone = markAsDone
       const cs = this.children
       for (let end = cs.end; end !== null && $retainOp.check(end) && end.format == null && end.attribution == null; end = cs.end) {
         this.childCnt -= end.length
