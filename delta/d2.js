@@ -528,7 +528,7 @@ export class ModifyOp extends list.ListNode {
     this._fingerprint = null
     if (d.isDone) {
       // @ts-ignore
-      return this.value = clone(d)
+      return (this.value = clone(d))
     }
     return d
   }
@@ -629,7 +629,7 @@ export class AttrInsertOp {
     this._fingerprint = null
     if ($deltaAny.check(v) && v.isDone) {
       // @ts-ignore
-      return this.value = clone(v)
+      return (this.value = clone(v))
     }
     return v
   }
@@ -1033,7 +1033,6 @@ export class Delta {
     return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt && this.fingerprint === other.fingerprint
   }
 
-
   /**
    * @param {number} start
    * @param {number} end
@@ -1424,7 +1423,7 @@ export class DeltaBuilder extends Delta {
     this.$schema?.expect(other)
     // apply attrs
     for (let op of other.attrs) {
-      let c = /** @type {AttrInsertOp<any,any>|AttrDeleteOp<any>|AttrModifyOp<any,any>} */ (this.attrs[op.key])
+      const c = /** @type {AttrInsertOp<any,any>|AttrDeleteOp<any>|AttrModifyOp<any,any>} */ (this.attrs[op.key])
       if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
           c._modValue.apply(op.value)

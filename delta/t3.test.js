@@ -1,11 +1,13 @@
+/* eslint-disable */
+// @ts-nocheck
 import * as t from '../testing.js'
 import * as delta from './d2.js'
 import * as s from '../schema.js'
 import * as array from '../array.js'
 
 /**
- * @template {delta.DeltaBuilder?} DeltaA
- * @template {delta.DeltaBuilder?} DeltaB
+ * @template {delta.Delta?} DeltaA
+ * @template {delta.Delta?} DeltaB
  * @typedef {{ a: DeltaA?, b: DeltaB? }} TransformResult
  */
 
@@ -20,8 +22,7 @@ export const transformResult = (a, b) => ({ a, b })
 export const transformResultEmpty = transformResult(null, null)
 
 let x = transformResult(delta.create('x'), null)
-x = transformResult(null,null)
-
+x = transformResult(null, null)
 
 /**
  * @template {delta.DeltaAny} DeltaA
@@ -39,7 +40,7 @@ const rename = t => {
   /**
    * @type {any}
    */
-  const tout = /** @type {any} */ (transformResult(null,null))
+  const tout = /** @type {any} */ (transformResult(null, null))
   if (t.a) {
     const c = /** @type {delta.Delta} */ (t.a.clone())
     c.name = 'x-' + c.name
@@ -73,7 +74,7 @@ const filter = (allowed) => {
     /**
      * @type {any}
      */
-    const tout = /** @type {any} */ (transformResult(null,null))
+    const tout = /** @type {any} */ (transformResult(null, null))
     if (t.a) {
       const c = delta.create()
       let index = 0
@@ -85,18 +86,17 @@ const filter = (allowed) => {
        * apply `diff.apply(merge)`
        *
        */
-      for (let child of t.a.children) {
+      for (const child of t.a.children) {
         if (delta.$insertOp.check(child)) {
           for (let i = 0; i < child.insert.length; i++) {
             const ins = child.insert[i]
             if (delta.$deltaAny.check(ins) && allowed.has(ins.name)) {
               ins
             } else {
-              
+
             }
             ins
           }
-
         }
         if (!delta.$deleteOp.check(child)) {
           index += child.length
@@ -109,9 +109,8 @@ const filter = (allowed) => {
   }
 }
 
-const dd = delta.create('x', {x: 'dtrn'})
-const y = rename({ a: delta.create('x', {x: 'dtrn'}), b: null })
-
+const dd = delta.create('x', { x: 'dtrn' })
+const y = rename({ a: delta.create('x', { x: 'dtrn' }), b: null })
 
 /**
  * @template {delta.DeltaAny} DeltaA
@@ -155,6 +154,7 @@ class Transformer {
      */
     this._tr = []
   }
+
   /**
    * @param {TransformResult<A,B>} d
    * @return {TransformResult<A?,B?>}
@@ -212,23 +212,23 @@ class Transformer {
     return /** @type {TransformResult<A,B>} */ (transformResult(pendingApply[0].b, pendingApply[pendingApply.length - 1].a))
   }
 }
-
-/**
- * @template {delta.Delta} D
- * @param {s.Schema<D>} $d
- * @return {Transformer<D,D>}
- */
-const id = ($d) => /** @type {Transformer<D,D>} */ (new Transformer($d))
-
-const q = id(delta.$delta({ name: 'div' }))
-const q2 = id(delta.$delta({ name: 'div', attrs: { a: s.$string } })).pipe(t.delta('h1', { color: t => query('a')(t), name:'mystuff' }, t => [query('b')(t)]))
-const q3 = t.delta('h1', { color: t => query('a')(t), name:'mystuff' }, t => [query('b')(t)])(id(delta.$delta({ name: 'div', attrs: { a: s.$string } }))))
-
-
-/**
- * @param {Transformer<delta.Delta<any,{ a: string, name: string }>>} t
- */
-const dataToH1 = t => t.delta('h1', { color: t => query('a')(t), name:'mystuff' }, t => [query('b')(t)])(t)
-const q4 = dataToH1(id(delta.$delta({ name: 'div', attrs: { a: s.$string } })))
-
-const dataToH1_2 = t => rename('h1')(renameAttr({ a: 'color' })(static(delta.create('h1', { name: 'mystuff' }, 'some content!'))(t)))
+//
+// /**
+//  * @template {delta.Delta} D
+//  * @param {s.Schema<D>} $d
+//  * @return {Transformer<D,D>}
+//  */
+// const id = ($d) => /** @type {Transformer<D,D>} */ (new Transformer($d))
+//
+// const q = id(delta.$delta({ name: 'div' }))
+// const q2 = id(delta.$delta({ name: 'div', attrs: { a: s.$string } })).pipe(t.delta('h1', { color: t => query('a')(t), name:'mystuff' }, t => [query('b')(t)]))
+// const q3 = t.delta('h1', { color: t => query('a')(t), name:'mystuff' }, t => [query('b')(t)])(id(delta.$delta({ name: 'div', attrs: { a: s.$string } }))))
+//
+//
+// /**
+//  * @param {Transformer<delta.Delta<any,{ a: string, name: string }>>} t
+//  */
+// const dataToH1 = t => t.delta('h1', { color: t => query('a')(t), name:'mystuff' }, t => [query('b')(t)])(t)
+// const q4 = dataToH1(id(delta.$delta({ name: 'div', attrs: { a: s.$string } })))
+//
+// const dataToH1_2 = t => rename('h1')(renameAttr({ a: 'color' })(static(delta.create('h1', { name: 'mystuff' }, 'some content!'))(t)))
