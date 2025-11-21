@@ -1,6 +1,6 @@
 import * as t from './testing.js'
 import * as list from './list.js'
-import * as traits from './traits.js'
+import * as equalityTrait from './trait/equality.js'
 
 /**
  * @template [out V=number]
@@ -17,7 +17,7 @@ class QueueItem extends list.ListNode {
   /**
    * @param {QueueItem<any>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return this.v === other.v
   }
 }

@@ -93,10 +93,10 @@
       "require": "./dist/aes-gcm.cjs"
     },
     "./delta": {
-      "types": "./delta/d2.d.ts",
-      "module": "./delta/d2.js",
-      "import": "./delta/d2.js",
-      "require": "./dist/d2.cjs"
+      "types": "./delta/delta.d.ts",
+      "module": "./delta/delta.js",
+      "import": "./delta/delta.js",
+      "require": "./dist/delta.cjs"
     },
     "./crypto/ecdsa": {
       "types": "./crypto/ecdsa.d.ts",
@@ -409,12 +409,10 @@
       "import": "./symbol.js",
       "require": "./dist/symbol.cjs"
     },
-    "./traits.js": "./traits.js",
-    "./dist/traits.cjs": "./dist/traits.cjs",
     "./traits": {
-      "types": "./traits.d.ts",
-      "module": "./traits.js",
-      "import": "./traits.js",
+      "types": "./trait/traits.d.ts",
+      "module": "./trait/traits.js",
+      "import": "./trait/traits.js",
       "require": "./dist/traits.cjs"
     },
     "./testing.js": "./testing.js",

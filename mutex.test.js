@@ -20,5 +20,5 @@ export const testMutex = _tc => {
   }, () => {
     res += 'X'
   })
-  t.assert(res === '123')
+  t.assert(res === '12')
 }

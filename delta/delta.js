@@ -10,7 +10,8 @@
 
 import * as list from '../list.js'
 import * as object from '../object.js'
-import * as traits from '../traits.js'
+import * as equalityTrait from '../trait/equality.js'
+import * as fingerprintTrait from '../trait/fingerprint.js'
 import * as arr from '../array.js'
 import * as fun from '../function.js'
 import * as s from '../schema.js'
@@ -185,7 +186,7 @@ export class TextOp extends list.ListNode {
   /**
    * @param {TextOp} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
@@ -198,7 +199,7 @@ export class TextOp extends list.ListNode {
 }
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} ArrayContent
+ * @template {fingerprintTrait.Fingerprintable} ArrayContent
  */
 export class InsertOp extends list.ListNode {
   /**
@@ -273,13 +274,7 @@ export class InsertOp extends list.ListNode {
       encoding.writeVarUint(encoder, 1) // insertOp type: 1
       encoding.writeVarUint(encoder, this.insert.length)
       this.insert.forEach(ins => {
-        if ($deltaAny.check(ins)) {
-          encoding.writeUint8(encoder, 0)
-          encoding.writeVarString(encoder, ins.fingerprint)
-        } else {
-          encoding.writeUint8(encoder, 1)
-          encoding.writeAny(encoder, ins)
-        }
+        encoding.writeVarString(encoder, fingerprintTrait.fingerprint(ins))
       })
       encoding.writeAny(encoder, this.format)
     })))
@@ -308,7 +303,7 @@ export class InsertOp extends list.ListNode {
   /**
    * @param {InsertOp<ArrayContent>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
@@ -321,7 +316,7 @@ export class InsertOp extends list.ListNode {
 }
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} [Children=never]
+ * @template {fingerprintTrait.Fingerprintable} [Children=never]
  * @template {string} [Text=never]
  */
 export class DeleteOp extends list.ListNode {
@@ -382,7 +377,7 @@ export class DeleteOp extends list.ListNode {
   /**
    * @param {DeleteOp} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return this.delete === other.delete
   }
 
@@ -463,7 +458,7 @@ export class RetainOp extends list.ListNode {
   /**
    * @param {RetainOp} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return this.retain === other.retain && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
@@ -563,8 +558,8 @@ export class ModifyOp extends list.ListNode {
   /**
    * @param {ModifyOp<any>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
-    return this.value[traits.EqualityTraitSymbol](other.value) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+  [equalityTrait.EqualityTraitSymbol] (other) {
+    return this.value[equalityTrait.EqualityTraitSymbol](other.value) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -576,7 +571,7 @@ export class ModifyOp extends list.ListNode {
 }
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} V
+ * @template {fingerprintTrait.Fingerprintable} V
  * @template {string|number} [K=any]
  */
 export class AttrInsertOp {
@@ -661,7 +656,7 @@ export class AttrInsertOp {
   /**
    * @param {AttrInsertOp<V>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
@@ -726,7 +721,7 @@ export class AttrDeleteOp {
   /**
    * @param {AttrDeleteOp<V>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
   }
 
@@ -800,8 +795,8 @@ export class AttrModifyOp {
   /**
    * @param {AttrModifyOp<Modifier>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
-    return this.key === other.key && this.value[traits.EqualityTraitSymbol](other.value)
+  [equalityTrait.EqualityTraitSymbol] (other) {
+    return this.key === other.key && this.value[equalityTrait.EqualityTraitSymbol](other.value)
   }
 
   /**
@@ -823,7 +818,7 @@ export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp
 export const $insertOp = s.$custom(o => o != null && (o.constructor === AttrInsertOp || o.constructor === InsertOp))
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} Content
+ * @template {fingerprintTrait.Fingerprintable} Content
  * @param {s.Schema<Content>} $content
  * @return {s.Schema<AttrInsertOp<Content> | InsertOp<Content>>}
  */
@@ -904,7 +899,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 /**
  * @template {string} [NodeName=any]
  * @template {{[k:string|number]:any}} [Attrs={}]
- * @template {encoding.AnyEncodable|DeltaAny|never} [Children=never]
+ * @template {fingerprintTrait.Fingerprintable|never} [Children=never]
  * @template {string|never} [Text=never]
  * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
  */
@@ -956,6 +951,7 @@ export class Delta {
    */
   get fingerprint () {
     return this._fingerprint || (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
+      encoding.writeUint32(encoder, 0xf2ae5680) // "magic number" that ensures that different types of content don't yield the same fingerprint
       encoding.writeAny(encoder, this.name)
       /**
        * @type {Array<number|string>}
@@ -983,6 +979,10 @@ export class Delta {
       }
       return buffer.toBase64(rabin.fingerprint(rabin.StandardIrreducible128, encoding.toUint8Array(encoder)))
     })))
+  }
+
+  [fingerprintTrait.FingerprintTraitSymbol] () {
+    return this.fingerprint
   }
 
   isEmpty () {
@@ -1021,14 +1021,14 @@ export class Delta {
    * @return {boolean}
    */
   equals (other) {
-    return this[traits.EqualityTraitSymbol](other)
+    return this[equalityTrait.EqualityTraitSymbol](other)
   }
 
   /**
    * @param {any} other
    * @return {boolean}
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     // @todo it is only necessary to compare finrerprints OR do a deep equality check (remove
     // childCnt as well)
     return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
@@ -1158,7 +1158,7 @@ const modDeltaCheck = d => {
 /**
  * @template {string} [NodeName=any]
  * @template {{[key:string|number]:any}} [Attrs={}]
- * @template {encoding.AnyEncodable|DeltaAny|never} [Children=never]
+ * @template {fingerprintTrait.Fingerprintable|never} [Children=never]
  * @template {string|never} [Text=never]
  * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
  * @extends {Delta<NodeName,Attrs,Children,Text,Schema>}
@@ -1739,7 +1739,7 @@ export class DeltaBuilder extends Delta {
 /**
  * @template {string} NodeName
  * @template {{ [key: string|number]: any }} [Attrs={}]
- * @template {encoding.AnyEncodable|DeltaAny|never} [Children=never]
+ * @template {fingerprintTrait.Fingerprintable|never} [Children=never]
  * @template {string|never} [Text=never]
  * @typedef {Delta<NodeName,Attrs,Children|Delta<NodeName,Attrs,Children,Text>|RecursiveDelta<NodeName,Attrs,Children,Text>,Text>} RecursiveDelta
  */
@@ -1879,12 +1879,12 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
 // DELTA TEXT
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} [Embeds=never]
+ * @template {fingerprintTrait.Fingerprintable} [Embeds=never]
  * @typedef {Delta<any,{},Embeds,string>} TextDelta
  */
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} [Embeds=never]
+ * @template {fingerprintTrait.Fingerprintable} [Embeds=never]
  * @typedef {DeltaBuilder<any,{},Embeds,string>} TextDeltaBuilder
  */
 
@@ -1904,12 +1904,12 @@ export const $textOnly = $text()
 export const text = $schema => /** @type {any} */ (create($schema || $textOnly))
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} Children
+ * @template {fingerprintTrait.Fingerprintable} Children
  * @typedef {Delta<any,{},Children,never>} ArrayDelta
  */
 
 /**
- * @template {encoding.AnyEncodable|DeltaAny} Children
+ * @template {fingerprintTrait.Fingerprintable} Children
  * @typedef {DeltaBuilder<any,{},Children,never>} ArrayDeltaBuilder
  */
 

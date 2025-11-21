@@ -1,7 +1,7 @@
-import * as t from './testing.js'
-import * as fun from './function.js'
+import * as t from '../testing.js'
+import * as fun from '../function.js'
+import * as s from '../schema.js'
 import * as traits from './traits.js'
-import * as s from './schema.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -74,4 +74,12 @@ export const testEqualityTrait2 = _tc => {
   t.assert(fun.equalityDeep(x, x))
   t.assert(fun.equalityDeep(x, x2))
   t.assert(!fun.equalityDeep(x, y))
+}
+
+export const testFingerprintTrait = () => {
+  const someObj = { a: 42 }
+  const someObj2 = null
+  const fing = { [traits.FingerprintTraitSymbol]: () => '' }
+  t.assert(traits.fingerprint(someObj) !== traits.fingerprint(someObj2))
+  t.assert(traits.fingerprint(someObj) !== traits.fingerprint(fing))
 }

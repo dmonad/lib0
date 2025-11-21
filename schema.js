@@ -8,7 +8,7 @@ import * as obj from './object.js'
 import * as arr from './array.js'
 import * as error from './error.js'
 import * as env from './environment.js'
-import * as traits from './traits.js'
+import * as equalityTraits from './trait/equality.js'
 import * as fun from './function.js'
 import * as string from './string.js'
 
@@ -102,7 +102,7 @@ class ValidationError {
 const shapeExtends = (a, b) => {
   if (a === b) return true
   if (a == null || b == null || a.constructor !== b.constructor) return false
-  if (a[traits.EqualityTraitSymbol]) return traits.equals(a, b) // last resort: check equality (do this before array and obj check which don't implement the equality trait)
+  if (a[equalityTraits.EqualityTraitSymbol]) return equalityTraits.equals(a, b) // last resort: check equality (do this before array and obj check which don't implement the equality trait)
   if (arr.isArray(a)) {
     return arr.every(a, aitem =>
       arr.some(b, bitem => shapeExtends(aitem, bitem))
@@ -118,7 +118,7 @@ const shapeExtends = (a, b) => {
 
 /**
  * @template T
- * @implements {traits.EqualityTrait}
+ * @implements {equalityTraits.EqualityTrait}
  */
 export class Schema {
   // this.shape must not be defined on Schema. Otherwise typecheck on metatypes (e.g. $$object) won't work as expected anymore
@@ -153,7 +153,7 @@ export class Schema {
   /**
    * @param {object} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTraits.EqualityTraitSymbol] (other) {
     return this.equals(/** @type {any} */ (other))
   }
 
@@ -944,6 +944,7 @@ export const $ = o => {
   } else if ($function.check(o)) {
     return /** @type {any} */ ($constructedBy(/** @type {any} */ (o)))
   }
+  /* c8 ignore next */
   error.unexpectedCase()
 }
 

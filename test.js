@@ -38,13 +38,10 @@ import * as storage from './storage.test.js'
 import * as list from './list.test.js'
 import * as cache from './cache.test.js'
 import * as symbol from './symbol.test.js'
-import * as traits from './traits.test.js'
+import * as traits from './trait/traits.test.js'
 import * as schema from './schema.test.js'
-import * as d2 from './delta/d2.test.js'
-import * as deltaArray from './delta/array.test.js'
-import * as deltaText from './delta/text.test.js'
-import * as deltaNode from './delta/node.test.js'
-import * as deltaTransformer from './delta/transformer.test.js'
+import * as delta from './delta/delta.test.js'
+import * as deltaPitch from './delta/delta-pitch.test.js'
 import * as deltaBinding from './delta/binding.test.js'
 import * as mutex from './mutex.test.js'
 import { isBrowser, isNode } from './environment.js'
@@ -95,11 +92,8 @@ runTests({
   symbol,
   traits,
   schema,
-  d2,
-  deltaArray,
-  deltaText,
-  deltaNode,
-  deltaTransformer,
+  delta,
+  deltaPitch,
   deltaBinding,
   mutex
 }).then(success => {

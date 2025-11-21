@@ -1,6 +1,6 @@
 import { id } from './function.js'
 import * as error from './error.js'
-import * as traits from './traits.js'
+import * as equalityTrait from './trait/equality.js'
 
 export class ListNode {
   constructor () {
@@ -49,11 +49,11 @@ export class List {
   /**
    * @param {List<any>} other
    */
-  [traits.EqualityTraitSymbol] (other) {
+  [equalityTrait.EqualityTraitSymbol] (other) {
     let n = this.start
     let m = other.start
     while (n && m) {
-      if (!traits.equals(n, m)) return false
+      if (!equalityTrait.equals(n, m)) return false
       n = n.next
       m = m.next
     }

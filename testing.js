@@ -57,7 +57,7 @@ import * as json from './json.js'
 import * as time from './time.js'
 import * as promise from './promise.js'
 import * as performance from 'lib0/performance'
-import * as traits from './traits.js'
+import * as equalityTrait from './trait/equality.js'
 
 export { production } from './environment.js'
 export const extensive = env.hasConf('extensive')
@@ -435,8 +435,8 @@ const _compare = (a, b, path, message, customCompare) => {
   if (a == null || b == null) {
     return compareValues(null, a, b, path)
   }
-  if (a[traits.EqualityTraitSymbol] != null) {
-    if (a[traits.EqualityTraitSymbol](b)) {
+  if (a[equalityTrait.EqualityTraitSymbol] != null) {
+    if (a[equalityTrait.EqualityTraitSymbol](b)) {
       return true
     } else {
       _failMessage(message, 'Not equal by equality trait', path)
