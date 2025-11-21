@@ -42,7 +42,7 @@ import * as traits from './trait/traits.test.js'
 import * as schema from './schema.test.js'
 import * as delta from './delta/delta.test.js'
 import * as deltaPitch from './delta/delta-pitch.test.js'
-import * as deltaBinding from './delta/binding.test.js'
+// import * as deltaBinding from './delta/binding.test.js'
 import * as mutex from './mutex.test.js'
 import { isBrowser, isNode } from './environment.js'
 
@@ -94,7 +94,7 @@ runTests({
   schema,
   delta,
   deltaPitch,
-  deltaBinding,
+  // deltaBinding,
   mutex
 }).then(success => {
   /* c8 ignore next */

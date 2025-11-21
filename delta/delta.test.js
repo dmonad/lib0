@@ -109,6 +109,14 @@ export const testDeltaBasicCases = () => {
   m.set('k', m).update('k', m)
 }
 
+export const testDeltaArrayBasics = () => {
+  t.group('apply edge cases', () => {
+    const d = delta.create().insert('abc')
+    d.apply(delta.create().retain(1).delete(1))
+    t.compare(d, delta.create().insert('ac'))
+  })
+}
+
 /**
  * It should be possible to assign delta "subsets" to "supersets", but not the other way around
  */
@@ -624,22 +632,46 @@ export const testRecursiveNode = () => {
 }
 
 export const testSimplifiedDeltaSchemaDefinition = () => {
-  /**
-   * @type {s.Schema<delta.Delta<'div', { a: number, b?: string }, number, string>>}
-   */
-  const $d = delta.$delta({ name: 'div', attrs: { a: s.$number, b: s.$string.optional }, children: [s.$number], text: true })
+  const $d = delta.$delta({ name: 'div', attrs: { a: s.$number, b: s.$string.optional, unknown: s.$string }, children: [s.$number], text: true })
   t.assert($d.check(delta.create('div', { a: 42 }).insert([42]).insert('str')))
   t.assert(!$d.check(delta.create('dove', { a: 42 }).insert([42]).insert('str')))
 }
 
 export const testDiffing = () => {
-  const d1 = delta.create().insert([1]).insert('hello').insert([2]).set('key', 42).done()
-  const d2 = delta.create().insert('hello').set('key', 1).done()
+  const $d = delta.$delta({ name: 'div', attrs: { key: s.$number, b: s.$string, unknown: s.$string }, children: [s.$number], text: true })
+  const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).set('key', 42).set('unknown', 'unknown').done()
+  const d2 = delta.create($d).insert('hello').set('key', 1).done()
   const d = delta.diff(d1, d2)
-  t.compare(d, delta.create().delete(1).retain(1).delete(1).set('key', 1))
+  t.compare(d, delta.create().delete(1).retain(1).delete(1).set('key', 1).unset('unknown'))
+}
+
+export const testDiffingCommonPreSuffix = () => {
+  const $d = delta.$delta({ name: 'div', children: [s.$number], text: true })
+  const d1 = delta.create($d).insert([1, 2]).insert('aa').insert([3, 4])
+  const d2 = delta.create($d).insert([1, 2]).insert('a').insert([3, 4])
+  const d = delta.diff(d1, d2)
+  t.compare(d, delta.create().retain(3).delete(1))
 }
 
 export const testSlice = () => {
   const d1 = delta.create().insert('abcde').slice(1, 3)
   t.assert(d1.equals(delta.create().insert('bc')))
+}
+
+export const testRepeatRandomListDiff = () => {
+  const $d = delta.$delta({ children: [s.$number, delta.$delta({ text: true })] })
+  const d1 = delta.random($d)
+  const d2 = delta.random($d)
+  const d = delta.diff(d1, d2)
+  d1.apply(d1, d)
+  t.compare(d1, d2)
+}
+
+export const testRepeatRandomMapDiff = () => {
+  const $d = delta.$delta({ attrs: { a: s.$string, b: delta.$delta({ attrs: { a: s.$number } }) }})
+  const d1 = delta.random($d)
+  const d2 = delta.random($d)
+  const d = delta.diff(d1, d2)
+  d1.apply(d1, d)
+  t.compare(d1, d2)
 }

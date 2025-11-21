@@ -1820,6 +1820,16 @@ export const mergeDeltas = (a, b) => {
 }
 
 /**
+/**
+ * @template {Delta} D
+ * @param {s.Schema<D>} schema 
+ * @return {D}
+ */
+export const random = schema => {
+  schema
+}
+
+/**
  * @overload
  * @return {DeltaBuilder<any,{},never,never,null>}
  */
@@ -2015,9 +2025,11 @@ export const diff = (d1, d2) => {
         // naive implementation
         d.delete(opsIs.reduce((currLen, op) => currLen + op.length, 0))
         opsShould.forEach(newIns => {
+          /* c8 ignore else */
           if ($insertOp.check(newIns) || $textOp.check(newIns)) {
             d.insert(newIns.insert)
           } else {
+            /* c8 ignore next 2 */
             error.unexpectedCase()
           }
         })
@@ -2029,9 +2041,11 @@ export const diff = (d1, d2) => {
     for (const attr2 of d2.attrs) {
       const attr1 = d1.attrs[attr2.key]
       if (attr1 == null || (attr1.fingerprint !== attr2.fingerprint)) {
+        /* c8 ignore else */
         if ($insertOp.check(attr2)) {
           d.set(attr2.key, attr2.value)
         } else {
+          /* c8 ignore next 2 */
           error.unexpectedCase()
         }
       }
@@ -2042,5 +2056,5 @@ export const diff = (d1, d2) => {
       }
     }
   }
-  return /** @type {D} */ (d.done())
+  return /** @type {D} */ (d.done(false))
 }

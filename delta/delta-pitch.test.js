@@ -3,7 +3,7 @@ import * as t from 'lib0/testing'
 import * as s from 'lib0/schema'
 
 /**
- * Delta is a versatyle format enabling you to efficiently describe changes. It is part of lib0, so
+ * Delta is a versatile format enabling you to efficiently describe changes. It is part of lib0, so
  * that non-yjs applications can use it without consuming the full Yjs package. It is well suited
  * for efficiently describing state & changesets.
  *
