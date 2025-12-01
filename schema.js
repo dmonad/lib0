@@ -11,6 +11,9 @@ import * as env from './environment.js'
 import * as equalityTraits from './trait/equality.js'
 import * as fun from './function.js'
 import * as string from './string.js'
+import * as prng from './prng.js'
+import * as err from './error.js'
+import * as number from './number.js'
 
 /**
  * @typedef {string|number|bigint|boolean|null|undefined|symbol} Primitive
@@ -64,7 +67,7 @@ import * as string from './string.js'
 
 const schemaSymbol = Symbol('0schema')
 
-class ValidationError {
+export class ValidationError {
   constructor () {
     /**
      * Reverse errors
@@ -314,7 +317,7 @@ export class $Custom extends Schema {
  * @param {(o:any) => boolean} check
  * @return {Schema<any>}
  */
-export const $custom = check => new $Custom(check)
+export const $custom = (check) => new $Custom(check)
 export const $$custom = $constructedBy($Custom)
 
 /**
@@ -838,32 +841,32 @@ export const $$any = /** @type {Schema<Schema<any>>} */ ($constructedBy($Custom,
 /**
  * @type {Schema<bigint>}
  */
-export const $bigint = $constructedBy(BigInt)
-export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ ($constructedBy($ConstructedBy, o => o.shape === BigInt))
+export const $bigint = $custom(o => typeof o === 'bigint')
+export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ ($custom(o => o === $bigint))
 
 /**
  * @type {Schema<symbol>}
  */
-export const $symbol = $constructedBy(Symbol)
-export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ ($constructedBy($ConstructedBy, o => o.shape === Symbol))
+export const $symbol = $custom(o => typeof o === 'symbol')
+export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ ($custom(o => o === $symbol))
 
 /**
  * @type {Schema<number>}
  */
-export const $number = $constructedBy(Number)
-export const $$number = /** @type {Schema<Schema<number>>} */ ($constructedBy($ConstructedBy, o => o.shape === Number))
+export const $number = $custom(o => typeof o === 'number')
+export const $$number = /** @type {Schema<Schema<number>>} */ ($custom(o => o === $number))
 
 /**
  * @type {Schema<string>}
  */
-export const $string = $constructedBy(String)
-export const $$string = /** @type {Schema<Schema<string>>} */ ($constructedBy($ConstructedBy, o => o.shape === String))
+export const $string = $custom(o => typeof o === 'string')
+export const $$string = /** @type {Schema<Schema<string>>} */ ($custom(o => o === $string))
 
 /**
  * @type {Schema<boolean>}
  */
-export const $boolean = $constructedBy(Boolean)
-export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ ($constructedBy($ConstructedBy, o => o.shape === Boolean))
+export const $boolean = $custom(o => typeof o === 'boolean')
+export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ ($custom(o => o === $boolean))
 
 /**
  * @type {Schema<undefined>}
@@ -964,3 +967,142 @@ export const assert = env.production
       }
     }
 /* c8 ignore end */
+
+
+/**
+ * @template In
+ * @template Out
+ * @typedef {{ if: Schema<In>, h: (o:In,state?:any)=>Out }} Pattern
+ */
+
+/**
+ * @template {Pattern<any,any>} P
+ * @template In
+ * @typedef {ReturnType<Extract<P,Pattern<In extends number ? number : (In extends string ? string : In),any>>['h']>} PatternMatchResult
+ */
+
+/**
+ * @todo move this to separate library
+ * @template {any} [State=undefined]
+ * @template {Pattern<any,any>} [Patterns=never]
+ */
+export class PatternMatcher {
+  /**
+   * @param {Schema<State>} [$state]
+   */
+  constructor ($state) {
+    /**
+     * @type {Array<Patterns>}
+     */
+    this.patterns = []
+    this.$state = $state
+  }
+
+  /**
+   * @template P
+   * @template R
+   * @param {P} pattern
+   * @param {(o:NoInfer<Unwrap<ReadSchema<P>>>,s:State)=>R} handler
+   * @return {PatternMatcher<State,Patterns|Pattern<Unwrap<ReadSchema<P>>,R>>}
+   */
+  if (pattern, handler) {
+    // @ts-ignore
+    this.patterns.push({ if: $(pattern), h: handler })
+    // @ts-ignore
+    return this
+  }
+
+  /**
+   * @template R
+   * @param {(o:any,s:State)=>R} h
+   */
+  else (h) {
+    return this.if($any, h)
+  }
+
+  /**
+   * @return {State extends undefined 
+   *   ? <In extends Unwrap<Patterns['if']>>(o:In,state?:undefined)=>PatternMatchResult<Patterns,In>
+   *   : <In extends Unwrap<Patterns['if']>>(o:In,state:State)=>PatternMatchResult<Patterns,In>}
+   */
+  done () {
+    // @ts-ignore
+    return /** @type {any} */ ((o,s) => {
+      for (let i = 0; i < this.patterns.length; i++) {
+        const p = this.patterns[i]
+        if (p.if.check(o)) {
+          // @ts-ignore
+          return p.h(o, s)
+        }
+      }
+      throw err.create('Unhandled pattern')
+    })
+  }
+}
+
+/**
+ * @template [State=undefined]
+ * @param {State} [state]
+ * @return {PatternMatcher<State extends undefined ? undefined : Unwrap<ReadSchema<State>>>}
+ */
+export const match = state => new PatternMatcher(/** @type {ReadSchema<State>} */ (state))
+
+/**
+ * @type {<T>(o:T,gen:prng.PRNG)=>T}
+ */
+const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any))
+  .if($$number, (_o, gen) => prng.int32(gen, 0, 100))
+  .if($$string, (_o, gen) => prng.word(gen))
+  .if($$boolean, (_o, gen) => prng.bool(gen))
+  .if($$bigint, (_o, gen) => BigInt(prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_UINT32)))
+  .if($$union, (o, gen) => random(gen, prng.oneOf(gen, o.shape)))
+  .if($$object, (o, gen) => {
+    /**
+     * @type {any}
+     */
+    const res = {}
+    for (const k in o.shape) {
+      let prop = o.shape[k]
+      if ($$optional.check(prop)) {
+        if (prng.bool(gen)) { continue }
+        prop = prop.shape
+      }
+      res[k] = _random(prop, gen)
+    }
+    return res
+  })
+  .if($$array, (o, gen) => {
+    const arr = []
+    const n = prng.int32(gen, 0, 42)
+    for (let i = 0; i < n; i++) {
+      arr.push(random(gen, o.shape))
+    }
+    return arr
+  })
+  .if($$literal, (o, gen) => {
+    return prng.oneOf(gen, o.shape)
+  })
+  .if($$null, (o, gen) => {
+    return null
+  })
+  .if($$lambda, (o, gen) => {
+    const res = random(gen, o.res)
+    return () => res
+  })
+  .if($$any, (o, gen) => {
+    prng.oneOf(gen, [
+      $primitive,
+      $array($any),
+      $record($union('a','b','c'), $any)
+    ])
+  })
+  .done())
+
+/**
+ * @template S
+ * @param {prng.PRNG} gen
+ * @param {S} schema
+ * @return {Unwrap<ReadSchema<S>>}
+ */
+export const random = (gen, schema) => /** @type {any} */ (_random($(schema), gen))
+

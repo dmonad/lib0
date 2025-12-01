@@ -21,6 +21,7 @@ import * as rabin from '../hash/rabin.js'
 import * as encoding from '../encoding.js'
 import * as buffer from '../buffer.js'
 import * as patience from '../diff/patience.js'
+import * as prng from '../prng.js'
 
 /**
  * @typedef {{
@@ -103,10 +104,6 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  * @return {MaybeDelta}
  */
 const _markMaybeDeltaAsDone = maybeDelta => $deltaAny.check(maybeDelta) ? /** @type {MaybeDelta} */ (maybeDelta.done()) : maybeDelta
-
-/**
- * @typedef {unknown & DeltaAny} Q
- */
 
 export class TextOp extends list.ListNode {
   /**
@@ -1745,6 +1742,97 @@ export class DeltaBuilder extends Delta {
  */
 
 /**
+ * @template {string} Name
+ * @template {{[k:string|number]:any}} Attrs
+ * @template {fingerprintTrait.Fingerprintable} Children
+ * @template {boolean} HasText
+ * @template {{ [k:string]:any }} Formats
+ * @template {boolean} Recursive
+ * @extends {s.Schema<Delta<
+ *   Name,
+ *   Attrs,
+ *   Children|(Recursive extends true ? RecursiveDelta<Name,Attrs,Children,HasText extends true ? string : never> : never),
+ *   HasText extends true ? string : never,
+ *   any>>}
+ */
+export class $Delta extends s.Schema {
+  /**
+   * @param {s.Schema<Name>} $name
+   * @param {s.Schema<Attrs>} $attrs
+   * @param {s.Schema<Children>} $children
+   * @param {HasText} hasText
+   * @param {s.Schema<Formats>} $formats
+   * @param {Recursive} recursive
+   */
+  constructor ($name, $attrs, $children, hasText, $formats, recursive) {
+    super()
+    const $attrsPartial = s.$$object.check($attrs) ? $attrs.partial : $attrs
+    if (recursive) {
+      $children = s.$union($children, this)
+    }
+    this.shape = { $name, $attrs: $attrsPartial, $children, hasText, $formats }
+  }
+
+  /**
+   * @param {any} o
+   * @param {s.ValidationError} [err]
+   * @return {o is Delta<
+   *   Name,
+   *   Attrs,
+   *   Children|(Recursive extends true ? RecursiveDelta<Name,Attrs,Children,HasText extends true ? string : never> : never),
+   *   HasText extends true ? string : never,
+   *   any>}
+   */
+  check (o, err = undefined) {
+    const { $name, $attrs, $children, hasText, $formats } = this.shape
+    if (!(o instanceof Delta)) {
+      err?.extend(null, 'Delta', o?.constructor.name, 'Constructor match failed')
+    } else if (!$name.check(o.name, err)) {
+      err?.extend('Delta.name', $name.toString(), o.name, 'Constructor match failed')
+    } else if (list.toArray(o.children).some(c => (!hasText && $textOp.check(c)) || (hasText && $textOp.check(c) && c.format != null && !$formats.check(c.format)) || ($insertOp.check(c) && !c.insert.every(ins => $children.check(ins))))) {
+      err?.extend('Delta.children', '', '', 'Children don\'t match the schema')
+    } else if (object.some(o.attrs, (op, k) => $insertOp.check(op) && !$attrs.check({ [k]: op.value }, err))) {
+      err?.extend('Delta.attrs', '', '', 'Attrs don\'t match the schema')
+    } else {
+      return true
+    }
+    return false
+  }
+}
+
+/**
+ * @template {s.Schema<string>|string|Array<string>} [NodeNameSchema=s.Schema<any>]
+ * @template {s.Schema<{ [key: string|number]: any }>|{ [key:string|number]:any }} [AttrsSchema=s.Schema<{}>]
+ * @template {any} [ChildrenSchema=s.Schema<never>]
+ * @template {boolean} [HasText=false]
+ * @template {boolean} [Recursive=false]
+ * @template {{ [k:string]:any }} [Formats={[k:string]:any}]
+ * @param {object} opts
+ * @param {NodeNameSchema?} [opts.name]
+ * @param {AttrsSchema?} [opts.attrs]
+ * @param {ChildrenSchema?} [opts.children]
+ * @param {HasText} [opts.text]
+ * @param {Formats} [opts.formats]
+ * @param {Recursive} [opts.recursive]
+ * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<
+ *     NodeName,
+ *     Attrs,
+ *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,HasText extends true ? string : never> : never),
+ *     HasText extends true ? string : never
+ * >> : never}
+ */
+export const $delta = ({ name, attrs, children, text, formats, recursive }) => /** @type {any} */ (new $Delta(
+  name == null ? s.$any : s.$(name),
+  attrs == null ? s.$object({}) : s.$(attrs),
+  children == null ? s.$never : s.$(children),
+  text ?? false,
+  formats == null ? s.$any : s.$(formats),
+  recursive ?? false
+))
+
+/**
+ * @todo remove this
+ *
  * @template {s.Schema<string>|string|Array<string>} [NodeNameSchema=s.Schema<any>]
  * @template {s.Schema<{ [key: string|number]: any }>|{ [key:string|number]:any }} [AttrsSchema=s.Schema<{}>]
  * @template {any} [ChildrenSchema=s.Schema<never>]
@@ -1763,7 +1851,7 @@ export class DeltaBuilder extends Delta {
  *     HasText extends true ? string : never
  * >> : never}
  */
-export const $delta = ({ name, attrs, children, text, recursive }) => {
+export const _$delta = ({ name, attrs, children, text, recursive }) => {
   /**
    * @type {s.Schema<Array<any>>}
    */
@@ -1819,7 +1907,6 @@ export const mergeDeltas = (a, b) => {
   return a == null ? b : (a || null)
 }
 
-/**
 /**
  * @template {Delta} D
  * @param {s.Schema<D>} schema 

@@ -81,7 +81,7 @@ export const testDeltaValues = _tc => {
 }
 
 export const testDeltaBasicCases = () => {
-  const $ds = delta.$delta({ name: s.$string, attrs: s.$object({ k: s.$number, d: delta.$delta({ name: s.$literal('sub'), attrs: s.$object({ }), text: true }) }), children: s.$number, text: true })
+  const $ds = delta.$delta({ name: s.$string, attrs: { k: s.$number, d: delta.$delta({ name: 'sub', text: true }) }, children: s.$number, text: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
   ds.update('d', delta.create('sub', null, 'hi'))

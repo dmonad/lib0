@@ -1,6 +1,7 @@
 import * as t from './testing.js'
 import * as s from './schema.js'
 import * as env from './environment.js'
+import * as prng from './prng.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -392,4 +393,208 @@ export const testConvenienceHelper = () => {
   const $o2Cpy = s.$object({ x: s.$number.optional })
   t.assert($o2.extends($o2Cpy))
   t.assert($o2.check({}))
+}
+
+export const testPatternMatcherBase = () => {
+  const numberConverterP = s.match().if(s.$number, o => '' + o).if(s.$string, o => Number.parseInt(o))
+  const numberConverter = numberConverterP.done()
+  const n = numberConverter('str')
+  s.$number.expect(n)
+  t.fails(() => {
+    // @ts-expect-error
+    s.$string.expect(n)
+  })
+  const str = numberConverter(42)
+  s.$string.expect(str)
+  t.fails(() => {
+    // @ts-expect-error
+    s.$number.expect(str)
+  })
+  t.fails(() => {
+    // @ts-expect-error
+    numberConverter({}, state)
+  })
+}
+
+export const testPatternMatcherWithState = () => {
+  const numberConverterP = s.match({ cnt: s.$number })
+    .if(s.$number, (o, s) => { s.cnt++; return '' + o })
+    .if(s.$string, (o, s) => { s.cnt++; return Number.parseInt(o) })
+  const numberConverter = numberConverterP.done()
+  const state = { cnt: 0 }
+  const n = numberConverter('str', state)
+  s.$number.expect(n)
+  t.fails(() => {
+    // @ts-expect-error
+    s.$string.expect(n)
+  })
+  const str = numberConverter(42, state)
+  s.$string.expect(str)
+  t.fails(() => {
+    // @ts-expect-error
+    s.$number.expect(str)
+  })
+  t.assert(state.cnt === 2)
+  t.fails(() => {
+    // @ts-expect-error
+    numberConverter({}, state)
+  })
+}
+
+export const testPatternMatcherPerformance = () => {
+  const gen = prng.create(42)
+  const N = 1000000
+  /**
+   * @type {Array<any>}
+   */
+  const data = []
+  for (let i = 0; i < N; i++) {
+    data.push(prng.oneOf(gen, [
+      () => prng.int53(gen, 0, 1000),
+      () => prng.word(gen),
+      () => prng.bool(gen),
+      () => prng.oneOf(gen, [{ x: false }, { y: true }])
+    ])())
+  }
+
+  t.measureTime('pattern-matcher - count occurences (for loop)', () => {
+    const state = {
+      numbers: 0,
+      strings: 0,
+      objects: 0,
+      bools: 0
+    }
+    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
+      .if(s.$number, (_o, state) => { state.numbers++ })
+      .if(s.$string, (_o, state) => { state.strings++ })
+      .if(s.$boolean, (_o, state) => { state.bools++ })
+      .if(s.$objectAny, (_o, state) => { state.objects++ })
+      .done()
+    for (let i = 0; i < data.length; i++) {
+      countTypes(data[i], state)
+    }
+    console.log(state)
+  })
+
+  t.measureTime('pattern-matcher - count occurences (forEach)', () => {
+    const state = {
+      numbers: 0,
+      strings: 0,
+      objects: 0,
+      bools: 0
+    }
+    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
+      .if(s.$number, (_o, state) => { state.numbers++ })
+      .if(s.$string, (_o, state) => { state.strings++ })
+      .if(s.$boolean, (_o, state) => { state.bools++ })
+      .if(s.$objectAny, (_o, state) => { state.objects++ })
+      .done()
+    data.forEach(d => countTypes(d, state))
+    console.log(state)
+  })
+
+  t.measureTime('pattern-matcher - count occurences (reduce - bad)', () => {
+    const state = {
+      numbers: 0,
+      strings: 0,
+      objects: 0,
+      bools: 0
+    }
+    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
+      .if(s.$number, (_o, state) => { state.numbers++ })
+      .if(s.$string, (_o, state) => { state.strings++ })
+      .if(s.$boolean, (_o, state) => { state.bools++ })
+      .if(s.$objectAny, (_o, state) => { state.objects++ })
+      .done()
+    console.log(data.reduce((s,d) => {
+      countTypes(d, s)
+      return s
+    }, state))
+  })
+
+  t.measureTime('switch-case - count occurences (constructor checks)', () => {
+    let numbers = 0
+    let strings = 0
+    let objects = 0
+    let bools = 0
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i]
+      if (d.constructor === Number) {
+        numbers++
+      } else if (d.constructor === String) {
+        strings++
+      } else if (d.constructor === Boolean) {
+        bools++
+      } else if (d instanceof Object) {
+        objects++
+      } else {
+        throw new Error('unhandled case')
+      }
+    }
+    console.log({ numbers, strings, objects, bools })
+  })
+
+  // this is the fastest in Chrome as of december 2025
+  t.measureTime('switch-case - count occurences (typeof checks)', () => {
+    let numbers = 0
+    let strings = 0
+    let objects = 0
+    let bools = 0
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i]
+      if (typeof d === 'number') {
+        numbers++
+      } else if (typeof d === 'string') {
+        strings++
+      } else if (typeof d === 'boolean') {
+        bools++
+      } else if (typeof d === 'object') {
+        objects++
+      } else {
+        throw new Error('unhandled case')
+      }
+    }
+    console.log({ numbers, strings, objects, bools })
+  })
+
+  t.measureTime('switch-case - count occurences (typeof checks - optimized)', () => {
+    let numbers = 0
+    let strings = 0
+    let objects = 0
+    let bools = 0
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i]
+      switch (typeof d) {
+        case 'number': 
+          numbers++
+          break
+        case 'string':
+          strings++
+          break
+        case 'boolean':
+          bools++
+          break
+        case 'object':
+          objects++
+          break
+        default:
+          throw new Error('unhandled case')
+      }
+    }
+    console.log({ numbers, strings, objects, bools })
+  })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomFromSchema  = tc => {
+  t.group('object', () => {
+    const $res = s.$object({a: s.$number.optional, str: s.$string})
+    for (let i = 0; i < 30; i++) {
+      const res = s.random($res, tc.prng)
+      $res.expect(res)
+      console.log(res)
+    }
+  })
 }
