@@ -189,6 +189,7 @@ export class Schema {
    * @type {Schema<T?>}
    */
   get nullable () {
+    // @ts-ignore
     return $union(this, $null)
   }
 
@@ -532,7 +533,7 @@ export class $Object extends Schema {
 }
 
 /**
- * @template {{ [key:string|symbol|number]: Schema<any> }} S
+ * @template S
  * @typedef {Schema<{ [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? Key : never]?: S[Key] extends $Optional<Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? never : Key]: S[Key] extends Schema<infer Type> ? Type : never }>} _ObjectDefToSchema
  */
 
@@ -820,12 +821,12 @@ export class $Union extends Schema {
 }
 
 /**
- * @template {Array<Schema<any>>} T
+ * @template {Array<any>} T
  * @param {T} schemas
- * @return {CastToSchema<$Union<T extends [] ? never : (T extends Array<Schema<infer S>> ? S : never)>>}
+ * @return {CastToSchema<$Union<Unwrap<ReadSchema<T>>>>}
  */
 export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0
-  ? $union(...schemas.map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
+  ? $union(...schemas.map($s => $($s)).map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
   : (schemas.length === 1
       ? schemas[0]
       : new $Union(schemas))
@@ -920,7 +921,24 @@ export const $json = (() => {
  *         )
  *       )
  *     )
+ * } ReadSchemaOld
+ */
+
+/**
+ * @template {any} IN
+ * @typedef {[Extract<IN,Schema<any>>,Extract<IN,string|number|boolean|null>,Extract<IN,new (...args:any[])=>any>,Extract<IN,any[]>,Extract<Exclude<IN,Schema<any>|string|number|boolean|null|(new (...args:any[])=>any)|any[]>,object>] extends [infer Schemas, infer Primitives, infer Constructors, infer Arrs, infer Obj]
+ *   ? Schema<
+ *       (Schemas extends Schema<infer S> ? S : never)
+ *     | Primitives
+ *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
+ *     | (Arrs extends any[] ? { [K in keyof Arrs]: Unwrap<ReadSchema<Arrs[K]>> }[number] : never)
+ *     | (Obj extends object ? Unwrap<(_ObjectDefToSchema<{[K in keyof Obj]:ReadSchema<Obj[K]>}> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never)> : never)>
+ *   : never
  * } ReadSchema
+ */
+
+/**
+ * @typedef {ReadSchema<{x:42}|{y:99}|Schema<string>|[1,2,{}]>} Q
  */
 
 /**
@@ -1045,16 +1063,18 @@ export class PatternMatcher {
  * @param {State} [state]
  * @return {PatternMatcher<State extends undefined ? undefined : Unwrap<ReadSchema<State>>>}
  */
-export const match = state => new PatternMatcher(/** @type {ReadSchema<State>} */ (state))
+export const match = state => new PatternMatcher(/** @type {any} */ (state))
 
 /**
+ * Helper function to generate a (non-exhaustive) sample set from a gives schema.
+ *
  * @type {<T>(o:T,gen:prng.PRNG)=>T}
  */
 const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any))
-  .if($$number, (_o, gen) => prng.int32(gen, 0, 100))
+  .if($$number, (_o, gen) => prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER))
   .if($$string, (_o, gen) => prng.word(gen))
   .if($$boolean, (_o, gen) => prng.bool(gen))
-  .if($$bigint, (_o, gen) => BigInt(prng.int53(gen, number.LOWEST_INT32, number.HIGHEST_UINT32)))
+  .if($$bigint, (_o, gen) => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)))
   .if($$union, (o, gen) => random(gen, prng.oneOf(gen, o.shape)))
   .if($$object, (o, gen) => {
     /**
@@ -1089,12 +1109,23 @@ const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any
     const res = random(gen, o.res)
     return () => res
   })
-  .if($$any, (o, gen) => {
-    prng.oneOf(gen, [
-      $primitive,
-      $array($any),
-      $record($union('a','b','c'), $any)
-    ])
+  .if($$any, (o, gen) => random(gen, prng.oneOf(gen, [
+    $number, $string, $null, $undefined, $bigint, $boolean,
+    $array($number),
+    $record($union('a','b','c'), $number)
+  ])))
+  .if($$record, (o, gen) => {
+    /**
+     * @type {any}
+     */
+    const res = {}
+    const keysN = prng.int53(gen, 0, 3)
+    for (let i = 0; i < keysN; i++) {
+      const key = random(gen, o.shape.keys)
+      const val = random(gen, o.shape.values)
+      res[key] = val
+    }
+    return res
   })
   .done())
 

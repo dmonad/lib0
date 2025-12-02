@@ -658,20 +658,30 @@ export const testSlice = () => {
   t.assert(d1.equals(delta.create().insert('bc')))
 }
 
-export const testRepeatRandomListDiff = () => {
-  const $d = delta.$delta({ children: [s.$number, delta.$delta({ text: true })] })
-  const d1 = delta.random($d)
-  const d2 = delta.random($d)
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomListDiff = tc => {
+  const $d = delta.$delta({ children: s.$number })
+  const d1 = delta.random(tc.prng, $d)
+  const d2 = delta.random(tc.prng, $d)
+  $d.expect(d1)
+  $d.expect(d2)
   const d = delta.diff(d1, d2)
-  d1.apply(d1, d)
+  d1.apply(d)
   t.compare(d1, d2)
 }
 
-export const testRepeatRandomMapDiff = () => {
-  const $d = delta.$delta({ attrs: { a: s.$string, b: delta.$delta({ attrs: { a: s.$number } }) }})
-  const d1 = delta.random($d)
-  const d2 = delta.random($d)
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDiff = tc => {
+  const $d = delta.$delta({ name: 'list', attrs: { a: s.$string, b: s.$number }})
+  const d1 = delta.random(tc.prng, $d)
+  const d2 = delta.random(tc.prng, $d)
+  $d.expect(d1)
+  $d.expect(d2)
   const d = delta.diff(d1, d2)
-  d1.apply(d1, d)
+  d1.apply(d)
   t.compare(d1, d2)
 }

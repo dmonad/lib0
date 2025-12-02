@@ -441,9 +441,9 @@ export const testPatternMatcherWithState = () => {
   })
 }
 
-export const testPatternMatcherPerformance = () => {
+export const testPatternMatcherBenchmark = () => {
   const gen = prng.create(42)
-  const N = 1000000
+  const N = 10000
   /**
    * @type {Array<any>}
    */
@@ -456,61 +456,6 @@ export const testPatternMatcherPerformance = () => {
       () => prng.oneOf(gen, [{ x: false }, { y: true }])
     ])())
   }
-
-  t.measureTime('pattern-matcher - count occurences (for loop)', () => {
-    const state = {
-      numbers: 0,
-      strings: 0,
-      objects: 0,
-      bools: 0
-    }
-    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
-      .if(s.$number, (_o, state) => { state.numbers++ })
-      .if(s.$string, (_o, state) => { state.strings++ })
-      .if(s.$boolean, (_o, state) => { state.bools++ })
-      .if(s.$objectAny, (_o, state) => { state.objects++ })
-      .done()
-    for (let i = 0; i < data.length; i++) {
-      countTypes(data[i], state)
-    }
-    console.log(state)
-  })
-
-  t.measureTime('pattern-matcher - count occurences (forEach)', () => {
-    const state = {
-      numbers: 0,
-      strings: 0,
-      objects: 0,
-      bools: 0
-    }
-    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
-      .if(s.$number, (_o, state) => { state.numbers++ })
-      .if(s.$string, (_o, state) => { state.strings++ })
-      .if(s.$boolean, (_o, state) => { state.bools++ })
-      .if(s.$objectAny, (_o, state) => { state.objects++ })
-      .done()
-    data.forEach(d => countTypes(d, state))
-    console.log(state)
-  })
-
-  t.measureTime('pattern-matcher - count occurences (reduce - bad)', () => {
-    const state = {
-      numbers: 0,
-      strings: 0,
-      objects: 0,
-      bools: 0
-    }
-    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
-      .if(s.$number, (_o, state) => { state.numbers++ })
-      .if(s.$string, (_o, state) => { state.strings++ })
-      .if(s.$boolean, (_o, state) => { state.bools++ })
-      .if(s.$objectAny, (_o, state) => { state.objects++ })
-      .done()
-    console.log(data.reduce((s,d) => {
-      countTypes(d, s)
-      return s
-    }, state))
-  })
 
   t.measureTime('switch-case - count occurences (constructor checks)', () => {
     let numbers = 0
@@ -583,16 +528,89 @@ export const testPatternMatcherPerformance = () => {
     }
     console.log({ numbers, strings, objects, bools })
   })
+
+  t.measureTime('pattern-matcher - count occurences (reduce - bad)', () => {
+    const state = {
+      numbers: 0,
+      strings: 0,
+      objects: 0,
+      bools: 0
+    }
+    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
+      .if(s.$number, (_o, state) => { state.numbers++ })
+      .if(s.$string, (_o, state) => { state.strings++ })
+      .if(s.$boolean, (_o, state) => { state.bools++ })
+      .if(s.$objectAny, (_o, state) => { state.objects++ })
+      .done()
+    console.log(data.reduce((s,d) => {
+      countTypes(d, s)
+      return s
+    }, state))
+  })
+
+
+  t.measureTime('pattern-matcher - count occurences (for loop)', () => {
+    const state = {
+      numbers: 0,
+      strings: 0,
+      objects: 0,
+      bools: 0
+    }
+    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
+      .if(s.$number, (_o, state) => { state.numbers++ })
+      .if(s.$string, (_o, state) => { state.strings++ })
+      .if(s.$boolean, (_o, state) => { state.bools++ })
+      .if(s.$objectAny, (_o, state) => { state.objects++ })
+      .done()
+    for (let i = 0; i < data.length; i++) {
+      countTypes(data[i], state)
+    }
+    console.log(state)
+  })
+
+  t.measureTime('pattern-matcher - count occurences (forEach)', () => {
+    const state = {
+      numbers: 0,
+      strings: 0,
+      objects: 0,
+      bools: 0
+    }
+    const countTypes = s.match({ numbers: s.$number, strings: s.$number, objects: s.$number, bools: s.$number })
+      .if(s.$number, (_o, state) => { state.numbers++ })
+      .if(s.$string, (_o, state) => { state.strings++ })
+      .if(s.$boolean, (_o, state) => { state.bools++ })
+      .if(s.$objectAny, (_o, state) => { state.objects++ })
+      .done()
+    data.forEach(d => countTypes(d, state))
+    console.log(state)
+  })
 }
 
 /**
  * @param {t.TestCase} tc
  */
 export const testRepeatRandomFromSchema  = tc => {
-  t.group('object', () => {
+  /**
+   * @param {string} caseName
+   * @param {s.Schema<any>} $s
+   */
+  const testCase = (caseName, $s) => {
+    t.group(caseName, () => {
+      for (let i = 0; i < 10; i++) {
+        const res = s.random(tc.prng, $s)
+        $s.expect(res)
+        console.info(caseName, res)
+      }
+    })
+  }
+  testCase('object', s.$object({number: s.$number, maybeStr: s.$string.optional}))
+  testCase('any', s.$any)
+  testCase('number', s.$number)
+  testCase('array', s.$array(s.$any))
+  t.group('custom', () => {
     const $res = s.$object({a: s.$number.optional, str: s.$string})
     for (let i = 0; i < 30; i++) {
-      const res = s.random($res, tc.prng)
+      const res = s.random(tc.prng, $res)
       $res.expect(res)
       console.log(res)
     }

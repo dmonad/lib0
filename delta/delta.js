@@ -1430,12 +1430,14 @@ export class DeltaBuilder extends Delta {
           // @ts-ignore
           this.attrs[op.key] = op.clone()
         }
-      } else {
-        op = /** @type {any} */ (op.clone())
+      } else if ($insertOp.check(op)) {
         // @ts-ignore
         op.prevValue = c?.value
         // @ts-ignore
-        this.attrs[op.key] = op
+        this.attrs[op.key] = op.clone()
+      } else if ($deleteOp.check(op)) {
+        op.prevValue = c?.value
+        delete this.attrs[op.key]
       }
     }
     // apply children
@@ -1517,6 +1519,7 @@ export class DeltaBuilder extends Delta {
               offset = 0
               scheduleForMerge(opsI.next)
               list.remove(this.children, opsI)
+              opsI = opsI.next
             } else if (offset === 0) {
               // case 2
               offset = 0
@@ -1768,6 +1771,7 @@ export class $Delta extends s.Schema {
     super()
     const $attrsPartial = s.$$object.check($attrs) ? $attrs.partial : $attrs
     if (recursive) {
+      // @ts-ignore
       $children = s.$union($children, this)
     }
     this.shape = { $name, $attrs: $attrsPartial, $children, hasText, $formats }
@@ -1823,12 +1827,14 @@ export class $Delta extends s.Schema {
  */
 export const $delta = ({ name, attrs, children, text, formats, recursive }) => /** @type {any} */ (new $Delta(
   name == null ? s.$any : s.$(name),
-  attrs == null ? s.$object({}) : s.$(attrs),
-  children == null ? s.$never : s.$(children),
+  /** @type {any} */ (attrs == null ? s.$object({}) : s.$(attrs)),
+  /** @type {any} */ (children == null ? s.$never : s.$(children)),
   text ?? false,
   formats == null ? s.$any : s.$(formats),
   recursive ?? false
 ))
+
+export const $$delta = s.$constructedBy($Delta)
 
 /**
  * @todo remove this
@@ -1908,12 +1914,32 @@ export const mergeDeltas = (a, b) => {
 }
 
 /**
- * @template {Delta} D
- * @param {s.Schema<D>} schema 
- * @return {D}
+ * @template {DeltaAny} D
+ * @param {prng.PRNG} gen
+ * @param {s.Schema<D>} $d
+ * @return {D extends Delta<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
  */
-export const random = schema => {
-  schema
+export const random = (gen, $d) => {
+  const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any,any,any,boolean,any,any>} */ (/** @type {any} */ ($d)).shape
+  const d = s.$$any.check($name) ? create($deltaAny) : create(s.random(gen, $name), $deltaAny)
+  const $formats = s.$$any.check($formats_) ? s.$null : $formats_
+  prng.bool(gen) && d.setMany(s.random(gen, $attrs))
+  for (let i = prng.uint32(gen, 0, 5); i > 0; i--) {
+    if (hasText && prng.bool(gen)) {
+      d.insert(prng.word(gen), s.random(gen, $formats))
+    } else if (!s.$$never.check($children)) {
+      /**
+       * @type {Array<any>}
+       */
+      const ins = []
+      let insN = prng.int32(gen, 0, 5)
+      while (insN--) {
+        ins.push(s.random(gen, $children))
+      }
+      d.insert(ins, s.random(gen, $formats))
+    }
+  }
+  return /** @type {any} */ (d)
 }
 
 /**
