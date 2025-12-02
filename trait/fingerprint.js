@@ -16,5 +16,6 @@ export const FingerprintTraitSymbol = Symbol('Fingerprint')
 
 /**
  * @param {Fingerprintable} a
+ * @return {string}
  */
 export const fingerprint = a => (a != null && /** @type {any} */ (a)[FingerprintTraitSymbol]?.()) || buffer.toBase64(rabin.fingerprint(rabin.StandardIrreducible128, encoding.encode(encoder => { encoding.writeUint32(encoder, 0x8de1c475); encoding.writeAny(encoder, a) })))

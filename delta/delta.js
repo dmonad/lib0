@@ -2135,19 +2135,60 @@ export const diff = (d1, d2) => {
        *
        */
       const diffAndApply = (d, opsIs, opsShould) => {
-        // naive implementation
-        d.delete(opsIs.reduce((currLen, op) => currLen + op.length, 0))
-        opsShould.forEach(newIns => {
-          /* c8 ignore else */
-          if ($insertOp.check(newIns) || $textOp.check(newIns)) {
-            d.insert(newIns.insert)
-          } else {
-            /* c8 ignore next 2 */
-            error.unexpectedCase()
+        // @todo unoptimized implementation. Convert content to array and diff that based on
+        // generated fingerprints. We probably could do better and cache more information.
+        // - benchmark
+        // - cache fingerprints in ops
+        /**
+         * @type {Array<string|DeltaAny|fingerprintTrait.Fingerprintable>}
+         */
+        const isContent = opsIs.flatMap(op => $insertOp.check(op) ? op.insert : ($textOp.check(op) ? op.insert.split('') : error.unexpectedCase()))
+        /**
+         * @type {Array<string|DeltaAny|fingerprintTrait.Fingerprintable>}
+         */
+        const shouldContent = opsShould.flatMap(op => $insertOp.check(op) ? op.insert : ($textOp.check(op) ? op.insert.split('') : error.unexpectedCase()))
+        const isContentFingerprinted = isContent.map(c => s.$string.check(c) ? c : fingerprintTrait.fingerprint(c))
+        const shouldContentFingerprinted = shouldContent.map(c => s.$string.check(c) ? c : fingerprintTrait.fingerprint(c))
+        /**
+         * @type {{ index: number, insert: Array<string|DeltaAny|fingerprintTrait.Fingerprintable>, remove: Array<string|DeltaAny|fingerprintTrait.Fingerprintable> }[]}
+         */
+        const cdiff = patience.diff(isContentFingerprinted, shouldContentFingerprinted)
+        // overwrite fingerprinted content with actual content
+        for (let i = 0, adj = 0; i < cdiff.length; i++) {
+          const cd = cdiff[i]
+          cd.remove = isContent.slice(cd.index, cd.index + cd.remove.length)
+          cd.insert = shouldContent.slice(cd.index + adj, cd.index + adj + cd.insert.length)
+          adj += cd.remove.length - cd.insert.length
+        }
+        for (let i = 0, lastIndex = 0, currIndexOffset2 = 0; i < cdiff.length; i++) {
+          const cd = cdiff[i]
+          d.retain(cd.index - lastIndex)
+          let cdii = 0
+          let cdri = 0
+          // try to match as much content as possible, preferring to skip over non-deltas
+          for (; cdii < cd.insert.length && cdri < cd.remove.length;) {
+            const a = cd.insert[cdii]
+            const b = cd.remove[cdri]
+            if ($deltaAny.check(a) && $deltaAny.check(b) && a.name === b.name) {
+              d.modify(diff(a, b))
+              cdii++
+              cdri++
+            } else if ($deltaAny.check(b)) {
+              d.insert(s.$string.check(a) ? a : [a])
+              cdii++
+            } else {
+              d.delete(1)
+              cdri++
+            }
           }
-        })
+          for (; cdii < cd.insert.length; cdii++) {
+            const a = cd.insert[cdii]
+            d.insert(s.$string.check(a) ? a : [a])
+          }
+          d.delete(cd.remove.length - cdri)
+        }
       }
-      diffAndApply(d, ops1.slice(change.index, change.index + change.remove.length), ops2.slice(change.index + currIndexOffset2, change.insert.length))
+      diffAndApply(d, ops1.slice(change.index, change.index + change.remove.length), ops2.slice(change.index + currIndexOffset2, change.index + currIndexOffset2 + change.insert.length))
       lastIndex1 = change.index + change.remove.length
       currIndexOffset2 += change.insert.length - change.remove.length
     }
