@@ -3,8 +3,8 @@
 // @todo remove all @ts-nocheck and eslint-disable
 /* global MutationObserver */
 import { ObservableV2 } from '../observable.js'
-import * as delta from './index.js'
-import * as dt from './transformer.js' // eslint-disable-line
+import * as delta from './delta.js'
+import * as dt from './t3.test.js' // eslint-disable-line
 import * as dom from '../dom.js'
 import * as set from '../set.js'
 import * as map from '../map.js'
