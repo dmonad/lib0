@@ -12,7 +12,6 @@ import * as equalityTraits from './trait/equality.js'
 import * as fun from './function.js'
 import * as string from './string.js'
 import * as prng from './prng.js'
-import * as err from './error.js'
 import * as number from './number.js'
 
 /**
@@ -986,7 +985,6 @@ export const assert = env.production
     }
 /* c8 ignore end */
 
-
 /**
  * @template In
  * @template Out
@@ -1039,13 +1037,13 @@ export class PatternMatcher {
   }
 
   /**
-   * @return {State extends undefined 
+   * @return {State extends undefined
    *   ? <In extends Unwrap<Patterns['if']>>(o:In,state?:undefined)=>PatternMatchResult<Patterns,In>
    *   : <In extends Unwrap<Patterns['if']>>(o:In,state:State)=>PatternMatchResult<Patterns,In>}
    */
   done () {
     // @ts-ignore
-    return /** @type {any} */ ((o,s) => {
+    return /** @type {any} */ (o, s) => {
       for (let i = 0; i < this.patterns.length; i++) {
         const p = this.patterns[i]
         if (p.if.check(o)) {
@@ -1053,8 +1051,8 @@ export class PatternMatcher {
           return p.h(o, s)
         }
       }
-      throw err.create('Unhandled pattern')
-    })
+      throw error.create('Unhandled pattern')
+    }
   }
 }
 
@@ -1112,7 +1110,7 @@ const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any
   .if($$any, (o, gen) => random(gen, prng.oneOf(gen, [
     $number, $string, $null, $undefined, $bigint, $boolean,
     $array($number),
-    $record($union('a','b','c'), $number)
+    $record($union('a', 'b', 'c'), $number)
   ])))
   .if($$record, (o, gen) => {
     /**
@@ -1136,4 +1134,3 @@ const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any
  * @return {Unwrap<ReadSchema<S>>}
  */
 export const random = (gen, schema) => /** @type {any} */ (_random($(schema), gen))
-

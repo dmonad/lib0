@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 import * as t from '../testing.js'
 import * as Λ from './transformer.js'
 import * as Δ from './index.js'

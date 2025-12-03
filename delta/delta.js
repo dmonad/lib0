@@ -1420,7 +1420,7 @@ export class DeltaBuilder extends Delta {
     modDeltaCheck(this)
     this.$schema?.expect(other)
     // apply attrs
-    for (let op of other.attrs) {
+    for (const op of other.attrs) {
       const c = /** @type {AttrInsertOp<any,any>|AttrDeleteOp<any>|AttrModifyOp<any,any>} */ (this.attrs[op.key])
       if ($modifyOp.check(op)) {
         if ($deltaAny.check(c?.value)) {

@@ -413,7 +413,7 @@ export const testPatternMatcherBase = () => {
   })
   t.fails(() => {
     // @ts-expect-error
-    numberConverter({}, state)
+    numberConverter({})
   })
 }
 
@@ -511,7 +511,7 @@ export const testPatternMatcherBenchmark = () => {
     for (let i = 0; i < data.length; i++) {
       const d = data[i]
       switch (typeof d) {
-        case 'number': 
+        case 'number':
           numbers++
           break
         case 'string':
@@ -543,12 +543,11 @@ export const testPatternMatcherBenchmark = () => {
       .if(s.$boolean, (_o, state) => { state.bools++ })
       .if(s.$objectAny, (_o, state) => { state.objects++ })
       .done()
-    console.log(data.reduce((s,d) => {
+    console.log(data.reduce((s, d) => {
       countTypes(d, s)
       return s
     }, state))
   })
-
 
   t.measureTime('pattern-matcher - count occurences (for loop)', () => {
     const state = {
@@ -590,7 +589,7 @@ export const testPatternMatcherBenchmark = () => {
 /**
  * @param {t.TestCase} tc
  */
-export const testRepeatRandomFromSchema  = tc => {
+export const testRepeatRandomFromSchema = tc => {
   /**
    * @param {string} caseName
    * @param {s.Schema<any>} $s
@@ -604,12 +603,12 @@ export const testRepeatRandomFromSchema  = tc => {
       }
     })
   }
-  testCase('object', s.$object({number: s.$number, maybeStr: s.$string.optional}))
+  testCase('object', s.$object({ number: s.$number, maybeStr: s.$string.optional }))
   testCase('any', s.$any)
   testCase('number', s.$number)
   testCase('array', s.$array(s.$any))
   t.group('custom', () => {
-    const $res = s.$object({a: s.$number.optional, str: s.$string})
+    const $res = s.$object({ a: s.$number.optional, str: s.$string })
     for (let i = 0; i < 30; i++) {
       const res = s.random(tc.prng, $res)
       $res.expect(res)

@@ -1,3 +1,6 @@
+/* eslint-disable */
+// @ts-nocheck
+// @todo remove all @ts-nocheck and eslint-disable
 /* global MutationObserver */
 import { ObservableV2 } from '../observable.js'
 import * as delta from './index.js'

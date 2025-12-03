@@ -676,7 +676,7 @@ export const testRepeatRandomListDiff = tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatRandomMapDiff = tc => {
-  const $d = delta.$delta({ name: 'list', attrs: { a: s.$string, b: s.$number }})
+  const $d = delta.$delta({ name: 'list', attrs: { a: s.$string, b: s.$number } })
   const d1 = delta.random(tc.prng, $d)
   const d2 = delta.random(tc.prng, $d)
   $d.expect(d1)
@@ -696,4 +696,3 @@ export const testDeltaAppend = tc => {
   const d = _d.append(other)
   $d.expect(d)
 }
-

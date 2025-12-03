@@ -1,5 +1,7 @@
+/* eslint-disable */
+// @ts-nocheck
 import * as t from '../testing.js'
-import * as delta from './d2.js'
+import * as delta from './delta.js'
 import * as s from '../schema.js'
 import * as array from '../array.js'
 
