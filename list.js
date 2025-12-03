@@ -1,6 +1,7 @@
 import { id } from './function.js'
 import * as error from './error.js'
 import * as equalityTrait from './trait/equality.js'
+import * as f from './function.js'
 
 export class ListNode {
   constructor () {
@@ -39,11 +40,24 @@ export class List {
     }
   }
 
+  toArray () {
+    return map(this, f.id)
+  }
+
   /**
    * @param {function(N):any} f
    */
   forEach (f) {
     forEach(this, f)
+  }
+
+  /**
+   * @template M
+   * @param {function(N):M} f
+   * @return {Array<M>}
+   */
+  map (f) {
+    return map(this, f)
   }
 
   /**

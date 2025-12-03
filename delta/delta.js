@@ -896,8 +896,8 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 /**
  * @template {string} [NodeName=any]
  * @template {{[k:string|number]:any}} [Attrs={}]
- * @template {fingerprintTrait.Fingerprintable|never} [Children=never]
- * @template {string|never} [Text=never]
+ * @template {fingerprintTrait.Fingerprintable} [Children=never]
+ * @template {string} [Text=never]
  * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
  */
 export class Delta {
@@ -1155,8 +1155,8 @@ const modDeltaCheck = d => {
 /**
  * @template {string} [NodeName=any]
  * @template {{[key:string|number]:any}} [Attrs={}]
- * @template {fingerprintTrait.Fingerprintable|never} [Children=never]
- * @template {string|never} [Text=never]
+ * @template {fingerprintTrait.Fingerprintable} [Children=never]
+ * @template {string} [Text=never]
  * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
  * @extends {Delta<NodeName,Attrs,Children,Text,Schema>}
  */
@@ -1734,7 +1734,31 @@ export class DeltaBuilder extends Delta {
     console.info('method rebaseOnInverse unimplemented')
     return this
   }
+
+  /**
+   * Append child ops from one op to the other.
+   *
+   *     delta.create().insert('a').append(delta.create().insert('b')) // => insert "ab"
+   *
+   * @template {DeltaAny} OtherDelta
+   * @param {OtherDelta} other
+   * @return {CastToDelta<OtherDelta> extends Delta<any,any,infer OtherChildren,infer OtherText,any> ? DeltaBuilder<NodeName,Attrs,Children|OtherChildren,Text|OtherText,Schema> : never}
+   */
+  append (other) {
+    // @todo Investigate. Above is a typescript issue. It is necessary to cast OtherDelta to a Delta first before
+    // inferring type, otherwise Children will contain Text.
+    for (const child of other.children) {
+      list.pushEnd(this.children, child.clone())
+    }
+    // @ts-ignore
+    return this
+  }
 }
+
+/**
+ * @template {DeltaAny} D
+ * @typedef {D extends DeltaBuilder<infer N,infer Attrs,infer Children,infer Text,infer Schema> ? Delta<N,Attrs,Children,Text,Schema> : D} CastToDelta
+ */
 
 /**
  * @template {string} NodeName
@@ -1813,9 +1837,9 @@ export class $Delta extends s.Schema {
  * @template {{ [k:string]:any }} [Formats={[k:string]:any}]
  * @param {object} opts
  * @param {NodeNameSchema?} [opts.name]
- * @param {AttrsSchema?} [opts.attrs]
- * @param {ChildrenSchema?} [opts.children]
- * @param {HasText} [opts.text]
+ * @param {AttrsSchema?} [opts.attrs] What key-value pairs are included.
+ * @param {ChildrenSchema?} [opts.children] The type of content in `insertOp`
+ * @param {HasText} [opts.text] Whether this delta contains text using `textOp`
  * @param {Formats} [opts.formats]
  * @param {Recursive} [opts.recursive]
  * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<
@@ -2132,7 +2156,6 @@ export const diff = (d1, d2) => {
        * @param {DeltaBuilderAny} d
        * @param {ChildrenOpAny[]} opsIs
        * @param {ChildrenOpAny[]} opsShould
-       *
        */
       const diffAndApply = (d, opsIs, opsShould) => {
         // @todo unoptimized implementation. Convert content to array and diff that based on
@@ -2160,7 +2183,7 @@ export const diff = (d1, d2) => {
           cd.insert = shouldContent.slice(cd.index + adj, cd.index + adj + cd.insert.length)
           adj += cd.remove.length - cd.insert.length
         }
-        for (let i = 0, lastIndex = 0, currIndexOffset2 = 0; i < cdiff.length; i++) {
+        for (let i = 0, lastIndex = 0; i < cdiff.length; i++) {
           const cd = cdiff[i]
           d.retain(cd.index - lastIndex)
           let cdii = 0

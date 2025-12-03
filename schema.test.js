@@ -90,6 +90,7 @@ export const testSchemas = _tc => {
     const z = s.$instanceOf(Base)
     t.assert(z.validate(new Base()))
     t.assert(z.validate(new BetterBase()))
+    t.assert(s.$instanceOf(Base, o => /** @type {any} */ (o).y != null).validate(new BetterBase()))
     // @ts-expect-error
     t.assert(!z.validate(4))
     t.assert(!s.$instanceOf(BetterBetterBase).validate(new BetterBase()))

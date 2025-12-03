@@ -87,7 +87,9 @@ export const testSelectivePop = _tc => {
   list.insertBetween(l, l.start, l.end, middleNode)
   list.replace(l, q3, new QueueItem(4))
   t.compare(list.map(l, n => n.v), [1, 2, 4])
+  t.compare(l.map(n => n.v), [1, 2, 4])
   t.compare(list.toArray(l).map(n => n.v), [1, 2, 4])
+  t.compare(l.toArray().map(n => n.v), [1, 2, 4])
   {
     let cnt = 0
     list.forEach(l, () => cnt++)

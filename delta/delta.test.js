@@ -685,3 +685,15 @@ export const testRepeatRandomMapDiff = tc => {
   d1.apply(d)
   t.compare(d1, d2)
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testDeltaAppend = tc => {
+  const $d = delta.$delta({ children: s.$number, text: true })
+  const other = delta.create().insert('b').insert([1, 2])
+  const _d = delta.create().insert('a')
+  const d = _d.append(other)
+  $d.expect(d)
+}
+
