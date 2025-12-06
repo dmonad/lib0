@@ -1031,10 +1031,18 @@ export class Delta {
     return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
   }
 
+
+  /**
+   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>}
+   */
+  clone () {
+    return this.slice(0, this.childCnt)
+  }
+
   /**
    * @param {number} start
    * @param {number} end
-   * @return {Delta<NodeName,Attrs,Children,Text,Schema>}
+   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>}
    */
   slice (start = 0, end = this.childCnt) {
     const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(/** @type {any} */ (this.name), this.$schema))
@@ -1101,7 +1109,7 @@ export class Delta {
 /**
  * @template {DeltaAny} D
  * @param {D} d
- * @return {D extends Delta<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
+ * @return {D extends DeltaBuilder<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
  */
 export const clone = d => /** @type {any} */ (d.slice(0, d.childCnt))
 
@@ -1469,26 +1477,50 @@ export class DeltaBuilder extends Delta {
         if (offset === 0) {
           list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
         } else {
+          // @todo inmplement "splitHelper" and "insertHelper" - I'm splitting all the time and
+          // forget to update opsI
           if (opsI == null) error.unexpectedCase()
           const cpy = scheduleForMerge(opsI.clone(offset))
           opsI._splice(offset, opsI.length - offset)
           list.insertBetween(this.children, opsI, opsI.next || null, cpy)
           list.insertBetween(this.children, opsI, cpy || null, scheduleForMerge(op.clone()))
+          opsI = cpy
           offset = 0
         }
         this.childCnt += op.insert.length
       } else if ($retainOp.check(op)) {
-        let skipLen = op.length
-        while (opsI != null && opsI.length - offset <= skipLen) {
-          skipLen -= opsI.length - offset
+        let retainLen = op.length
+
+        if (offset > 0 && opsI != null && op.format != null && !$deleteOp.check(opsI) && !object.every(op.format, (v,k) => fun.equalityDeep(v, /** @type {InsertOp<any>|RetainOp|ModifyOp} */ (opsI).format?.[k] || null))) {
+          // need to split current op
+          const cpy = scheduleForMerge(opsI.clone(offset))
+          opsI._splice(offset, opsI.length - offset)
+          list.insertBetween(this.children, opsI, opsI.next || null, cpy)
+          opsI = cpy
+          offset = 0
+        }
+
+        while (opsI != null && opsI.length - offset <= retainLen) {
+          op.format != null && updateOpFormat(opsI, op.format)
+          retainLen -= opsI.length - offset
           opsI = opsI?.next || null
           offset = 0
         }
+
         if (opsI != null) {
-          offset += skipLen
-        } else {
-          list.pushEnd(this.children, scheduleForMerge(new RetainOp(skipLen, op.format, op.attribution)))
-          this.childCnt += skipLen
+          if (op.format != null && retainLen > 0) {
+            // split current op and apply format
+            const cpy = scheduleForMerge(opsI.clone(retainLen))
+            opsI._splice(retainLen, opsI.length - retainLen)
+            list.insertBetween(this.children, opsI, opsI.next || null, cpy)
+            updateOpFormat(opsI, op.format)
+            opsI = cpy
+          } else {
+            offset += retainLen
+          }
+        } else if (retainLen > 0) {
+          list.pushEnd(this.children, scheduleForMerge(new RetainOp(retainLen, op.format, op.attribution)))
+          this.childCnt += retainLen
         }
       } else if ($deleteOp.check(op)) {
         let remainingLen = op.delete
@@ -1745,13 +1777,37 @@ export class DeltaBuilder extends Delta {
    * @return {CastToDelta<OtherDelta> extends Delta<any,any,infer OtherChildren,infer OtherText,any> ? DeltaBuilder<NodeName,Attrs,Children|OtherChildren,Text|OtherText,Schema> : never}
    */
   append (other) {
+    const children = this.children
+    let prevLast = children.end
     // @todo Investigate. Above is a typescript issue. It is necessary to cast OtherDelta to a Delta first before
     // inferring type, otherwise Children will contain Text.
     for (const child of other.children) {
-      list.pushEnd(this.children, child.clone())
+      list.pushEnd(children, child.clone())
     }
+    this.childCnt += other.childCnt
+    prevLast?.next && tryMergeWithPrev(children, prevLast.next)
     // @ts-ignore
     return this
+  }
+}
+
+/**
+ * @param {ChildrenOpAny} op
+ * @param {{[k:string]:any}} formatUpdate
+ */
+const updateOpFormat = (op, formatUpdate) => {
+  if (!$deleteOp.check(op)) {
+    // apply formatting attributes
+    for (const k in formatUpdate) {
+      const v = formatUpdate[k]
+      if (v != null || $retainOp.check(op)) {
+        // never modify formats
+        /** @type {any} */ (op).format = object.assign({}, op.format, { [k]: v })
+      } else if (op.format != null) {
+        const { [k]: _, ...rest } = op.format
+        ;/** @type {any} */ (op).format = rest
+      }
+    }
   }
 }
 
@@ -1815,8 +1871,8 @@ export class $Delta extends s.Schema {
     const { $name, $attrs, $children, hasText, $formats } = this.shape
     if (!(o instanceof Delta)) {
       err?.extend(null, 'Delta', o?.constructor.name, 'Constructor match failed')
-    } else if (!$name.check(o.name, err)) {
-      err?.extend('Delta.name', $name.toString(), o.name, 'Constructor match failed')
+    } else if (o.name != null && !$name.check(o.name, err)) {
+      err?.extend('Delta.name', $name.toString(), o.name, 'Unexpected node name')
     } else if (list.toArray(o.children).some(c => (!hasText && $textOp.check(c)) || (hasText && $textOp.check(c) && c.format != null && !$formats.check(c.format)) || ($insertOp.check(c) && !c.insert.every(ins => $children.check(ins))))) {
       err?.extend('Delta.children', '', '', 'Children don\'t match the schema')
     } else if (object.some(o.attrs, (op, k) => $insertOp.check(op) && !$attrs.check({ [k]: op.value }, err))) {
@@ -1914,13 +1970,20 @@ export const _$delta = ({ name, attrs, children, text, recursive }) => {
 export const $deltaAny = /** @type {any} */ (s.$instanceOf(Delta))
 
 /**
+ * @type {s.Schema<DeltaBuilderAny>}
+ */
+export const $deltaBuilderAny = /** @type {any} */ (s.$instanceOf(DeltaBuilder))
+
+/**
  * Helper function to merge attribution and attributes. The latter input "wins".
  *
  * @template {{ [key: string]: any }} T
  * @param {T | null} a
  * @param {T | null} b
  */
-export const mergeAttrs = (a, b) => object.isEmpty(a) ? b : (object.isEmpty(b) ? a : object.assign({}, a, b))
+export const mergeAttrs = (a, b) => object.isEmpty(a)
+  ? (object.isEmpty(b) ? null : b) 
+  : (object.isEmpty(b) ? a : object.assign({}, a, b))
 
 /**
  * @template {DeltaAny|null} D
@@ -2102,7 +2165,7 @@ export const map = $schema => /** @type {any} */ (create(/** @type {any} */ ($sc
  * @template {DeltaAny} D
  * @param {D} d1
  * @param {NoInfer<D>} d2
- * @return {D}
+ * @return {D extends Delta<infer N,infer Attrs,infer Children,infer Text,any> ? DeltaBuilder<N,Attrs,Children,Text,null> : never}
  */
 export const diff = (d1, d2) => {
   /**
@@ -2153,11 +2216,14 @@ export const diff = (d1, d2) => {
       d.retain(change.index - lastIndex1)
       // insert minimal diff at curred position in d
       /**
-       * @param {DeltaBuilderAny} d
+       *
+       * @todo it would be better if these would be slices of delta (an actual delta)
+       *
        * @param {ChildrenOpAny[]} opsIs
        * @param {ChildrenOpAny[]} opsShould
        */
-      const diffAndApply = (d, opsIs, opsShould) => {
+      const diffAndApply = (opsIs, opsShould) => {
+        const d = create()
         // @todo unoptimized implementation. Convert content to array and diff that based on
         // generated fingerprints. We probably could do better and cache more information.
         // - benchmark
@@ -2172,6 +2238,7 @@ export const diff = (d1, d2) => {
         const shouldContent = opsShould.flatMap(op => $insertOp.check(op) ? op.insert : ($textOp.check(op) ? op.insert.split('') : error.unexpectedCase()))
         const isContentFingerprinted = isContent.map(c => s.$string.check(c) ? c : fingerprintTrait.fingerprint(c))
         const shouldContentFingerprinted = shouldContent.map(c => s.$string.check(c) ? c : fingerprintTrait.fingerprint(c))
+        const hasFormatting = opsIs.some(op => !$deleteOp.check(op) && op.format != null) || opsShould.some(op => !$deleteOp.check(op) && op.format != null)
         /**
          * @type {{ index: number, insert: Array<string|DeltaAny|fingerprintTrait.Fingerprintable>, remove: Array<string|DeltaAny|fingerprintTrait.Fingerprintable> }[]}
          */
@@ -2193,7 +2260,7 @@ export const diff = (d1, d2) => {
             const a = cd.insert[cdii]
             const b = cd.remove[cdri]
             if ($deltaAny.check(a) && $deltaAny.check(b) && a.name === b.name) {
-              d.modify(diff(a, b))
+              d.modify(diff(b, a))
               cdii++
               cdri++
             } else if ($deltaAny.check(b)) {
@@ -2210,8 +2277,64 @@ export const diff = (d1, d2) => {
           }
           d.delete(cd.remove.length - cdri)
         }
+        // create the diff for formatting
+        if (hasFormatting) {
+          const formattingDiff = create()
+          // update opsIs with content diff. then we can figure out the formatting diff.
+          const isUpdated = create()
+          // copy opsIs to fresh delta
+          opsIs.forEach(op => {
+            isUpdated.childCnt += op.length
+            list.pushEnd(isUpdated.children, op.clone())
+          })
+          isUpdated.apply(d)
+          let shouldI = 0
+          let shouldOffset = 0
+          let isOp = isUpdated.children.start
+          let isOffset = 0
+          while (shouldI < opsShould.length && isOp != null) {
+            const shouldOp = opsShould[shouldI]
+            if (!$deleteOp.check(shouldOp) && !$deleteOp.check(isOp)) {
+              const isFormat = isOp.format
+              const minForward = math.min(shouldOp.length - shouldOffset, isOp.length - isOffset)
+              shouldOffset += minForward
+              isOffset += minForward
+              if (fun.equalityDeep(shouldOp.format, isFormat)) {
+                formattingDiff.retain(minForward)
+              } else {
+                /**
+                 * @type {FormattingAttributes}
+                 */
+                const fupdate = {}
+                shouldOp.format != null && object.forEach(shouldOp.format, (v, k) => {
+                  if (!fun.equalityDeep(v, isFormat?.[k] || null)) {
+                    fupdate[k] = v
+                  }
+                })
+                isFormat && object.forEach(isFormat, (_, k) => {
+                  if (shouldOp?.format?.[k] === undefined) {
+                    fupdate[k] = null
+                  }
+                })
+                formattingDiff.retain(minForward, fupdate)
+              }
+              // update offset and iterators
+              if (shouldOffset >= shouldOp.length) {
+                shouldI++
+                shouldOffset = 0
+              }
+              if (isOffset >= isOp.length) {
+                isOp = isOp.next
+                isOffset = 0
+              }
+            }
+          }
+          d.apply(formattingDiff)
+        }
+        return d
       }
-      diffAndApply(d, ops1.slice(change.index, change.index + change.remove.length), ops2.slice(change.index + currIndexOffset2, change.index + currIndexOffset2 + change.insert.length))
+      const subd = diffAndApply(ops1.slice(change.index, change.index + change.remove.length), ops2.slice(change.index + currIndexOffset2, change.index + currIndexOffset2 + change.insert.length))
+      d.append(subd)
       lastIndex1 = change.index + change.remove.length
       currIndexOffset2 += change.insert.length - change.remove.length
     }
@@ -2233,5 +2356,5 @@ export const diff = (d1, d2) => {
       }
     }
   }
-  return /** @type {D} */ (d.done(false))
+  return /** @type {any} */ (d.done(false))
 }

@@ -687,12 +687,26 @@ export const testRepeatRandomMapDiff = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testDeltaAppend = tc => {
+export const testDeltaAppend = _tc => {
   const $d = delta.$delta({ children: s.$number, text: true })
   const other = delta.create().insert('b').insert([1, 2])
   const _d = delta.create().insert('a')
   const d = _d.append(other)
   $d.expect(d)
+}
+
+export const testDeltaDiffWithFormatting = () => {
+  const d1 = delta.create().insert('hello world!')
+  const d2 = delta.create().insert('hello ').insert('world', { bold: true }).insert('!')
+  const diff = delta.diff(d1, d2)
+  t.compare(diff, delta.create().retain(6).retain(5, { bold: true }))
+}
+
+export const testDeltaDiffWithFormatting2 = () => {
+  const d1 = delta.create().insert('hello!')
+  const d2 = delta.create().insert('hello ').insert('world', { bold: true }).insert('!')
+  const diff = delta.diff(d1, d2)
+  t.compare(diff, delta.create().retain(5).insert(' ').insert('world', { bold: true }))
 }

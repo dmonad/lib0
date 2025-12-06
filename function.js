@@ -72,7 +72,7 @@ export const equalityDeep = (a, b) => {
   if (a === b) {
     return true
   }
-  if (a == null || b == null || a.constructor !== b.constructor) {
+  if (a == null || b == null || (a.constructor !== b.constructor && (a.constructor || Object) !== (b.constructor || Object))) {
     return false
   }
   if (a[equalityTrait.EqualityTraitSymbol] != null) {
@@ -116,6 +116,7 @@ export const equalityDeep = (a, b) => {
       }
       break
     }
+    case undefined:
     case Object:
       if (object.size(a) !== object.size(b)) {
         return false
