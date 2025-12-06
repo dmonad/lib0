@@ -1031,7 +1031,6 @@ export class Delta {
     return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
   }
 
-
   /**
    * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>}
    */
@@ -1491,7 +1490,7 @@ export class DeltaBuilder extends Delta {
       } else if ($retainOp.check(op)) {
         let retainLen = op.length
 
-        if (offset > 0 && opsI != null && op.format != null && !$deleteOp.check(opsI) && !object.every(op.format, (v,k) => fun.equalityDeep(v, /** @type {InsertOp<any>|RetainOp|ModifyOp} */ (opsI).format?.[k] || null))) {
+        if (offset > 0 && opsI != null && op.format != null && !$deleteOp.check(opsI) && !object.every(op.format, (v, k) => fun.equalityDeep(v, /** @type {InsertOp<any>|RetainOp|ModifyOp} */ (opsI).format?.[k] || null))) {
           // need to split current op
           const cpy = scheduleForMerge(opsI.clone(offset))
           opsI._splice(offset, opsI.length - offset)
@@ -1778,7 +1777,7 @@ export class DeltaBuilder extends Delta {
    */
   append (other) {
     const children = this.children
-    let prevLast = children.end
+    const prevLast = children.end
     // @todo Investigate. Above is a typescript issue. It is necessary to cast OtherDelta to a Delta first before
     // inferring type, otherwise Children will contain Text.
     for (const child of other.children) {
@@ -1982,7 +1981,7 @@ export const $deltaBuilderAny = /** @type {any} */ (s.$instanceOf(DeltaBuilder))
  * @param {T | null} b
  */
 export const mergeAttrs = (a, b) => object.isEmpty(a)
-  ? (object.isEmpty(b) ? null : b) 
+  ? (object.isEmpty(b) ? null : b)
   : (object.isEmpty(b) ? a : object.assign({}, a, b))
 
 /**
