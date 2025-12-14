@@ -997,6 +997,8 @@ export const assert = env.production
  * @typedef {ReturnType<Extract<P,Pattern<In extends number ? number : (In extends string ? string : In),any>>['h']>} PatternMatchResult
  */
 
+const unhandledPatternError = 'Unhandled pattern'
+
 /**
  * @todo move this to separate library
  * @template {any} [State=undefined]
@@ -1037,6 +1039,15 @@ export class PatternMatcher {
   }
 
   /**
+   * @param {string} errorMessage
+   */
+  error (errorMessage = unhandledPatternError) {
+    return this.if($any, () => {
+      throw error.create(errorMessage)
+    }).done()
+  }
+
+  /**
    * @return {State extends undefined
    *   ? <In extends Unwrap<Patterns['if']>>(o:In,state?:undefined)=>PatternMatchResult<Patterns,In>
    *   : <In extends Unwrap<Patterns['if']>>(o:In,state:State)=>PatternMatchResult<Patterns,In>}
@@ -1051,7 +1062,7 @@ export class PatternMatcher {
           return p.h(o, s)
         }
       }
-      throw error.create('Unhandled pattern')
+      throw error.create(unhandledPatternError)
     }
   }
 }
