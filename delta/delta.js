@@ -899,6 +899,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  * @template {fingerprintTrait.Fingerprintable} [Children=never]
  * @template {string} [Text=never]
  * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
+ * @template {boolean} [Recursive=false]
  */
 export class Delta {
   /**
@@ -928,6 +929,7 @@ export class Delta {
      *   | (Text extends never ? never : TextOp)
      *   | (Children extends never ? never : InsertOp<Children>)
      *   | (Delta extends Children ? ModifyOp<Extract<Children,Delta<any,any,any,any,any>>> : never)
+     *   | (Recursive extends true ? ModifyOp<Delta<NodeName,Attrs,Children,Text,Schema,Recursive>> : never)
      * >}
      */
     this.children = /** @type {any} */ (list.create())
@@ -1032,7 +1034,7 @@ export class Delta {
   }
 
   /**
-   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>}
+   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema,Recursive>}
    */
   clone () {
     return this.slice(0, this.childCnt)
@@ -1041,7 +1043,7 @@ export class Delta {
   /**
    * @param {number} start
    * @param {number} end
-   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema>}
+   * @return {DeltaBuilder<NodeName,Attrs,Children,Text,Schema,Recursive>}
    */
   slice (start = 0, end = this.childCnt) {
     const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(/** @type {any} */ (this.name), this.$schema))
@@ -1090,7 +1092,7 @@ export class Delta {
    * formats&attributions). In the future, there might be additional merge operations that can be
    * performed to result in smaller deltas. Set `markAsDone=false` to only perform the cleanup.
    *
-   * @return {Delta<NodeName,Attrs,Children,Text,Schema>}
+   * @return {Delta<NodeName,Attrs,Children,Text,Schema,Recursive>}
    */
   done (markAsDone = true) {
     if (!this.isDone) {
@@ -1108,7 +1110,7 @@ export class Delta {
 /**
  * @template {DeltaAny} D
  * @param {D} d
- * @return {D extends DeltaBuilder<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
+ * @return {D extends DeltaBuilder<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema,infer Recursive> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema,Recursive> : never}
  */
 export const clone = d => /** @type {any} */ (d.slice(0, d.childCnt))
 
@@ -1164,8 +1166,9 @@ const modDeltaCheck = d => {
  * @template {{[key:string|number]:any}} [Attrs={}]
  * @template {fingerprintTrait.Fingerprintable} [Children=never]
  * @template {string} [Text=never]
- * @template {s.Schema<Delta<any,any,any,any,any>>|null} [Schema=any]
- * @extends {Delta<NodeName,Attrs,Children,Text,Schema>}
+ * @template {s.Schema<Delta<any,any,any,any,any,any>>|null} [Schema=any]
+ * @template {boolean} [Recursive=false]
+ * @extends {Delta<NodeName,Attrs,Children,Text,Schema,Recursive>}
  */
 export class DeltaBuilder extends Delta {
   /**
@@ -1243,7 +1246,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer Children,infer Text,infer Schema> ? ((Children extends never ? never : Array<Children>) | Text) : never} NewContent
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,any,infer Children,infer Text,infer Schema,infer Recursive> ? ((Children extends never ? never : Array<Children>) | Text) : never} NewContent
    * @param {NewContent} insert
    * @param {FormattingAttributes?} [formatting]
    * @param {Attribution?} [attribution]
@@ -1252,7 +1255,8 @@ export class DeltaBuilder extends Delta {
    *   Attrs,
    *   Exclude<NewContent,string>[number]|Children,
    *   (Extract<NewContent,string>|Text) extends never ? never : string,
-   *   Schema
+   *   Schema,
+   *   Recursive
    * >}
    */
   insert (insert, formatting = null, attribution = null) {
@@ -1294,7 +1298,8 @@ export class DeltaBuilder extends Delta {
    *   Attrs,
    *   Exclude<NewContent,string>[number]|Children,
    *   (Extract<NewContent,string>|Text) extends string ? string : never,
-   *   Schema
+   *   Schema,
+   *   Recursive
    * >}
    */
   modify (modify, formatting = null, attribution = null) {
@@ -1353,7 +1358,8 @@ export class DeltaBuilder extends Delta {
    *   { [K in keyof AddToAttrs<Attrs,Key,Val>]: AddToAttrs<Attrs,Key,Val>[K]  },
    *   Children,
    *   Text,
-   *   Schema
+   *   Schema,
+   *   Recursive
    * >}
    */
   set (key, val, attribution = null, prevValue) {
@@ -1371,7 +1377,8 @@ export class DeltaBuilder extends Delta {
    *   { [K in keyof MergeAttrs<Attrs,NewAttrs>]: MergeAttrs<Attrs,NewAttrs>[K] },
    *   Children,
    *   Text,
-   *   Schema
+   *   Schema,
+   *   Recursive
    * >}
    */
   setMany (attrs, attribution = null) {
@@ -1392,7 +1399,8 @@ export class DeltaBuilder extends Delta {
    *   { [K in keyof AddToAttrs<Attrs,Key,never>]: AddToAttrs<Attrs,Key,never>[K] },
    *   Children,
    *   Text,
-   *   Schema
+   *   Schema,
+   *   Recursive
    * >}
    */
   unset (key, attribution = null, prevValue) {
@@ -1402,8 +1410,8 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? { [K in keyof As]: Extract<As[K],Delta<any,any,any,any,any>> extends never ? never : K }[keyof As] : never} Key
-   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? Extract<As[Key],Delta<any,any,any,any,any>> : never} D
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? { [K in keyof As]: Extract<As[K],Delta<any,any,any,any,any,any>> extends never ? never : K }[keyof As] : never} Key
+   * @template {AllowedDeltaFromSchema<Schema> extends Delta<any,infer As,any,any,any> ? Extract<As[Key],Delta<any,any,any,any,any,any>> : never} D
    * @param {Key} key
    * @param {D} modify
    * @return {DeltaBuilder<
@@ -1411,7 +1419,8 @@ export class DeltaBuilder extends Delta {
    *   { [K in keyof AddToAttrs<Attrs,Key,D>]: AddToAttrs<Attrs,Key,D>[K]  },
    *   Children,
    *   Text,
-   *   Schema
+   *   Schema,
+   *   Recursive
    * >}
    */
   update (key, modify) {
@@ -1421,7 +1430,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @param {Delta<NodeName,Attrs,Children,Text,any>} other
+   * @param {Delta<NodeName,Attrs,Children,Text,any,Recursive>} other
    */
   apply (other) {
     modDeltaCheck(this)
@@ -1773,7 +1782,7 @@ export class DeltaBuilder extends Delta {
    *
    * @template {DeltaAny} OtherDelta
    * @param {OtherDelta} other
-   * @return {CastToDelta<OtherDelta> extends Delta<any,any,infer OtherChildren,infer OtherText,any> ? DeltaBuilder<NodeName,Attrs,Children|OtherChildren,Text|OtherText,Schema> : never}
+   * @return {CastToDelta<OtherDelta> extends Delta<any,any,infer OtherChildren,infer OtherText,any> ? DeltaBuilder<NodeName,Attrs,Children|OtherChildren,Text|OtherText,Schema,Recursive> : never}
    */
   append (other) {
     const children = this.children
@@ -1812,15 +1821,7 @@ const updateOpFormat = (op, formatUpdate) => {
 
 /**
  * @template {DeltaAny} D
- * @typedef {D extends DeltaBuilder<infer N,infer Attrs,infer Children,infer Text,infer Schema> ? Delta<N,Attrs,Children,Text,Schema> : D} CastToDelta
- */
-
-/**
- * @template {string} NodeName
- * @template {{ [key: string|number]: any }} [Attrs={}]
- * @template {fingerprintTrait.Fingerprintable|never} [Children=never]
- * @template {string|never} [Text=never]
- * @typedef {Delta<NodeName,Attrs,Children|Delta<NodeName,Attrs,Children,Text>|RecursiveDelta<NodeName,Attrs,Children,Text>,Text>} RecursiveDelta
+ * @typedef {D extends DeltaBuilder<infer N,infer Attrs,infer Children,infer Text,infer Schema,infer Recursive> ? Delta<N,Attrs,Children,Text,Schema,Recursive> : D} CastToDelta
  */
 
 /**
@@ -1833,9 +1834,10 @@ const updateOpFormat = (op, formatUpdate) => {
  * @extends {s.Schema<Delta<
  *   Name,
  *   Attrs,
- *   Children|(Recursive extends true ? RecursiveDelta<Name,Attrs,Children,HasText extends true ? string : never> : never),
+ *   Children,
  *   HasText extends true ? string : never,
- *   any>>}
+ *   any,
+ *   Recursive>>}
  */
 export class $Delta extends s.Schema {
   /**
@@ -1862,9 +1864,10 @@ export class $Delta extends s.Schema {
    * @return {o is Delta<
    *   Name,
    *   Attrs,
-   *   Children|(Recursive extends true ? RecursiveDelta<Name,Attrs,Children,HasText extends true ? string : never> : never),
+   *   Children,
    *   HasText extends true ? string : never,
-   *   any>}
+   *   any,
+   *   Recursive>}
    */
   check (o, err = undefined) {
     const { $name, $attrs, $children, hasText, $formats } = this.shape
@@ -1900,8 +1903,10 @@ export class $Delta extends s.Schema {
  * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<
  *     NodeName,
  *     Attrs,
- *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,HasText extends true ? string : never> : never),
- *     HasText extends true ? string : never
+ *     Children,
+ *     HasText extends true ? string : never,
+ *     any,
+ *     Recursive
  * >> : never}
  */
 export const $delta = ({ name, attrs, children, text, formats, recursive }) => /** @type {any} */ (new $Delta(
@@ -1932,8 +1937,10 @@ export const $$delta = s.$constructedBy($Delta)
  * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<
  *     NodeName,
  *     Attrs,
- *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,HasText extends true ? string : never> : never),
- *     HasText extends true ? string : never
+ *     Children,
+ *     HasText extends true ? string : never,
+ *     any,
+ *     Recursive
  * >> : never}
  */
 export const _$delta = ({ name, attrs, children, text, recursive }) => {
@@ -2003,7 +2010,7 @@ export const mergeDeltas = (a, b) => {
  * @template {DeltaAny} D
  * @param {prng.PRNG} gen
  * @param {s.Schema<D>} $d
- * @return {D extends Delta<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
+ * @return {D extends Delta<infer NodeName,infer Attrs,infer Children,infer Text,infer Schema,infer Recursive> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema,Recursive> : never}
  */
 export const random = (gen, $d) => {
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any,any,any,boolean,any,any>} */ (/** @type {any} */ ($d)).shape
@@ -2044,13 +2051,13 @@ export const random = (gen, $d) => {
  * @overload
  * @param {NodeName} nodeName
  * @param {Schema} schema
- * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema> : never}
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any,infer Recursive>> ? DeltaBuilder<NodeName,Attrs,Children,Text,Schema,Recursive> : never}
  */
 /**
  * @template {s.Schema<DeltaAny>} Schema
  * @overload
  * @param {Schema} schema
- * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? DeltaBuilder<N,Attrs,Children,Text,Schema> : never}
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any,infer Recursive>> ? DeltaBuilder<N,Attrs,Children,Text,Schema,Recursive> : never}
  */
 /**
  * @template {string|null} NodeName
@@ -2108,7 +2115,7 @@ export const $textOnly = $text()
 /**
  * @template {s.Schema<Delta<any,{},any,any,null>>} [Schema=s.Schema<Delta<any,{},never,string,null>>]
  * @param {Schema} [$schema]
- * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any>> ? DeltaBuilder<N,Attrs,Children,Text,Schema> : never}
+ * @return {Schema extends s.Schema<Delta<infer N,infer Attrs,infer Children,infer Text,any,infer Recursive>> ? DeltaBuilder<N,Attrs,Children,Text,Schema,Recursive> : never}
  */
 export const text = $schema => /** @type {any} */ (create($schema || $textOnly))
 
@@ -2164,7 +2171,7 @@ export const map = $schema => /** @type {any} */ (create(/** @type {any} */ ($sc
  * @template {DeltaAny} D
  * @param {D} d1
  * @param {NoInfer<D>} d2
- * @return {D extends Delta<infer N,infer Attrs,infer Children,infer Text,any> ? DeltaBuilder<N,Attrs,Children,Text,null> : never}
+ * @return {D extends Delta<infer N,infer Attrs,infer Children,infer Text,any,infer Recursive> ? DeltaBuilder<N,Attrs,Children,Text,null,Recursive> : never}
  */
 export const diff = (d1, d2) => {
   /**
