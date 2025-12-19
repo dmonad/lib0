@@ -313,7 +313,7 @@ export class InsertOp extends list.ListNode {
 }
 
 /**
- * @template {DeltaConf} [DConf=any]
+ * @template {DeltaConf} [DConf={}]
  */
 export class DeleteOp extends list.ListNode {
   /**
@@ -471,7 +471,7 @@ export class RetainOp extends list.ListNode {
 /**
  * Delta that can be applied on a YType Embed
  *
- * @template {DeltaAny} [DTypes=DeltaAny]
+ * @template {Delta} [DTypes=DeltaAny]
  */
 export class ModifyOp extends list.ListNode {
   /**
@@ -809,7 +809,7 @@ export class AttrModifyOp {
 }
 
 /**
- * @type {s.Schema<AttrDeleteOp<any> | DeleteOp>}
+ * @type {s.Schema<AttrDeleteOp<{}> | DeleteOp>}
  */
 export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp || o.constructor === AttrDeleteOp))
 
@@ -910,7 +910,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
 /**
  * @template {DeltaConf} DConf
- * @typedef {DConf extends {name:infer Name} ? (unknown extends Name ? any : Name) : never} DeltaConfGetName
+ * @typedef {DConf extends {name:infer Name} ? (unknown extends Name ? any : (Exclude<Name,undefined>)) : any} DeltaConfGetName
  */
 
 /**
@@ -934,7 +934,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
 /**
  * @template {DeltaConf} DConf
- * @typedef {import('../typing.js').TypeIsAny<DConf, {[K:string|number]:any}, (DConf extends {attrs:infer Attrs} ? Attrs : {})>} DeltaConfGetAttrs
+ * @typedef {import('../typing.js').TypeIsAny<DConf, {[K:string|number]:any}, (DConf extends {attrs:infer Attrs} ? (Attrs extends undefined ? {} : Attrs) : {})>} DeltaConfGetAttrs
  */
 
 /**
@@ -974,24 +974,22 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
  */
 
 /**
- * @template {DeltaConf} [DConf={}]
+ * @template {string} Name
+ * @template {{[K in string|number]:any}} Attrs
+ * @template Children
+ * @template {boolean} Text
  */
-export class Delta {
+class DeltaData {
   /**
    * @param {string?} name
-   * @param {s.Schema<Delta<DConf>>?} $schema
+   * @param {s.Schema<Delta<any>>?} $schema
    */
   constructor (name, $schema) {
-    /**
-     * @type {DeltaConf['name'] extends string ? DeltaConf['name'] : any}
-     */
-    this.name = name
+    this.name = /** @type {Name} */ (name)
     this.$schema = $schema
     /**
-     * @type {DeltaConfGetAttrs<DConf> extends Attrs 
-     *   ? ({ [K in keyof Attrs]?: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Attrs[K] extends Delta ? AttrModifyOp<Extract<Attrs[K],Delta>,K> : never)) : never }
-     *       & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Delta extends Attrs[K] ? AttrModifyOp<Extract<Attrs[K],Delta>,K> : never)) : never }[keyof Attrs]> })
-     *   : never
+     * @type {{ [K in keyof Attrs]?: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Attrs[K] extends Delta ? AttrModifyOp<Extract<Attrs[K],Delta>,K> : never))) : never }
+     *       & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Delta extends Attrs[K] ? AttrModifyOp<Extract<Attrs[K],Delta>,K> : never))) : never }[keyof Attrs]> }
      * }
      */
     this.attrs = /** @type {any} */ ({
@@ -1004,10 +1002,8 @@ export class Delta {
 
     /**
      * @type {list.List<
-     *   | (DConf extends { text: true } ? (RetainOp|TextOp|DeleteOp<DConf>) : never)
-     *   | (DeltaConfGetChildren<DConf> extends infer Children
-     *     ? (RetainOp|InsertOp<Children>|DeleteOp<DConf>|(Delta extends Children ? ModifyOp<Extract<Children,Delta>> : never))
-     *     : never)
+     *   | (Text extends true ? (RetainOp|TextOp|DeleteOp<{}>) : never)
+     *   | (RetainOp|InsertOp<Children>|DeleteOp<any>|(Delta extends Children ? ModifyOp<Extract<Children,Delta>> : never))
      * >}
      */
     this.children = /** @type {any} */ (list.create())
@@ -1022,7 +1018,18 @@ export class Delta {
     this._fingerprint = null
     this.isDone = false
   }
+}
 
+/**
+ * @template {DeltaConf} [DConf={}]
+ * @extends {DeltaData<
+ *   DeltaConfGetName<DConf>,
+ *   DeltaConfGetAttrs<DConf>,
+ *   DeltaConfGetChildren<DConf>,
+ *   DConf extends {text:true} ? true : false
+ * >}
+ */
+export class Delta extends DeltaData {
   /**
    * @type {string}
    */
@@ -1319,10 +1326,10 @@ export class DeltaBuilder extends Delta {
    * @param {NewContent} insert
    * @param {FormattingAttributes?} [formatting]
    * @param {Attribution?} [attribution]
-   * @return {DeltaBuilder<DConf extends {fixed: true} ? DConf : DeltaConfOverwrite<DConf, 
+   * @return {DeltaBuilder<DConf extends {fixed: true} ? DConf : DeltaConfOverwrite<DConf,
    * (Exclude<NewContent,string> extends never ? {} : {
    *   children: Exclude<NewContent,string>[number]|DeltaConfGetChildren<DConf>
-   * }) & (Extract<NewContent,string> extends string ? { text: true } : {})>>}
+   * }) & (Extract<NewContent,string> extends never ? {} : { text: true })>>}
    */
   insert (insert, formatting = null, attribution = null) {
     modDeltaCheck(this)
@@ -1625,7 +1632,7 @@ export class DeltaBuilder extends Delta {
           return
         }
         if ($modifyOp.check(opsI)) {
-          opsI._modValue.apply(op.value)
+          opsI._modValue.apply(/** @type {any} */ (op.value))
         } else if ($insertOp.check(opsI)) {
           opsI._modValue(offset).apply(op.value)
         } else if ($retainOp.check(opsI)) {

@@ -38,6 +38,10 @@ export const testComparing = _tc => {
   t.compare(map1, map2, 'compare Maps')
   t.describe('The following errors are expected!')
   t.fails(() => {
+    error.assert(false)
+  })
+  error.assert(true)
+  t.fails(() => {
     t.compare({ a: 4 }, { b: 5 }, 'childs are not equal')
   })
   t.fails(() => {

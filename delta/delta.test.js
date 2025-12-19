@@ -93,11 +93,34 @@ export const testDeltaValues = _tc => {
    */
 }
 
+export const testBasicDeltaAssignability = () => {
+  /**
+   * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: number}>}
+   */
+  const a = delta.create().insert('hi').insert([42]).set('y', 42).done()
+  /**
+   * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: number}>}
+   */
+  // @ts-expect-error
+  const b = delta.create().insert('hi').insert([42]).set('unknown', 42).done()
+  /**
+   * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: string}>}
+   */
+  // @ts-expect-error
+  const c = delta.create().insert('hi').insert([42]).done()
+  /**
+   * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: string}>}
+   */
+  // @ts-expect-error
+  const d = delta.create().insert('hi').set('x', 42).set('x', 'dtrn').done()
+  return { a, b, c, d }
+}
+
 export const testDeltaBasicCases = () => {
   const $ds = delta.$delta({ name: s.$string, attrs: { k: s.$number, d: delta.$delta({ name: 'sub', text: true }) }, children: s.$number, text: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
-  ds.update('d', delta.create('sub', null, 'hi'))
+  ds.update('d', delta.create('sub', null, 'hi').done())
   ds.apply(delta.create('root', { k: 42 }, [42]))
   ds.apply(delta.create('root', { k: 42 }))
   // @ts-expect-error
@@ -119,10 +142,11 @@ export const testDeltaBasicCases = () => {
   t2.apply(delta.create().insert('there').insert(['??']).set('k', 42))
   const m = delta.create().set('x', 42).set('y', 'str').insert('hi').insert([42])
   m.apply(delta.create().unset('y').insert('hi'))
-  const _mFinal = m.set('k', m).update('k', m)
-  /**
-   * @typedef {t.AssertExtends<typeof mFinal,delta.Delta<{k:delta.Delta,x:string}>>} QQ
-   */
+}
+
+export const testDeltaAttrAssignability = () => {
+  const x1 = delta.create().set('a', 42).set('b', 'dtrn').insert('dtrn').insert([1234, 'dtrn']).set('q', delta.create().set('a', 42))
+  x1.apply(delta.create().set('a', 1234).done())
 }
 
 export const testDeltaArrayBasics = () => {
@@ -261,8 +285,6 @@ export const testAssignability = () => {
     let deltaNone = delta.create().done()
     let deltaNoneWithString = delta.create(delta.$delta({ text: true })).done()
     let deltaNoneWithNumberContent = delta.create(delta.$delta({ children: s.$number })).done()
-    // @ts-expect-error
-    deltaNone = deltaAny
     deltaNone = delta.create()
     deltaAny = delta.create().set('x', 42)
     // @ts-expect-error
@@ -281,6 +303,7 @@ export const testAssignability = () => {
     deltaNoneWithNumberContent = delta.create().insert([42]).done()
     // @ts-expect-error because it contains object
     deltaNoneWithNumberContent = delta.create().insert([42]).insert([{}]).done()
+    return { deltaAny }
   })
 }
 
@@ -292,7 +315,7 @@ export const testText = () => {
   q.insert([{ m: 42 }])
   // @ts-expect-error
   q.insert([{ q: 42 }])
-  delta.create(delta.$delta({text: true, children: s.$never}))
+  delta.create(delta.$delta({ text: true, children: s.$never }))
     // @ts-expect-error
     .insert([{ m: 42 }])
 }
@@ -749,8 +772,11 @@ export const testDeltaDiffIssue1 = () => {
 
 export const testDeltaTypings = () => {
   const q = /** @type {delta.DeltaAny} */ (delta.create())
-  // @ts-expect-error
-  ;/** @type {import('../list.js').List<delta.RetainOp|delta.TextOp<any>|delta.ModifyOp<any>|delta.DeleteOp<any>|delta.InsertOp<any>>} */ (q.children)
+  /**
+   * @type {import('../list.js').List<delta.RetainOp|delta.TextOp|delta.ModifyOp<any>|delta.DeleteOp<any>|delta.InsertOp<any>>}
+   */
+  const m = q.children
+  return { m }
 }
 
 /**
