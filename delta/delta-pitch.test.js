@@ -65,10 +65,10 @@ export const testDeltaBasicSchema = _tc => {
   const $d = delta.$delta({ attrs: { key: s.$string }, children: s.$number, text: false })
   const d = delta.create($d)
   // @ts-expect-error
-  d.set('key', false) // invalid change: will throw a type error
+  d.setAttr('key', false) // invalid change: will throw a type error
   t.fails(() => {
     // @ts-expect-error
-    d.apply(delta.create().set('key', false)) // invalid delta: will throw a type error
+    d.apply(delta.create().setAttr('key', false)) // invalid delta: will throw a type error
   })
 }
 
@@ -83,7 +83,7 @@ export const testDeltaBasicSchema = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaValues = _tc => {
-  const change = delta.create().set('a', 42).unset('b').retain(5).delete(6).insert('!').insert([{ my: 'custom object' }])
+  const change = delta.create().setAttr('a', 42).deleteAttr('b').retain(5).delete(6).insert('!').insert([{ my: 'custom object' }])
   // iterate through attribute changes
   for (const attrChange of change.attrs) {
     if (delta.$insertOp.check(attrChange)) {
