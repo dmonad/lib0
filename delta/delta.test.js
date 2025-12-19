@@ -57,13 +57,13 @@ export const testDeltaBasicApi = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaValues = _tc => {
-  const _q = delta.create().set('a', 42).unset('b').retain(5).delete(5).insert('!')
+  const _q = delta.create().setAttr('a', 42).deleteAttr('b').retain(5).delete(5).insert('!')
   const change = _q.insert([{ my: 'custom object' }])
   // iterate through attribute changes
   for (const attrChange of change.attrs) {
-    if (delta.$insertOp.check(attrChange)) {
+    if (delta.$setAttrOp.check(attrChange)) {
       console.log(`set ${attrChange.key} to ${attrChange.value}`)
-    } else if (delta.$deleteOp.check(attrChange)) {
+    } else if (delta.$deleteAttrOp.check(attrChange)) {
       console.log(`delete ${attrChange.key}`)
     }
   }
@@ -97,12 +97,12 @@ export const testBasicDeltaAssignability = () => {
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: number}>}
    */
-  const a = delta.create().insert('hi').insert([42]).set('y', 42).done()
+  const a = delta.create().insert('hi').insert([42]).setAttr('y', 42).done()
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: number}>}
    */
   // @ts-expect-error
-  const b = delta.create().insert('hi').insert([42]).set('unknown', 42).done()
+  const b = delta.create().insert('hi').insert([42]).setAttr('unknown', 42).done()
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: string}>}
    */
@@ -112,7 +112,7 @@ export const testBasicDeltaAssignability = () => {
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: string}>}
    */
   // @ts-expect-error
-  const d = delta.create().insert('hi').set('x', 42).set('x', 'dtrn').done()
+  const d = delta.create().insert('hi').setAttr('x', 42).setAttr('x', 'dtrn').done()
   return { a, b, c, d }
 }
 
@@ -120,33 +120,33 @@ export const testDeltaBasicCases = () => {
   const $ds = delta.$delta({ name: s.$string, attrs: { k: s.$number, d: delta.$delta({ name: 'sub', text: true }) }, children: s.$number, text: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
-  ds.update('d', delta.create('sub', null, 'hi').done())
+  ds.modifyAttr('d', delta.create('sub', null, 'hi').done())
   ds.apply(delta.create('root', { k: 42 }, [42]))
   ds.apply(delta.create('root', { k: 42 }))
   // @ts-expect-error
   t.fails(() => ds.apply(delta.create('root', { k: 'hi' }, 'content')))
   const d1 = delta.create().insert('hi')
   d1.insert([42]).insert('hi').insert([{ there: 42 }]).insert(['']).insert(['dtrn']).insert('stri').insert('dtruniae')
-  d1.set('hi', 'there').set('test', 42).set(42, 43)
-  const _tdelta = delta.create().insert('dtrn').insert([42]).insert(['', { q: 42 }]).set('kv', false).set('x', 42) // eslint-disable-line
+  d1.setAttr('hi', 'there').setAttr('test', 42).setAttr(42, 43)
+  const _tdelta = delta.create().insert('dtrn').insert([42]).insert(['', { q: 42 }]).setAttr('kv', false).setAttr('x', 42) // eslint-disable-line
   delta.$delta({ name: s.$any, attrs: s.$object({ kv: s.$boolean, x: s.$number }), children: s.$union(s.$string, s.$number, s.$object({ q: s.$number })), text: true }).expect(_tdelta)
   console.log(_tdelta)
   // @ts-expect-error
   delta.create().insert('hi').apply(delta.create().insert('there').insert([42]))
   // @ts-expect-error
-  delta.create().set('x', 42).apply(delta.create().set('x', '42'))
+  delta.create().setAttr('x', 42).apply(delta.create().setAttr('x', '42'))
   // @ts-expect-error
-  delta.create().set('x', 42).apply(delta.create().set('y', '42'))
-  delta.create().set('x', 42).apply(delta.create().unset('x'))
-  const t2 = delta.create().insert('hi').insert(['there']).set('k', '42').set('k', 42)
-  t2.apply(delta.create().insert('there').insert(['??']).set('k', 42))
-  const m = delta.create().set('x', 42).set('y', 'str').insert('hi').insert([42])
-  m.apply(delta.create().unset('y').insert('hi'))
+  delta.create().setAttr('x', 42).apply(delta.create().setAttr('y', '42'))
+  delta.create().setAttr('x', 42).apply(delta.create().deleteAttr('x'))
+  const t2 = delta.create().insert('hi').insert(['there']).setAttr('k', '42').setAttr('k', 42)
+  t2.apply(delta.create().insert('there').insert(['??']).setAttr('k', 42))
+  const m = delta.create().setAttr('x', 42).setAttr('y', 'str').insert('hi').insert([42])
+  m.apply(delta.create().deleteAttr('y').insert('hi'))
 }
 
 export const testDeltaAttrAssignability = () => {
-  const x1 = delta.create().set('a', 42).set('b', 'dtrn').insert('dtrn').insert([1234, 'dtrn']).set('q', delta.create().set('a', 42))
-  x1.apply(delta.create().set('a', 1234).done())
+  const x1 = delta.create().setAttr('a', 42).setAttr('b', 'dtrn').insert('dtrn').insert([1234, 'dtrn']).setAttr('q', delta.create().setAttr('a', 42))
+  x1.apply(delta.create().setAttr('a', 1234).done())
 }
 
 export const testDeltaArrayBasics = () => {
@@ -286,7 +286,7 @@ export const testAssignability = () => {
     let deltaNoneWithString = delta.create(delta.$delta({ text: true })).done()
     let deltaNoneWithNumberContent = delta.create(delta.$delta({ children: s.$number })).done()
     deltaNone = delta.create()
-    deltaAny = delta.create().set('x', 42)
+    deltaAny = delta.create().setAttr('x', 42)
     // @ts-expect-error
     deltaNone = deltaNoneWithString
     // i can assign non-string content to with-string content
@@ -396,9 +396,9 @@ export const testUseAttribution = _tc => {
 
 export const testMapTyping = () => {
   const $q = delta.$delta({ attrs: s.$object({ x: s.$number }) })
-  const mmm = delta.create().set('x', 42)
+  const mmm = delta.create().setAttr('x', 42)
   $q.expect(mmm)
-  const mmm2 = delta.create().set('x', 'xx')
+  const mmm2 = delta.create().setAttr('x', 'xx')
   /**
    * @typedef {t.Assert<t.Equal<typeof mmm2, delta.DeltaBuilder<{ attrs: {x:string} }>>>}
    */
@@ -407,9 +407,9 @@ export const testMapTyping = () => {
     $q.expect(mmm2)
   })
   const q = delta.create($q)
-  q.set('x', 42)
+  q.setAttr('x', 42)
   // @ts-expect-error
-  q.set('y', 42)
+  q.setAttr('y', 42)
 }
 
 /**
@@ -423,9 +423,9 @@ export const testMapDeltaBasics = _tc => {
   const dmap = delta.create(delta.$delta({ attrs: $d }))
   t.fails(() => {
     // @ts-expect-error
-    dmap.apply(delta.create().set('str', 42))
+    dmap.apply(delta.create().setAttr('str', 42))
   })
-  dmap.set('str', 'hi')
+  dmap.setAttr('str', 'hi')
   for (const c of dmap.attrs) {
     if (c.key === 'str') {
       // @ts-expect-error because value can't be a string
@@ -438,8 +438,8 @@ export const testMapDeltaBasics = _tc => {
     }
   }
   const x = dmap.attrs.str
-  t.assert(delta.$insertOpWith(s.$string).optional.check(x) && delta.$insertOpWith(s.$string).optional.validate(x))
-  t.assert(!delta.$insertOpWith(s.$number).optional.check(x))
+  t.assert(delta.$setAttrOpWith(s.$string).optional.check(x) && delta.$setAttrOpWith(s.$string).optional.validate(x))
+  t.assert(!delta.$setAttrOpWith(s.$number).optional.check(x))
   t.assert(dmap.attrs.str !== null)
 }
 
@@ -458,16 +458,16 @@ export const testMapDeltaModify = _tc => {
   const $dsmaller = delta.$delta({ attrs: s.$object({ str: s.$string }) })
   t.group('test extensibility', () => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
-    const d = delta.create().set('num', 42)
+    const d = delta.create().setAttr('num', 42)
     t.assert($d.check(d))
     t.assert($dsmaller.check(d))
-    t.assert($d.check(delta.create().set('x', 99))) // this should work, since this is a unknown property
-    t.assert(!$d.check(delta.create().set('str', 99))) // this shoul fail, since str is supposed to be a string
+    t.assert($d.check(delta.create().setAttr('x', 99))) // this should work, since this is a unknown property
+    t.assert(!$d.check(delta.create().setAttr('str', 99))) // this shoul fail, since str is supposed to be a string
   })
   t.group('test delta insert', () => {
     const d = delta.create($d)
-    const testDeleteThis = delta.create(delta.$delta({ attrs: s.$object({ x: s.$number }) })).set('x', 42)
-    d.set('map', testDeleteThis)
+    const testDeleteThis = delta.create(delta.$delta({ attrs: s.$object({ x: s.$number }) })).setAttr('x', 42)
+    d.setAttr('map', testDeleteThis)
     for (const change of d.attrs) {
       if (change.key === 'map' && change.type === 'insert') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
@@ -478,7 +478,7 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test modify', () => {
     const d = delta.create($d)
-    d.update('map', delta.create().unset('x'))
+    d.modifyAttr('map', delta.create().deleteAttr('x'))
     for (const change of d.attrs) {
       if (change.key === 'map' && change.type === 'modify') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
@@ -501,12 +501,12 @@ export const testMapDelta = _tc => {
     })
   })
   const d = delta.create(x)
-    .unset('over')
-    .set('key', 'value')
+    .deleteAttr('over')
+    .setAttr('key', 'value')
     .useAttribution({ delete: ['me'] })
-    .unset('v')
+    .deleteAttr('v')
     .useAttribution(null)
-    .set('over', 'andout')
+    .setAttr('over', 'andout')
 
   t.compare(d.toJSON(), {
     type: 'delta',
@@ -520,11 +520,11 @@ export const testMapDelta = _tc => {
   for (const change of d.attrs) {
     if (change.key === 'v') {
       t.assert(d.attrs[change.key]?.prevValue !== 94) // should know that value is number
-      if (delta.$insertOp.check(change)) {
+      if (delta.$setAttrOp.check(change)) {
         // @ts-expect-error
         t.assert(change.value !== '')
         t.assert(change.value === undefined)
-      } else if (delta.$deleteOp.check(change)) {
+      } else if (delta.$deleteAttrOp.check(change)) {
         t.assert(change.value === undefined)
       } else {
         t.fail('should be an insert op')
@@ -558,21 +558,21 @@ export const testRepeatRebaseMergeDeltas = tc => {
       () => {
         if (prng.bool(gen)) {
           // write 'a'
-          d.set('a', prng.int32(gen, 0, 365))
+          d.setAttr('a', prng.int32(gen, 0, 365))
         } else if (prng.bool(gen)) {
           // 25% chance to create an insertion on 'b'
-          d.set('b', delta.create().set('x', prng.utf16String(gen)))
+          d.setAttr('b', delta.create().setAttr('x', prng.utf16String(gen)))
         } else {
           // 25% chance to create a modify op on 'b'
-          d.update('b', delta.create().set('x', prng.utf16String(gen)))
+          d.modifyAttr('b', delta.create().setAttr('x', prng.utf16String(gen)))
         }
       },
       // create delete
       () => {
         if (prng.bool(gen)) {
-          d.unset('a')
+          d.deleteAttr('a')
         } else {
-          d.unset('b')
+          d.deleteAttr('b')
         }
       }
     ])()
@@ -627,8 +627,8 @@ export const testNodeDelta = _tc => {
   d.insert([42])
   // @ts-expect-error
   d.insert('hi')
-  d.set('a', 1)
-  d.unset('a')
+  d.setAttr('a', 1)
+  d.deleteAttr('a')
   /**
    * @type {Array<Array<string|number>| string | number>}
    */
@@ -681,10 +681,10 @@ export const testSimplifiedDeltaSchemaDefinition = () => {
 
 export const testDiffing = () => {
   const $d = delta.$delta({ name: 'div', attrs: { key: s.$number, b: s.$string, unknown: s.$string }, children: [s.$number], text: true })
-  const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).set('key', 42).set('unknown', 'unknown').done()
-  const d2 = delta.create($d).insert('hello').set('key', 1).done()
+  const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).setAttr('key', 42).setAttr('unknown', 'unknown').done()
+  const d2 = delta.create($d).insert('hello').setAttr('key', 1).done()
   const d = delta.diff(d1, d2)
-  t.compare(d.done(), delta.create().delete(1).retain(1).delete(1).set('key', 1).unset('unknown').done())
+  t.compare(d.done(), delta.create().delete(1).retain(1).delete(1).setAttr('key', 1).deleteAttr('unknown').done())
 }
 
 export const testDiffingCommonPreSuffix = () => {

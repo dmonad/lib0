@@ -76,7 +76,7 @@ export const $attribution = s.$object({
  */
 
 /**
- * @typedef {AttrInsertOp<any>|AttrDeleteOp<any>|AttrModifyOp} AttrOpAny
+ * @typedef {SetAttrOp<any>|DeleteAttrOp<any>|ModifyAttrOp} AttrOpAny
  */
 
 /**
@@ -572,10 +572,10 @@ export class ModifyOp extends list.ListNode {
 }
 
 /**
- * @template {any} V
+ * @template {any} [V=any]
  * @template {string|number} [K=any]
  */
-export class AttrInsertOp {
+export class SetAttrOp {
   /**
    * @param {K} key
    * @param {V} value
@@ -655,25 +655,25 @@ export class AttrInsertOp {
   }
 
   /**
-   * @param {AttrInsertOp<V>} other
+   * @param {SetAttrOp<V>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
-   * @return {AttrInsertOp<V,K>}
+   * @return {SetAttrOp<V,K>}
    */
   clone () {
-    return new AttrInsertOp(this.key, _markMaybeDeltaAsDone(this.value), _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
+    return new SetAttrOp(this.key, _markMaybeDeltaAsDone(this.value), _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
   }
 }
 
 /**
- * @template V
+ * @template [V=any]
  * @template {string|number} [K=string]
  */
-export class AttrDeleteOp {
+export class DeleteAttrOp {
   /**
    * @param {K} key
    * @param {V|undefined} prevValue
@@ -720,14 +720,14 @@ export class AttrDeleteOp {
   }
 
   /**
-   * @param {AttrDeleteOp<V>} other
+   * @param {DeleteAttrOp<V>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
     return this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   clone () {
-    return new AttrDeleteOp(this.key, _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
+    return new DeleteAttrOp(this.key, _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
   }
 }
 
@@ -735,7 +735,7 @@ export class AttrDeleteOp {
  * @template {DeltaAny} [Modifier=DeltaAny]
  * @template {string|number} [K=string]
  */
-export class AttrModifyOp {
+export class ModifyAttrOp {
   /**
    * @param {K} key
    * @param {Modifier} delta
@@ -794,41 +794,49 @@ export class AttrModifyOp {
   }
 
   /**
-   * @param {AttrModifyOp<Modifier>} other
+   * @param {ModifyAttrOp<Modifier>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
     return this.key === other.key && this.value[equalityTrait.EqualityTraitSymbol](other.value)
   }
 
   /**
-   * @return {AttrModifyOp<Modifier,K>}
+   * @return {ModifyAttrOp<Modifier,K>}
    */
   clone () {
-    return new AttrModifyOp(this.key, /** @type {Modifier} */ (this.value.done()))
+    return new ModifyAttrOp(this.key, /** @type {Modifier} */ (this.value.done()))
   }
 }
 
 /**
- * @type {s.Schema<AttrDeleteOp<{}> | DeleteOp>}
+ * @type {s.Schema<DeleteOp>}
  */
-export const $deleteOp = s.$custom(o => o != null && (o.constructor === DeleteOp || o.constructor === AttrDeleteOp))
+export const $deleteOp = s.$constructedBy(DeleteOp)
+export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<{},string|number>>} */ (s.$constructedBy(DeleteAttrOp))
 
 /**
- * @type {s.Schema<AttrInsertOp<any> | InsertOp<any>>}
+ * @type {s.Schema<InsertOp<any>>}
  */
-export const $insertOp = s.$custom(o => o != null && (o.constructor === AttrInsertOp || o.constructor === InsertOp))
+export const $insertOp = s.$constructedBy(InsertOp)
+
+/**
+ * @type {s.Schema<SetAttrOp<any>>}
+ */
+export const $setAttrOp = s.$constructedBy(SetAttrOp)
 
 /**
  * @template {fingerprintTrait.Fingerprintable} Content
  * @param {s.Schema<Content>} $content
- * @return {s.Schema<AttrInsertOp<Content> | InsertOp<Content>>}
+ * @return {s.Schema<SetAttrOp<Content>>}
  */
-export const $insertOpWith = $content => s.$custom(o =>
-  o != null && (
-    (o.constructor === AttrInsertOp && $content.check(/** @type {AttrInsertOp<Content>} */ (o).value)) ||
-      (o.constructor === InsertOp && /** @type {InsertOp<Content>} */ (o).insert.every(ins => $content.check(ins)))
-  )
-)
+export const $setAttrOpWith = $content => /** @type {any} */ (s.$constructedBy(SetAttrOp, o => $content.check(o.value)))
+
+/**
+ * @template {fingerprintTrait.Fingerprintable} Content
+ * @param {s.Schema<Content>} $content
+ * @return {s.Schema<InsertOp<Content>>}
+ */
+export const $insertOpWith = $content => /** @type {any} */ (s.$constructedBy(InsertOp, o => $content.check(o.insert.every(ins => $content.check(ins)))))
 
 /**
  * @type {s.Schema<TextOp>}
@@ -841,23 +849,29 @@ export const $textOp = s.$constructedBy(TextOp)
 export const $retainOp = s.$constructedBy(RetainOp)
 
 /**
- * @type {s.Schema<AttrModifyOp | ModifyOp>}
+ * @type {s.Schema<ModifyAttrOp<any,string|number>>}
  */
-export const $modifyOp = s.$custom(o => o != null && (o.constructor === AttrModifyOp || o.constructor === ModifyOp))
+export const $modifyAttrOp = s.$constructedBy(ModifyAttrOp)
+
+/**
+ * @type {s.Schema<ModifyOp>}
+ */
+export const $modifyOp = s.$constructedBy(ModifyOp)
 
 /**
  * @template {DeltaAny} Modify
  * @param {s.Schema<Modify>} $content
- * @return {s.Schema<AttrModifyOp<Modify> | ModifyOp<Modify>>}
+ * @return {s.Schema<ModifyAttrOp<Modify> | ModifyOp<Modify>>}
  */
 export const $modifyOpWith = $content => s.$custom(o =>
   o != null && (
-    (o.constructor === AttrModifyOp && $content.check(/** @type {AttrModifyOp<Modify>} */ (o).value)) ||
+    (o.constructor === ModifyAttrOp && $content.check(/** @type {ModifyAttrOp<Modify>} */ (o).value)) ||
       (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).value))
   )
 )
 
 export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
+export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
  * @template {Array<any>|string} C1
@@ -988,8 +1002,8 @@ class DeltaData {
     this.name = /** @type {Name} */ (name)
     this.$schema = $schema
     /**
-     * @type {{ [K in keyof Attrs]?: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Attrs[K] extends Delta ? AttrModifyOp<Extract<Attrs[K],Delta>,K> : never))) : never }
-     *       & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (AttrInsertOp<Attrs[K],K>|AttrDeleteOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Delta extends Attrs[K] ? AttrModifyOp<Extract<Attrs[K],Delta>,K> : never))) : never }[keyof Attrs]> }
+     * @type {{ [K in keyof Attrs]?: K extends string|number ? (SetAttrOp<Attrs[K],K>|DeleteAttrOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Attrs[K] extends Delta ? ModifyAttrOp<Extract<Attrs[K],Delta>,K> : never))) : never }
+     *       & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (SetAttrOp<Attrs[K],K>|DeleteAttrOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Delta extends Attrs[K] ? ModifyAttrOp<Extract<Attrs[K],Delta>,K> : never))) : never }[keyof Attrs]> }
      * }
      */
     this.attrs = /** @type {any} */ ({
@@ -1420,11 +1434,11 @@ export class DeltaBuilder extends Delta {
    * @param {Val|undefined} [prevValue]
    * @return {DeltaBuilder<DeltaConfOverwrite<DConf,{attrs:AddToAttrs<DeltaConfGetAttrs<DConf>,Key,Val>}>>}
    */
-  set (key, val, attribution = null, prevValue) {
+  setAttr (key, val, attribution = null, prevValue) {
     modDeltaCheck(this)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
-      (new AttrInsertOp(/** @type {any} */ (key), val, prevValue, mergeAttrs(this.usedAttribution, attribution)))
+      (new SetAttrOp(/** @type {any} */ (key), val, prevValue, mergeAttrs(this.usedAttribution, attribution)))
     return /** @type {any} */ (this)
   }
 
@@ -1438,10 +1452,10 @@ export class DeltaBuilder extends Delta {
    *   >>
    * }
    */
-  setMany (attrs, attribution = null) {
+  setAttrs (attrs, attribution = null) {
     modDeltaCheck(this)
     for (const k in attrs) {
-      this.set(/** @type {any} */ (k), /** @type {any} */ (attrs)[/** @type {any} */ (k)], attribution)
+      this.setAttr(/** @type {any} */ (k), /** @type {any} */ (attrs)[/** @type {any} */ (k)], attribution)
     }
     return /** @type {any} */ (this)
   }
@@ -1455,11 +1469,11 @@ export class DeltaBuilder extends Delta {
    *   attrs: AddToAttrs<DeltaConfGetAttrs<DConf>,Key,never>
    * }>>}
    */
-  unset (key, attribution = null, prevValue) {
+  deleteAttr (key, attribution = null, prevValue) {
     modDeltaCheck(this)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
-      (new AttrDeleteOp(/** @type {any} */ (key), prevValue, mergeAttrs(this.usedAttribution, attribution)))
+      (new DeleteAttrOp(/** @type {any} */ (key), prevValue, mergeAttrs(this.usedAttribution, attribution)))
     return /** @type {any} */ (this)
   }
 
@@ -1470,9 +1484,9 @@ export class DeltaBuilder extends Delta {
    * @param {D} modify
    * @return {DeltaBuilder<DeltaConfOverwrite<DConf,{attrs:AddToAttrs<DeltaConfGetAttrs<DConf>,Key,D>}>>}
    */
-  update (key, modify) {
+  modifyAttr (key, modify) {
     modDeltaCheck(this)
-    this.attrs[key] = /** @type {any} */ (new AttrModifyOp(key, modify))
+    this.attrs[key] = /** @type {any} */ (new ModifyAttrOp(key, modify))
     return /** @type {any} */ (this)
   }
 
@@ -1485,8 +1499,8 @@ export class DeltaBuilder extends Delta {
     // apply attrs
     for (const op of other.attrs) {
       // @ts-ignore
-      const c = /** @type {AttrInsertOp<any,any>|AttrDeleteOp<any>|AttrModifyOp<any,any>} */ (this.attrs[op.key])
-      if ($modifyOp.check(op)) {
+      const c = /** @type {SetAttrOp<any,any>|DeleteAttrOp<any>|ModifyAttrOp<any,any>} */ (this.attrs[op.key])
+      if ($modifyAttrOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
           c._modValue.apply(op.value)
         } else {
@@ -1494,12 +1508,12 @@ export class DeltaBuilder extends Delta {
           // @ts-ignore
           this.attrs[op.key] = op.clone()
         }
-      } else if ($insertOp.check(op)) {
+      } else if ($setAttrOp.check(op)) {
         // @ts-ignore
         op.prevValue = c?.value
         // @ts-ignore
         this.attrs[op.key] = op.clone()
-      } else if ($deleteOp.check(op)) {
+      } else if ($deleteAttrOp.check(op)) {
         op.prevValue = c?.value
         // @ts-ignore
         delete this.attrs[op.key]
@@ -1625,13 +1639,13 @@ export class DeltaBuilder extends Delta {
             remainingLen -= delLen
           }
         }
-      } else if ($modifyOp.check(op)) {
+      } else if ($modifyAttrOp.check(op)) {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
           return
         }
-        if ($modifyOp.check(opsI)) {
+        if ($modifyAttrOp.check(opsI)) {
           opsI._modValue.apply(/** @type {any} */ (op.value))
         } else if ($insertOp.check(opsI)) {
           opsI._modValue(offset).apply(op.value)
@@ -1685,30 +1699,30 @@ export class DeltaBuilder extends Delta {
      * - modify vs modify ⇒ rebase using priority
      */
     for (const op of this.attrs) {
-      if ($insertOp.check(op)) {
-        // @ts-ignore
-        if ($insertOp.check(other.attrs[op.key]) && !priority) {
+      if ($setAttrOp.check(op)) {
+        if ($setAttrOp.check(other.attrs[op.key]) && !priority) {
           // @ts-ignore
           delete this.attrs[op.key]
         }
-      } else if ($deleteOp.check(op)) {
+      } else if ($deleteAttrOp.check(op)) {
         // @ts-ignore
         const otherOp = other.attrs[/** @type {any} */ (op.key)]
-        if ($insertOp.check(otherOp)) {
+        if ($setAttrOp.check(otherOp)) {
           // @ts-ignore
           delete this.attrs[otherOp.key]
         }
-      } else if ($modifyOp.check(op)) {
-        // @ts-ignore
+      } else if ($modifyAttrOp.check(op)) {
         const otherOp = other.attrs[/** @type {any} */ (op.key)]
         if (otherOp == null) {
           // nop
-        } else if ($modifyOp.check(otherOp)) {
+        } else if ($modifyAttrOp.check(otherOp)) {
           op._modValue.rebase(otherOp.value, priority)
         } else {
           // @ts-ignore
           delete this.attrs[otherOp.key]
         }
+      } else {
+        error.unexpectedCase()
       }
     }
     /**
@@ -1926,7 +1940,7 @@ export class $Delta extends s.Schema {
       err?.extend('Delta.name', $name.toString(), o.name, 'Unexpected node name')
     } else if (list.toArray(o.children).some(c => (!hasText && $textOp.check(c)) || (hasText && $textOp.check(c) && c.format != null && !$formats.check(c.format)) || ($insertOp.check(c) && !c.insert.every(ins => $children.check(ins))))) {
       err?.extend('Delta.children', '', '', 'Children don\'t match the schema')
-    } else if (object.some(o.attrs, (op, k) => $insertOp.check(op) && !$attrs.check({ [k]: op.value }, err))) {
+    } else if (object.some(o.attrs, (op, k) => $setAttrOp.check(op) && !$attrs.check({ [k]: op.value }, err))) {
       err?.extend('Delta.attrs', '', '', 'Attrs don\'t match the schema')
     } else {
       return true
@@ -2000,7 +2014,7 @@ export const _$delta = ({ name, attrs, children, text, recursive }) => {
     if (
       !$name.check(d.name) ||
       object.some(d.attrs,
-        (op, k) => $insertOp.check(op) && !$attrsPartial.check({ [k]: op.value })
+        (op, k) => $setAttrOp.check(op) && !$attrsPartial.check({ [k]: op.value })
       )
     ) return false
     for (const op of d.children) {
@@ -2062,7 +2076,7 @@ export const random = (gen, $d) => {
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any>} */ (/** @type {any} */ ($d)).shape
   const d = s.$$any.check($name) ? create($deltaAny) : create(s.random(gen, $name), $deltaAny)
   const $formats = s.$$any.check($formats_) ? s.$null : $formats_
-  prng.bool(gen) && d.setMany(s.random(gen, $attrs))
+  prng.bool(gen) && d.setAttrs(s.random(gen, $attrs))
   for (let i = prng.uint32(gen, 0, 5); i > 0; i--) {
     if (hasText && prng.bool(gen)) {
       d.insert(prng.word(gen), s.random(gen, $formats))
@@ -2131,7 +2145,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
   const schema = /** @type {any} */ (s.$$schema.check(nodeNameOrSchema) ? nodeNameOrSchema : (s.$$schema.check(attrsOrSchema) ? attrsOrSchema : null))
   const d = /** @type {DeltaBuilder<any>} */ (new DeltaBuilder(nodeName, schema))
   if (s.$objectAny.check(attrsOrSchema)) {
-    d.setMany(attrsOrSchema)
+    d.setAttrs(attrsOrSchema)
   }
   children && d.insert(children)
   return d
@@ -2336,8 +2350,8 @@ export const diff = (d1, d2) => {
       const attr1 = d1.attrs[attr2.key]
       if (attr1 == null || (attr1.fingerprint !== attr2.fingerprint)) {
         /* c8 ignore else */
-        if ($insertOp.check(attr2)) {
-          d.set(attr2.key, attr2.value)
+        if ($setAttrOp.check(attr2)) {
+          d.setAttr(attr2.key, attr2.value)
         } else {
           /* c8 ignore next 2 */
           error.unexpectedCase()
@@ -2347,7 +2361,7 @@ export const diff = (d1, d2) => {
     for (const attr1 of d1.attrs) {
       // @ts-ignore
       if (d2.attrs[attr1.key] == null) {
-        d.unset(attr1.key)
+        d.deleteAttr(attr1.key)
       }
     }
   }
