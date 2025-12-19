@@ -57,7 +57,8 @@ export const testDeltaBasicApi = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaValues = _tc => {
-  const change = delta.create().set('a', 42).unset('b').retain(5).delete(6).insert('!').insert([{ my: 'custom object' }])
+  const _q = delta.create().set('a', 42).unset('b').retain(5).delete(5).insert('!')
+  const change = _q.insert([{ my: 'custom object' }])
   // iterate through attribute changes
   for (const attrChange of change.attrs) {
     if (delta.$insertOp.check(attrChange)) {
@@ -78,6 +79,18 @@ export const testDeltaValues = _tc => {
       console.log('insert textual content', childChange.insert)
     }
   }
+  /**
+   * @typedef {t.Assert<t.Equal<typeof _q,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true}>>>}
+   */
+  /**
+   * @typedef {t.AssertExtends<typeof _q,delta.DeltaBuilder<{attrs:{a:string|number,b:string},text:true}>>}
+   */
+  /**
+   * @typedef {t.Assert<t.Equal<typeof change,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true,children:{my:string}}>>>}
+   */
+  /**
+   * @typedef {t.AssertExtends<typeof change,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true,children:{my:string}}>>}
+   */
 }
 
 export const testDeltaBasicCases = () => {
@@ -106,7 +119,10 @@ export const testDeltaBasicCases = () => {
   t2.apply(delta.create().insert('there').insert(['??']).set('k', 42))
   const m = delta.create().set('x', 42).set('y', 'str').insert('hi').insert([42])
   m.apply(delta.create().unset('y').insert('hi'))
-  m.set('k', m).update('k', m)
+  const _mFinal = m.set('k', m).update('k', m)
+  /**
+   * @typedef {t.AssertExtends<typeof mFinal,delta.Delta<{k:delta.Delta,x:string}>>} QQ
+   */
 }
 
 export const testDeltaArrayBasics = () => {
@@ -123,11 +139,11 @@ export const testDeltaArrayBasics = () => {
 export const testAssignability = () => {
   t.group('map - prop is a subset of the other', () => {
     /**
-     * @type {delta.Delta<any,{ a: number },any,any,any>}
+     * @type {delta.Delta<{attrs: { a: number }}>}
      */
     let subset = delta.create(delta.$delta({ attrs: s.$object({ a: s.$number }) })).done()
     /**
-     * @type {delta.Delta<any,{ a: number|string },any,any,any>}
+     * @type {delta.Delta<{attrs: { a: number|string }}>}
      */
     let superset = delta.create(delta.$delta({ attrs: s.$object({ a: s.$union(s.$number, s.$string) }) })).done()
     superset = subset
@@ -136,11 +152,11 @@ export const testAssignability = () => {
   })
   t.group('map - map is a subset of the other', () => {
     /**
-     * @type {delta.Delta<any,{ a: number },any,any,any>}
+     * @type {delta.Delta<{attrs: { a: number }}>}
      */
     const d = delta.create(delta.$delta({ attrs: s.$object({ a: s.$number }) })).done()
     /**
-     * @type {delta.Delta<any,{ a: number, b: string },any,any,any>}
+     * @type {delta.Delta<{ attrs: { a: number, b: string } }>}
      */
     let m = delta.create(delta.$delta({ attrs: s.$object({ a: s.$number, b: s.$string }) })).done()
     m = d
@@ -149,11 +165,11 @@ export const testAssignability = () => {
 
   t.group('children - are different', () => {
     /**
-     * @type {delta.Delta<any,{},number,any,any>}
+     * @type {delta.Delta<{ attrs: {}, children: number }>}
      */
     let a = delta.create(delta.$delta({ children: s.$number })).done()
     /**
-     * @type {delta.Delta<any,{},string,any,any>}
+     * @type {delta.Delta<{ attrs: {}, children: string }>}
      */
     let b = delta.create(delta.$delta({ children: s.$string })).done()
     // @ts-expect-error
@@ -163,11 +179,11 @@ export const testAssignability = () => {
   })
   t.group('children - is a subset of the other', () => {
     /**
-     * @type {delta.Delta<any,{},number,any,any>}
+     * @type {delta.Delta<{ children: number }>}
      */
     let a = delta.create(delta.$delta({ children: s.$number })).done()
     /**
-     * @type {delta.Delta<any,{},number|string,any,any>}
+     * @type {delta.Delta<{ children: number|string }>}
      */
     let b = delta.create(delta.$delta({ children: s.$union(s.$string, s.$number) })).done()
     b = a
@@ -177,11 +193,11 @@ export const testAssignability = () => {
   t.group('children - is a subset of the other - with modify', () => {
     const $child = delta.$delta({ name: s.$literal('string'), attrs: s.$object({ a: s.$number }) })
     /**
-     * @type {delta.Delta<any,{},number,any,any>}
+     * @type {delta.Delta<{ children: number }>}
      */
     let a = delta.create(delta.$delta({ children: s.$number })).done()
     /**
-     * @type {delta.Delta<any,{},number|string|s.Unwrap<$child>,any,any>}
+     * @type {delta.Delta<{ children: number|string|s.Unwrap<$child> }>}
      */
     let b = delta.create(delta.$delta({ children: s.$union(s.$string, s.$number, $child) })).done()
     b = a
@@ -192,15 +208,15 @@ export const testAssignability = () => {
     const $child = delta.$delta({ name: s.$literal('string'), attrs: s.$object({ a: s.$string }), text: false })
     const $child2 = delta.$delta({ name: s.$literal('number'), attrs: s.$object({ a: s.$number }), text: false })
     /**
-     * @type {delta.Delta<any,{},s.Unwrap<$child>,never,any>}
+     * @type {delta.Delta<{ children: s.Unwrap<$child> }>}
      */
     let a = delta.create(delta.$delta({ children: $child })).done()
     /**
-     * @type {delta.Delta<any,{},s.Unwrap<$child>|s.Unwrap<$child2>,never,any>}
+     * @type {delta.Delta<{ children: s.Unwrap<$child>|s.Unwrap<$child2> }>}
      */
     let b = delta.create(delta.$delta({ children: s.$union($child, $child2) })).done()
     /**
-     * @type {delta.Delta<any,{},s.Unwrap<$child2>,never,any>}
+     * @type {delta.Delta<{ children: s.Unwrap<$child2> }>}
      */
     let c = delta.create(delta.$delta({ children: $child2 })).done()
     // d is a superset of a and b
@@ -217,7 +233,7 @@ export const testAssignability = () => {
   t.group('text+array builder - text and array builder support', () => {
     const $d = delta.$delta({ name: s.$literal('string'), children: s.$number, text: true })
     /**
-     * @type {delta.Delta<'string', {}, number, string>}
+     * @type {delta.Delta<{ name: 'string', children: number, text: true }>}
      */
     let d = delta.create($d)
     const b1 = delta.create('string', null, 'hi')
@@ -270,13 +286,13 @@ export const testAssignability = () => {
 
 export const testText = () => {
   // only allow certain embeds
-  const $q = delta.$text(s.$object({ m: s.$number }))
-  const q = delta.text($q)
+  const $q = delta.$delta({ text: true, children: s.$object({ m: s.$number }) })
+  const q = delta.create($q)
   q.insert('hi')
   q.insert([{ m: 42 }])
   // @ts-expect-error
   q.insert([{ q: 42 }])
-  delta.text()
+  delta.create(delta.$delta({text: true, children: s.$never}))
     // @ts-expect-error
     .insert([{ m: 42 }])
 }
@@ -356,15 +372,18 @@ export const testUseAttribution = _tc => {
 }
 
 export const testMapTyping = () => {
-  const $q = delta.$map(s.$object({ x: s.$number }))
-  const mmm = delta.map().set('x', 42)
+  const $q = delta.$delta({ attrs: s.$object({ x: s.$number }) })
+  const mmm = delta.create().set('x', 42)
   $q.expect(mmm)
-  const mmm2 = delta.map().set('x', 'xx')
+  const mmm2 = delta.create().set('x', 'xx')
+  /**
+   * @typedef {t.Assert<t.Equal<typeof mmm2, delta.DeltaBuilder<{ attrs: {x:string} }>>>}
+   */
   t.fails(() => {
     // @ts-expect-error
     $q.expect(mmm2)
   })
-  const q = delta.map($q)
+  const q = delta.create($q)
   q.set('x', 42)
   // @ts-expect-error
   q.set('y', 42)
@@ -611,7 +630,7 @@ export const testNodeDelta = _tc => {
 }
 
 export const testRecursiveNode = () => {
-  const $d = delta.$delta({ name: 'hi', attrs: { q: s.$number }, text: true, recursive: true })
+  const $d = delta.$delta({ name: 'hi', attrs: { q: s.$number }, text: true, recursiveChildren: true })
   const rd = delta.create($d)
   // should allow inserting deltas
   const recC = delta.create('hi', { q: 342 })
@@ -642,19 +661,19 @@ export const testDiffing = () => {
   const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).set('key', 42).set('unknown', 'unknown').done()
   const d2 = delta.create($d).insert('hello').set('key', 1).done()
   const d = delta.diff(d1, d2)
-  t.compare(d, delta.create().delete(1).retain(1).delete(1).set('key', 1).unset('unknown'))
+  t.compare(d.done(), delta.create().delete(1).retain(1).delete(1).set('key', 1).unset('unknown').done())
 }
 
 export const testDiffingCommonPreSuffix = () => {
   const $d = delta.$delta({ name: 'div', children: [s.$number], text: true })
   const d1 = delta.create($d).insert([1, 2]).insert('aa').insert([3, 4])
   const d2 = delta.create($d).insert([1, 2]).insert('a').insert([3, 4])
-  const d = delta.diff(d1, d2)
+  const d = delta.diff(d1, d2).done()
   t.compare(d, delta.create().retain(3).delete(1))
 }
 
 export const testSlice = () => {
-  const d1 = delta.create().insert('abcde').slice(1, 3)
+  const d1 = delta.slice(delta.create().insert('abcde'), 1, 3)
   t.assert(d1.equals(delta.create().insert('bc')))
 }
 
@@ -701,7 +720,7 @@ export const testDeltaDiffWithFormatting = () => {
   const d1 = delta.create().insert('hello world!')
   const d2 = delta.create().insert('hello ').insert('world', { bold: true }).insert('!')
   const diff = delta.diff(d1, d2)
-  t.compare(diff, delta.create().retain(6).retain(5, { bold: true }))
+  t.compare(diff.done(), delta.create().retain(6).retain(5, { bold: true }))
 }
 
 export const testDeltaDiffWithFormatting2 = () => {
@@ -720,3 +739,29 @@ export const testDeltaDiffIssue1 = () => {
   t.assert(synced.equals(stateB))
   t.assert(expectedDiff.equals(diffResult))
 }
+
+// TEST TYPINGS
+
+/**
+ * @template {delta.ChildrenOpAny} OP
+ * @typedef {OP} IsDeltaOpAny
+ */
+
+export const testDeltaTypings = () => {
+  const q = /** @type {delta.DeltaAny} */ (delta.create())
+  // @ts-expect-error
+  ;/** @type {import('../list.js').List<delta.RetainOp|delta.TextOp<any>|delta.ModifyOp<any>|delta.DeleteOp<any>|delta.InsertOp<any>>} */ (q.children)
+}
+
+/**
+ * @typedef {IsDeltaOpAny<delta.TextOp>} DeltaOpTestAnyTextOp
+ */
+/**
+ * @typedef {IsDeltaOpAny<delta.InsertOp<number>>} DeltaOpTestAnyInsertOp
+ */
+/**
+ * @typedef {IsDeltaOpAny<delta.DeleteOp<{children:number}>>} DeltaOpTestAnyDeleteOp
+ */
+/**
+ * @typedef {IsDeltaOpAny<delta.DeleteOp<{text:true}>>} DeltaOpTestAnyDeleteOp2
+ */
