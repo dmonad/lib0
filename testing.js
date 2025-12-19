@@ -574,7 +574,7 @@ export const failsAsync = async f => {
 }
 
 /**
- * @param {Object<string, Object<string, function(TestCase):void|Promise<any>>>} tests
+ * @param {Object<string, Object<string, function(TestCase):any|Promise<any>>>} tests
  */
 export const runTests = async tests => {
   /**
