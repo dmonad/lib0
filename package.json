@@ -476,6 +476,10 @@
         "default": "./webcrypto.js"
       }
     },
+    "./ts": {
+      "types": "./ts.d.ts",
+      "default": "./ts.js"
+    },
     "./performance.js": "./performance.js",
     "./dist/performance.cjs": "./dist/performance.node.cjs",
     "./performance": {
