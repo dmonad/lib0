@@ -6,8 +6,18 @@ import * as array from './array.js'
  * @module string
  */
 
-export const fromCharCode = String.fromCharCode
-export const fromCodePoint = String.fromCodePoint
+/**
+ * @param {number} code
+ * @return {string}
+ */
+/*@__NO_SIDE_EFFECTS__*/
+export const fromCharCode = code => String.fromCharCode(code)
+/**
+ * @param {number} codePoint
+ * @return {string}
+ */
+/*@__NO_SIDE_EFFECTS__*/
+export const fromCodePoint = codePoint => String.fromCodePoint(codePoint)
 
 /**
  * The largest utf16 character.
