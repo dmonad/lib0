@@ -2,6 +2,7 @@ import * as t from './testing.js'
 import * as s from './schema.js'
 import * as env from './environment.js'
 import * as prng from './prng.js'
+import * as array from './array.js'
 
 /**
  * @param {t.TestCase} _tc
@@ -615,4 +616,167 @@ export const testRepeatRandomFromSchema = tc => {
       console.log(res)
     }
   })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testBenchmarkTypeCheckUsingProps = tc => {
+  class A {
+    /**
+     * @param {number} a
+     */
+    constructor (a) {
+      this.a = a
+    }
+    get $type () { return $a }
+  }
+  class B {
+    /**
+     * @param {string} b
+     */
+    constructor (b) {
+      this.b = b
+      this.a = 42
+    }
+    get $type () { return $b }
+  }
+  class C {
+    constructor () {
+      this.a = 'x'
+      this.c = {}
+    }
+    get $type () { return $c }
+  }
+  const ns = tc.testName
+  const $a = s.$type(ns, 1)
+  const $b = s.$type(ns, 1)
+  const $c = s.$type(ns, 1)
+  const N = 30000
+  const Iterations = 3
+  /**
+   * @type {Array<A|B|C>}
+   */
+  const os = array.unfold(N, () =>
+    prng.oneOf(tc.prng, [
+      () => new A(prng.int32(tc.prng, 0, 10000)),
+      () => new B(prng.word(tc.prng)),
+      () => new C()
+    ])()
+  )
+  for (let iteration = 0 ; iteration < Iterations; iteration++) {
+    t.group('iteration ' + iteration, () => {
+      t.measureTime('constructor checks', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          switch (o.constructor) {
+            case A: {
+              as++
+              break;
+            }
+            case B: {
+              bs++
+              break;
+            }
+            case C: {
+              cs++
+              break;
+            }
+          }
+        }
+        console.log({as,bs,cs})
+      })
+      t.measureTime('instanceof checks (if/then)', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          if (o instanceof A) {
+            as++
+          } else if (o instanceof B) {
+            bs++
+          } else if (o instanceof C) {
+            cs++
+          }
+        }
+        console.log({as,bs,cs})
+      })
+      t.measureTime('type equal checks (switch/case)', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          switch (o.$type) {
+            case $a: {
+              as++
+              break;
+            }
+            case $b: {
+              bs++
+              break;
+            }
+            case $c: {
+              cs++
+              break;
+            }
+          }
+        }
+        console.log({as,bs,cs})
+      })
+      t.measureTime('type equal checks (if/then)', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          if (o.$type === $a) {
+            as++
+          } else if (o.$type === $b) {
+            bs++
+          } else if (o.$type === $c) {
+            cs++
+          } 
+        }
+        console.log({as,bs,cs})
+      })
+      t.measureTime('schema checks (if/then))', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          // @ts-ignore
+          if ($a.check(o)) {
+            as++
+            // @ts-ignore
+          } else if ($b.check(o)) {
+            bs++
+            // @ts-ignore
+          } else if ($c.check(o)) {
+            cs++
+          } 
+        }
+        console.log({as,bs,cs})
+      })
+      t.measureTime('schema checks (pattern match)', () => {
+        const state = {
+          as: 0,
+          bs: 0,
+          cs: 0
+        }
+        const f = s.match({ as: s.$number, bs: s.$number, cs: s.$number })
+          .if($a, (_o,state) => { state.as++ })
+          .if($b, (_o,state) => { state.bs++ })
+          .if($c, (_o,state) => { state.cs++ })
+          .done()
+        os.forEach(o => f(o, state))
+        console.log(state)
+      })
+    })
+  }
 }

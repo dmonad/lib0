@@ -131,6 +131,10 @@ export class TextOp extends list.ListNode {
     this._fingerprint = null
   }
 
+  get $type () {
+    return $textOp
+  }
+
   /**
    * @param {string} newVal
    */
@@ -225,6 +229,10 @@ export class InsertOp extends list.ListNode {
      * @type {string?}
      */
     this._fingerprint = null
+  }
+
+  get $type () {
+    return $insertOp
   }
 
   /**
@@ -332,6 +340,10 @@ export class DeleteOp extends list.ListNode {
     this._fingerprint = null
   }
 
+  get $type () {
+    return $deleteOp
+  }
+
   /**
    * @return {'delete'}
    */
@@ -414,6 +426,10 @@ export class RetainOp extends list.ListNode {
      * @type {string|null}
      */
     this._fingerprint = null
+  }
+
+  get $type () {
+    return $retainOp
   }
 
   /**
@@ -500,6 +516,10 @@ export class ModifyOp extends list.ListNode {
      * @type {string|null}
      */
     this._fingerprint = null
+  }
+
+  get $type () {
+    return $modifyOp
   }
 
   /**
@@ -609,6 +629,10 @@ export class SetAttrOp {
     this._fingerprint = null
   }
 
+  get $type () {
+    return $setAttrOp
+  }
+
   /**
    * @return {'insert'}
    */
@@ -695,12 +719,16 @@ export class DeleteAttrOp {
     this._fingerprint = null
   }
 
-  get value () { return undefined }
+  get $type () {
+    return $deleteAttrOp
+  }
 
   /**
    * @type {'delete'}
    */
   get type () { return 'delete' }
+
+  get value () { return undefined }
 
   get fingerprint () {
     return this._fingerprint || (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
@@ -757,6 +785,10 @@ export class ModifyAttrOp {
     this._fingerprint = null
   }
 
+  get $type () {
+    return $modifyAttrOp
+  }
+
   /**
    * @type {'modify'}
    */
@@ -808,78 +840,45 @@ export class ModifyAttrOp {
   }
 }
 
-/**
- * @type {s.Schema<DeleteOp>}
- */
-export const $deleteOp = s.$constructedBy(DeleteOp)
-export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<{},string|number>>} */ (s.$constructedBy(DeleteAttrOp))
+export const $insertOp = /** @type {s.Schema<InsertOp<any>>} */ (s.$type('insertOp'))
+export const $modifyOp = /** @type {s.Schema<ModifyOp>} */ (s.$type('modifyOp'))
+export const $textOp = /** @type {s.Schema<TextOp>} */ (s.$type('textOp'))
+export const $deleteOp = /** @type {s.Schema<DeleteOp<any>>} */ (s.$type('deleteOp'))
+export const $retainOp = /** @type {s.Schema<RetainOp>} */ (s.$type('retainOp'))
+export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
-/**
- * @type {s.Schema<InsertOp<any>>}
- */
-export const $insertOp = s.$constructedBy(InsertOp)
-
-/**
- * @type {s.Schema<SetAttrOp<any>>}
- */
-export const $setAttrOp = s.$constructedBy(SetAttrOp)
+export const $setAttrOp = /** @type {s.Schema<SetAttrOp<any>>} */ (s.$type('setAttrOp'))
+export const $modifyAttrOp = /** @type {s.Schema<ModifyAttrOp<any,string|number>>} */ (s.$type('modifyAttrOp'))
+export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<{},string|number>>} */ (s.$type('deleteAttrOp'))
+export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
  * @template {fingerprintTrait.Fingerprintable} Content
  * @param {s.Schema<Content>} $content
  * @return {s.Schema<SetAttrOp<Content>>}
  */
-export const $setAttrOpWith = $content => /** @type {any} */ (s.$constructedBy(SetAttrOp, o => $content.check(o.value)))
+export const $setAttrOpWith = $content => s.$custom(o => $setAttrOp.check(o) && $content.check(o.value))
 
 /**
  * @template {fingerprintTrait.Fingerprintable} Content
  * @param {s.Schema<Content>} $content
  * @return {s.Schema<InsertOp<Content>>}
  */
-export const $insertOpWith = $content => /** @type {any} */ (s.$constructedBy(InsertOp, o => $content.check(o.insert.every(ins => $content.check(ins)))))
-
-/**
- * @type {s.Schema<TextOp>}
- */
-export const $textOp = s.$constructedBy(TextOp)
-
-/**
- * @type {s.Schema<RetainOp>}
- */
-export const $retainOp = s.$constructedBy(RetainOp)
-
-/**
- * @type {s.Schema<ModifyAttrOp<any,string|number>>}
- */
-export const $modifyAttrOp = s.$constructedBy(ModifyAttrOp)
-
-/**
- * @type {s.Schema<ModifyOp>}
- */
-export const $modifyOp = s.$constructedBy(ModifyOp)
+export const $insertOpWith = $content => s.$custom(o => $insertOp.check(o) && $content.check(o.insert.every(ins => $content.check(ins))))
 
 /**
  * @template {DeltaAny} Modify
  * @param {s.Schema<Modify>} $content
- * @return {s.Schema<ModifyAttrOp<Modify> | ModifyOp<Modify>>}
+ * @return {s.Schema<ModifyOp<Modify>>}
  */
-export const $modifyOpWith = $content => s.$custom(o =>
-  o != null && (
-    (o.constructor === ModifyAttrOp && $content.check(/** @type {ModifyAttrOp<Modify>} */ (o).value)) ||
-      (o.constructor === ModifyOp && $content.check(/** @type {ModifyOp<Modify>} */ (o).value))
-  )
-)
-
-export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
-export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
+export const $modifyOpWith = $content => s.$custom(o => $modifyOp.check(o) && $content.check(o.value))
 
 /**
- * @template {Array<any>|string} C1
- * @template {Array<any>|string} C2
- * @typedef {Extract<C1 | C2, Array<any>> extends never
- *   ? never
- *   : (Array<(Extract<C1 | C2,Array<any>> extends Array<infer AC1> ? (unknown extends AC1 ? never : AC1) : never)>)} MergeListArrays
+ * @template {DeltaAny} Modify
+ * @param {s.Schema<Modify>} $content
+ * @return {s.Schema<ModifyAttrOp<Modify>>}
  */
+export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(o) && $content.check(/** @type {ModifyAttrOp<Modify>} */ (o).value))
 
 /**
  * @template {{[Key in string|number]: any}} Attrs
@@ -895,18 +894,9 @@ export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
  */
 
 /**
- * @template X
- * @typedef {0 extends (1 & X) ? null : X} _AnyToNull
- */
-
-/**
- * @template {s.Schema<Delta<any>>|null} Schema
- * @typedef {_AnyToNull<Schema> extends null ? Delta<{ name:any,attrs:{[key:string|number]:any},children:any,text:any }> : (Schema extends s.Schema<infer D> ? D : never)} AllowedDeltaFromSchema
- */
-
-/**
  * @typedef {Delta<any>} DeltaAny
  */
+
 /**
  * @typedef {DeltaBuilder<any>} DeltaBuilderAny
  */
@@ -943,10 +933,6 @@ export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
  */
 
 /**
- * @typedef {DeltaConfGetAttrs<any>} QQ
- */
-
-/**
  * @template {DeltaConf} DConf
  * @typedef {import('../ts.js').TypeIsAny<DConf, {[K:string|number]:any}, (DConf extends {attrs:infer Attrs} ? (Attrs extends undefined ? {} : Attrs) : {})>} DeltaConfGetAttrs
  */
@@ -972,6 +958,8 @@ export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
  */
 
 /**
+ * Transform Delta(Builder) to a normal delta.
+ *
  * @template V
  * @typedef {V extends never ? never : (import('../ts.js').TypeIsAny<V,any,V extends Delta<infer DConf> ? Delta<DConf> : V>)} _SanifyDelta
  */
@@ -1044,6 +1032,7 @@ class DeltaData {
  * >}
  */
 export class Delta extends DeltaData {
+  get $type () { return $deltaAny }
   /**
    * @type {string}
    */
@@ -1400,7 +1389,7 @@ export class DeltaBuilder extends Delta {
     const mergedFormats = mergeAttrs(this.usedAttributes, format)
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
     const lastOp = /** @type {RetainOp|InsertOp<any>} */ (this.children.end)
-    if (lastOp instanceof RetainOp && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
+    if ($retainOp.check(lastOp) && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
       // @ts-ignore
       lastOp.retain += len
     } else if (len > 0) {
@@ -1416,7 +1405,7 @@ export class DeltaBuilder extends Delta {
   delete (len) {
     modDeltaCheck(this)
     const lastOp = /** @type {DeleteOp<any>|InsertOp<any>} */ (this.children.end)
-    if (lastOp instanceof DeleteOp) {
+    if ($deleteOp.check(lastOp)) {
       lastOp.delete += len
     } else if (len > 0) {
       list.pushEnd(this.children, new DeleteOp(len))
@@ -1600,7 +1589,7 @@ export class DeltaBuilder extends Delta {
             list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen)))
             this.childCnt += remainingLen
             break
-          } else if (opsI instanceof DeleteOp) {
+          } else if ($deleteOp.check(opsI)) {
             const delLen = opsI.length - offset
             // the same content can't be deleted twice, remove duplicated deletes
             if (delLen >= remainingLen) {
@@ -1934,7 +1923,7 @@ export class $Delta extends s.Schema {
    */
   check (o, err = undefined) {
     const { $name, $attrs, $children, hasText, $formats } = this.shape
-    if (!(o instanceof Delta)) {
+    if (!$deltaAny.check(o, err)) {
       err?.extend(null, 'Delta', o?.constructor.name, 'Constructor match failed')
     } else if (o.name != null && !$name.check(o.name, err)) {
       err?.extend('Delta.name', $name.toString(), o.name, 'Unexpected node name')
@@ -2010,8 +1999,9 @@ export const _$delta = ({ name, attrs, children, text, recursive }) => {
   let $arrContent = children == null ? s.$never : s.$array(s.$(children))
   const $name = name == null ? s.$any : s.$(name)
   const $attrsPartial = attrs == null ? s.$object({}) : (s.$$record.check(attrs) ? attrs : /** @type {any} */ (s.$(attrs)).partial)
-  const $d = s.$instanceOf(Delta, /** @param {Delta<any>} d */ d => {
+  const $d = s.$custom(d => {
     if (
+      !$deltaAny.check(d) ||
       !$name.check(d.name) ||
       object.some(d.attrs,
         (op, k) => $setAttrOp.check(op) && !$attrsPartial.check({ [k]: op.value })
@@ -2030,15 +2020,8 @@ export const _$delta = ({ name, attrs, children, text, recursive }) => {
   return /** @type {any} */ ($d)
 }
 
-/**
- * @type {s.Schema<DeltaAny>}
- */
-export const $deltaAny = /** @type {any} */ (s.$instanceOf(Delta))
-
-/**
- * @type {s.Schema<DeltaBuilderAny>}
- */
-export const $deltaBuilderAny = /** @type {any} */ (s.$instanceOf(DeltaBuilder))
+export const $deltaAny = /** @type {s.Schema<DeltaAny>} */ (s.$type('delta'))
+export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (s.$custom(o => $deltaAny.check(o) && !o.isDone))
 
 /**
  * Helper function to merge attribution and attributes. The latter input "wins".

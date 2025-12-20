@@ -150,3 +150,12 @@ export const supportsColor = forceColor || (
   )
 )
 /* c8 ignore stop */
+
+const globalScope = /** @type {any} */ (typeof globalThis !== 'undefined'
+  ? globalThis
+  : typeof window !== 'undefined'
+    ? window
+    // @ts-ignore
+    : typeof global !== 'undefined' ? global : {})
+
+export { globalScope as global }

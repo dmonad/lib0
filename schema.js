@@ -13,6 +13,8 @@ import * as fun from './function.js'
 import * as string from './string.js'
 import * as prng from './prng.js'
 import * as number from './number.js'
+import * as map from './map.js'
+import { global } from './environment.js'
 
 /**
  * @typedef {string|number|bigint|boolean|null|undefined|symbol} Primitive
@@ -319,6 +321,42 @@ export class $Custom extends Schema {
  */
 export const $custom = (check) => new $Custom(check)
 export const $$custom = $constructedBy($Custom)
+
+/**
+ * @extends {Schema<{$type: Schema<any>}>}
+ */
+export class $Type extends Schema {
+  /**
+   * @param {any} o
+   * @param {ValidationError} err
+   * @return {o is any}
+   */
+  check (o, err) {
+    const c = o && (o.$type === this)
+    /* c8 ignore next */
+    !c && err?.extend(null, 'type check on', o?.constructor.name, 'failed')
+    return c
+  }
+}
+
+const _ns = '_lib0@v1/$'
+/**
+ * A shared gobal namespace to store schemas across lib0 installations
+ */
+const schemaStore = (global[_ns] = global[_ns] || new Map())
+
+/**
+ * Define a schema for a type that can validate instances across duplicated module installations.
+ *
+ * Use this if you need to validate duplicated classes from other (duplicate) installations of your
+ * js module. Don't use this only if needed and not as some "standard practice".
+ *
+ * @param {string} uniqueName
+ * @param {number} version
+ * @return {Schema<{ $type: Schema<any> }>}
+ */
+export const $type = (uniqueName, version = 0) => map.setIfUndefined(schemaStore, `${uniqueName}@v${version}`, () => new $Type())
+export const $$type = $constructedBy($Type)
 
 /**
  * @template {Primitive} T
