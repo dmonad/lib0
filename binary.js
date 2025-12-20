@@ -28,21 +28,21 @@ export const BIT14 = 8192
 export const BIT15 = 16384
 export const BIT16 = 32768
 export const BIT17 = 65536
-export const BIT18 = 1 << 17
-export const BIT19 = 1 << 18
-export const BIT20 = 1 << 19
-export const BIT21 = 1 << 20
-export const BIT22 = 1 << 21
-export const BIT23 = 1 << 22
-export const BIT24 = 1 << 23
-export const BIT25 = 1 << 24
-export const BIT26 = 1 << 25
-export const BIT27 = 1 << 26
-export const BIT28 = 1 << 27
-export const BIT29 = 1 << 28
-export const BIT30 = 1 << 29
-export const BIT31 = 1 << 30
-export const BIT32 = 1 << 31
+export const BIT18 = 131072
+export const BIT19 = 262144
+export const BIT20 = 0x80000
+export const BIT21 = 0x100000
+export const BIT22 = 0x200000
+export const BIT23 = 0x400000
+export const BIT24 = 0x800000
+export const BIT25 = 0x1000000
+export const BIT26 = 0x2000000
+export const BIT27 = 0x4000000
+export const BIT28 = 0x8000000
+export const BIT29 = 0x10000000
+export const BIT30 = 0x20000000
+export const BIT31 = 0x40000000
+export const BIT32 = 0x80000000
 
 /**
  * First n bits activated.
@@ -66,25 +66,19 @@ export const BITS13 = 8191
 export const BITS14 = 16383
 export const BITS15 = 32767
 export const BITS16 = 65535
-export const BITS17 = BIT18 - 1
-export const BITS18 = BIT19 - 1
-export const BITS19 = BIT20 - 1
-export const BITS20 = BIT21 - 1
-export const BITS21 = BIT22 - 1
-export const BITS22 = BIT23 - 1
-export const BITS23 = BIT24 - 1
-export const BITS24 = BIT25 - 1
-export const BITS25 = BIT26 - 1
-export const BITS26 = BIT27 - 1
-export const BITS27 = BIT28 - 1
-export const BITS28 = BIT29 - 1
-export const BITS29 = BIT30 - 1
-export const BITS30 = BIT31 - 1
-/**
- * @type {number}
- */
+export const BITS17 = 131071
+export const BITS18 = 262143
+export const BITS19 = 0x7FFFF
+export const BITS20 = 0xFFFFF
+export const BITS21 = 0x1FFFFF
+export const BITS22 = 0x3FFFFF
+export const BITS23 = 0x7FFFFF
+export const BITS24 = 0xFFFFFF
+export const BITS25 = 0x1FFFFFF
+export const BITS26 = 0x3FFFFFF
+export const BITS27 = 0x7FFFFFF
+export const BITS28 = 0xFFFFFFF
+export const BITS29 = 0x1FFFFFFF
+export const BITS30 = 0x3FFFFFFF
 export const BITS31 = 0x7FFFFFFF
-/**
- * @type {number}
- */
 export const BITS32 = 0xFFFFFFFF
