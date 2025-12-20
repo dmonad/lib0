@@ -415,6 +415,10 @@
       "import": "./trait/traits.js",
       "require": "./dist/traits.cjs"
     },
+    "./trait/fingerprint": {
+      "types": "./trait/fingerprint.d.ts",
+      "default": "./trait/fingerprint.js"
+    },
     "./testing.js": "./testing.js",
     "./dist/testing.cjs": "./dist/testing.cjs",
     "./testing": {
