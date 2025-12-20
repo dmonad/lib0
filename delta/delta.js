@@ -948,7 +948,7 @@ export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
  * @template {DeltaConf} DConf
- * @typedef {import('../typing.js').TypeIsAny<DConf, {[K:string|number]:any}, (DConf extends {attrs:infer Attrs} ? (Attrs extends undefined ? {} : Attrs) : {})>} DeltaConfGetAttrs
+ * @typedef {import('../ts.js').TypeIsAny<DConf, {[K:string|number]:any}, (DConf extends {attrs:infer Attrs} ? (Attrs extends undefined ? {} : Attrs) : {})>} DeltaConfGetAttrs
  */
 
 /**
@@ -973,18 +973,18 @@ export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
  * @template V
- * @typedef {V extends never ? never : (import('../typing.js').TypeIsAny<V,any,V extends Delta<infer DConf> ? Delta<DConf> : V>)} _SanifyDelta
+ * @typedef {V extends never ? never : (import('../ts.js').TypeIsAny<V,any,V extends Delta<infer DConf> ? Delta<DConf> : V>)} _SanifyDelta
  */
 
 /**
  * @template {DeltaConf} DConf
- * @typedef {import('../typing.js').Prettify<{[K in keyof DConf]: K extends 'attrs' ? import('../typing.js').Prettify<{ [KA in keyof DConf[K]]: _SanifyDelta<DConf[K][KA]> },1> : (K extends 'children' ? _SanifyDelta<DConf[K]> : DConf[K]) }, 1>} PrettifyDeltaConf
+ * @typedef {import('../ts.js').Prettify<{[K in keyof DConf]: K extends 'attrs' ? import('../ts.js').Prettify<{ [KA in keyof DConf[K]]: _SanifyDelta<DConf[K][KA]> },1> : (K extends 'children' ? _SanifyDelta<DConf[K]> : DConf[K]) }, 1>} PrettifyDeltaConf
  */
 
 /**
  * @template {DeltaConf} D1
  * @template {DeltaConf} D2
- * @typedef {import('../typing.js').TypeIsAny<D1, any, PrettifyDeltaConf<{[K in (keyof D1|keyof D2)]: K extends keyof D2 ? D2[K] : (K extends keyof D1 ? D1[K] : never)}>>} DeltaConfOverwrite
+ * @typedef {import('../ts.js').TypeIsAny<D1, any, PrettifyDeltaConf<{[K in (keyof D1|keyof D2)]: K extends keyof D2 ? D2[K] : (K extends keyof D1 ? D1[K] : never)}>>} DeltaConfOverwrite
  */
 
 /**
