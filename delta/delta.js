@@ -47,10 +47,6 @@ export const $attribution = /*@__PURE__*/(()=>s.$object({
 }))()
 
 /**
- * @typedef {s.Unwrap<$anyOp>} DeltaOps
- */
-
-/**
  * @typedef {{ [key: string]: any }} FormattingAttributes
  */
 
@@ -1146,9 +1142,10 @@ export class Delta extends DeltaData {
  * @param {Delta<DConf>} d
  * @param {number} start
  * @param {number} end
+ * @param {ChildrenOpAny?} currNode - start slicing at this node (instead of d.children.start)
  * @return {DeltaBuilder<DConf>}
  */
-export const slice = (d, start = 0, end = d.childCnt) => {
+export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.start) => {
   const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(d.name, d.$schema))
   cpy.origin = d.origin
   // copy attrs
@@ -1159,10 +1156,6 @@ export const slice = (d, start = 0, end = d.childCnt) => {
   // copy children
   const slicedLen = end - start
   let remainingLen = slicedLen
-  /**
-   * @type {ChildrenOpAny?}
-   */
-  let currNode = /** @type {any} */ (d.children.start)
   let currNodeOffset = 0
   while (start > 0 && currNode != null) {
     if (currNode.length <= start) {
