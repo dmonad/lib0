@@ -49,7 +49,7 @@ export const appendTo = (dest, src) => {
  * @param {ArrayLike<T>|Iterable<T>} arraylike
  * @return {T}
  */
-export const from = Array.from
+export const from = /*@__PURE__*/(() => Array.from)()
 
 /**
  * True iff condition holds on every element in the Array.
@@ -128,7 +128,11 @@ export const unfold = (len, f) => {
  */
 export const fold = (arr, seed, folder) => arr.reduce(folder, seed)
 
-export const isArray = Array.isArray
+/**
+ * @param {any} o
+ */
+/*@__NO_SIDE_EFFECTS__*/
+export const isArray = o => Array.isArray(o)
 
 /**
  * @template T
