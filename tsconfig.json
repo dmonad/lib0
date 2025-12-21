@@ -7,20 +7,20 @@
     "checkJs": true,
     "declaration": true,
     "declarationMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "rootDir": "./",
+    "outDir": "./types",
+    "baseUrl": "./src",
+    "rootDir": "./src",
     "emitDeclarationOnly": true,
     "strict": true,
     "noImplicitAny": true,
     "moduleResolution": "nodenext",
     "paths": {
-      "lib0/*": ["./*"],
-      "lib0/webcrypto": ["./webcrypto.js"],
-      "lib0/performance": ["./performance.node.js"],
-      "lib0/logging": ["./logging.node.js"]
+      "lib0/*": ["./src/*"],
+      "lib0/webcrypto": ["./src/webcrypto.js"],
+      "lib0/performance": ["./src/performance.node.js"],
+      "lib0/logging": ["./src/logging.node.js"]
     }
   },
-  "include": ["./*.js", "./diff/*.js", "./hash/*.js", "./crypto/*.js", "./bin/*.js", "./delta/*.js", "./trait/*.js"],
-  "exclude": ["./dist/**/*", "./isomorphic.js"]
+  "include": ["./src/**/*.js"],
+  "exclude": ["./src/**/*.test.js", "./src/test.js"]
 }

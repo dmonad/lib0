@@ -104,20 +104,20 @@ export const getVariable = (name) =>
  */
 /* c8 ignore next 2 */
 /*@__NO_SIDE_EFFECTS__*/
-export const getConf = (name) =>
-  computeParams().get('--' + name) || getVariable(name)
+export const getConf = (name) => computeParams().get('--' + name) || getVariable(name)
 
 /**
  * @param {string} name
  * @return {string}
  */
-/* c8 ignore next 5 */
+/* c8 ignore start */
 /*@__NO_SIDE_EFFECTS__*/
 export const ensureConf = (name) => {
   const c = getConf(name)
   if (c == null) throw new Error(`Expected configuration "${name.toUpperCase().replaceAll('-', '_')}"`)
   return c
 }
+/* c8 ignore stop */
 
 /**
  * @param {string} name
@@ -154,11 +154,13 @@ export const supportsColor = /*@__PURE__*/(()=>forceColor || (
 ))()
 /* c8 ignore stop */
 
+/* c8 ignore start */
 const globalScope = /*@__PURE__*/(()=>/** @type {any} */ (typeof globalThis !== 'undefined'
   ? globalThis
   : typeof window !== 'undefined'
     ? window
     // @ts-ignore
     : typeof global !== 'undefined' ? global : {}))()
+/* c8 ignore stop */
 
 export { globalScope as global }
