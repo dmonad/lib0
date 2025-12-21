@@ -66,8 +66,6 @@ import { global } from './environment.js'
  * } Intersect
  */
 
-const schemaSymbol = Symbol('0schema')
-
 export class ValidationError {
   constructor () {
     /**
@@ -103,6 +101,7 @@ export class ValidationError {
  * @param {any} b
  * @return {boolean}
  */
+/*@__NO_SIDE_EFFECTS__*/
 const _extendsShapeHelper = (a, b) => {
   if (a === b) return true
   if (a == null || b == null || a.constructor !== b.constructor) return false
@@ -124,6 +123,7 @@ const _extendsShapeHelper = (a, b) => {
  * @param {Schema<any>} a
  * @param {Schema<any>} b
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const extendsShape = (a, b) => {
   const aShape = /** @type {any} */ (a).shape
   const bShape = /** @type {any} */ (b).shape
@@ -152,8 +152,6 @@ export class Schema {
     // @ts-ignore
     return this.constructor === other.constructor && fun.equalityDeep(this.shape, other.shape)
   }
-
-  [schemaSymbol] () { return true }
 
   /**
    * @param {object} other
@@ -283,6 +281,7 @@ export class $ConstructedBy extends Schema {
  * @param {((o:Instance<C>) => boolean)|null} check
  * @return {CastToSchema<$ConstructedBy<C>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $constructedBy = (c, check = null) => new $ConstructedBy(c, check)
 export const $$constructedBy = $constructedBy($ConstructedBy)
 
@@ -320,6 +319,7 @@ export class $Custom extends Schema {
  * @param {(o:any) => boolean} check
  * @return {Schema<any>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $custom = (check) => new $Custom(check)
 export const $$custom = $constructedBy($Custom)
 
@@ -340,11 +340,13 @@ export class $Type extends Schema {
   }
 }
 
-const _ns = '_lib0@v1/$'
 /**
  * A shared gobal namespace to store schemas across lib0 installations
  */
-const schemaStore = (global[_ns] = global[_ns] || new Map())
+const schemaStore = /*@__PURE__*/(() => {
+  const _ns = '_lib0@v1/$'
+  return global[_ns] = global[_ns] || new Map()
+})()
 
 /**
  * Define a schema for a type that can validate instances across duplicated module installations.
@@ -356,6 +358,7 @@ const schemaStore = (global[_ns] = global[_ns] || new Map())
  * @param {number} version
  * @return {Schema<{ $type: Schema<any> }>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $type = (uniqueName, version = 0) => map.setIfUndefined(schemaStore, `${uniqueName}@v${version}`, () => new $Type())
 export const $$type = $constructedBy($Type)
 
@@ -391,6 +394,7 @@ export class $Literal extends Schema {
  * @param {T} literals
  * @return {CastToSchema<$Literal<T[number]>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $literal = (...literals) => new $Literal(literals)
 export const $$literal = $constructedBy($Literal)
 
@@ -403,14 +407,16 @@ export const $$literal = $constructedBy($Literal)
  * @param {string} str
  * @return {string}
  */
-const _regexEscape = /** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (str =>
-  str.replace(/[().|&,$^[\]]/g, s => '\\' + s)
-)
+/*@__NO_SIDE_EFFECTS__*/
+const _regexEscape = (()=>/** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (str =>
+  str.replace(/[().|&,$^[\]]/g, s => '\\' + s))
+)()
 
 /**
  * @param {string|Schema<any>} s
  * @return {string[]}
  */
+/*@__NO_SIDE_EFFECTS__*/
 const _schemaStringTemplateToRegex = s => {
   if ($string.check(s)) {
     return [_regexEscape(s)]
@@ -464,10 +470,10 @@ export class $StringTemplate extends Schema {
  * @param {T} literals
  * @return {CastToSchema<$StringTemplate<T>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $stringTemplate = (...literals) => new $StringTemplate(literals)
 export const $$stringTemplate = $constructedBy($StringTemplate)
 
-const isOptionalSymbol = Symbol('optional')
 /**
  * @template {Schema<any>} S
  * @extends Schema<Unwrap<S>|undefined>
@@ -492,8 +498,6 @@ class $Optional extends Schema {
     !c && err?.extend(null, 'undefined (optional)', '()')
     return c
   }
-
-  get [isOptionalSymbol] () { return true }
 }
 export const $$optional = $constructedBy($Optional)
 
@@ -516,8 +520,8 @@ class $Never extends Schema {
 /**
  * @type {Schema<never>}
  */
-export const $never = new $Never()
-export const $$never = $constructedBy($Never)
+export const $never = /*@__PURE__*/new $Never()
+export const $$never = /*@__PURE__*/$constructedBy($Never)
 
 /**
  * @template {{ [key: string|symbol|number]: Schema<any> }} S
@@ -582,8 +586,9 @@ export class $Object extends Schema {
  * @param {S} def
  * @return {_ObjectDefToSchema<S> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $object = def => /** @type {any} */ (new $Object(def))
-export const $$object = $constructedBy($Object)
+export const $$object = /*@__PURE__*/$constructedBy($Object)
 /**
  * @type {Schema<{[key:string]: any}>}
  */
@@ -628,8 +633,9 @@ export class $Record extends Schema {
  * @param {Values} values
  * @return {CastToSchema<$Record<Keys,Values>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $record = (keys, values) => new $Record(keys, values)
-export const $$record = $constructedBy($Record)
+export const $$record = /*@__PURE__*/$constructedBy($Record)
 
 /**
  * @template {Schema<any>[]} S
@@ -664,8 +670,9 @@ export class $Tuple extends Schema {
  * @param {T} def
  * @return {CastToSchema<$Tuple<T>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $tuple = (...def) => new $Tuple(def)
-export const $$tuple = $constructedBy($Tuple)
+export const $$tuple = /*@__PURE__*/$constructedBy($Tuple)
 
 /**
  * @template {Schema<any>} S
@@ -701,12 +708,13 @@ export class $Array extends Schema {
  * @param {T} def
  * @return {Schema<Array<T extends Array<Schema<infer S>> ? S : never>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $array = (...def) => new $Array(def)
-export const $$array = $constructedBy($Array)
+export const $$array = /*@__PURE__*/$constructedBy($Array)
 /**
  * @type {Schema<Array<any>>}
  */
-export const $arrayAny = $custom(o => arr.isArray(o))
+export const $arrayAny = /*@__PURE__*/$custom(o => arr.isArray(o))
 
 /**
  * @template T
@@ -742,10 +750,11 @@ export class $InstanceOf extends Schema {
  * @param {((o:T) => boolean)|null} check
  * @return {Schema<T>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
-export const $$instanceOf = $constructedBy($InstanceOf)
+export const $$instanceOf = /*@__PURE__*/$constructedBy($InstanceOf)
 
-export const $$schema = $instanceOf(Schema)
+export const $$schema = /*@__PURE__*/$instanceOf(Schema)
 
 /**
  * @template {Schema<any>[]} Args
@@ -785,13 +794,14 @@ export class $Lambda extends Schema {
  * @param {Args} args
  * @return {Schema<(...args:UnwrapArray<TuplePop<Args>>)=>Unwrap<TupleLast<Args>>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
-export const $$lambda = $constructedBy($Lambda)
+export const $$lambda = /*@__PURE__*/$constructedBy($Lambda)
 
 /**
  * @type {Schema<Function>}
  */
-export const $function = $custom(o => typeof o === 'function')
+export const $function = /*@__PURE__*/$custom(o => typeof o === 'function')
 
 /**
  * @template {Array<Schema<any>>} T
@@ -828,8 +838,9 @@ export class $Intersection extends Schema {
  * @param {T} def
  * @return {CastToSchema<$Intersection<T>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $intersect = (...def) => new $Intersection(def)
-export const $$intersect = $constructedBy($Intersection, o => o.shape.length > 0) // Intersection with length=0 is considered "any"
+export const $$intersect = /*@__PURE__*/$constructedBy($Intersection, o => o.shape.length > 0) // Intersection with length=0 is considered "any"
 
 /**
  * @template S
@@ -861,55 +872,58 @@ export class $Union extends Schema {
  * @param {T} schemas
  * @return {CastToSchema<$Union<Unwrap<ReadSchema<T>>>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0
   ? $union(...schemas.map($s => $($s)).map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
   : (schemas.length === 1
       ? schemas[0]
       : new $Union(schemas))
-export const $$union = /** @type {Schema<$Union<any>>} */ ($constructedBy($Union))
+export const $$union = /** @type {Schema<$Union<any>>} */ (/*@__PURE__*/$constructedBy($Union))
 
+/*@__NO_SIDE_EFFECTS__*/
 const _t = () => true
 /**
  * @type {Schema<any>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $any = $custom(_t)
-export const $$any = /** @type {Schema<Schema<any>>} */ ($constructedBy($Custom, o => o.shape === _t))
+export const $$any = /** @type {Schema<Schema<any>>} */ (/*@__PURE__*/$constructedBy($Custom, o => o.shape === _t))
 
 /**
  * @type {Schema<bigint>}
  */
-export const $bigint = $custom(o => typeof o === 'bigint')
-export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ ($custom(o => o === $bigint))
+export const $bigint = /*@__PURE__*/$custom(o => typeof o === 'bigint')
+export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ (/*@__PURE__*/$custom(o => o === $bigint))
 
 /**
  * @type {Schema<symbol>}
  */
-export const $symbol = $custom(o => typeof o === 'symbol')
-export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ ($custom(o => o === $symbol))
+export const $symbol = /*@__PURE__*/$custom(o => typeof o === 'symbol')
+export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ (/*@__PURE__*/$custom(o => o === $symbol))
 
 /**
  * @type {Schema<number>}
  */
-export const $number = $custom(o => typeof o === 'number')
-export const $$number = /** @type {Schema<Schema<number>>} */ ($custom(o => o === $number))
+export const $number = /*@__PURE__*/$custom(o => typeof o === 'number')
+export const $$number = /** @type {Schema<Schema<number>>} */ (/*@__PURE__*/$custom(o => o === $number))
 
 /**
  * @type {Schema<string>}
  */
-export const $string = $custom(o => typeof o === 'string')
-export const $$string = /** @type {Schema<Schema<string>>} */ ($custom(o => o === $string))
+export const $string = /*@__PURE__*/$custom(o => typeof o === 'string')
+export const $$string = /** @type {Schema<Schema<string>>} */ (/*@__PURE__*/$custom(o => o === $string))
 
 /**
  * @type {Schema<boolean>}
  */
-export const $boolean = $custom(o => typeof o === 'boolean')
-export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ ($custom(o => o === $boolean))
+export const $boolean = /*@__PURE__*/$custom(o => typeof o === 'boolean')
+export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ (/*@__PURE__*/$custom(o => o === $boolean))
 
 /**
  * @type {Schema<undefined>}
  */
-export const $undefined = $literal(undefined)
-export const $$undefined = /** @type {Schema<Schema<undefined>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === undefined))
+export const $undefined = /*@__PURE__*/$literal(undefined)
+export const $$undefined = /** @type {Schema<Schema<undefined>>} */ (/*@__PURE__*/$constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === undefined))
 
 /**
  * @type {Schema<void>}
@@ -937,7 +951,8 @@ export const $primitive = $union($number, $string, $null, $undefined, $bigint, $
 /**
  * @type {Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
  */
-export const $json = (() => {
+/*@__NO_SIDE_EFFECTS__*/
+export const $json = /*@__PURE__*/(() => {
   const $jsonArr = /** @type {$Array<$any>} */ ($array($any))
   const $jsonRecord = /** @type {$Record<$string,$any>} */ ($record($string, $any))
   const $json = $union($number, $string, $null, $boolean, $jsonArr, $jsonRecord)
@@ -982,6 +997,7 @@ export const $json = (() => {
  * @param {IN} o
  * @return {ReadSchema<IN>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const $ = o => {
   if ($$schema.check(o)) {
     return /** @type {any} */ (o)
@@ -1012,14 +1028,15 @@ export const $ = o => {
  *
  * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
  */
-export const assert = env.production
+/*@__NO_SIDE_EFFECTS__*/
+export const assert = /*@__PURE__*/(()=>env.production
   ? () => {}
   : (o, schema) => {
       const err = new ValidationError()
       if (!schema.check(o, err)) {
         throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
       }
-    }
+    })()
 /* c8 ignore end */
 
 /**
@@ -1109,6 +1126,7 @@ export class PatternMatcher {
  * @param {State} [state]
  * @return {PatternMatcher<State extends undefined ? undefined : Unwrap<ReadSchema<State>>>}
  */
+/*@__NO_SIDE_EFFECTS__*/
 export const match = state => new PatternMatcher(/** @type {any} */ (state))
 
 /**
@@ -1116,7 +1134,7 @@ export const match = state => new PatternMatcher(/** @type {any} */ (state))
  *
  * @type {<T>(o:T,gen:prng.PRNG)=>T}
  */
-const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any))
+const _random = /** @type {any} */ /*@__PURE__*/(()=>match(/** @type {Schema<prng.PRNG>} */ ($any))
   .if($$number, (_o, gen) => prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER))
   .if($$string, (_o, gen) => prng.word(gen))
   .if($$boolean, (_o, gen) => prng.bool(gen))
@@ -1173,7 +1191,7 @@ const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any
     }
     return res
   })
-  .done())
+  .done())()
 
 /**
  * @template S
@@ -1181,4 +1199,7 @@ const _random = /** @type {any} */ (match(/** @type {Schema<prng.PRNG>} */ ($any
  * @param {S} schema
  * @return {Unwrap<ReadSchema<S>>}
  */
-export const random = (gen, schema) => /** @type {any} */ (_random($(schema), gen))
+/*@__NO_SIDE_EFFECTS__*/
+export const random = (gen, schema) => /** @type {any} */ (/*@__PURE__*/_random($(schema), gen))
+
+export const ___test = 42
