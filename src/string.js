@@ -84,7 +84,7 @@ export const _encodeUtf8Native = str => utf8TextEncoder.encode(str)
  * @param {string} str
  * @return {Uint8Array}
  */
-/* c8 ignore next */
+/* c8 ignore next 2 */
 /*@__NO_SIDE_EFFECTS__*/
 export const encodeUtf8 = /*@__PURE__*/(()=>utf8TextEncoder ? _encodeUtf8Native : _encodeUtf8Polyfill)()
 
@@ -108,10 +108,9 @@ export const _decodeUtf8Polyfill = buf => {
   return decodeURIComponent(escape(encodedString))
 }
 
-/* c8 ignore next */
 export let utf8TextDecoder = /*@__PURE__*/(()=>{
-  const te = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
   /* c8 ignore start */
+  const te = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
   if (te && te.decode(new Uint8Array()).length === 1) {
     // Safari doesn't handle BOM correctly.
     // This fixes a bug in Safari 13.0.5 where it produces a BOM the first time it is called.
@@ -137,7 +136,7 @@ export const _decodeUtf8Native = buf => /** @type {TextDecoder} */ (utf8TextDeco
  * @param {Uint8Array} buf
  * @return {string}
  */
-/* c8 ignore next */
+/* c8 ignore next 2 */
 /*@__NO_SIDE_EFFECTS__*/
 export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill
 
