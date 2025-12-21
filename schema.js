@@ -89,7 +89,7 @@ export class ValidationError {
 
   toString () {
     const s = []
-    for (let i = this._rerrs.length - 1; i > 0; i--) {
+    for (let i = this._rerrs.length - 1; i >= 0; i--) {
       const r = this._rerrs[i]
       /* c8 ignore next */
       s.push(string.repeat(' ', (this._rerrs.length - i) * 2) + `${r.path != null ? `[${r.path}] ` : ''}${r.has} doesn't match ${r.expected}. ${r.message}`)
