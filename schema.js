@@ -103,21 +103,31 @@ export class ValidationError {
  * @param {any} b
  * @return {boolean}
  */
-const shapeExtends = (a, b) => {
+const _extendsShapeHelper = (a, b) => {
   if (a === b) return true
   if (a == null || b == null || a.constructor !== b.constructor) return false
   if (a[equalityTraits.EqualityTraitSymbol]) return equalityTraits.equals(a, b) // last resort: check equality (do this before array and obj check which don't implement the equality trait)
   if (arr.isArray(a)) {
     return arr.every(a, aitem =>
-      arr.some(b, bitem => shapeExtends(aitem, bitem))
+      arr.some(b, bitem => _extendsShapeHelper(aitem, bitem))
     )
   } else if (obj.isObject(a)) {
     return obj.every(a, (aitem, akey) =>
-      shapeExtends(aitem, b[akey])
+      _extendsShapeHelper(aitem, b[akey])
     )
   }
   /* c8 ignore next */
   return false
+}
+
+/**
+ * @param {Schema<any>} a
+ * @param {Schema<any>} b
+ */
+export const extendsShape = (a, b) => {
+  const aShape = /** @type {any} */ (a).shape
+  const bShape = /** @type {any} */ (b).shape
+  return /** @type {any} */ (a.constructor)._dilutes ? _extendsShapeHelper(bShape, aShape) : _extendsShapeHelper(aShape, bShape)
 }
 
 /**
@@ -132,15 +142,6 @@ export class Schema {
    * @protected
    */
   static _dilutes = false
-
-  /**
-   * @param {Schema<any>} other
-   */
-  extends (other) {
-    let [a, b] = [/** @type {any} */(this).shape, /** @type {any} */ (other).shape]
-    if (/** @type {typeof Schema<any>} */ (this.constructor)._dilutes) [b, a] = [a, b]
-    return shapeExtends(a, b)
-  }
 
   /**
    * Overwrite this when necessary. By default, we only check the `shape` property which every shape
@@ -835,8 +836,6 @@ export const $$intersect = $constructedBy($Intersection, o => o.shape.length > 0
  * @extends {Schema<S>}
  */
 export class $Union extends Schema {
-  static _dilutes = true
-
   /**
    * @param {Array<Schema<S>>} v
    */

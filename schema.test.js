@@ -337,11 +337,11 @@ export const testStringTemplate = _tc => {
 export const testSchemaExtends = _tc => {
   const t1 = s.$union(s.$number, s.$string)
   const t2 = s.$union(s.$number, s.$string, s.$null)
-  t.assert(t2.extends(t1))
-  t.assert(!t1.extends(t2))
-  t.assert(s.$object({ a: s.$number, b: s.$number }).extends(s.$object({ a: s.$number })))
-  t.assert(!s.$object({ a: s.$number }).extends(s.$object({ a: s.$number, b: s.$number })))
-  t.assert(!s.$constructedBy(Number).extends(s.$constructedBy(Object)))
+  t.assert(s.extendsShape(t1, t2))
+  t.assert(!s.extendsShape(t2, t1))
+  t.assert(s.extendsShape(s.$object({ a: s.$number, b: s.$number }), s.$object({ a: s.$number })))
+  t.assert(!s.extendsShape(s.$object({ a: s.$number }), s.$object({ a: s.$number, b: s.$number })))
+  t.assert(!s.extendsShape(s.$constructedBy(Number), s.$constructedBy(Object)))
 }
 
 /**
@@ -365,10 +365,10 @@ export const testUnionMerging = _tc => {
   const $numOrStr = s.$union(s.$union(s.$union(s.$number)), s.$string)
   if (s.$$union.check($numOrStr)) {
     t.assert($numOrStr.shape.length === 2)
-    t.assert($numOrStr.shape[0].extends(s.$number))
-    t.assert($numOrStr.shape[1].extends(s.$string))
-    t.assert($numOrStr.extends(s.$union(s.$number, s.$string)))
-    t.assert($numOrStr.extends(s.$union(s.$number, s.$union(s.$string, s.$number))))
+    t.assert(s.extendsShape($numOrStr.shape[0], s.$number))
+    t.assert(s.extendsShape($numOrStr.shape[1], s.$string))
+    t.assert(s.extendsShape($numOrStr, s.$union(s.$number, s.$string)))
+    t.assert(s.extendsShape($numOrStr, s.$union(s.$number, s.$union(s.$string, s.$number))))
   } else {
     t.fail('should be a union')
   }
@@ -384,7 +384,7 @@ export const testConvenienceHelper = () => {
    * @type {s.Schema<{ x: 42|string|null, y: true, z: Base, a: { b: number|string } }>}
    */
   const $oCpy = s.$object({ x: s.$union(s.$literal(42), s.$string).nullable, y: s.$literal(true), z: s.$constructedBy(Base), a: s.$object({ b: s.$union(s.$number, s.$string) }) })
-  t.assert($o.extends($oCpy))
+  t.assert(s.extendsShape($o, $oCpy))
   /**
    * @type {s.Schema<{ x?: number }>}
    */
@@ -393,7 +393,7 @@ export const testConvenienceHelper = () => {
    * @type {s.Schema<{ x?: number }>}
    */
   const $o2Cpy = s.$object({ x: s.$number.optional })
-  t.assert($o2.extends($o2Cpy))
+  t.assert(s.extendsShape($o2, $o2Cpy))
   t.assert($o2.check({}))
 }
 
