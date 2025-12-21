@@ -1,5 +1,5 @@
 
-import * as s from './hash/rabin.js'
+import * as b from './delta/delta.js'
 
-console.log(s.StandardIrreducible8)
+console.log(b.create().insert('hi').toJSON())
 
