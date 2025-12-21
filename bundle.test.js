@@ -1,5 +1,5 @@
 
 import * as s from './schema.js'
 
-console.log(s.$any.check(42))
+console.log(s.___test)
 
