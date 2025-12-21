@@ -8,18 +8,18 @@
 import * as buffer from '../buffer.js'
 import * as map from '../map.js'
 
-export const StandardIrreducible8 = new Uint8Array([1, 221])
-export const StandardIrreducible16 = new Uint8Array([1, 244, 157])
-export const StandardIrreducible32 = new Uint8Array([1, 149, 183, 205, 191])
-export const StandardIrreducible64 = new Uint8Array([1, 133, 250, 114, 193, 250, 28, 193, 231])
-export const StandardIrreducible128 = new Uint8Array([1, 94, 109, 166, 228, 6, 222, 102, 239, 27, 128, 184, 13, 50, 112, 169, 199])
+export const StandardIrreducible8 = /*@__PURE__*/new Uint8Array([1, 221])
+export const StandardIrreducible16 = /*@__PURE__*/new Uint8Array([1, 244, 157])
+export const StandardIrreducible32 = /*@__PURE__*/new Uint8Array([1, 149, 183, 205, 191])
+export const StandardIrreducible64 = /*@__PURE__*/new Uint8Array([1, 133, 250, 114, 193, 250, 28, 193, 231])
+export const StandardIrreducible128 = /*@__PURE__*/new Uint8Array([1, 94, 109, 166, 228, 6, 222, 102, 239, 27, 128, 184, 13, 50, 112, 169, 199])
 
 /**
  * Maps from a modulo to the precomputed values.
  *
  * @type {Map<string,Uint8Array>}
  */
-const _precomputedFingerprintCache = new Map()
+const _precomputedFingerprintCache = /*@__PURE__*/new Map()
 
 /**
  * @param {Uint8Array} m

@@ -1,5 +1,5 @@
 
-import * as string from './string.js'
+import * as s from './hash/rabin.js'
 
-console.log(string.fromCharCode)
+console.log(s.StandardIrreducible8)
 
