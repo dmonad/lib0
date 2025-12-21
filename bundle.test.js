@@ -1,5 +1,5 @@
 
-import * as s from './schema.js'
+import * as string from './string.js'
 
-console.log(s.___test)
+console.log(string.fromCharCode)
 
