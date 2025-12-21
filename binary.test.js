@@ -7,7 +7,7 @@ import * as t from './testing.js'
 export const testBitx = tc => {
   for (let i = 1; i <= 32; i++) {
     // @ts-ignore
-    t.assert(binary[`BIT${i}`] === (1 << (i - 1)), `BIT${i}=${1 << (i - 1)}`)
+    t.assert(binary[`BIT${i}`] === (1 << (i - 1))>>>0, `BIT${i}=${(1 << (i - 1))>>>0}`)
   }
 }
 
