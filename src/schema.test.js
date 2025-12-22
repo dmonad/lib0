@@ -629,6 +629,7 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
     constructor (a) {
       this.a = a
     }
+
     get $type () { return $a }
   }
   class B {
@@ -639,6 +640,7 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
       this.b = b
       this.a = 42
     }
+
     get $type () { return $b }
   }
   class C {
@@ -646,6 +648,7 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
       this.a = 'x'
       this.c = {}
     }
+
     get $type () { return $c }
   }
   const ns = tc.testName
@@ -664,7 +667,7 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
       () => new C()
     ])()
   )
-  for (let iteration = 0 ; iteration < Iterations; iteration++) {
+  for (let iteration = 0; iteration < Iterations; iteration++) {
     t.group('iteration ' + iteration, () => {
       t.measureTime('constructor checks', () => {
         let as = 0
@@ -675,19 +678,19 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
           switch (o.constructor) {
             case A: {
               as++
-              break;
+              break
             }
             case B: {
               bs++
-              break;
+              break
             }
             case C: {
               cs++
-              break;
+              break
             }
           }
         }
-        console.log({as,bs,cs})
+        console.log({ as, bs, cs })
       })
       t.measureTime('instanceof checks (if/then)', () => {
         let as = 0
@@ -703,7 +706,7 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             cs++
           }
         }
-        console.log({as,bs,cs})
+        console.log({ as, bs, cs })
       })
       t.measureTime('type equal checks (switch/case)', () => {
         let as = 0
@@ -714,19 +717,19 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
           switch (o.$type) {
             case $a: {
               as++
-              break;
+              break
             }
             case $b: {
               bs++
-              break;
+              break
             }
             case $c: {
               cs++
-              break;
+              break
             }
           }
         }
-        console.log({as,bs,cs})
+        console.log({ as, bs, cs })
       })
       t.measureTime('type equal checks (if/then)', () => {
         let as = 0
@@ -740,9 +743,9 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             bs++
           } else if (o.$type === $c) {
             cs++
-          } 
+          }
         }
-        console.log({as,bs,cs})
+        console.log({ as, bs, cs })
       })
       t.measureTime('schema checks (if/then))', () => {
         let as = 0
@@ -759,9 +762,9 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             // @ts-ignore
           } else if ($c.check(o)) {
             cs++
-          } 
+          }
         }
-        console.log({as,bs,cs})
+        console.log({ as, bs, cs })
       })
       t.measureTime('schema checks (pattern match)', () => {
         const state = {
@@ -770,9 +773,9 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
           cs: 0
         }
         const f = s.match({ as: s.$number, bs: s.$number, cs: s.$number })
-          .if($a, (_o,state) => { state.as++ })
-          .if($b, (_o,state) => { state.bs++ })
-          .if($c, (_o,state) => { state.cs++ })
+          .if($a, (_o, state) => { state.as++ })
+          .if($b, (_o, state) => { state.bs++ })
+          .if($c, (_o, state) => { state.cs++ })
           .done()
         os.forEach(o => f(o, state))
         console.log(state)

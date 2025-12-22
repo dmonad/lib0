@@ -37,7 +37,7 @@ import * as prng from '../prng.js'
 /**
  * @type {s.Schema<Attribution>}
  */
-export const $attribution = /*@__PURE__*/(()=>s.$object({
+export const $attribution = /* @__PURE__ */(() => s.$object({
   insert: s.$array(s.$string).optional,
   insertAt: s.$number.optional,
   delete: s.$array(s.$string).optional,
@@ -82,7 +82,7 @@ export const $attribution = /*@__PURE__*/(()=>s.$object({
 /**
  * @type {s.Schema<DeltaAttrOpJSON>}
  */
-export const $deltaMapChangeJson = /*@__PURE__*/(()=>s.$union(
+export const $deltaMapChangeJson = /* @__PURE__ */(() => s.$union(
   s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.optional }),
   s.$object({ type: s.$literal('modify'), value: s.$any }),
   s.$object({ type: s.$literal('delete'), prevValue: s.$any.optional, attribution: $attribution.optional })
@@ -1962,7 +1962,7 @@ export const $delta = ({ name, attrs, children, text, formats, recursiveChildren
   formats == null ? s.$any : s.$(formats)
 ))
 
-export const $$delta = /*@__PURE__*/s.$constructedBy($Delta)
+export const $$delta = /* @__PURE__ */s.$constructedBy($Delta)
 
 /**
  * @todo remove this
@@ -2013,8 +2013,8 @@ export const _$delta = ({ name, attrs, children, text, recursive }) => {
   return /** @type {any} */ ($d)
 }
 
-export const $deltaAny = /** @type {s.Schema<DeltaAny>} */ (/*@__PURE__*/s.$type('delta'))
-export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (/*@__PURE__*/s.$custom(o => $deltaAny.check(o) && !o.isDone))
+export const $deltaAny = /** @type {s.Schema<DeltaAny>} */ (/* @__PURE__ */s.$type('delta'))
+export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (/* @__PURE__ */s.$custom(o => $deltaAny.check(o) && !o.isDone))
 
 /**
  * Helper function to merge attribution and attributes. The latter input "wins".
