@@ -271,8 +271,8 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "clean": "rm -rf dist",
-    "types": "tsc",
+    "clean": "rm -rf types",
+    "types": "rm -rf types && tsc -p tsconfig.build.json",
     "dist": "npm run clean && npm run types",
     "debug": "npm run gentesthtml && node ./src/bin/0serve.js -o test.html",
     "test": "c8 --check-coverage --lines 100 --branches 100 --functions 100 --statements 100 node --unhandled-rejections=strict ./src/test.js --repetition-time 50",
@@ -283,7 +283,7 @@
     "trace-opt": "clear && node --trace-opt src/test.js",
     "lint": "standard && tsc",
     "gendocs": "node ./bin/gendocs.js",
-    "preversion": "npm run clean && npm run lint && npm run types && npm run dist && git add README.md",
+    "preversion": "npm run clean && npm run lint && npm run dist && git add README.md",
     "postpublish": "npm run clean",
     "gentesthtml": "node ./src/bin/gentesthtml.js --script src/test.js > test.html"
   },

@@ -11,12 +11,12 @@ import * as storage from './storage.js'
 import * as f from './function.js'
 
 /* c8 ignore next */
-export const isNode = /*@__PURE__*/(() => typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name) && Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]')()
+export const isNode = /* @__PURE__ */(() => typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name) && Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]')()
 
 /* c8 ignore next */
-export const isBrowser = /*@__PURE__*/(()=>typeof window !== 'undefined' && typeof document !== 'undefined' && !isNode)()
+export const isBrowser = /* @__PURE__ */(() => typeof window !== 'undefined' && typeof document !== 'undefined' && !isNode)()
 /* c8 ignore next */
-export const isMac = /*@__PURE__*/(()=>typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false)()
+export const isMac = /* @__PURE__ */(() => typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false)()
 
 /**
  * @type {Map<string,string>}
@@ -25,7 +25,7 @@ let params
 const args = []
 
 /* c8 ignore start */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 const computeParams = () => {
   if (params === undefined) {
     if (isNode) {
@@ -74,7 +74,7 @@ const computeParams = () => {
  * @return {boolean}
  */
 /* c8 ignore next */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const hasParam = (name) => computeParams().has(name)
 
 /**
@@ -83,7 +83,7 @@ export const hasParam = (name) => computeParams().has(name)
  * @return {string}
  */
 /* c8 ignore next 2 */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const getParam = (name, defaultVal) =>
   computeParams().get(name) || defaultVal
 
@@ -92,7 +92,7 @@ export const getParam = (name, defaultVal) =>
  * @return {string|null}
  */
 /* c8 ignore next 4 */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const getVariable = (name) =>
   isNode
     ? conditions.undefinedToNull(process.env[name.toUpperCase().replaceAll('-', '_')])
@@ -103,7 +103,7 @@ export const getVariable = (name) =>
  * @return {string|null}
  */
 /* c8 ignore next 2 */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const getConf = (name) => computeParams().get('--' + name) || getVariable(name)
 
 /**
@@ -111,7 +111,7 @@ export const getConf = (name) => computeParams().get('--' + name) || getVariable
  * @return {string}
  */
 /* c8 ignore start */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const ensureConf = (name) => {
   const c = getConf(name)
   if (c == null) throw new Error(`Expected configuration "${name.toUpperCase().replaceAll('-', '_')}"`)
@@ -124,15 +124,15 @@ export const ensureConf = (name) => {
  * @return {boolean}
  */
 /* c8 ignore next 2 */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const hasConf = (name) =>
   hasParam('--' + name) || getVariable(name) !== null
 
 /* c8 ignore next */
-export const production = /*@__PURE__*/(()=>hasConf('production'))()
+export const production = /* @__PURE__ */(() => hasConf('production'))()
 
 /* c8 ignore next 2 */
-const forceColor = /*@__PURE__*/(()=>isNode && f.isOneOf(process.env.FORCE_COLOR, ['true', '1', '2']))()
+const forceColor = /* @__PURE__ */(() => isNode && f.isOneOf(process.env.FORCE_COLOR, ['true', '1', '2']))()
 
 /* c8 ignore start */
 /**
@@ -142,7 +142,7 @@ const forceColor = /*@__PURE__*/(()=>isNode && f.isOneOf(process.env.FORCE_COLOR
  * Disable color using `--no-color` parameter or using `NO_COLOR=1` environment variable.
  * `FORCE_COLOR=1` enables color and takes precedence over all.
  */
-export const supportsColor = /*@__PURE__*/(()=>forceColor || (
+export const supportsColor = /* @__PURE__ */(() => forceColor || (
   !hasParam('--no-colors') && // @todo deprecate --no-colors
   !hasConf('no-color') &&
   (!isNode || process.stdout.isTTY) && (
@@ -155,7 +155,7 @@ export const supportsColor = /*@__PURE__*/(()=>forceColor || (
 /* c8 ignore stop */
 
 /* c8 ignore start */
-const globalScope = /*@__PURE__*/(()=>/** @type {any} */ (typeof globalThis !== 'undefined'
+const globalScope = /* @__PURE__ */(() =>/** @type {any} */ (typeof globalThis !== 'undefined'
   ? globalThis
   : typeof window !== 'undefined'
     ? window

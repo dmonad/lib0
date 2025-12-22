@@ -49,7 +49,7 @@ export const appendTo = (dest, src) => {
  * @param {ArrayLike<T>|Iterable<T>} arraylike
  * @return {T}
  */
-export const from = /*@__PURE__*/(() => Array.from)()
+export const from = /* @__PURE__ */(() => Array.from)()
 
 /**
  * True iff condition holds on every element in the Array.
@@ -131,7 +131,7 @@ export const fold = (arr, seed, folder) => arr.reduce(folder, seed)
 /**
  * @param {any} o
  */
-/*@__NO_SIDE_EFFECTS__*/
+/* @__NO_SIDE_EFFECTS__ */
 export const isArray = o => Array.isArray(o)
 
 /**

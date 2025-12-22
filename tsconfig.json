@@ -2,15 +2,13 @@
   "compilerOptions": {
     "target": "esnext",
     "lib": ["ESNext", "dom"],
+    "noEmit": true,
     "module": "nodenext",
     "allowJs": true,
     "checkJs": true,
-    "declaration": true,
-    "declarationMap": true,
     "outDir": "./types",
     "baseUrl": "./src",
     "rootDir": "./src",
-    "emitDeclarationOnly": true,
     "strict": true,
     "noImplicitAny": true,
     "moduleResolution": "nodenext",
@@ -21,6 +19,5 @@
       "lib0/logging": ["./src/logging.node.js"]
     }
   },
-  "include": ["./src/**/*.js"],
-  "exclude": ["./src/**/*.test.js", "./src/test.js"]
+  "include": ["./src/**/*.js"]
 }
