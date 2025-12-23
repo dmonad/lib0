@@ -2,6 +2,10 @@ import * as t from './testing.js'
 import * as object from './object.js'
 import * as math from './math.js'
 
+export const testEqualFlat = () => {
+  t.assert(!object.equalFlat({ fontFamily: 'MSYahei' }, { fontFamily: null }))
+}
+
 /**
  * @param {t.TestCase} _tc
  */
