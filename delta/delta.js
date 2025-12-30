@@ -1075,10 +1075,12 @@ export class Delta {
     }
     while (currNode != null && currNode.length <= remainingLen) {
       list.pushEnd(cpy.children, currNode.clone())
+      remainingLen -= currNode.length
       currNode = currNode.next
     }
     if (currNode != null && remainingLen > 0) {
       list.pushEnd(cpy.children, currNode.clone(0, remainingLen))
+      remainingLen -= math.min(currNode.length, remainingLen)
     }
     cpy.childCnt = slicedLen - remainingLen
     // @ts-ignore
@@ -2247,11 +2249,12 @@ export const diff = (d1, d2) => {
           const cd = cdiff[i]
           cd.remove = isContent.slice(cd.index, cd.index + cd.remove.length)
           cd.insert = shouldContent.slice(cd.index + adj, cd.index + adj + cd.insert.length)
-          adj += cd.remove.length - cd.insert.length
+          adj += cd.insert.length - cd.remove.length
         }
         for (let i = 0, lastIndex = 0; i < cdiff.length; i++) {
           const cd = cdiff[i]
           d.retain(cd.index - lastIndex)
+          lastIndex = cd.index
           let cdii = 0
           let cdri = 0
           // try to match as much content as possible, preferring to skip over non-deltas

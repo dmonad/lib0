@@ -710,3 +710,13 @@ export const testDeltaDiffWithFormatting2 = () => {
   const diff = delta.diff(d1, d2)
   t.compare(diff, delta.create().retain(5).insert(' ').insert('world', { bold: true }))
 }
+
+export const testDeltaDiffIssue1 = () => {
+  const stateA = delta.create().insert([delta.create('paragraph').set('ychange', null).insert('ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
+  const stateB = delta.create().insert([delta.create('paragraph').set('ychange', null).insert('ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
+  const expectedDiff = delta.create().modify(delta.create().retain(5).insert('123').retain(21).insert('2sawfa'))
+  const diffResult = delta.diff(stateA, stateB)
+  const synced = delta.clone(stateA).apply(diffResult)
+  t.assert(synced.equals(stateB))
+  t.assert(expectedDiff.equals(diffResult))
+}
