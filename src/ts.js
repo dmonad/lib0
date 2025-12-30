@@ -29,3 +29,11 @@
  * @template B
  * @typedef {A} AssertExtends
  */
+
+/**
+ * In typescript `keyof {[k:string]:any}` is `string|number` instead of `string`. This KeyOf type returns the expected
+ * result. Use this for pretty-printing onyly.
+ *
+ * @template {{[K:string|number|symbol]:any}} Obj
+ * @typedef {{ [K in keyof Obj]: K }[keyof Obj]} KeyOf
+ */

@@ -691,7 +691,7 @@ export class SetAttrOp {
 
 /**
  * @template [V=any]
- * @template {string|number} [K=string]
+ * @template {string|number} [K=string|number]
  */
 export class DeleteAttrOp {
   /**
@@ -845,7 +845,7 @@ export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
 export const $setAttrOp = /** @type {s.Schema<SetAttrOp<any>>} */ (s.$type('setAttrOp'))
 export const $modifyAttrOp = /** @type {s.Schema<ModifyAttrOp<any,string|number>>} */ (s.$type('modifyAttrOp'))
-export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<{},string|number>>} */ (s.$type('deleteAttrOp'))
+export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<any,string|number>>} */ (s.$type('deleteAttrOp'))
 export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
@@ -1000,7 +1000,7 @@ class DeltaData {
 
     /**
      * @type {list.List<
-     *   | (Text extends true ? (RetainOp|TextOp|DeleteOp<{}>) : never)
+     *   | (Text extends true ? (RetainOp|TextOp|DeleteOp<any>) : never)
      *   | (RetainOp|InsertOp<Children>|DeleteOp<any>|(Delta extends Children ? ModifyOp<Extract<Children,Delta>> : never))
      * >}
      */
@@ -1430,7 +1430,7 @@ export class DeltaBuilder extends Delta {
    * @param {Attribution?} attribution
    * @return {DeltaBuilder<DeltaConfOverwrite<
    *   DConf,
-   *   { attrs: MergeAttrs<Attrs,NewAttrs> }
+   *   { attrs: MergeAttrs<DeltaConfGetAttrs<DConf>,NewAttrs> }
    *   >>
    * }
    */

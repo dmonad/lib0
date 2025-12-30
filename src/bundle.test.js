@@ -1,3 +1,3 @@
-import { map } from './index.js'
+import * as delta from 'lib0/delta'
 
-console.log(map.all(new Map(), x => x === 1))
+console.log(delta.create().toJSON())
