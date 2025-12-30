@@ -1174,10 +1174,12 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
   }
   while (currNode != null && currNode.length <= remainingLen) {
     list.pushEnd(cpy.children, currNode.clone())
+    remainingLen -= currNode.length
     currNode = currNode.next
   }
   if (currNode != null && remainingLen > 0) {
     list.pushEnd(cpy.children, currNode.clone(0, remainingLen))
+    remainingLen -= math.min(currNode.length, remainingLen)
   }
   cpy.childCnt = slicedLen - remainingLen
   // @ts-ignore
@@ -1621,7 +1623,7 @@ export class DeltaBuilder extends Delta {
             remainingLen -= delLen
           }
         }
-      } else if ($modifyAttrOp.check(op)) {
+      } else if ($modifyOp.check(op)) {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
