@@ -37,3 +37,10 @@
  * @template {{[K:string|number|symbol]:any}} Obj
  * @typedef {{ [K in keyof Obj]: K }[keyof Obj]} KeyOf
  */
+
+/**
+ * For each key-value pair in Renames, rename O[Key] to O[Renames[Key]]
+ * @template {{[K in string|number]:any}} O
+ * @template {{[K:string|number]:string|number}} Renames - pairs of renames
+ * @typedef {{[K in keyof O as K extends keyof Renames ? Renames[K] : K]: O[K]}} RenameProps
+ */

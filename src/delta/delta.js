@@ -1117,6 +1117,21 @@ export class Delta extends DeltaData {
     return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
   }
 
+  // toString () {
+  //   /**
+  //    * @type {Array<[string|number,string]>}
+  //    */
+  //   const attrs = []
+  //   for (const attr of this.attrs) {
+  //     attrs.push([attr.key, $deleteAttrOp.check(attr) ? 'delete' : attr.type + ' ' + (attr.value?.toString() ?? attr.value)])
+  //   }
+  //   attrs.sort((a, b) => a[0].toString() < b[0].toString() ? -1 : 1)
+  //   const attrsString = attrs.map(attr => `${attr[0]} = ${attr[1]}`).join(', ')
+  //   if (this.childCnt === 0) return `<${this.name ?? ''} ${attrsString}/>`
+  //   this.children.toArray() drnt
+  //   return '<>'
+  // }
+  //
   /**
    * Mark this delta as done and perform some cleanup (e.g. remove appended retains without
    * formats&attributions). In the future, there might be additional merge operations that can be
@@ -1351,7 +1366,7 @@ export class DeltaBuilder extends Delta {
         end.insert.push(...insert)
         end._fingerprint = null
       } else if (insert.length > 0) {
-        list.pushEnd(this.children, new InsertOp(/** @type {any} */ (insert), object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+        list.pushEnd(this.children, new InsertOp(insert.slice() /* ensures that we don't reuse an existing array */, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
       }
       this.childCnt += insert.length
     }
@@ -2078,10 +2093,10 @@ export const random = (gen, $d) => {
  * @return {DeltaBuilder<{}>}
  */
 /**
- * @template {string} NodeName
+ * @template {string|null} NodeName
  * @overload
  * @param {NodeName} nodeName
- * @return {DeltaBuilder<{ name: NodeName }>}
+ * @return {DeltaBuilder<NodeName extends string ? { name: NodeName } : {}>}
  */
 /**
  * @template {string} NodeName
@@ -2113,7 +2128,7 @@ export const random = (gen, $d) => {
  * }>}
  */
 /**
- * @param {string|s.Schema<DeltaAny>} [nodeNameOrSchema]
+ * @param {string|s.Schema<DeltaAny>|null} [nodeNameOrSchema]
  * @param {{[K:string|number]:any}|s.Schema<DeltaAny>} [attrsOrSchema]
  * @param {(Array<any>|string)} [children]
  * @return {DeltaBuilder<{}>}
@@ -2130,8 +2145,69 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
 }
 
 /**
- * @typedef {string extends never ? true : false} qq
+ * @template {string|null} NodeName
+ * @template {Array<any>|string} [Children=never]
+ * @overload
+ * @param {NodeName} nodeName
+ * @param {...Array<Children>} [children]
+ * @return {DeltaBuilder<{
+ *   name: NodeName,
+ *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
+ *   text: Extract<Children,string> extends never ? false : true
+ * }>}
  */
+/**
+ * @template {Array<any>|string} [Children=never]
+ * @overload
+ * @param {...Array<Children>} [children]
+ * @return {DeltaBuilder<{
+ *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
+ *   text: Extract<Children,string> extends never ? false : true
+ * }>}
+ */
+/**
+ * @template {{[k:string|number]:any}|null} Attrs
+ * @template {Array<any>|string} [Children=never]
+ * @overload
+ * @param {Attrs} attrs
+ * @param {...Array<Children>} [children]
+ * @return {DeltaBuilder<{
+ *   attrs: Attrs extends null ? {} : Attrs,
+ *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
+ *   text: Extract<Children,string> extends never ? false : true
+ * }>}
+ */
+/**
+ * @template {string|null} NodeName
+ * @template {{[k:string|number]:any}|null} Attrs
+ * @template {Array<any>|string} [Children=never]
+ * @overload
+ * @param {NodeName} nodeName
+ * @param {Attrs} attrs
+ * @param {...Array<Children>} [children]
+ * @return {DeltaBuilder<{
+ *   name: NodeName,
+ *   attrs: Attrs extends null ? {} : Attrs,
+ *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
+ *   text: Extract<Children,string> extends never ? false : true
+ * }>}
+ */
+/**
+ * @param {Array<string|null|{[K:string|number]:any}|Array<any>>} args
+ * @return {DeltaBuilder<{}>}
+ */
+export const from = (...args) => {
+  const hasName = s.$string.check(args[0])
+  let i = hasName ? 1 : 0
+  const d = create(hasName ? /** @type {string} */ (args[0]) : null)
+  if (s.$objectAny.check(args[i])) {
+    d.setAttrs(/** @type {any} */ (args[i++]))
+  }
+  for (; i < args.length; i++) {
+    d.insert(/** @type {any} */ (args[i]))
+  }
+  return d
+}
 
 /**
  * @template {DeltaConf} DConf
