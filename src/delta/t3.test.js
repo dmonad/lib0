@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as t from '../testing.js'
 import * as delta from './delta.js'
 import * as s from '../schema.js'

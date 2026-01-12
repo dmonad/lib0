@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as error from '../error.js'
 import * as delta from './delta.js'
 
