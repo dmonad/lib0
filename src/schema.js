@@ -576,15 +576,15 @@ export class $Object extends Schema {
 
 /**
  * @template S
- * @typedef {Schema<{ [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? Key : never]?: S[Key] extends $Optional<Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? never : Key]: S[Key] extends Schema<infer Type> ? Type : never }>} _ObjectDefToSchema
+ * @typedef {import('./ts.js').Prettify<{ [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? Key : never]?: S[Key] extends $Optional<Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? never : Key]: S[Key] extends Schema<infer Type> ? Type : never }, 1>} _ObjectDefToSchema
  */
 
 // I used an explicit type annotation instead of $ObjectToType, so that the user doesn't see the
 // weird type definitions when inspecting type definions.
 /**
- * @template {{ [key:string|symbol|number]: Schema<any> }} S
+ * @template {{ [key:string|symbol|number]: any }} S
  * @param {S} def
- * @return {_ObjectDefToSchema<S> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never}
+ * @return {Schema<_ObjectDefToSchema<S>>}
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $object = def => /** @type {any} */ (new $Object(def))
@@ -967,8 +967,7 @@ export const $json = /* @__PURE__ */(() => {
  *   : (IN extends string|number|boolean|null ? Schema<IN>
  *     : (IN extends new (...args:any[])=>any ? Schema<InstanceType<IN>>
  *       : (IN extends any[] ? Schema<{ [K in keyof IN]: Unwrap<ReadSchema<IN[K]>> }[number]>
-   *       : (IN extends object ? (_ObjectDefToSchema<{[K in keyof IN]:ReadSchema<IN[K]>}> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never)
-   *         : never)
+   *       : (IN extends object ? _ObjectDefToSchema<{[K in keyof IN]:ReadSchema<IN[K]>}> : never)
  *         )
  *       )
  *     )
@@ -983,13 +982,9 @@ export const $json = /* @__PURE__ */(() => {
  *     | Primitives
  *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
  *     | (Arrs extends any[] ? { [K in keyof Arrs]: Unwrap<ReadSchema<Arrs[K]>> }[number] : never)
- *     | (Obj extends object ? Unwrap<(_ObjectDefToSchema<{[K in keyof Obj]:ReadSchema<Obj[K]>}> extends Schema<infer S> ? Schema<{ [K in keyof S]: S[K] }> : never)> : never)>
+ *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]:ReadSchema<Obj[K]>}> : never)>
  *   : never
  * } ReadSchema
- */
-
-/**
- * @typedef {ReadSchema<{x:42}|{y:99}|Schema<string>|[1,2,{}]>} Q
  */
 
 /**
