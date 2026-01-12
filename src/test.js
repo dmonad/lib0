@@ -46,7 +46,7 @@ import * as deltaPitch from './delta/delta-pitch.test.js'
 import * as mutex from './mutex.test.js'
 import { isBrowser, isNode } from './environment.js'
 
-/* c8 ignore next */
+/* c8 ignore next 3 */
 if (isBrowser) {
   log.createVConsole(document.body)
 }
