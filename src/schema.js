@@ -937,6 +937,10 @@ export const $$null = /** @type {Schema<Schema<null>>} */ ($constructedBy($Liter
 export const $uint8Array = $constructedBy(Uint8Array)
 export const $$uint8Array = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Uint8Array))
 
+export const $promise = $constructedBy(Promise)
+export const $$promise = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Promise))
+
+
 /**
  * @type {Schema<Primitive>}
  */

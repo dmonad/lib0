@@ -3,6 +3,7 @@ import * as s from './schema.js'
 import * as env from './environment.js'
 import * as prng from './prng.js'
 import * as array from './array.js'
+import * as promise from 'lib0/promise'
 
 /**
  * @param {t.TestCase} _tc
@@ -233,6 +234,12 @@ export const testSchemas = _tc => {
     $fun3.validate(/** @param {number} n */ (n) => n) // this doesn't work, because expected the literal undefined.
     // @ts-expect-error
     t.assert(!$fun3.validate(/** @type {(a: number, b: number) => undefined} */ (_a, _b) => undefined)) // too many parameters
+  })
+  t.group('promise', () => {
+    const x = promise.resolve()
+    const y = promise.reject()
+    t.assert(s.$promise.check(x) && s.$promise.check(y))
+    t.assert(s.$$promise.check(s.$promise))
   })
   t.group('never', () => {
     const x = 42
