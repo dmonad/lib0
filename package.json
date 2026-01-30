@@ -14,8 +14,9 @@
     "0ecdsa-generate-keypair": "./src/bin/0ecdsa-generate-keypair.js"
   },
   "files": [
-    "types",
-    "src",
+    "types/**/*.d.ts",
+    "!types/**/*test.d.ts",
+    "src/**/*.js",
     "!src/**/*test.js"
   ],
   "exports": {
@@ -241,7 +242,7 @@
     "./webcrypto": {
       "types": "./types/webcrypto.d.ts",
       "deno": "./src/webcrypto.deno.js",
-      "react-native": "./src/webcrypto.react-native.cjs",
+      "react-native": "./src/webcrypto.react-native.js",
       "node": "./src/webcrypto.node.js",
       "bun": "./src/webcrypto.js",
       "browser": "./src/webcrypto.js",
