@@ -205,9 +205,6 @@ export class Schema {
    * Use this if you know that the type is of a specific type and you just want to convince the type
    * system.
    *
-   * **Do not rely on these error messages!**
-   * Performs an assertion check only if not in a production environment.
-   *
    * @template OO
    * @param {OO} o
    * @return {Extract<OO, T> extends never ? T : (OO extends Array<never> ? T : Extract<OO,T>)}
@@ -219,7 +216,7 @@ export class Schema {
 
   /**
    * EXPECTO PATRONUM!! 🪄
-   * This function protects against type errors. Though it may not work in the real world.
+   * This method protects against type errors.
    *
    * "After all this time?"
    * "Always." - Snape, talking about type safety
@@ -228,10 +225,7 @@ export class Schema {
    * Use this if you know that the type is of a specific type and you just want to convince the type
    * system.
    *
-   * Can be useful when defining lambdas: `s.lambda(s.$number, s.$void).expect((n) => n + 1)`
-   *
-   * **Do not rely on these error messages!**
-   * Performs an assertion check if not in a production environment.
+   * Can be useful when defining lambdas: `s.lambda(s.$number, s.$number).expect((n) => n + 1)`
    *
    * @param {T} o
    * @return {o extends T ? T : never}
@@ -478,7 +472,7 @@ export const $$stringTemplate = $constructedBy($StringTemplate)
  * @template {Schema<any>} S
  * @extends Schema<Unwrap<S>|undefined>
  */
-class $Optional extends Schema {
+export class $Optional extends Schema {
   /**
    * @param {S} shape
    */
@@ -579,8 +573,6 @@ export class $Object extends Schema {
  * @typedef {import('./ts.js').Prettify<{ [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? Key : never]?: S[Key] extends $Optional<Schema<infer Type>> ? Type : never } & { [Key in keyof S as S[Key] extends $Optional<Schema<any>> ? never : Key]: S[Key] extends Schema<infer Type> ? Type : never }, 1>} _ObjectDefToSchema
  */
 
-// I used an explicit type annotation instead of $ObjectToType, so that the user doesn't see the
-// weird type definitions when inspecting type definions.
 /**
  * @template {{ [key:string|symbol|number]: any }} S
  * @param {S} def
@@ -589,6 +581,15 @@ export class $Object extends Schema {
 /* @__NO_SIDE_EFFECTS__ */
 export const $object = def => /** @type {any} */ (new $Object(def))
 export const $$object = /* @__PURE__ */$constructedBy($Object)
+
+/**
+ * @template {{ [key:string|symbol|number]: any }} S
+ * @param {S} def
+ * @return {Schema<Partial<_ObjectDefToSchema<S>>>}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const $partial = def => /** @type {any} */ (new $Object(def, true))
+
 /**
  * @type {Schema<{[key:string]: any}>}
  */
@@ -1028,14 +1029,12 @@ export const $ = o => {
  * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const assert = /* @__PURE__ */(() => env.production
-  ? () => {}
-  : (o, schema) => {
-      const err = new ValidationError()
-      if (!schema.check(o, err)) {
-        throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
-      }
-    })()
+export const assert = (o, schema) => {
+  const err = new ValidationError()
+  if (!schema.check(o, err)) {
+    throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
+  }
+}
 /* c8 ignore end */
 
 /**

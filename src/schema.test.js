@@ -63,6 +63,16 @@ export const testSchemas = _tc => {
     // @ts-expect-error
     t.assert(!myobject.validate(new Date()))
   })
+  t.group('partial', () => {
+    const myobject = s.$partial({
+      num: s.$number,
+      steak: s.$string
+    })
+    t.assert(myobject.check({}))
+    t.assert(myobject.check({ num: 42 }))
+    t.assert(myobject.check({ num: 42, steak: 'good' }))
+    t.assert(!myobject.check({ num: 42, steak: 42 }))
+  })
   t.group('record', () => {
     const myrecord = s.$record(s.$number, s.$string)
     // @ts-expect-error
