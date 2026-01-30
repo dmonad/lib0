@@ -15,11 +15,18 @@ import * as math from './math.js'
 export const getDate = () => new Date()
 
 /**
- * Return current unix time.
+ * Return current unix time in milliseconds.
  *
  * @return {number}
  */
 export const getUnixTime = Date.now
+
+/**
+ * Return current unix time in milliseconds.
+ *
+ * @return {number}
+ */
+export const getUnixTimeInSeconds = () => math.round(Date.now() / 1000)
 
 /**
  * Transform time (in ms) to a human readable format. E.g. 1100 => 1.1s. 60s => 1min. .001 => 10μs.
