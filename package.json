@@ -284,6 +284,7 @@
     "trace-opt": "clear && node --trace-opt src/test.js",
     "lint": "standard && tsc",
     "gendocs": "node ./bin/gendocs.js",
+    "np": "np --test-script dist",
     "version": "npm run clean && npm run dist && git add README.md",
     "postpublish": "npm run clean",
     "gentesthtml": "node ./src/bin/gentesthtml.js --script src/test.js > test.html"
