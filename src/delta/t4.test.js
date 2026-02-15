@@ -42,9 +42,11 @@ class TransformPipe {
      */
     this.trs = []
   }
+
   init () {
     return this
   }
+
   /**
    * @param {TransformResult<any,any>} tr
    */
@@ -80,7 +82,7 @@ const pipe = (...fns) => (arg) => /** @type {any} */ (fns.reduce((acc, fn) => fn
 const pipex = (t1, t2) => {
   const tpipe = new TransformPipe()
   if (t1 instanceof TransformPipe) {
-    tpipe.trs = t1.trs.concat(t2 instanceof TransformPipe ? t2.trs : [t2]) 
+    tpipe.trs = t1.trs.concat(t2 instanceof TransformPipe ? t2.trs : [t2])
   } else {
     tpipe.trs.push(t1, t2)
   }
@@ -94,9 +96,11 @@ class RenameTransformer {
   constructor (renames) {
     this.renames = renames
   }
+
   init () {
     return this
   }
+
   /**
    * @param {TransformResult<A,B>} t
    * @return {TransformResult<A,B>}
@@ -132,12 +136,12 @@ const x = new TransformerTemplate()
  * @param {Q} t
  */
 const pd = t => rename(/** @type {const} */ ({ a: 'q' }),
-    t
-  )
+  t
+)
 
 const pd_ = pd(x)
 
-const xres = rename(/** @type {const} */ ({a: 42}))(x)
+const xres = rename(/** @type {const} */ ({ a: 42 }))(x)
 
 /**
  * @template {delta.DeltaConf} D
@@ -145,8 +149,6 @@ const xres = rename(/** @type {const} */ ({a: 42}))(x)
  */
 const qq = dt => rename(/** @type {const} */ ({ b: 'q' }))(dt)
 
-
 const m = rename(/** @type {const} */ ({ q: 'p' }))(qq(x))
 const n = rename(/** @type {const} */ ({ p: 'o' }))(m)
 const o = rename(/** @type {const} */ ({ o: 'ldtrunaedtrn1' }))(n)
-

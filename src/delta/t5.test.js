@@ -36,7 +36,7 @@ const createTransformResult = (a, b) => new TransformResult(a, b)
  * @template {delta.DeltaConf} A
  * @template {delta.DeltaConf} B
  */
-class Transformer {
+export class Transformer {
   /**
    * @param {TransformResult<delta.Delta<A>,delta.Delta<B>>} t
    * @return {TransformResult<delta.Delta<A>,delta.Delta<B>>}
@@ -56,13 +56,13 @@ class Transformer {
 
 /**
  * @template {{[K:string|number]:string|number}} Renames
- * @template {delta.DeltaConf} IN 
+ * @template {delta.DeltaConf} IN
  * @typedef {delta.DeltaConfOverwrite<IN,{ attrs: import('../ts.js').RenameProps<delta.DeltaConfGetAttrs<IN>,Renames> }>} ApplyAttrRename
  */
 
 /**
  * @template {Array<Template>} TS
- * @template {delta.DeltaConf} IN 
+ * @template {delta.DeltaConf} IN
  * @typedef {TS extends [infer FirstT extends Template, ...infer RestT extends Template[]] ? ApplyPipe<RestT,ApplyTemplate<FirstT,IN>> : IN } ApplyPipe
  */
 
@@ -73,36 +73,21 @@ class Transformer {
 
 /**
  * @template {Template} T
- * @template {delta.DeltaConf} IN 
+ * @template {delta.DeltaConf} IN
  * @typedef {EnsureDeltaConf<
- *     T extends AttrRename<infer Renames> ? ApplyAttrRename<Renames,IN> : (
- *       T extends Pipe<infer TS> ? ApplyPipe<TS,IN> : IN
- *     )
+ *     T extends AttrRename<infer Renames> ? ApplyAttrRename<Renames,IN> :
+ *     T extends Pipe<infer TS>            ? ApplyPipe<TS,IN> :
+ *     IN
  * >} ApplyTemplate
  */
 
 /**
- * A transformer always gets two inputs: a and b.
- * This helper implements a basic algorithm to apply concurrent transformations.
- *
- * - transform a to b' using a provided a transform function.
- * - rebase b on b' and transform b'' using the provided b transform function.
- *
- * @param {TransformResult} t
- * @param {(a:delta.DeltaAny)=>delta.DeltaAny} fa
- * @param {(b:delta.DeltaAny)=>delta.DeltaAny} fb
- */
-const applyTransformHelper = (t, fa, fb) => {
-
-
-}
-
-/**
- * @param {delta.DeltaAny} d
+ * @param {delta.DeltaAny?} d
  * @param {{[K:string|number]:string|number}} renames
  * @param {{[K:string|number]:string|number}} revRenames
  */
 const renameAttrs = (d, renames, revRenames) => {
+  if (d == null) return null
   const forwardTransform = delta.clone(d)
   const res = createTransformResult(forwardTransform, null)
   for (const attr of forwardTransform.attrs) {
@@ -127,7 +112,7 @@ const renameAttrs = (d, renames, revRenames) => {
  * @template {{[K:string|number]:string|number}} Renames
  * @implements Template
  */
-class AttrRename {
+export class AttrRename {
   /**
    * @param {Renames} renames
    */
@@ -141,7 +126,9 @@ class AttrRename {
       this.brenames[renames[k]] = k
     }
   }
+
   get stateless () { return true }
+
   /**
    * @template {delta.DeltaConf} IN
    * @param {s.Schema<delta.Delta<IN>>} $d
@@ -155,14 +142,10 @@ class AttrRename {
    * @param {TransformResult} tin
    */
   apply (tin) {
-    /**
-     * @type {TransformResult}
-     */
-    const tout = {a:null,b:null}
-    if (tin.a) {
-                  
+    return {
+      a: renameAttrs(tin.b?.clone(), this.brenames),
+      b: renameAttrs(tin.a?.clone(), this.arenames)
     }
-    return tout
   }
 }
 
@@ -172,7 +155,7 @@ class AttrRename {
  * @template {Template[]} TS
  * @implements Template
  */
-class Pipe {
+export class Pipe {
   /**
    * @param {TS} templates
    */
@@ -180,6 +163,7 @@ class Pipe {
     this.templates = templates
     this.stateless = templates.every(t => t.stateless)
   }
+
   /**
    * @template {delta.DeltaConf} IN
    * @param {s.Schema<delta.Delta<IN>>} $d
@@ -194,16 +178,16 @@ class Pipe {
  * @template {{[K:string|number]:string|number}} Renames
  * @param {Renames} renames
  */
-const rename = renames => new AttrRename(renames)
+export const rename = renames => new AttrRename(renames)
 /**
  * @template {Array<Template>} Ts
  * @param {Ts} ts
  */
 const pipe = (...ts) => new Pipe(ts)
 
-const r1 = rename(/** @type {const} */ ({a:'b'}))
-const r2 = rename(/** @type {const} */ ({b:'c'}))
+const r1 = rename(/** @type {const} */ ({ a: 'b' }))
+const r2 = rename(/** @type {const} */ ({ b: 'c' }))
 
 const p12 = pipe(r1, r2)
-const p12init = p12.init(delta.$delta({attrs: {a: s.$string}}))
-
+const p12init = p12.init(delta.$delta({ attrs: { a: s.$string } }))
+console.log(p12init)

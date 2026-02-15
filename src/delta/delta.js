@@ -880,7 +880,7 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  * @template {{[Key in string|number]: any}} Attrs
  * @template {string|number} Key
  * @template {any} Val
- * @typedef {{ [K in (Key | keyof Attrs)]: (unknown extends Attrs[K] ? never : Attrs[K]) | (Key extends K ? Val : never) }} AddToAttrs
+ * @typedef {{ [K in (Key | keyof Attrs)]: (unknown extends Attrs[K] ? never : Attrs[K]) | (Key extends K ? Val : never) } & {}} AddToAttrs
  */
 
 /**
@@ -967,8 +967,8 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
 
 /**
  * @template {DeltaConf} D1
- * @template {DeltaConf} D2
- * @typedef {import('../ts.js').TypeIsAny<D1, any, PrettifyDeltaConf<{[K in (keyof D1|keyof D2)]: K extends keyof D2 ? D2[K] : (K extends keyof D1 ? D1[K] : never)}>>} DeltaConfOverwrite
+ * @template D2
+ * @typedef {(import('../ts.js').TypeIsAny<D1, any, PrettifyDeltaConf<{[K in (keyof D1|keyof D2)]: K extends keyof D2 ? D2[K] : (K extends keyof D1 ? D1[K] : never)}>> & {}) extends infer DC ? (DC extends DeltaConf ? DC : never) : never} DeltaConfOverwrite
  */
 
 /**
@@ -1425,7 +1425,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {keyof DeltaConfGetAllowedAttrs<DConf>} Key
+   * @template {Extract<keyof DeltaConfGetAllowedAttrs<DConf>,string|number>} Key
    * @template {DeltaConfGetAllowedAttrs<DConf>[Key]} Val
    * @param {Key} key
    * @param {Val} val
@@ -1460,7 +1460,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {keyof DeltaConfGetAllowedAttrs<DConf>} Key
+   * @template {Extract<keyof DeltaConfGetAllowedAttrs<DConf>,string|number>} Key
    * @param {Key} key
    * @param {Attribution?} attribution
    * @param {any} [prevValue]
@@ -1962,13 +1962,13 @@ export class $Delta extends s.Schema {
  * @param {HasText} [opts.text] Whether this delta contains text using `textOp`
  * @param {Formats} [opts.formats]
  * @param {RecursiveChildren} [opts.recursiveChildren]
- * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<{
+ * @return {[s.ReadSchemaUnwrapped<NodeNameSchema>,s.ReadSchemaUnwrapped<AttrsSchema>,s.ReadSchemaUnwrapped<ChildrenSchema>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<{
  *   name: NodeName,
  *   attrs: Attrs,
  *   children: Children,
  *   text: HasText,
  *   recursiveChildren: RecursiveChildren
- * }>> : never}
+ * } extends infer DC ? (DC extends DeltaConf ? DC : never) : never>> : never}
  */
 export const $delta = ({ name, attrs, children, text, formats, recursiveChildren: recursive }) => /** @type {any} */ (new $Delta(
   /** @type {any} */ (name == null ? s.$any : s.$(name)),
@@ -1980,55 +1980,6 @@ export const $delta = ({ name, attrs, children, text, formats, recursiveChildren
 ))
 
 export const $$delta = /* @__PURE__ */s.$constructedBy($Delta)
-
-/**
- * @todo remove this
- *
- * @template {s.Schema<string>|string|Array<string>} [NodeNameSchema=s.Schema<any>]
- * @template {s.Schema<{ [key: string|number]: any }>|{ [key:string|number]:any }} [AttrsSchema=s.Schema<{}>]
- * @template {any} [ChildrenSchema=s.Schema<never>]
- * @template {boolean} [HasText=false]
- * @template {boolean} [Recursive=false]
- * @param {object} opts
- * @param {NodeNameSchema?} [opts.name]
- * @param {AttrsSchema?} [opts.attrs]
- * @param {ChildrenSchema?} [opts.children]
- * @param {HasText} [opts.text]
- * @param {Recursive} [opts.recursive]
- * @return {[s.Unwrap<s.ReadSchema<NodeNameSchema>>,s.Unwrap<s.ReadSchema<AttrsSchema>>,s.Unwrap<s.ReadSchema<ChildrenSchema>>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<
- *     NodeName,
- *     Attrs,
- *     Children|(Recursive extends true ? RecursiveDelta<NodeName,Attrs,Children,HasText extends true ? string : never> : never),
- *     HasText extends true ? string : never
- * >> : never}
- */
-export const _$delta = ({ name, attrs, children, text, recursive }) => {
-  /**
-   * @type {s.Schema<Array<any>>}
-   */
-  let $arrContent = children == null ? s.$never : s.$array(s.$(children))
-  const $name = name == null ? s.$any : s.$(name)
-  const $attrsPartial = attrs == null ? s.$object({}) : (s.$$record.check(attrs) ? attrs : /** @type {any} */ (s.$(attrs)).partial)
-  const $d = s.$custom(d => {
-    if (
-      !$deltaAny.check(d) ||
-      !$name.check(d.name) ||
-      object.some(d.attrs,
-        (op, k) => $setAttrOp.check(op) && !$attrsPartial.check({ [k]: op.value })
-      )
-    ) return false
-    for (const op of d.children) {
-      if ((!text && $textOp.check(op)) || ($insertOp.check(op) && !$arrContent.check(op.insert))) {
-        return false
-      }
-    }
-    return true
-  })
-  if (recursive) {
-    $arrContent = children == null ? s.$array($d) : s.$array(s.$(children), $d)
-  }
-  return /** @type {any} */ ($d)
-}
 
 export const $deltaAny = /** @type {s.Schema<DeltaAny>} */ (/* @__PURE__ */s.$type('delta'))
 export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (/* @__PURE__ */s.$custom(o => $deltaAny.check(o) && !o.isDone))
@@ -2100,11 +2051,11 @@ export const random = (gen, $d) => {
  */
 /**
  * @template {string} NodeName
- * @template {s.Schema<DeltaAny>} Schema
+ * @template {DeltaConf} DConf
  * @overload
  * @param {NodeName} nodeName
- * @param {Schema} schema
- * @return {Schema extends s.Schema<Delta<infer DConf>> ? DeltaBuilder<DeltaConfOverwrite<DConf, {fixed:true}>> : never}
+ * @param {s.Schema<Delta<DConf>>} schema
+ * @return {DeltaBuilder<DeltaConfOverwrite<DConf, {fixed:true}>>}
  */
 /**
  * @template {s.Schema<DeltaAny>} Schema
@@ -2149,7 +2100,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @template {Array<any>|string} [Children=never]
  * @overload
  * @param {NodeName} nodeName
- * @param {...Array<Children>} [children]
+ * @param {...Array<Children>} children
  * @return {DeltaBuilder<{
  *   name: NodeName,
  *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
@@ -2159,7 +2110,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
 /**
  * @template {Array<any>|string} [Children=never]
  * @overload
- * @param {...Array<Children>} [children]
+ * @param {...Array<Children>} children
  * @return {DeltaBuilder<{
  *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
  *   text: Extract<Children,string> extends never ? false : true
@@ -2170,7 +2121,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @template {Array<any>|string} [Children=never]
  * @overload
  * @param {Attrs} attrs
- * @param {...Array<Children>} [children]
+ * @param {...Array<Children>} children
  * @return {DeltaBuilder<{
  *   attrs: Attrs extends null ? {} : Attrs,
  *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
@@ -2184,7 +2135,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @overload
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
- * @param {...Array<Children>} [children]
+ * @param {...Array<Children>} children
  * @return {DeltaBuilder<{
  *   name: NodeName,
  *   attrs: Attrs extends null ? {} : Attrs,

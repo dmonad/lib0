@@ -7,7 +7,6 @@
 import * as obj from './object.js'
 import * as arr from './array.js'
 import * as error from './error.js'
-import * as env from './environment.js'
 import * as equalityTraits from './trait/equality.js'
 import * as fun from './function.js'
 import * as string from './string.js'
@@ -871,7 +870,7 @@ export class $Union extends Schema {
 /**
  * @template {Array<any>} T
  * @param {T} schemas
- * @return {CastToSchema<$Union<Unwrap<ReadSchema<T>>>>}
+ * @return {CastToSchema<$Union<ReadSchemaUnwrapped<T>>>}
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0
@@ -941,7 +940,6 @@ export const $$uint8Array = /** @type {Schema<Schema<Uint8Array>>} */ ($construc
 export const $promise = $constructedBy(Promise)
 export const $$promise = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Promise))
 
-
 /**
  * @type {Schema<Primitive>}
  */
@@ -968,34 +966,26 @@ export const $json = /* @__PURE__ */(() => {
 
 /**
  * @template {any} IN
- * @typedef {IN extends Schema<any> ? IN
- *   : (IN extends string|number|boolean|null ? Schema<IN>
- *     : (IN extends new (...args:any[])=>any ? Schema<InstanceType<IN>>
- *       : (IN extends any[] ? Schema<{ [K in keyof IN]: Unwrap<ReadSchema<IN[K]>> }[number]>
-   *       : (IN extends object ? _ObjectDefToSchema<{[K in keyof IN]:ReadSchema<IN[K]>}> : never)
- *         )
- *       )
- *     )
- * } ReadSchemaOld
+ * @typedef {[Extract<IN,Schema<any>>,Extract<IN,string|number|boolean|null>,Extract<IN,new (...args:any[])=>any>,Extract<IN,any[]>,Extract<Exclude<IN,Schema<any>|string|number|boolean|null|(new (...args:any[])=>any)|any[]>,object>] extends [infer Schemas, infer Primitives, infer Constructors, infer Arrs, infer Obj]
+ *   ? (
+ *     (Schemas extends Schema<infer S> ? S : never)
+ *     | Primitives
+ *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
+ *     | (Arrs extends any[] ? { [K in keyof Arrs]: ReadSchemaUnwrapped<Arrs[K]> }[keyof Arrs & number] : never)
+ *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]:Schema<ReadSchemaUnwrapped<Obj[K]>>}> : never))
+ *   : never
+ * } ReadSchemaUnwrapped
  */
 
 /**
  * @template {any} IN
- * @typedef {[Extract<IN,Schema<any>>,Extract<IN,string|number|boolean|null>,Extract<IN,new (...args:any[])=>any>,Extract<IN,any[]>,Extract<Exclude<IN,Schema<any>|string|number|boolean|null|(new (...args:any[])=>any)|any[]>,object>] extends [infer Schemas, infer Primitives, infer Constructors, infer Arrs, infer Obj]
- *   ? Schema<
- *       (Schemas extends Schema<infer S> ? S : never)
- *     | Primitives
- *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
- *     | (Arrs extends any[] ? { [K in keyof Arrs]: Unwrap<ReadSchema<Arrs[K]>> }[number] : never)
- *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]:ReadSchema<Obj[K]>}> : never)>
- *   : never
- * } ReadSchema
+ * @typedef {Schema<ReadSchemaUnwrapped<IN>>} ReadSchema
  */
 
 /**
  * @template IN
  * @param {IN} o
- * @return {ReadSchema<IN>}
+ * @return {Schema<import('./ts.js').TypeIsAny<IN,any,ReadSchemaUnwrapped<IN>>>}
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $ = o => {
@@ -1072,8 +1062,8 @@ export class PatternMatcher {
    * @template P
    * @template R
    * @param {P} pattern
-   * @param {(o:NoInfer<Unwrap<ReadSchema<P>>>,s:State)=>R} handler
-   * @return {PatternMatcher<State,Patterns|Pattern<Unwrap<ReadSchema<P>>,R>>}
+   * @param {(o:NoInfer<ReadSchemaUnwrapped<P>>,s:State)=>R} handler
+   * @return {PatternMatcher<State,Patterns|Pattern<ReadSchema<P>,R>>}
    */
   if (pattern, handler) {
     // @ts-ignore
@@ -1122,7 +1112,7 @@ export class PatternMatcher {
 /**
  * @template [State=undefined]
  * @param {State} [state]
- * @return {PatternMatcher<State extends undefined ? undefined : Unwrap<ReadSchema<State>>>}
+ * @return {PatternMatcher<State extends undefined ? undefined : ReadSchemaUnwrapped<State>>}
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const match = state => new PatternMatcher(/** @type {any} */ (state))
@@ -1164,14 +1154,14 @@ const _random = /** @type {any} */ /* @__PURE__ */(() => match(/** @type {Schema
   .if($$literal, (o, gen) => {
     return prng.oneOf(gen, o.shape)
   })
-  .if($$null, (o, gen) => {
+  .if($$null, (_o, _gen) => {
     return null
   })
   .if($$lambda, (o, gen) => {
     const res = random(gen, o.res)
     return () => res
   })
-  .if($$any, (o, gen) => random(gen, prng.oneOf(gen, [
+  .if($$any, (_o, gen) => random(gen, prng.oneOf(gen, [
     $number, $string, $null, $undefined, $bigint, $boolean,
     $array($number),
     $record($union('a', 'b', 'c'), $number)
@@ -1195,7 +1185,7 @@ const _random = /** @type {any} */ /* @__PURE__ */(() => match(/** @type {Schema
  * @template S
  * @param {prng.PRNG} gen
  * @param {S} schema
- * @return {Unwrap<ReadSchema<S>>}
+ * @return {ReadSchemaUnwrapped<S>}
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const random = (gen, schema) => /** @type {any} */ (/* @__PURE__ */_random($(schema), gen))
