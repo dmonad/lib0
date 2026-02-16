@@ -791,3 +791,24 @@ export const testDeltaTypings = () => {
 /**
  * @typedef {IsDeltaOpAny<delta.DeleteOp<{text:true}>>} DeltaOpTestAnyDeleteOp2
  */
+
+/**
+ * @template {delta.DeltaConf} DConf
+ * @param {t.TestCase} tc
+ * @param {delta.$Delta<DConf>} $s
+ * @param {delta.$Delta<DConf>} $change
+ */
+const testDeltaDiff = (tc, $s, $change) => {
+  const start = delta.random(tc.prng, $s).done()
+  const change = delta.create($change)//.retain(prng.int32(tc.prng, 0, start.childCnt)) //.append(delta.random(tc.prng, $change).done()).done()
+  const final = delta.clone(start).apply(change)
+  const x = start.copy().apply(change)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaDiff = tc => {
+
+}
+

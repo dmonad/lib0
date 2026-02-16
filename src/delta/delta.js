@@ -968,7 +968,7 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
 /**
  * @template {DeltaConf} D1
  * @template D2
- * @typedef {(import('../ts.js').TypeIsAny<D1, any, PrettifyDeltaConf<{[K in (keyof D1|keyof D2)]: K extends keyof D2 ? D2[K] : (K extends keyof D1 ? D1[K] : never)}>> & {}) extends infer DC ? (DC extends DeltaConf ? DC : never) : never} DeltaConfOverwrite
+ * @typedef {(import('../ts.js').TypeIsAny<D1, any, PrettifyDeltaConf<{[K in (keyof D1|keyof D2)]: K extends keyof D2 ? D2[K] : (K extends keyof D1 ? D1[K] : never)}>> & {}) extends infer DC extends DeltaConf ? DC : never} DeltaConfOverwrite
  */
 
 /**

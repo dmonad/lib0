@@ -400,10 +400,12 @@ export const $$literal = $constructedBy($Literal)
  * @param {string} str
  * @return {string}
  */
+/* c8 ignore start - else should be ignored */
 /* @__NO_SIDE_EFFECTS__ */
-const _regexEscape = (() =>/** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (str =>
-  str.replace(/[().|&,$^[\]]/g, s => '\\' + s))
+const _regexEscape = (() =>/** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (
+  str => str.replace(/[().|&,$^[\]]/g, s => '\\' + s))
 )()
+/* c8 ignore stop */
 
 /**
  * @param {string|Schema<any>} s

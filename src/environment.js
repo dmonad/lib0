@@ -84,14 +84,13 @@ export const hasParam = (name) => computeParams().has(name)
  */
 /* c8 ignore next 2 */
 /* @__NO_SIDE_EFFECTS__ */
-export const getParam = (name, defaultVal) =>
-  computeParams().get(name) || defaultVal
+export const getParam = (name, defaultVal) => computeParams().get(name) || defaultVal
 
 /**
  * @param {string} name
  * @return {string|null}
  */
-/* c8 ignore next 4 */
+/* c8 ignore next 5 */
 /* @__NO_SIDE_EFFECTS__ */
 export const getVariable = (name) =>
   isNode

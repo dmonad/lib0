@@ -97,7 +97,7 @@ runTests({
   // deltaBinding,
   mutex
 }).then(success => {
-  /* c8 ignore next */
+  /* c8 ignore next 3 */
   if (isNode) {
     process.exit(success ? 0 : 1)
   }
