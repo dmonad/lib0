@@ -317,7 +317,7 @@ export class InsertOp extends list.ListNode {
 }
 
 /**
- * @template {DeltaConf} [DConf={}]
+ * @template {DeltaConf} [Conf={}]
  */
 export class DeleteOp extends list.ListNode {
   /**
@@ -327,7 +327,7 @@ export class DeleteOp extends list.ListNode {
     super()
     this.delete = len
     /**
-     * @type {Delta<DConf>?}
+     * @type {Delta<Conf>?}
      */
     this.prevValue = null
     /**
@@ -903,66 +903,62 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  * @property {fingerprintTrait.Fingerprintable} [DeltaConf.children=never]
  * @property {boolean} [DeltaConf.text=never]
  * @property {{[K:string|number]:fingerprintTrait.Fingerprintable}} [DeltaConf.attrs={}]
- * @property {boolean} [DeltaConf.fixed=never]
  * @property {boolean} [DeltaConf.recursiveChildren=false]
  * @property {boolean} [DeltaConf.recursiveAttrs=false]
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {DConf extends {name:infer Name} ? (unknown extends Name ? any : (Exclude<Name,undefined>)) : any} DeltaConfGetName
+ * @template {DeltaConf} Conf
+ * @typedef {Conf extends {name:infer Name} ? (unknown extends Name ? any : (Exclude<Name,undefined>)) : any} DeltaConfGetName
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {(DConf extends {children:infer Children} ? (unknown extends Children ? any : Children) : never) | (DConf extends {recursiveChildren:true} ? Delta<DConf> : never)} DeltaConfGetChildren
+ * @template {DeltaConf} Conf
+ * @typedef {(Conf extends {children:infer Children} ? (unknown extends Children ? any : Children) : never) | (Conf extends {recursiveChildren:true} ? Delta<Conf> : never)} DeltaConfGetChildren
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {DConf extends {fixed:true} ? DeltaConfGetChildren<DConf> : any } DeltaConfGetAllowedChildren
+ * @template {DeltaConf} Conf
+ * @template {boolean} FixedConf
+ * @typedef {FixedConf extends true ? DeltaConfGetChildren<Conf> : any } DeltaConfGetAllowedChildren
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {0 extends (1 & DConf) ? string : (DConf extends {text:true} ? string : never)} DeltaConfGetText
+ * @template {DeltaConf} Conf
+ * @typedef {0 extends (1 & Conf) ? string : (Conf extends {text:true} ? string : never)} DeltaConfGetText
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {import('../ts.js').TypeIsAny<DConf, {[K:string|number]:any}, (DConf extends {attrs:infer Attrs} ? (Attrs extends undefined ? {} : Attrs) : {})>} DeltaConfGetAttrs
+ * @template {DeltaConf} Conf
+ * @typedef {import('../ts.js').TypeIsAny<Conf, {[K:string|number]:any}, (Conf extends {attrs:infer Attrs} ? (Attrs extends undefined ? {} : Attrs) : {})>} DeltaConfGetAttrs
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {DConf extends {fixed:true} ? DeltaConfGetAttrs<DConf> : {[K:string|number]:any}} DeltaConfGetAllowedAttrs
+ * @template {DeltaConf} Conf
+ * @template {boolean} FixedConf
+ * @typedef {FixedConf extends true ? DeltaConfGetAttrs<Conf> : {[K:string|number]:any}} DeltaConfGetAllowedAttrs
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {0 extends (1 & DConf) ? true : (DConf extends { fixed: true } ? true : false)} DeltaConfGetFixed
+ * @template {DeltaConf} Conf
+ * @typedef {Conf extends {recursiveChildren:true} ? true : false} DeltaConfGetRecursiveChildren
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {DConf extends {recursiveChildren:true} ? true : false} DeltaConfGetRecursiveChildren
- */
-
-/**
- * @template {DeltaConf} DConf
- * @typedef {DConf extends {recursiveAttrs:true} ? true : false} DeltaConfigGetRecursiveAttrs
+ * @template {DeltaConf} Conf
+ * @typedef {Conf extends {recursiveAttrs:true} ? true : false} DeltaConfigGetRecursiveAttrs
  */
 
 /**
  * Transform Delta(Builder) to a normal delta.
  *
  * @template V
- * @typedef {V extends never ? never : (import('../ts.js').TypeIsAny<V,any,V extends Delta<infer DConf> ? Delta<DConf> : V>)} _SanifyDelta
+ * @typedef {V extends never ? never : (import('../ts.js').TypeIsAny<V,any,V extends Delta<infer Conf> ? Delta<Conf> : V>)} _SanifyDelta
  */
 
 /**
- * @template {DeltaConf} DConf
- * @typedef {import('../ts.js').Prettify<{[K in keyof DConf]: K extends 'attrs' ? import('../ts.js').Prettify<{ [KA in keyof DConf[K]]: _SanifyDelta<DConf[K][KA]> },1> : (K extends 'children' ? _SanifyDelta<DConf[K]> : DConf[K]) }, 1>} PrettifyDeltaConf
+ * @template {DeltaConf} Conf
+ * @typedef {import('../ts.js').Prettify<{[K in keyof Conf]: K extends 'attrs' ? import('../ts.js').Prettify<{ [KA in keyof Conf[K]]: _SanifyDelta<Conf[K][KA]> },1> : (K extends 'children' ? _SanifyDelta<Conf[K]> : Conf[K]) }, 1>} PrettifyDeltaConf
  */
 
 /**
@@ -1019,12 +1015,12 @@ class DeltaData {
 }
 
 /**
- * @template {DeltaConf} [DConf={}]
+ * @template {DeltaConf} [Conf={}]
  * @extends {DeltaData<
- *   DeltaConfGetName<DConf>,
- *   DeltaConfGetAttrs<DConf>,
- *   DeltaConfGetChildren<DConf>,
- *   DConf extends {text:true} ? true : false
+ *   DeltaConfGetName<Conf>,
+ *   DeltaConfGetAttrs<Conf>,
+ *   DeltaConfGetChildren<Conf>,
+ *   Conf extends {text:true} ? true : false
  * >}
  */
 export class Delta extends DeltaData {
@@ -1137,7 +1133,7 @@ export class Delta extends DeltaData {
    * formats&attributions). In the future, there might be additional merge operations that can be
    * performed to result in smaller deltas. Set `markAsDone=false` to only perform the cleanup.
    *
-   * @return {Delta<DConf>}
+   * @return {Delta<Conf>}
    */
   done (markAsDone = true) {
     if (!this.isDone) {
@@ -1153,12 +1149,12 @@ export class Delta extends DeltaData {
 }
 
 /**
- * @template {DeltaConf} DConf
- * @param {Delta<DConf>} d
+ * @template {DeltaConf} Conf
+ * @param {Delta<Conf>} d
  * @param {number} start
  * @param {number} end
  * @param {ChildrenOpAny?} currNode - start slicing at this node (instead of d.children.start)
- * @return {DeltaBuilder<DConf>}
+ * @return {DeltaBuilder<Conf>}
  */
 export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.start) => {
   const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(d.name, d.$schema))
@@ -1204,7 +1200,7 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
 /**
  * @template {DeltaAny} D
  * @param {D} d
- * @return {D extends Delta<infer DConf> ? DeltaBuilder<DConf> : never}
+ * @return {D extends Delta<infer Conf> ? DeltaBuilder<Conf> : never}
  */
 export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
 
@@ -1256,13 +1252,14 @@ const modDeltaCheck = d => {
 }
 
 /**
- * @template {DeltaConf} [DConf={}]
- * @extends {Delta<DConf>}
+ * @template {DeltaConf} [Conf={}]
+ * @template {boolean} [FixedConf=false]
+ * @extends {Delta<Conf>}
  */
 export class DeltaBuilder extends Delta {
   /**
    * @param {string?} name
-   * @param {s.Schema<Delta<DConf>>?} $schema
+   * @param {s.Schema<Delta<Conf>>?} $schema
    */
   constructor (name, $schema) {
     super(name, $schema)
@@ -1335,14 +1332,14 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {(DConf extends {fixed:true} ? never : (Array<any>|string)) | (DeltaConfGetChildren<DConf> extends infer Children ? (Children extends never ? never : Array<Children>) : never) | DeltaConfGetText<DConf>} NewContent
+   * @template {(FixedConf extends true ? never : (Array<any>|string)) | (DeltaConfGetChildren<Conf> extends infer Children ? (Children extends never ? never : Array<Children>) : never) | DeltaConfGetText<Conf>} NewContent
    * @param {NewContent} insert
    * @param {FormattingAttributes?} [formatting]
    * @param {Attribution?} [attribution]
-   * @return {DeltaBuilder<DConf extends {fixed: true} ? DConf : DeltaConfOverwrite<DConf,
+   * @return {DeltaBuilder<FixedConf extends true ? Conf : DeltaConfOverwrite<Conf,
    * (Exclude<NewContent,string> extends never ? {} : {
-   *   children: Exclude<NewContent,string>[number]|DeltaConfGetChildren<DConf>
-   * }) & (Extract<NewContent,string> extends never ? {} : { text: true })>>}
+   *   children: Exclude<NewContent,string>[number]|DeltaConfGetChildren<Conf>
+   * }) & (Extract<NewContent,string> extends never ? {} : { text: true })>, FixedConf>}
    */
   insert (insert, formatting = null, attribution = null) {
     modDeltaCheck(this)
@@ -1374,11 +1371,11 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {Extract<DeltaConfGetAllowedChildren<DConf>,Delta>} NewContent
+   * @template {Extract<DeltaConfGetAllowedChildren<Conf, FixedConf>,Delta>} NewContent
    * @param {NewContent} modify
    * @param {FormattingAttributes?} formatting
    * @param {Attribution?} attribution
-   * @return {DeltaBuilder<DeltaConfOverwrite<DConf, {children: DeltaConfGetChildren<DConf>|NewContent}>>}
+   * @return {DeltaBuilder<DeltaConfOverwrite<Conf, {children: DeltaConfGetChildren<Conf>|NewContent}>, FixedConf>}
    */
   modify (modify, formatting = null, attribution = null) {
     modDeltaCheck(this)
@@ -1425,13 +1422,13 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {Extract<keyof DeltaConfGetAllowedAttrs<DConf>,string|number>} Key
-   * @template {DeltaConfGetAllowedAttrs<DConf>[Key]} Val
+   * @template {Extract<keyof DeltaConfGetAllowedAttrs<Conf, FixedConf>,string|number>} Key
+   * @template {DeltaConfGetAllowedAttrs<Conf, FixedConf>[Key]} Val
    * @param {Key} key
    * @param {Val} val
    * @param {Attribution?} attribution
    * @param {Val|undefined} [prevValue]
-   * @return {DeltaBuilder<DeltaConfOverwrite<DConf,{attrs:AddToAttrs<DeltaConfGetAttrs<DConf>,Key,Val>}>>}
+   * @return {DeltaBuilder<DeltaConfOverwrite<Conf,{attrs:AddToAttrs<DeltaConfGetAttrs<Conf>,Key,Val>}>, FixedConf>}
    */
   setAttr (key, val, attribution = null, prevValue) {
     modDeltaCheck(this)
@@ -1442,13 +1439,13 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {DeltaConfGetAllowedAttrs<DConf>} NewAttrs
+   * @template {DeltaConfGetAllowedAttrs<Conf, FixedConf>} NewAttrs
    * @param {NewAttrs} attrs
    * @param {Attribution?} attribution
    * @return {DeltaBuilder<DeltaConfOverwrite<
-   *   DConf,
-   *   { attrs: MergeAttrs<DeltaConfGetAttrs<DConf>,NewAttrs> }
-   *   >>
+   *   Conf,
+   *   { attrs: MergeAttrs<DeltaConfGetAttrs<Conf>,NewAttrs> }
+   *   >, FixedConf>
    * }
    */
   setAttrs (attrs, attribution = null) {
@@ -1460,13 +1457,13 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {Extract<keyof DeltaConfGetAllowedAttrs<DConf>,string|number>} Key
+   * @template {Extract<keyof DeltaConfGetAllowedAttrs<Conf, FixedConf>,string|number>} Key
    * @param {Key} key
    * @param {Attribution?} attribution
    * @param {any} [prevValue]
-   * @return {DeltaBuilder<DeltaConfOverwrite<DConf, {
-   *   attrs: AddToAttrs<DeltaConfGetAttrs<DConf>,Key,never>
-   * }>>}
+   * @return {DeltaBuilder<DeltaConfOverwrite<Conf, {
+   *   attrs: AddToAttrs<DeltaConfGetAttrs<Conf>,Key,never>
+   * }>, FixedConf>}
    */
   deleteAttr (key, attribution = null, prevValue) {
     modDeltaCheck(this)
@@ -1477,11 +1474,11 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {DeltaConfGetAllowedAttrs<DConf> extends infer As ? { [K in keyof As]: Extract<As[K],DeltaAny> extends never ? never : K }[keyof As] : never} Key
-   * @template {Extract<DeltaConfGetAllowedAttrs<DConf>[Key],DeltaAny>} D
+   * @template {DeltaConfGetAllowedAttrs<Conf, FixedConf> extends infer As ? { [K in keyof As]: Extract<As[K],DeltaAny> extends never ? never : K }[keyof As] : never} Key
+   * @template {Extract<DeltaConfGetAllowedAttrs<Conf, FixedConf>[Key],DeltaAny>} D
    * @param {Key} key
    * @param {D} modify
-   * @return {DeltaBuilder<DeltaConfOverwrite<DConf,{attrs:AddToAttrs<DeltaConfGetAttrs<DConf>,Key,D>}>>}
+   * @return {DeltaBuilder<DeltaConfOverwrite<Conf,{attrs:AddToAttrs<DeltaConfGetAttrs<Conf>,Key,D>}>, FixedConf>}
    */
   modifyAttr (key, modify) {
     modDeltaCheck(this)
@@ -1490,7 +1487,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @param {Delta<DConf>} other
+   * @param {Delta<Conf>} other
    */
   apply (other) {
     modDeltaCheck(this)
@@ -1848,15 +1845,13 @@ export class DeltaBuilder extends Delta {
    *
    *     delta.create().insert('a').append(delta.create().insert('b')) // => insert "ab"
    *
-   * @todo on fixed deltas this should not extend
-   *
    * @template {DeltaConf} OtherDeltaConf
    * @param {Delta<OtherDeltaConf>} other
-   * @return {DeltaBuilder<DeltaConfOverwrite<
-   *   DConf,
-   *   (DeltaConfGetChildren<OtherDeltaConf> extends never ? {} : { children: DeltaConfGetChildren<DConf> | DeltaConfGetChildren<OtherDeltaConf> })
+   * @return {DeltaBuilder<FixedConf extends true ? Conf : DeltaConfOverwrite<
+   *   Conf,
+   *   (DeltaConfGetChildren<OtherDeltaConf> extends never ? {} : { children: DeltaConfGetChildren<Conf> | DeltaConfGetChildren<OtherDeltaConf> })
    *   & (DeltaConfGetText<OtherDeltaConf> extends string ? { text: true } : never)
-   * >>}
+   * >, FixedConf>}
    */
   append (other) {
     const children = this.children
@@ -1894,8 +1889,8 @@ const updateOpFormat = (op, formatUpdate) => {
 }
 
 /**
- * @template {DeltaConf} DConf
- * @extends {s.Schema<Delta<DConf>>}
+ * @template {DeltaConf} Conf
+ * @extends {s.Schema<Delta<Conf>>}
  */
 export class $Delta extends s.Schema {
   /**
@@ -1915,11 +1910,11 @@ export class $Delta extends s.Schema {
     }
     /**
      * @type {{
-     *   $name: s.Schema<DeltaConfGetName<DConf>>,
-     *   $attrs: s.Schema<DeltaConfGetAttrs<DConf>>,
-     *   $children: s.Schema<DeltaConfGetChildren<DConf>>,
-     *   hasText: DeltaConfGetText<DConf>
-     *   recursiveChildren: DeltaConfGetRecursiveChildren<DConf>,
+     *   $name: s.Schema<DeltaConfGetName<Conf>>,
+     *   $attrs: s.Schema<DeltaConfGetAttrs<Conf>>,
+     *   $children: s.Schema<DeltaConfGetChildren<Conf>>,
+     *   hasText: DeltaConfGetText<Conf>
+     *   recursiveChildren: DeltaConfGetRecursiveChildren<Conf>,
      *   $formats: s.Schema<{[K:string]:any}>
      * }}
      */
@@ -1929,7 +1924,7 @@ export class $Delta extends s.Schema {
   /**
    * @param {any} o
    * @param {s.ValidationError} [err]
-   * @return {o is Delta<DConf>}
+   * @return {o is Delta<Conf>}
    */
   check (o, err = undefined) {
     const { $name, $attrs, $children, hasText, $formats } = this.shape
@@ -2011,10 +2006,10 @@ export const mergeDeltas = (a, b) => {
 }
 
 /**
- * @template {DeltaConf} DConf
+ * @template {DeltaConf} Conf
  * @param {prng.PRNG} gen
- * @param {s.Schema<Delta<DConf>>} $d
- * @return {DeltaBuilder<DConf>}
+ * @param {s.Schema<Delta<Conf>>} $d
+ * @return {DeltaBuilder<Conf>}
  */
 export const random = (gen, $d) => {
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any>} */ (/** @type {any} */ ($d)).shape
@@ -2051,17 +2046,17 @@ export const random = (gen, $d) => {
  */
 /**
  * @template {string} NodeName
- * @template {DeltaConf} DConf
+ * @template {DeltaConf} Conf
  * @overload
  * @param {NodeName} nodeName
- * @param {s.Schema<Delta<DConf>>} schema
- * @return {DeltaBuilder<DeltaConfOverwrite<DConf, {fixed:true}>>}
+ * @param {s.Schema<Delta<Conf>>} schema
+ * @return {DeltaBuilder<Conf, true>}
  */
 /**
  * @template {s.Schema<DeltaAny>} Schema
  * @overload
  * @param {Schema} schema
- * @return {Schema extends s.Schema<Delta<infer DConf>> ? DeltaBuilder<DeltaConfOverwrite<DConf, {fixed:true}>> : never}
+ * @return {Schema extends s.Schema<Delta<infer Conf>> ? DeltaBuilder<Conf, true> : never}
  */
 /**
  * @template {string|null} NodeName
@@ -2161,10 +2156,10 @@ export const from = (...args) => {
 }
 
 /**
- * @template {DeltaConf} DConf
- * @param {Delta<DConf>} d1
- * @param {NoInfer<Delta<DConf>>} d2
- * @return {DeltaBuilder<DConf>}
+ * @template {DeltaConf} Conf
+ * @param {Delta<Conf>} d1
+ * @param {NoInfer<Delta<Conf>>} d2
+ * @return {DeltaBuilder<Conf>}
  */
 export const diff = (d1, d2) => {
   /**

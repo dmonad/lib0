@@ -793,22 +793,26 @@ export const testDeltaTypings = () => {
  */
 
 /**
- * @template {delta.DeltaConf} DConf
+ * @template {delta.DeltaConf} Conf
  * @param {t.TestCase} tc
- * @param {delta.$Delta<DConf>} $s
- * @param {delta.$Delta<DConf>} $change
+ * @param {s.Schema<delta.Delta<Conf>>} $d
  */
-const testDeltaDiff = (tc, $s, $change) => {
-  const start = delta.random(tc.prng, $s).done()
-  const change = delta.create($change)//.retain(prng.int32(tc.prng, 0, start.childCnt)) //.append(delta.random(tc.prng, $change).done()).done()
+const testDeltaDiff = (tc, $d) => {
+  const start = delta.random(tc.prng, $d).done()
+  const change = delta.create($d).retain(prng.int32(tc.prng, 0, start.childCnt)).append(delta.random(tc.prng, $d).done()).done()
   const final = delta.clone(start).apply(change)
-  const x = start.copy().apply(change)
+  const d = delta.diff(start, final)
+  console.log(JSON.stringify({
+    d: d.toJSON(),
+    change: change.toJSON()
+  }))
+  t.compare(d, change, 'diff should be equal to the change')
 }
 
 /**
  * @param {t.TestCase} tc
  */
 export const testRepeatRandomTextDeltaDiff = tc => {
-
+  // @todo continue testing diff here
+  testDeltaDiff(tc, delta.$delta({ text: true }))
 }
-
