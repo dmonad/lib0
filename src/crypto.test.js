@@ -31,11 +31,11 @@ export const testJwt = async _tc => {
     sub: '1234567890',
     name: 'John Doe',
     iat: 1516239022,
-    exp: time.getUnixTime() - 10
+    exp: time.getUnixTimeInSeconds() - 10
   }
   const jwtExpired = await jose.encodeJwt(privateKey, payloadExpired)
   jose.unsafeDecode(jwtExpired)
-  t.failsAsync(async () => {
+  await t.failsAsync(async () => {
     await jose.verifyJwt(publicKey, jwtExpired)
   })
 }
@@ -82,7 +82,7 @@ export const testEncryption = async tc => {
 /**
  * @param {t.TestCase} tc
  */
-export const testReapeatEncryption = async tc => {
+export const testRepeatEncryption = async tc => {
   const secret = prng.word(tc.prng, 1, 30)
   const salt = prng.word(tc.prng)
   const data = prng.uint8Array(tc.prng, 1000000)

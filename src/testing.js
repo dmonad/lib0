@@ -58,6 +58,7 @@ import * as time from './time.js'
 import * as promise from './promise.js'
 import * as performance from 'lib0/performance'
 import * as equalityTrait from './trait/equality.js'
+import * as error from './error.js'
 
 export { production } from './environment.js'
 export const extensive = env.hasConf('extensive')
@@ -570,7 +571,7 @@ export const failsAsync = async f => {
     log.print(log.GREEN, '⇖ This Error was expected')
     return
   }
-  fail('Expected this to fail')
+  return promise.reject(new Error('Expected this to fail'))
 }
 
 /**
