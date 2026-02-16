@@ -1033,12 +1033,6 @@ export const assert = (o, schema) => {
  * @typedef {{ if: Schema<In>, h: (o:In,state?:any)=>Out }} Pattern
  */
 
-/**
- * @template {Pattern<any,any>} P
- * @template In
- * @typedef {ReturnType<Extract<P,Pattern<In extends number ? number : (In extends string ? string : In),any>>['h']>} PatternMatchResult
- */
-
 const unhandledPatternError = 'Unhandled pattern'
 
 /**
@@ -1063,7 +1057,7 @@ export class PatternMatcher {
    * @template R
    * @param {P} pattern
    * @param {(o:NoInfer<ReadSchemaUnwrapped<P>>,s:State)=>R} handler
-   * @return {PatternMatcher<State,Patterns|Pattern<ReadSchema<P>,R>>}
+   * @return {PatternMatcher<State,Patterns|Pattern<ReadSchemaUnwrapped<P>,R>>}
    */
   if (pattern, handler) {
     // @ts-ignore
@@ -1090,9 +1084,9 @@ export class PatternMatcher {
   }
 
   /**
-   * @return {State extends undefined
-   *   ? <In extends Unwrap<Patterns['if']>>(o:In,state?:undefined)=>PatternMatchResult<Patterns,In>
-   *   : <In extends Unwrap<Patterns['if']>>(o:In,state:State)=>PatternMatchResult<Patterns,In>}
+   * @return {(
+   *     Patterns extends Pattern<infer In, infer Out> ? (k: State extends undefined ? (o: In) => Out : (o: In, state: State) => Out) => void : never
+   *   ) extends (k: infer I) => void ? I : never}
    */
   done () {
     // @ts-ignore
