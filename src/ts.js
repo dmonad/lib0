@@ -40,7 +40,16 @@
 
 /**
  * For each key-value pair in Renames, rename O[Key] to O[Renames[Key]]
- * @template {{[K in string|number]:any}} O
+ * @template {{[K in string|number]:any}} OBJ
  * @template {{[K:string|number]:string|number}} Renames - pairs of renames
- * @typedef {{[K in keyof O as K extends keyof Renames ? Renames[K] : K]: O[K]}} RenameProps
+ * @typedef {{[K in keyof OBJ as K extends keyof Renames ? Renames[K] : K extends Renames[keyof Renames] ? never : K]: OBJ[K]}} PropsRename
+ */
+
+/**
+ * Merge two objects, keeping only keys present in both with intersected value types.
+ * e.g. IntersectObjects<{a:string,b:string|number},{b:string,c:number}> = {b:string}
+ *
+ * @template A
+ * @template B
+ * @typedef {{[K in keyof A & keyof B]: Extract<B[K], A[K]>} & {}} PropsPickShared
  */

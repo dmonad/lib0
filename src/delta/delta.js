@@ -1957,13 +1957,11 @@ export class $Delta extends s.Schema {
  * @param {HasText} [opts.text] Whether this delta contains text using `textOp`
  * @param {Formats} [opts.formats]
  * @param {RecursiveChildren} [opts.recursiveChildren]
- * @return {[s.ReadSchemaUnwrapped<NodeNameSchema>,s.ReadSchemaUnwrapped<AttrsSchema>,s.ReadSchemaUnwrapped<ChildrenSchema>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<{
- *   name: NodeName,
- *   attrs: Attrs,
- *   children: Children,
- *   text: HasText,
- *   recursiveChildren: RecursiveChildren
- * } extends infer DC ? (DC extends DeltaConf ? DC : never) : never>> : never}
+ * @return {[s.ReadSchemaUnwrapped<NodeNameSchema>,s.ReadSchemaUnwrapped<AttrsSchema>,s.ReadSchemaUnwrapped<ChildrenSchema>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<PrettifyDeltaConf<(import('../ts.js').TypeIsAny<NodeName, {}, { name: NodeName }> &
+ *   ({} extends Attrs ? {} : { attrs: Attrs }) &
+ *   ([Children] extends [never] ? {} : { children: Children }) &
+ *   (HasText extends false ? {} : { text: HasText }) &
+ *   (RecursiveChildren extends false ? {} : { recursiveChildren: RecursiveChildren })) extends infer DC extends DeltaConf ? DC : never>>> : never}
  */
 export const $delta = ({ name, attrs, children, text, formats, recursiveChildren: recursive }) => /** @type {any} */ (new $Delta(
   /** @type {any} */ (name == null ? s.$any : s.$(name)),
