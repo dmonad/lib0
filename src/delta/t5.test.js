@@ -93,7 +93,7 @@ export class Transformer {
  * @template {delta.DeltaConf} IN
  * @typedef {EnsureDeltaConf<
  *     T extends AttrRename<infer Renames> ? ApplyAttrRename<Renames,IN> :
- *     T extends ExpectType<infer DConf extends delta.DeltaConf> ? ApplyExpectType<DConf,IN> :
+ *     T extends Filter<infer DConf extends delta.DeltaConf> ? ApplyExpectType<DConf,IN> :
  *     IN
  * >} ApplyTemplate
  */
@@ -120,10 +120,6 @@ export class Transformer {
 const renameAttrs = (d, renames, revRenames) => {
   if (d == null) return createTransformResult(null, null)
   const forwardTransform = delta.clone(d)
-  /**
-   * @type {delta.DeltaBuilderAny?}
-   */
-  let backwardTransform = null
   for (const attr of forwardTransform.attrs) {
     const key = attr.key
     const r = renames[key]
@@ -133,13 +129,14 @@ const renameAttrs = (d, renames, revRenames) => {
       forwardTransform.attrs[r] = attr
       // delete original
       delete forwardTransform.attrs[key]
+      // @ts-ignore
+      attr.key = r
     } else if (rv != null) {
       // used in a rename, delete original
       delete forwardTransform.attrs[key]
-      ;(backwardTransform ?? (backwardTransform = delta.create())).deleteAttr(key)
     }
   }
-  return createTransformResult(backwardTransform, forwardTransform)
+  return createTransformResult(null, forwardTransform)
 }
 
 /**
@@ -194,15 +191,17 @@ export class AttrRename {
  * @template {delta.DeltaConf} DConf
  * @implements Template
  */
-export class ExpectType {
+export class Filter {
   /**
-   * @param {s.Schema<delta.Delta<DConf>>} dconf
+   * @param {s.Schema<delta.Delta<DConf>>} $d
    */
-  constructor (dconf) {
-    this.dconf = dconf
+  constructor ($d) {
+    s.assert($d, delta.$$delta)
+    this.$d = $d
+    this.$dshape = $d.shape
   }
 
-  get stateless () { return true }
+  get stateless () { return false }
 
   /**
    * @template {delta.DeltaConf} IN
@@ -210,13 +209,53 @@ export class ExpectType {
    * @return {Transformer<IN,ApplyExpectType<DConf, IN>>}
    */
   init ($d) {
-    return this
+    return new FilterTransformer(this.$d)
+  }
+}
+
+/**
+ * @template {delta.DeltaConf} IN
+ * @template {delta.DeltaConf} OUT
+ * @template {delta.DeltaConf} DConf
+ * @implements Transformer<IN,OUT>
+ */
+export class FilterTransformer {
+  /**
+   * @param {delta.$Delta<DConf>} $d
+   */
+  constructor ($d) {
+    this.$dshape = $d.shape
+    this.filter = delta.create(delta.$delta({ children: s.$any }))
+    /**
+     * @type {delta.DeltaAny}
+     */
+    this.dreversed = delta.create()
   }
 
   /**
    * @param {delta.DeltaAny} deltaA
    */
   applyA (deltaA) {
+    const $attrs = this.$dshape.$attrs
+    const dtrans = delta.clone(deltaA)
+    /**
+     * @type {delta.DeltaBuilderAny}
+     */
+    const drev = delta.create()
+    for (const entry of dtrans.attrs) {
+      if (delta.$setAttrOp.check(entry) || delta.$modifyOp.check(entry)) {
+        if (!$attrs.check({ [entry.key]: entry.value })) {
+          delete dtrans.attrs[entry.key]
+          drev.deleteAttr(entry.key, null)
+        } else {
+          // @ts-ignore
+          drev.attrs[entry.key] = entry.clone()
+        }
+      } else if (delta.$deleteAttrOp.check(this.dreversed.attrs[entry.key])) {
+        delete dtrans.attrs[entry.key]
+      }
+    }
+    deltaA.children
     return createTransformResult(null, deltaA)
   }
 
@@ -263,7 +302,8 @@ export const rename = renames => new AttrRename(renames)
  * @template {delta.DeltaConf} DConf
  * @param {s.Schema<delta.Delta<DConf>>} $d
  */
-export const expect = $d => new ExpectType($d)
+export const filter = $d => new Filter($d)
+
 /**
  * @template {Array<Template>} Ts
  * @param {Ts} ts
@@ -273,8 +313,9 @@ const pipe = (...ts) => /** @type {any} */ (new Pipe(ts.flatMap(t => t instanceo
 
 const r1 = rename(/** @type {const} */ ({ a: 'b' }))
 const r2 = rename(/** @type {const} */ ({ b: 'a' }))
-const r3 = expect(delta.$delta({ attrs: { a: [s.$number, s.$string] } }))
-const $d3 = delta.$delta({})
+const r3 = filter(delta.$delta({ attrs: { a: [s.$number, s.$string] } }))
+const i1 = r1.init(delta.$delta({ attrs: { a: s.$string, b: s.$string } }))
+const $d3 = delta.$delta({ children: 42, attrs: {a: s.$string} })
 const r31 = pipe(r3)
 const i3 = r3.init($d3)
 const i31 = r31.init($d3)

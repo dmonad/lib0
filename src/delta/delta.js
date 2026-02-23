@@ -666,13 +666,13 @@ export class SetAttrOp {
 
   toJSON () {
     const v = this.value
-    const prevValue = this.prevValue
     const attribution = this.attribution
     return object.assign({
-      type: this.type,
-      value: $deltaAny.check(v) ? v.toJSON() : v
-    }, attribution != null ? { attribution } : {}, prevValue !== undefined ? { prevValue } : {})
-  }
+        type: this.type,
+        value: $deltaAny.check(v) ? v.toJSON() : v
+      },
+      attribution != null ? { attribution } : {}
+    )}
 
   /**
    * @param {SetAttrOp<V>} other
@@ -738,9 +738,12 @@ export class DeleteAttrOp {
    */
   toJSON () {
     const {
-      type, attribution, prevValue
+      type, attribution,
     } = this
-    return object.assign({ type }, attribution != null ? { attribution } : {}, prevValue !== undefined ? { prevValue } : {})
+    return object.assign(
+      { type },
+      attribution != null ? { attribution } : {}
+    )
   }
 
   /**
