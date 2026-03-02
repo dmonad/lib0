@@ -1,25 +1,63 @@
+import * as array from 'lib0/array'
 import * as error from '../error.js'
 import * as delta from './delta.js'
 import * as s from '../schema.js'
 
 /**
- * @template {delta.DeltaAny} [DeltaA=delta.DeltaAny]
- * @template {delta.DeltaAny} [DeltaB=delta.DeltaAny]
+ * @template {delta.DeltaConf} [A={}]
+ * @template {delta.DeltaConf} [B={}]
  */
 class TransformResult {
   /**
-   * @param {DeltaA?} a
-   * @param {DeltaB?} b
+   * @param {delta.DeltaBuilder<A>?} a
+   * @param {delta.DeltaBuilder<B>?} b
    */
   constructor (a, b) {
     /**
-     * @type {DeltaA?}
+     * @type {delta.DeltaBuilder<A>?}
      */
     this.a = a
     /**
-     * @type {DeltaB?}
+     * @type {delta.DeltaBuilder<B>?}
      */
     this.b = b
+  }
+
+  isEmpty () {
+    return this.a == null && this.b == null
+  }
+
+  clear () {
+    this.a = null
+    this.b = null
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<A>?} a
+   */
+  applyA (a) {
+    if (a !== null) {
+      if (this.a == null) {
+        this.a = a
+      } else {
+        this.a.apply(a)
+      }
+    }
+    return this
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<B>?} b
+   */
+  applyB (b) {
+    if (b !== null) {
+      if (this.b == null) {
+        this.b = b
+      } else {
+        this.b.apply(b)
+      }
+    }
+    return this
   }
 
   reverse () {
@@ -28,8 +66,17 @@ class TransformResult {
 }
 
 /**
- * @template {delta.DeltaAny} [DeltaA=delta.DeltaAny]
- * @template {delta.DeltaAny} [DeltaB=delta.DeltaAny]
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @param {s.Schema<delta.Delta<A>>} $a
+ * @param {s.Schema<delta.Delta<B>>} $b
+ * @return {s.Schema<TransformResult<A,B>>}
+ */
+export const $tresult = ($a, $b) => /** @type {any} */ (s.$instanceOf(TransformResult, tr => (tr.a === null || $a.check(tr.a)) && (tr.b === null || $b.check(tr.b))))
+
+/**
+ * @template {delta.DeltaBuilderAny} [DeltaA=delta.DeltaBuilderAny]
+ * @template {delta.DeltaBuilderAny} [DeltaB=delta.DeltaBuilderAny]
  * @param {DeltaA?} a
  * @param {DeltaB?} b
  */
@@ -41,21 +88,60 @@ const createTransformResult = (a, b) => new TransformResult(a, b)
  */
 export class Transformer {
   /**
-   * @param {delta.Delta<A>} _t
-   * @return {TransformResult<delta.Delta<A>,delta.Delta<B>>}
+   * @param {TransformResult<A, B>} tin
+   * @return {TransformResult<A,B>}
+   */
+  apply (tin) {
+    const ta = tin.a
+    const tb = tin.b
+    const ares = ta != null ? this.applyA(ta) : createTransformResult(null, null)
+    // transform tb if necessary
+    if (tb != null) {
+      if (ares.b != null) {
+        tb.rebase(ares.b, false)
+      }
+      const bres = this.applyB(tb)
+      if (ares.a) {
+        ares.a.apply(bres.a)
+      } else {
+        ares.a = bres.a
+      }
+      if (ares.b) {
+        ares.b.apply(bres.b)
+      } else {
+        ares.b = bres.b
+      }
+    }
+    return ares
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<A>} _t
+   * @return {TransformResult<A,B>}
    */
   applyA (_t) {
     error.unexpectedCase()
   }
 
   /**
-   * @param {delta.Delta<B>} _t
-   * @return {TransformResult<delta.Delta<A>,delta.Delta<B>>}
+   * @param {delta.DeltaBuilder<B>} _t
+   * @return {TransformResult<A,B>}
    */
   applyB (_t) {
     error.unexpectedCase()
   }
 }
+
+/**
+ * This schema is only for typechecking, it does not actually check the transformer behavior!
+ *
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @param {s.Schema<delta.Delta<A>>|A} _a
+ * @param {s.Schema<delta.Delta<B>>|A} _b
+ * @return {s.Schema<Transformer<A,B>>}
+ */
+export const $transformer = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ (s.$custom(o => o.applyA != null && o.applyB != null))
 
 /**
  * @typedef {object} Template
@@ -142,13 +228,14 @@ const renameAttrs = (d, renames, revRenames) => {
 /**
  * @template {{[K:string|number]:string|number}} Renames
  * @implements Template
- * @implements Transformer<any,any>
+ * @extends Transformer<any,any>
  */
-export class AttrRename {
+export class AttrRename extends Transformer {
   /**
    * @param {Renames} renames
    */
   constructor (renames) {
+    super()
     this.arenames = renames
     /**
      * @type {{[K:string|number]:string|number}}
@@ -163,10 +250,10 @@ export class AttrRename {
 
   /**
    * @template {delta.DeltaConf} IN
-   * @param {s.Schema<delta.Delta<IN>>} $d
+   * @param {s.Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN,ApplyAttrRename<Renames,IN>>}
    */
-  init ($d) {
+  init (_$d) {
     return this
   }
 
@@ -205,11 +292,11 @@ export class Filter {
 
   /**
    * @template {delta.DeltaConf} IN
-   * @param {s.Schema<delta.Delta<IN>>} $d
+   * @param {s.Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN,ApplyExpectType<DConf, IN>>}
    */
-  init ($d) {
-    return new FilterTransformer(this.$d)
+  init (_$d) {
+    return /** @type {Transformer<IN,any>} */ (new FilterTransformer(this.$d))
   }
 }
 
@@ -217,13 +304,14 @@ export class Filter {
  * @template {delta.DeltaConf} IN
  * @template {delta.DeltaConf} OUT
  * @template {delta.DeltaConf} DConf
- * @implements Transformer<IN,OUT>
+ * @extends Transformer<IN,OUT>
  */
-export class FilterTransformer {
+export class FilterTransformer extends Transformer {
   /**
    * @param {delta.$Delta<DConf>} $d
    */
   constructor ($d) {
+    super()
     this.$dshape = $d.shape
     this.filter = delta.create(delta.$delta({ children: s.$any }))
     /**
@@ -233,7 +321,7 @@ export class FilterTransformer {
   }
 
   /**
-   * @param {delta.DeltaAny} deltaA
+   * @param {delta.DeltaBuilderAny} deltaA
    */
   applyA (deltaA) {
     const $attrs = this.$dshape.$attrs
@@ -255,12 +343,12 @@ export class FilterTransformer {
         delete dtrans.attrs[entry.key]
       }
     }
-    deltaA.children
+    // @todo children
     return createTransformResult(null, deltaA)
   }
 
   /**
-   * @param {delta.DeltaAny} deltaB
+   * @param {delta.DeltaBuilderAny} deltaB
    */
   applyB (deltaB) {
     return createTransformResult(deltaB, null)
@@ -278,17 +366,116 @@ export class Pipe {
    * @param {TS} templates
    */
   constructor (templates) {
+    /**
+     * @type {TS}
+     */
     this.templates = templates
     this.stateless = templates.every(t => t.stateless)
+    /**
+     * @type {PipeTransformer<any,any,this>?}
+     */
+    this.statelessTransformer = null
   }
 
   /**
    * @template {delta.DeltaConf} IN
-   * @param {s.Schema<delta.Delta<IN>>} $d
+   * @param {s.Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN, ApplyPipe<TS, IN>>}
    */
-  init ($d) {
-    error.methodUnimplemented()
+  init (_$d) {
+    if (this.stateless) {
+      return this.statelessTransformer || (this.statelessTransformer = new PipeTransformer(this))
+    } else {
+      return new PipeTransformer(this)
+    }
+  }
+}
+
+/**
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @template {Pipe<Template[]>} PipeTemplate
+ * @extends {Transformer<A,B>}
+ */
+export class PipeTransformer extends Transformer {
+  /**
+   * @param {PipeTemplate} tpipe
+   */
+  constructor (tpipe) {
+    super()
+    this.tpipe = tpipe
+    /**
+     * @type {Transformer<any,any>[]}
+     */
+    this.ts = tpipe.templates.map(t => t.init(delta.$deltaAny))
+  }
+
+  /**
+   * @param {TransformResult<A,B>} tin
+   * @return {TransformResult<A,B>}
+   */
+  apply (tin) {
+    const ts = this.ts
+    // the deltas we still have to apply on the respective transformers (ts[i].apply(tr[i]))
+    const trs = array.unfold(ts.length, () => createTransformResult(null, null))
+    // the final accumulated result
+    const res = createTransformResult(null, null)
+    trs[0].a = tin.a
+    trs[trs.length - 1].b = tin.b
+    let madeChange = false
+    // change direction whenever possible, go back and forth until no more changes can be applied
+    if (!tin.isEmpty()) {
+      do {
+        madeChange = false
+        let forward = trs[0].a != null
+        let i = forward ? 0 : ts.length - 1
+        while (i <= 0 && i < ts.length) {
+          const ti = ts[i]
+          const tri = trs[i]
+          if (!tri.isEmpty()) {
+            madeChange = true
+            const tires = ti.apply(tri)
+            if (i === 0) {
+              res.applyA(tires.a)
+            } else {
+              trs[i - 1].applyB(tires.a)
+            }
+            if (i === trs.length - 1) {
+              res.applyB(tires.b)
+            } else {
+              trs[i + 1].applyA(tires.b)
+            }
+          }
+          tri.clear()
+          const hasForwardChange = i < ts.length && !trs[i + 1].isEmpty()
+          const hasBackwardChange = i > 0 && !trs[i - 1].isEmpty()
+          // go back and forth
+          if (forward && hasBackwardChange) {
+            forward = false
+          } else if (!forward && hasForwardChange) {
+            forward = true
+          }
+          forward ? i++ : i--
+        }
+      } while (madeChange)
+    }
+    return res
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<A>} t
+   * @return {TransformResult<A,B>}
+   */
+  applyA (t) {
+    return this.apply(createTransformResult(t, null))
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<B>} t
+   * @return {TransformResult<A,B>}
+   */
+  applyB (t) {
+    return this.apply(createTransformResult(null, t))
   }
 }
 
@@ -309,24 +496,4 @@ export const filter = $d => new Filter($d)
  * @param {Ts} ts
  * @return {Pipe<FlattenTemplates<Ts>>}
  */
-const pipe = (...ts) => /** @type {any} */ (new Pipe(ts.flatMap(t => t instanceof Pipe ? t.templates : [t])))
-
-const r1 = rename(/** @type {const} */ ({ a: 'b' }))
-const r2 = rename(/** @type {const} */ ({ b: 'a' }))
-const r3 = filter(delta.$delta({ attrs: { a: [s.$number, s.$string] } }))
-const i1 = r1.init(delta.$delta({ attrs: { a: s.$string, b: s.$string } }))
-const $d3 = delta.$delta({ children: 42, attrs: {a: s.$string} })
-const r31 = pipe(r3)
-const i3 = r3.init($d3)
-const i31 = r31.init($d3)
-const p12 = pipe(r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2)
-const p1212 = pipe(p12, p12)
-const $d = delta.$delta(/** @type {const} */ ({
-  attrs: {
-    x: 'dtrn'
-  }
-}))
-const p12init = p12.init(delta.$delta({ attrs: { a: s.$string } }))
-const ddd = delta.create().setAttr('a', 'dturiane')
-const dtrn = p12init.applyA(ddd)
-console.log(p12init)
+export const pipe = (...ts) => /** @type {any} */ (new Pipe(ts.flatMap(t => t instanceof Pipe ? t.templates : [t])))

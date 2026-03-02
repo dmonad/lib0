@@ -667,12 +667,14 @@ export class SetAttrOp {
   toJSON () {
     const v = this.value
     const attribution = this.attribution
-    return object.assign({
+    return object.assign(
+      {
         type: this.type,
         value: $deltaAny.check(v) ? v.toJSON() : v
       },
       attribution != null ? { attribution } : {}
-    )}
+    )
+  }
 
   /**
    * @param {SetAttrOp<V>} other
@@ -738,7 +740,7 @@ export class DeleteAttrOp {
    */
   toJSON () {
     const {
-      type, attribution,
+      type, attribution
     } = this
     return object.assign(
       { type },
@@ -1490,9 +1492,10 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @param {Delta<Conf>} other
+   * @param {Delta<Conf>?} other
    */
   apply (other) {
+    if (other == null) return this
     modDeltaCheck(this)
     this.$schema?.expect(other)
     // apply attrs
