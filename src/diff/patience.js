@@ -30,12 +30,12 @@ export const diff = (as, bs) => {
 /**
  * @param {string} a
  * @param {string} b
- * @param {RegExp|string} _regexp
+ * @param {RegExp|string} regexp
  */
-export const diffSplitBy = (a, b, _regexp) => {
-  const isStringSeparator = typeof _regexp === 'string'
-  const separator = isStringSeparator ? _regexp : ''
-  const regexp = isStringSeparator ? new RegExp(_regexp, 'g') : _regexp
+export const diffSplitBy = (a, b, regexp) => {
+  const isStringSeparator = typeof regexp === 'string'
+  const separator = /** @type {string} */ (isStringSeparator ? regexp : '')
+  regexp = new RegExp(regexp, 'g')
   const as = splitByRegexp(a, regexp, !isStringSeparator)
   const bs = splitByRegexp(b, regexp, !isStringSeparator)
   const changes = diff(as, bs)

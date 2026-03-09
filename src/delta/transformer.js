@@ -116,19 +116,19 @@ export class Transformer {
   }
 
   /**
-   * @param {delta.DeltaBuilder<A>} _t
+   * @param {delta.DeltaBuilder<A>} t
    * @return {TransformResult<A,B>}
    */
-  applyA (_t) {
-    error.unexpectedCase()
+  applyA (t) {
+    return this.apply(createTransformResult(t, null))
   }
 
   /**
-   * @param {delta.DeltaBuilder<B>} _t
+   * @param {delta.DeltaBuilder<B>} t
    * @return {TransformResult<A,B>}
    */
-  applyB (_t) {
-    error.unexpectedCase()
+  applyB (t) {
+    return this.apply(createTransformResult(null, t))
   }
 }
 
@@ -141,7 +141,8 @@ export class Transformer {
  * @param {s.Schema<delta.Delta<B>>|A} _b
  * @return {s.Schema<Transformer<A,B>>}
  */
-export const $transformer = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ (s.$custom(o => o.applyA != null && o.applyB != null))
+export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ (s.$instanceOf(Transformer))
+export const $transformer = transformerWith(s.$any, s.$any)
 
 /**
  * @typedef {object} Template
@@ -167,6 +168,12 @@ export const $transformer = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} *
  * @template {Array<Template>} TS
  * @template {delta.DeltaConf} IN
  * @typedef {TS extends [infer FirstT extends Template, ...infer RestT extends Template[]] ? ApplyPipe<RestT,ApplyTemplate<FirstT,IN>> : IN } ApplyPipe
+ */
+
+/**
+ * @template {string} AttrName
+ * @template {delta.DeltaConf} IN
+ * @typedef {{ name: 'lib0:value', attrs: { value: IN extends { attrs: { [K in AttrName]: infer V } } ? V : never }}} ApplyQueryAttr
  */
 
 /**
@@ -392,6 +399,169 @@ export class Pipe {
 }
 
 /**
+ * @template {string} AttrName
+ * @implements Template
+ */
+export class QueryAttr {
+  /**
+   * @param {AttrName} attrName
+   */
+  constructor (attrName) {
+    this.attrName = attrName
+  }
+
+  get stateless () { return true }
+
+  /**
+   * @template {delta.DeltaConf} IN
+   * @param {s.Schema<delta.Delta<IN>>} _$d
+   * @return {Transformer<IN, ApplyQueryAttr<AttrName, IN>>}
+   */
+  init (_$d) {
+    return new QueryAttrTransformer(this.attrName)
+  }
+}
+
+/**
+ * @param {delta.DeltaBuilderAny} outDelta
+ * @param {string|number} from
+ * @param {string|number} to
+ * @param {delta.DeltaBuilderAny} inDelta
+ */
+const queryAttrTransformHelper = (outDelta, from, to, inDelta) => {
+  const attrOp = inDelta.attrs[from]
+  if (attrOp != null) {
+    const c = attrOp.clone()
+    // @ts-ignore
+    c.key = to
+    outDelta.attrs.value = /** @type {any} */ (c)
+  }
+  return outDelta
+}
+
+/**
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @extends {Transformer<A,B>}
+ */
+export class QueryAttrTransformer extends Transformer {
+  /**
+   * @param {string} attrName
+   */
+  constructor (attrName) {
+    super()
+    this.attrName = /** @type {keyof delta.DeltaConfGetAttrs<A> & (string|number)} */ (attrName)
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<A>} d
+   * @return {TransformResult<A,B>}
+   */
+  applyA (d) {
+    return createTransformResult(
+      null,
+      queryAttrTransformHelper(
+        delta.create('lib0:value'),
+        this.attrName,
+        'value',
+        d
+      )
+    )
+  }
+
+  /**
+   * @param {delta.DeltaBuilder<B>} d
+   * @return {TransformResult<A,B>}
+   */
+  applyB (d) {
+    return createTransformResult(
+      queryAttrTransformHelper(
+        delta.create(),
+        'value',
+        this.attrName,
+        d
+      ),
+      null
+    )
+  }
+}
+
+/**
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @extends {Transformer<A,B>}
+ */
+export class ProjectionTransformer extends Transformer {
+  /**
+   * @param {string} name
+   * @param {{ [K in string|number]: any }} attrs
+   * @param {Array<Array<any> | string>} children
+   */
+  constructor (name, attrs, children) {
+    super()
+    /**
+     * @type {Array<{ key: number|string, t: Transformer<any,any> }>}
+     */
+    const ts = []
+    /**
+     * @type {Object<any,any>}
+     */
+    const fixedAttrs = {}
+    /**
+     * @type {Array<any>}
+     */
+    const fixedChildren = []
+    for (const key in attrs) {
+      const t = attrs[key]
+      if ($transformer.check(t)) {
+        ts.push({ key, t })
+      } else {
+        fixedAttrs[key] = t
+      }
+    }
+    children.forEach((t, key) => {
+      if ($transformer.check(t)) {
+        ts.push({ key, t })
+        fixedChildren.push(delta.create('lib0:value'))
+      } else {
+        fixedChildren.push(delta.create('lib0:value', { value: t }))
+      }
+    })
+    /**
+     * @type {delta.DeltaBuilderAny|null}
+     */
+    this.initOut = delta.create(name, fixedAttrs, ...fixedChildren)
+    this.ts = ts
+  }
+
+  /**
+   * @param {TransformResult<A,B>} tin
+   * @return {TransformResult<A,B>}
+   */
+  apply (tin) {
+    const trs = this.ts.map(t => ({ key: t.key, tr: t.t.apply(tin) }))
+    // @todo this doesn't sync changes between transformer-children
+    const res = createTransformResult(null, this.initOut)
+    this.initOut = null
+    trs.forEach(({key, tr}) => {
+      res.applyA(tr.a)
+      const updatedVal = tr.b?.attrs.value
+      if (updatedVal !== null) {
+        if (res.b == null) res.b = delta.create()
+        if (delta.$setAttrOp.check(updatedVal)) {
+          res.b.setAttr(key, updatedVal.value)
+        } else if (delta.$modifyAttrOp.check(updatedVal)) {
+          res.b.modifyAttr(key, updatedVal.value)
+        } else if (delta.$deleteAttrOp.check(updatedVal)) {
+          res.b.deleteAttr(key)
+        }
+      }
+    })
+    return res
+  }
+}
+
+/**
  * @template {delta.DeltaConf} A
  * @template {delta.DeltaConf} B
  * @template {Pipe<Template[]>} PipeTemplate
@@ -462,21 +632,6 @@ export class PipeTransformer extends Transformer {
     return res
   }
 
-  /**
-   * @param {delta.DeltaBuilder<A>} t
-   * @return {TransformResult<A,B>}
-   */
-  applyA (t) {
-    return this.apply(createTransformResult(t, null))
-  }
-
-  /**
-   * @param {delta.DeltaBuilder<B>} t
-   * @return {TransformResult<A,B>}
-   */
-  applyB (t) {
-    return this.apply(createTransformResult(null, t))
-  }
 }
 
 /**

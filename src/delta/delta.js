@@ -322,14 +322,12 @@ export class InsertOp extends list.ListNode {
 export class DeleteOp extends list.ListNode {
   /**
    * @param {number} len
+   * @param {DeltaBuilder<any>?} prevValue
    */
-  constructor (len) {
+  constructor (len, prevValue) {
     super()
     this.delete = len
-    /**
-     * @type {Delta<Conf>?}
-     */
-    this.prevValue = null
+    this.prevValue = /** @type {Delta<Conf>?} */ (prevValue)
     /**
      * @type {string|null}
      */
@@ -391,7 +389,7 @@ export class DeleteOp extends list.ListNode {
    * @return {DeleteOp}
    */
   clone (start = 0, end = this.delete) {
-    return new DeleteOp(end - start)
+    return new DeleteOp(end - start, null)
   }
 }
 
@@ -1413,14 +1411,18 @@ export class DeltaBuilder extends Delta {
 
   /**
    * @param {number} len
+   * @param {DeltaBuilder<any>|null} prevValue
    */
-  delete (len) {
+  delete (len, prevValue = null) {
     modDeltaCheck(this)
     const lastOp = /** @type {DeleteOp<any>|InsertOp<any>} */ (this.children.end)
-    if ($deleteOp.check(lastOp)) {
+    if ($deleteOp.check(lastOp) && typeof lastOp.prevValue === typeof prevValue) {
       lastOp.delete += len
+      if (prevValue != null) {
+        /** @type {DeltaBuilder<any>} */ (lastOp.prevValue).append(prevValue)
+      }
     } else if (len > 0) {
-      list.pushEnd(this.children, new DeleteOp(len))
+      list.pushEnd(this.children, new DeleteOp(len, prevValue))
     }
     this.childCnt += len
     return this
@@ -1599,7 +1601,7 @@ export class DeltaBuilder extends Delta {
         let remainingLen = op.delete
         while (remainingLen > 0) {
           if (opsI == null) {
-            list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen)))
+            list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen, null)))
             this.childCnt += remainingLen
             break
           } else if ($deleteOp.check(opsI)) {
@@ -2013,26 +2015,58 @@ export const mergeDeltas = (a, b) => {
  * @template {DeltaConf} Conf
  * @param {prng.PRNG} gen
  * @param {s.Schema<Delta<Conf>>} $d
+ * @param {object} conf
+ * @param {number} [conf.sourceLen]
  * @return {DeltaBuilder<Conf>}
  */
-export const random = (gen, $d) => {
+export const random = (gen, $d, { sourceLen = 0 } = {}) => {
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any>} */ (/** @type {any} */ ($d)).shape
   const d = s.$$any.check($name) ? create($deltaAny) : create(s.random(gen, $name), $deltaAny)
   const $formats = s.$$any.check($formats_) ? s.$null : $formats_
   prng.bool(gen) && d.setAttrs(s.random(gen, $attrs))
-  for (let i = prng.uint32(gen, 0, 5); i > 0; i--) {
-    if (hasText && prng.bool(gen)) {
-      d.insert(prng.word(gen), s.random(gen, $formats))
-    } else if (!s.$$never.check($children)) {
-      /**
-       * @type {Array<any>}
-       */
-      const ins = []
-      let insN = prng.int32(gen, 0, 5)
-      while (insN--) {
-        ins.push(s.random(gen, $children))
-      }
-      d.insert(ins, s.random(gen, $formats))
+  for (let i = prng.uint32(gen, 0, 9); i > 0; i--) {
+    /**
+     * @type {Array<function():void>}
+     */
+    const possibleOps = []
+    if (hasText) {
+      possibleOps.push(() => {
+        d.insert(' ' + prng.word(gen, 1, 5) + (prng.bool(gen) ? ' ' : ''), s.random(gen, $formats))
+      })
+    }
+    if (!s.$$never.check($children)) {
+      possibleOps.push(() => {
+        /**
+         * @type {Array<any>}
+         */
+        const ins = []
+        let insN = prng.int32(gen, 0, 5)
+        while (insN--) {
+          ins.push(s.random(gen, $children))
+        }
+        d.insert(ins, s.random(gen, $formats))
+      })
+    }
+    if (sourceLen > 0) {
+      possibleOps.push(() => {
+        const len = prng.uint32(gen, 1, sourceLen)
+        sourceLen -= len
+        d.delete(len)
+      })
+      possibleOps.push(() => {
+        const len = prng.uint32(gen, 1, sourceLen)
+        sourceLen -= len
+        if (prng.bool(gen)) {
+          d.retain(len)
+        } else {
+          d.retain(len, s.random(gen, $formats))
+        }
+      })
+    }
+    if (possibleOps.length > 0) {
+      prng.oneOf(gen, possibleOps)()
+    } else {
+      break
     }
   }
   return /** @type {any} */ (d)
@@ -2263,7 +2297,7 @@ export const diff = (d1, d2) => {
         for (let i = 0, lastIndex = 0; i < cdiff.length; i++) {
           const cd = cdiff[i]
           d.retain(cd.index - lastIndex)
-          lastIndex = cd.index
+          lastIndex = cd.index + cd.remove.length
           let cdii = 0
           let cdri = 0
           // try to match as much content as possible, preferring to skip over non-deltas

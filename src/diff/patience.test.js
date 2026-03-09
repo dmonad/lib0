@@ -171,3 +171,16 @@ export const testRepeatRandomWordReplace = tc => {
     t.assert(d.length <= NReplacements + 1 + NInserts + NDeletes) // Sanity check: A maximum of one fault
   })
 }
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testDiffIdea = tc => {
+  const a = 'hi.there !hello'
+  const b = 'hi you !hell'
+  const res = patience.diffSplitBy(a, b, /[\n\.\ !]/)
+  t.info(`Diffing "${a}" with "${b}"`)
+  console.log(res)
+  t.compare(res, [{ index: 2, remove: '.there', insert: ' you' }])
+}
+

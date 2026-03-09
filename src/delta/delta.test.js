@@ -798,15 +798,17 @@ export const testDeltaTypings = () => {
  * @param {s.Schema<delta.Delta<Conf>>} $d
  */
 const testDeltaDiff = (tc, $d) => {
+  // @todo this should  create sentences, words, functions, etc
   const start = delta.random(tc.prng, $d).done()
-  const change = delta.create($d).retain(prng.int32(tc.prng, 0, start.childCnt)).append(delta.random(tc.prng, $d).done()).done()
+  const change = delta.random(tc.prng, $d, { sourceLen: start.childCnt })
   const final = delta.clone(start).apply(change)
   const d = delta.diff(start, final)
   console.log(JSON.stringify({
     d: d.toJSON(),
     change: change.toJSON()
   }))
-  t.compare(d, change, 'diff should be equal to the change')
+  const updatedStart = delta.clone(start).apply(d)
+  t.compare(updatedStart, final)
 }
 
 /**
