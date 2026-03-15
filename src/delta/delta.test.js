@@ -684,7 +684,7 @@ export const testDiffing = () => {
   const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).setAttr('key', 42).setAttr('unknown', 'unknown').done()
   const d2 = delta.create($d).insert('hello').setAttr('key', 1).done()
   const d = delta.diff(d1, d2)
-  t.compare(d.done(), delta.create().delete(1).retain(1).delete(1).setAttr('key', 1).deleteAttr('unknown').done())
+  t.compare(d.done(), delta.create().delete(1).retain(5).delete(1).setAttr('key', 1).deleteAttr('unknown').done())
 }
 
 export const testDiffingCommonPreSuffix = () => {
@@ -753,7 +753,7 @@ export const testDeltaDiffWithFormatting2 = () => {
   t.compare(diff, delta.create().retain(5).insert(' ').insert('world', { bold: true }))
 }
 
-export const testDeltaDiffIssue1 = () => {
+export const testDeltaDiff1 = () => {
   const stateA = delta.create().insert([delta.create('paragraph').setAttr('ychange', null).insert('ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
   const stateB = delta.create().insert([delta.create('paragraph').setAttr('ychange', null).insert('ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
   const expectedDiff = delta.create().modify(delta.create().retain(5).insert('123').retain(21).insert('2sawfa'))
@@ -761,6 +761,15 @@ export const testDeltaDiffIssue1 = () => {
   const synced = delta.clone(stateA).apply(diffResult)
   t.assert(synced.equals(stateB))
   t.assert(expectedDiff.equals(diffResult))
+}
+
+export const testDeltaDiff2 = () => {
+  const stateA = delta.create().insert('hello world\n\nthis ')
+  const stateB = delta.create().insert('hello world!\n\nth is')
+  // const expectedDiff = delta.create().retain(11).insert('!').retain(4).insert(' ').retain(2).delete(1)
+  const diffResult = delta.diff(stateA, stateB)
+  const synced = delta.clone(stateA).apply(diffResult)
+  t.assert(synced.equals(stateB))
 }
 
 // TEST TYPINGS
@@ -796,18 +805,21 @@ export const testDeltaTypings = () => {
  * @template {delta.DeltaConf} Conf
  * @param {t.TestCase} tc
  * @param {s.Schema<delta.Delta<Conf>>} $d
+ * @param {{ minChildOps: number, maxChildOps: number }} opts
  */
-const testDeltaDiff = (tc, $d) => {
+const testDeltaDiff = (tc, $d, opts) => {
   // @todo this should  create sentences, words, functions, etc
   const start = delta.random(tc.prng, $d).done()
-  const change = delta.random(tc.prng, $d, { sourceLen: start.childCnt })
-  const final = delta.clone(start).apply(change)
+  const change = delta.random(tc.prng, $d, { sourceLen: start.childCnt, ...opts })
+  const final = delta.clone(start)
+  final.apply(change)
   const d = delta.diff(start, final)
   console.log(JSON.stringify({
     d: d.toJSON(),
     change: change.toJSON()
   }))
-  const updatedStart = delta.clone(start).apply(d)
+  const updatedStart = delta.clone(start)
+  updatedStart.apply(d)
   t.compare(updatedStart, final)
 }
 
@@ -816,5 +828,5 @@ const testDeltaDiff = (tc, $d) => {
  */
 export const testRepeatRandomTextDeltaDiff = tc => {
   // @todo continue testing diff here
-  testDeltaDiff(tc, delta.$delta({ text: true }))
+  testDeltaDiff(tc, delta.$delta({ text: true }), { minChildOps: 3, maxChildOps: 10 })
 }

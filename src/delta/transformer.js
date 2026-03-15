@@ -1,5 +1,4 @@
 import * as array from 'lib0/array'
-import * as error from '../error.js'
 import * as delta from './delta.js'
 import * as s from '../schema.js'
 
@@ -543,7 +542,7 @@ export class ProjectionTransformer extends Transformer {
     // @todo this doesn't sync changes between transformer-children
     const res = createTransformResult(null, this.initOut)
     this.initOut = null
-    trs.forEach(({key, tr}) => {
+    trs.forEach(({ key, tr }) => {
       res.applyA(tr.a)
       const updatedVal = tr.b?.attrs.value
       if (updatedVal !== null) {
@@ -631,7 +630,6 @@ export class PipeTransformer extends Transformer {
     }
     return res
   }
-
 }
 
 /**

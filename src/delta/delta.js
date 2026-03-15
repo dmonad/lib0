@@ -184,7 +184,7 @@ export class TextOp extends list.ListNode {
    * @param {TextOp} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $textOp.check(other) && fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -305,7 +305,7 @@ export class InsertOp extends list.ListNode {
    * @param {InsertOp<ArrayContent>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $insertOp.check(other) && fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -380,7 +380,7 @@ export class DeleteOp extends list.ListNode {
    * @param {DeleteOp} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return this.delete === other.delete
+    return $deleteOp.check(other) && this.delete === other.delete
   }
 
   /**
@@ -470,7 +470,7 @@ export class RetainOp extends list.ListNode {
    * @param {RetainOp} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return this.retain === other.retain && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $retainOp.check(other) && this.retain === other.retain && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   clone (start = 0, end = this.retain) {
@@ -574,7 +574,7 @@ export class ModifyOp extends list.ListNode {
    * @param {ModifyOp<any>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return this.value[equalityTrait.EqualityTraitSymbol](other.value) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $modifyOp.check(other) && this.value[equalityTrait.EqualityTraitSymbol](other.value) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -678,7 +678,7 @@ export class SetAttrOp {
    * @param {SetAttrOp<V>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
+    return $setAttrOp.check(other) && this.key === other.key && fun.equalityDeep(this.value, other.value) && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -750,7 +750,7 @@ export class DeleteAttrOp {
    * @param {DeleteAttrOp<V>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
+    return $deleteAttrOp.check(other) && this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
   }
 
   clone () {
@@ -828,7 +828,7 @@ export class ModifyAttrOp {
    * @param {ModifyAttrOp<Modifier>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return this.key === other.key && this.value[equalityTrait.EqualityTraitSymbol](other.value)
+    return $modifyAttrOp.check(other) && this.key === other.key && this.value[equalityTrait.EqualityTraitSymbol](other.value)
   }
 
   /**
@@ -1624,9 +1624,8 @@ export class DeltaBuilder extends Delta {
             if (opsI.length === delLen) {
               // case 1
               offset = 0
-              scheduleForMerge(opsI.next)
               list.remove(this.children, opsI)
-              opsI = opsI.next
+              scheduleForMerge(opsI = opsI.next)
             } else if (offset === 0) {
               // case 2
               offset = 0
@@ -1676,13 +1675,15 @@ export class DeltaBuilder extends Delta {
         error.unexpectedCase()
       }
     })
-    maybeMergeable.forEach(op => {
+    // iterate backwards, to ensure that we merge all content
+    for (let i = maybeMergeable.length - 1; i >= 0; i--) {
+      const op = maybeMergeable[i]
       // check if this is still integrated
-      if (op.prev?.next === op) {
-        tryMergeWithPrev(this.children, op)
+      if (op.prev != null ? op.prev.next === op : this.children.start === op) {
+        op.prev && tryMergeWithPrev(this.children, op)
         op.next && tryMergeWithPrev(this.children, op.next)
       }
-    })
+    }
     return this
   }
 
@@ -2017,21 +2018,23 @@ export const mergeDeltas = (a, b) => {
  * @param {s.Schema<Delta<Conf>>} $d
  * @param {object} conf
  * @param {number} [conf.sourceLen]
+ * @param {number} [conf.minChildOps]
+ * @param {number} [conf.maxChildOps]
  * @return {DeltaBuilder<Conf>}
  */
-export const random = (gen, $d, { sourceLen = 0 } = {}) => {
+export const random = (gen, $d, { sourceLen = 0, minChildOps = 1, maxChildOps = 9 } = {}) => {
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any>} */ (/** @type {any} */ ($d)).shape
   const d = s.$$any.check($name) ? create($deltaAny) : create(s.random(gen, $name), $deltaAny)
   const $formats = s.$$any.check($formats_) ? s.$null : $formats_
   prng.bool(gen) && d.setAttrs(s.random(gen, $attrs))
-  for (let i = prng.uint32(gen, 0, 9); i > 0; i--) {
+  for (let i = prng.uint32(gen, minChildOps, maxChildOps); i > 0; i--) {
     /**
      * @type {Array<function():void>}
      */
     const possibleOps = []
     if (hasText) {
       possibleOps.push(() => {
-        d.insert(' ' + prng.word(gen, 1, 5) + (prng.bool(gen) ? ' ' : ''), s.random(gen, $formats))
+        d.insert(prng.oneOf(gen, ['a', 'b', ' ', '\n', '.']), s.random(gen, $formats))
       })
     }
     if (!s.$$never.check($children)) {
@@ -2193,17 +2196,29 @@ export const from = (...args) => {
   return d
 }
 
+/*
+ * Delta Diffing approach - optimized for performance and creating readable deltas
+ *
+ * # Children
+ * Diff content first and then figure out the necessary formatting updates
+ * 1. find common prefix & suffix
+ * 2. slice center to fresh delta. split content by coarse regex ($insert ops are split into
+ * individual items)
+ * 3. patience diff on split content and receive set of splice ops
+ * 4. on each splice op: perform another patience diff with a granular regex on strings
+ * 5. reassemble deltas recursively
+ * 6. apply content diff on original delta and find necessary formatting updates
+ * 7. merge content diff and formatting updates
+ */
+
 /**
  * @template {DeltaConf} Conf
  * @param {Delta<Conf>} d1
  * @param {NoInfer<Delta<Conf>>} d2
- * @return {DeltaBuilder<Conf>}
+ * @return {Delta<Conf>}
  */
 export const diff = (d1, d2) => {
-  /**
-   * @type {DeltaBuilderAny}
-   */
-  const d = create()
+  const d = create($deltaAny)
   if (d1.fingerprint !== d2.fingerprint) {
     /**
      * @type {ChildrenOpAny?}
@@ -2221,6 +2236,8 @@ export const diff = (d1, d2) => {
      * @type {ChildrenOpAny?}
      */
     let right2 = d2.children.end
+    // whether we need to diff formatting
+    let formattingNeedsDiff = false
     let commonPrefixOffset = 0
     // perform a patience sort
     // 1) remove common prefix and suffix
@@ -2236,152 +2253,97 @@ export const diff = (d1, d2) => {
       right2 = right2.prev
     }
     /**
-     * @type {Array<ChildrenOpAny>}
+     * @type {Array<fingerprintTrait.Fingerprintable>}
      */
-    const ops1 = []
+    const cs1 = []
     /**
-     * @type {Array<ChildrenOpAny>}
+     * @type {Array<fingerprintTrait.Fingerprintable>}
      */
-    const ops2 = []
+    const cs2 = []
     while (left1 !== null && left1 !== right1?.next) {
-      ops1.push(left1)
+      if ($textOp.check(left1)) {
+        cs1.push(left1.insert)
+      } else if ($insertOp.check(left1)) {
+        cs1.push(...left1.insert)
+      } else {
+        error.unexpectedCase()
+      }
+      formattingNeedsDiff ||= left1.format != null
       left1 = left1.next
     }
     while (left2 !== null && left2 !== right2?.next) {
-      ops2.push(left2)
+      if ($textOp.check(left2)) {
+        cs2.push(left2.insert)
+      } else if ($insertOp.check(left2)) {
+        cs2.push(...left2.insert)
+      } else {
+        error.unexpectedCase()
+      }
+      formattingNeedsDiff ||= left2.format != null
       left2 = left2.next
     }
-    const fprints1 = ops1.map(op => op.fingerprint)
-    const fprints2 = ops2.map(op => op.fingerprint)
-    const changeset = patience.diff(fprints1, fprints2)
-    d.retain(commonPrefixOffset)
-    for (let i = 0, lastIndex1 = 0, currIndexOffset2 = 0; i < changeset.length; i++) {
-      const change = changeset[i]
-      d.retain(change.index - lastIndex1)
-      // insert minimal diff at curred position in d
-      /**
-       *
-       * @todo it would be better if these would be slices of delta (an actual delta)
-       *
-       * @param {ChildrenOpAny[]} opsIs
-       * @param {ChildrenOpAny[]} opsShould
-       */
-      const diffAndApply = (opsIs, opsShould) => {
-        const d = create($deltaAny)
-        // @todo unoptimized implementation. Convert content to array and diff that based on
-        // generated fingerprints. We probably could do better and cache more information.
-        // - benchmark
-        // - cache fingerprints in ops
-        /**
-         * @type {Array<string|DeltaAny|fingerprintTrait.Fingerprintable>}
-         */
-        const isContent = opsIs.flatMap(op => $insertOp.check(op) ? op.insert : ($textOp.check(op) ? op.insert.split('') : error.unexpectedCase()))
-        /**
-         * @type {Array<string|DeltaAny|fingerprintTrait.Fingerprintable>}
-         */
-        const shouldContent = opsShould.flatMap(op => $insertOp.check(op) ? op.insert : ($textOp.check(op) ? op.insert.split('') : error.unexpectedCase()))
-        const isContentFingerprinted = isContent.map(c => s.$string.check(c) ? c : fingerprintTrait.fingerprint(c))
-        const shouldContentFingerprinted = shouldContent.map(c => s.$string.check(c) ? c : fingerprintTrait.fingerprint(c))
-        const hasFormatting = opsIs.some(op => !$deleteOp.check(op) && op.format != null) || opsShould.some(op => !$deleteOp.check(op) && op.format != null)
-        /**
-         * @type {{ index: number, insert: Array<string|DeltaAny|fingerprintTrait.Fingerprintable>, remove: Array<string|DeltaAny|fingerprintTrait.Fingerprintable> }[]}
-         */
-        const cdiff = patience.diff(isContentFingerprinted, shouldContentFingerprinted)
-        // overwrite fingerprinted content with actual content
-        for (let i = 0, adj = 0; i < cdiff.length; i++) {
-          const cd = cdiff[i]
-          cd.remove = isContent.slice(cd.index, cd.index + cd.remove.length)
-          cd.insert = shouldContent.slice(cd.index + adj, cd.index + adj + cd.insert.length)
-          adj += cd.insert.length - cd.remove.length
-        }
-        for (let i = 0, lastIndex = 0; i < cdiff.length; i++) {
-          const cd = cdiff[i]
-          d.retain(cd.index - lastIndex)
-          lastIndex = cd.index + cd.remove.length
-          let cdii = 0
-          let cdri = 0
-          // try to match as much content as possible, preferring to skip over non-deltas
-          for (; cdii < cd.insert.length && cdri < cd.remove.length;) {
-            const a = cd.insert[cdii]
-            const b = cd.remove[cdri]
-            if ($deltaAny.check(a) && $deltaAny.check(b) && a.name === b.name) {
-              d.modify(diff(b, a))
-              cdii++
-              cdri++
-            } else if ($deltaAny.check(b)) {
-              d.insert(s.$string.check(a) ? a : [a])
-              cdii++
-            } else {
-              d.delete(1)
-              cdri++
-            }
-          }
-          for (; cdii < cd.insert.length; cdii++) {
-            const a = cd.insert[cdii]
-            d.insert(s.$string.check(a) ? a : [a])
-          }
-          d.delete(cd.remove.length - cdri)
-        }
-        // create the diff for formatting
-        if (hasFormatting) {
-          const formattingDiff = create()
-          // update opsIs with content diff. then we can figure out the formatting diff.
-          const isUpdated = create($deltaAny)
-          // copy opsIs to fresh delta
-          opsIs.forEach(op => {
-            isUpdated.childCnt += op.length
-            list.pushEnd(isUpdated.children, op.clone())
-          })
-          isUpdated.apply(d)
-          let shouldI = 0
-          let shouldOffset = 0
-          let isOp = isUpdated.children.start
-          let isOffset = 0
-          while (shouldI < opsShould.length && isOp != null) {
-            const shouldOp = opsShould[shouldI]
-            if (!$deleteOp.check(shouldOp) && !$deleteOp.check(isOp)) {
-              const isFormat = isOp.format
-              const minForward = math.min(shouldOp.length - shouldOffset, isOp.length - isOffset)
-              shouldOffset += minForward
-              isOffset += minForward
-              if (fun.equalityDeep(shouldOp.format, isFormat)) {
-                formattingDiff.retain(minForward)
-              } else {
-                /**
-                 * @type {FormattingAttributes}
-                 */
-                const fupdate = {}
-                shouldOp.format != null && object.forEach(shouldOp.format, (v, k) => {
-                  if (!fun.equalityDeep(v, isFormat?.[k] || null)) {
-                    fupdate[k] = v
-                  }
-                })
-                isFormat && object.forEach(isFormat, (_, k) => {
-                  if (shouldOp?.format?.[k] === undefined) {
-                    fupdate[k] = null
-                  }
-                })
-                formattingDiff.retain(minForward, fupdate)
+    const changeset1 = [{
+      index: commonPrefixOffset,
+      insert: cs2,
+      remove: cs1
+    }]
+    // split by line
+    const changeset2 = diffChangesetWithSeparator(changeset1, /[\n]+/g)
+    // split by alphanumerics and others
+    const changeset3 = diffChangesetWithSeparator(changeset2, patience.smartSplitRegex)
+    // split all
+    const changeset4 = diffChangesetWithSeparator(changeset3, /./g) // @todo this part should use myers diff
+    applyChangesetToDelta(d, changeset4)
+    if (formattingNeedsDiff) {
+      const formattingDiff = create()
+      // update opsIs with content diff. then we can figure out the formatting diff.
+      const originalUpdated = clone(d1)
+      originalUpdated.apply(/** @type {DeltaAny} */ (d))
+      let bOffset = 0
+      // update a to match b
+      let a = /** @type {InsertOp<any>|TextOp|null} */ (originalUpdated.children.start)
+      let b = /** @type {InsertOp<any>|TextOp|null} */ (d2.children.start)
+      let aOffset = 0
+      while (a != null && b != null) {
+        if (!$deleteOp.check(b) && !$deleteOp.check(a)) {
+          const aFormat = a.format
+          const bFormat = b.format
+          const minForward = math.min(b.length - bOffset, a.length - aOffset)
+          aOffset += minForward
+          bOffset += minForward
+          if (fun.equalityDeep(bFormat, aFormat)) {
+            formattingDiff.retain(minForward)
+          } else {
+            /**
+             * @type {FormattingAttributes}
+             */
+            const fupdate = {}
+            bFormat != null && object.forEach(bFormat, (v, k) => {
+              if (!fun.equalityDeep(v, aFormat?.[k] || null)) {
+                fupdate[k] = v
               }
-              // update offset and iterators
-              if (shouldOffset >= shouldOp.length) {
-                shouldI++
-                shouldOffset = 0
+            })
+            aFormat && object.forEach(aFormat, (_, k) => {
+              if (b?.format?.[k] === undefined) {
+                fupdate[k] = null
               }
-              if (isOffset >= isOp.length) {
-                isOp = isOp.next
-                isOffset = 0
-              }
-            }
+            })
+            formattingDiff.retain(minForward, fupdate)
           }
-          d.apply(formattingDiff)
+          // update offset and iterators
+          if (bOffset >= b.length) {
+            b = b.next
+            bOffset = 0
+          }
+          if (aOffset >= a.length) {
+            a = a.next
+            aOffset = 0
+          }
+        } else {
+          error.unexpectedCase()
         }
-        return d
       }
-      const subd = diffAndApply(ops1.slice(change.index, change.index + change.remove.length), ops2.slice(change.index + currIndexOffset2, change.index + currIndexOffset2 + change.insert.length))
-      d.append(subd)
-      lastIndex1 = change.index + change.remove.length
-      currIndexOffset2 += change.insert.length - change.remove.length
+      d.apply(formattingDiff)
     }
     for (const attr2 of d2.attrs) {
       // @ts-ignore
@@ -2403,5 +2365,131 @@ export const diff = (d1, d2) => {
       }
     }
   }
-  return /** @type {any} */ (d.done(false))
+  return d.done(false)
+}
+
+/**
+ * @param {string|any} c
+ */
+const contentLen = c => typeof c === 'string' ? c.length : 1
+
+/**
+ * Apply removes from c.remove to d, mutating c.remove to exclude the applied items
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {Array<any>} crem
+ * @param {number} len
+ */
+const applyRemoves = (d, crem, len) => { len > 0 && d.delete(crem.splice(0, len).map(contentLen).reduce(math.add, 0)) }
+/**
+ * Apply inserts from c.insert to d, mutating c.insert to exclude the applied items
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {Array<any>} cins
+ * @param {number} len
+ */
+const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(ins => d.insert(typeof ins === 'string' ? ins : [ins])) }
+
+/**
+ * @param {DeltaBuilderAny} d
+ * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
+ */
+const applyChangesetToDelta = (d, changeset) => {
+  for (let ci = 0, lastIndex = 0; ci < changeset.length; ci++) {
+    const c = changeset[ci]
+    d.retain(c.index - lastIndex)
+    lastIndex = c.index + c.remove.map(contentLen).reduce(math.add, 0)
+    // @todo do patience diff on the delta-names, then perform maximum number of mods instead of
+    // insert/delete
+    while (true) {
+      const cremoveDeltaIndex = c.remove.findIndex(cc => $deltaAny.check(cc))
+      if (cremoveDeltaIndex < 0) break
+      const cremoveDelta = c.remove[cremoveDeltaIndex]
+      const cinsertDeltaIndex = c.insert.findIndex(cc => $deltaAny.check(cc) && cc.name === cremoveDelta.name)
+      if (cinsertDeltaIndex < 0) {
+        applyRemoves(d, c.remove, cremoveDeltaIndex + 1)
+        continue
+      }
+      applyRemoves(d, c.remove, cremoveDeltaIndex)
+      applyInserts(d, c.insert, cinsertDeltaIndex)
+      d.modify(diff(c.remove[0], c.insert[0]))
+      c.remove.splice(0, 1)
+      c.insert.splice(0, 1)
+    }
+    applyRemoves(d, c.remove, c.remove.length)
+    applyInserts(d, c.insert, c.insert.length)
+  }
+  return d
+}
+
+/**
+ * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
+ * @param {RegExp} separator
+ */
+export const diffChangesetWithSeparator = (changeset, separator) => {
+  /**
+   * @type {Array<any>}
+   */
+  const next = []
+  changeset.forEach(change => {
+    // @todo actually split here
+    const cs1 = splitContentArrayByRegexp(change.remove, separator)
+    const cs2 = splitContentArrayByRegexp(change.insert, separator)
+    const fp1 = cs1.map(c => typeof c === 'string' ? c : fingerprintTrait.fingerprint(c))
+    const fp2 = cs2.map(c => typeof c === 'string' ? c : fingerprintTrait.fingerprint(c))
+    const changesetF = patience.diff(fp1, fp2)
+    const nextChangeset = fillFingerprintDiffFromContent(changesetF, cs1, cs2)
+    let prevDiffIndex = 0
+    let nextChangeIndex = change.index
+    // adjust indexes for actual content length and add results to `next`
+    nextChangeset.forEach(c => {
+      // adjust equal content
+      for (; prevDiffIndex < c.index; prevDiffIndex += 1) {
+        nextChangeIndex += contentLen(cs1[prevDiffIndex])
+      }
+      // need to adjust index with the actual length of the previous items
+      c.index = nextChangeIndex
+      next.push(c)
+    })
+  })
+  return next
+}
+
+/**
+ * @param {Array<any>} cs
+ * @param {RegExp} regexp
+ */
+const splitContentArrayByRegexp = (cs, regexp) => {
+  /**
+   * @type {Array<any>}
+   */
+  const res = []
+  cs.forEach(c => {
+    if (typeof c === 'string') {
+      res.push(...patience.splitByRegexp(c, regexp, true))
+    } else {
+      res.push(c)
+    }
+  })
+  return res
+}
+
+/**
+ * @template C
+ * @param {Array<{ index: number, remove: Array<string>, insert: Array<string> }>} changeset
+ * @param {Array<C>} is
+ * @param {Array<C>} should
+ * @return {Array<{ index: number, remove: Array<C>, insert: Array<C> }>}
+ */
+const fillFingerprintDiffFromContent = (changeset, is, should) => {
+  // overwrite fingerprinted content with actual content
+  for (let i = 0, adj = 0; i < changeset.length; i++) {
+    const cd = changeset[i]
+    // @ts-ignore
+    cd.remove = is.slice(cd.index, cd.index + cd.remove.length)
+    // @ts-ignore
+    cd.insert = should.slice(cd.index + adj, cd.index + adj + cd.insert.length)
+    adj += cd.insert.length - cd.remove.length
+  }
+  return /** @type {any} */ (changeset)
 }

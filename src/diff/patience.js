@@ -54,6 +54,13 @@ export const diffSplitBy = (a, b, regexp) => {
 }
 
 /**
+ * For internal use.
+ *
+ * @experimental
+ */
+export const smartSplitRegex = /[^\p{L}\p{N}]+/gu
+
+/**
  * Sensible default for diffing strings using patience (it's fast though).
  *
  * Perform different types of patience diff on the content. Diff first by newline, then paragraphs, then by word
@@ -64,7 +71,7 @@ export const diffSplitBy = (a, b, regexp) => {
  */
 export const diffAuto = (a, b) =>
   diffSplitBy(a, b, '\n').map(d =>
-    diffSplitBy(d.remove, d.insert, /\. |[a-zA-Z0-9]+|[. ()[\],;{}]/g).map(dd => ({
+    diffSplitBy(d.remove, d.insert, smartSplitRegex).map(dd => ({ // old regex: /\. |[a-zA-Z0-9]+|[. ()[\],;{}]/g
       insert: dd.insert,
       remove: dd.remove,
       index: dd.index + d.index
@@ -97,7 +104,7 @@ const removeCommonPrefixAndSuffix = (as, bs) => {
  * @param {RegExp} regexp
  * @param {boolean} includeSeparator
  */
-const splitByRegexp = (str, regexp, includeSeparator) => {
+export const splitByRegexp = (str, regexp, includeSeparator) => {
   const matches = [...str.matchAll(regexp)]
   let prevIndex = 0
   /**

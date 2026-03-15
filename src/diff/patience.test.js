@@ -178,9 +178,8 @@ export const testRepeatRandomWordReplace = tc => {
 export const testDiffIdea = tc => {
   const a = 'hi.there !hello'
   const b = 'hi you !hell'
-  const res = patience.diffSplitBy(a, b, /[\n\.\ !]/)
+  const res = patience.diffSplitBy(a, b, /[\n. !]/)
   t.info(`Diffing "${a}" with "${b}"`)
   console.log(res)
   t.compare(res, [{ index: 2, remove: '.there', insert: ' you' }])
 }
-

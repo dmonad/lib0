@@ -42,5 +42,4 @@ export const testStatic = () => {
   dt.projection(null, {
     name: dt.pipe(dt.firstChild('user'), dt.queryAttr('q'))
   }).pipe(dt.projection('h1', {}, ['hi there ', dt.queryAttr('name')]))
-  
 }
