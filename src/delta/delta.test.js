@@ -756,7 +756,7 @@ export const testDeltaDiffWithFormatting2 = () => {
 export const testDeltaDiff1 = () => {
   const stateA = delta.create().insert([delta.create('paragraph').setAttr('ychange', null).insert('ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
   const stateB = delta.create().insert([delta.create('paragraph').setAttr('ychange', null).insert('ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
-  const expectedDiff = delta.create().modify(delta.create().retain(5).insert('123').retain(21).insert('2sawfa'))
+  const expectedDiff = delta.create().modify(delta.create('paragraph').retain(5).insert('123').retain(21).insert('2sawfa'))
   const diffResult = delta.diff(stateA, stateB)
   const synced = delta.clone(stateA).apply(diffResult)
   t.assert(synced.equals(stateB))
@@ -770,6 +770,17 @@ export const testDeltaDiff2 = () => {
   const diffResult = delta.diff(stateA, stateB)
   const synced = delta.clone(stateA).apply(diffResult)
   t.assert(synced.equals(stateB))
+}
+
+export const testDeltaMapDiff = () => {
+  const stateA = delta.create('div').setAttr('key', delta.create('p', {}, 'some text'))
+  const stateB = delta.create('div').setAttr('key', delta.create('p', {}, 'just text'))
+  const diffResult = delta.diff(stateA, stateB)
+  const synced = delta.clone(stateA).apply(diffResult)
+  t.assert(synced.equals(stateB))
+  t.assert(delta.$modifyAttrOp.check(diffResult.attrs.key))
+  t.assert(diffResult.name === 'div')
+  t.assert(diffResult.attrs.key?.value?.name === 'p')
 }
 
 // TEST TYPINGS
@@ -809,24 +820,73 @@ export const testDeltaTypings = () => {
  */
 const testDeltaDiff = (tc, $d, opts) => {
   // @todo this should  create sentences, words, functions, etc
-  const start = delta.random(tc.prng, $d).done()
-  const change = delta.random(tc.prng, $d, { sourceLen: start.childCnt, ...opts })
+  const start = delta.random(tc.prng, $d, opts).done()
+  const change = delta.random(tc.prng, $d, { source: start, ...opts })
   const final = delta.clone(start)
   final.apply(change)
   const d = delta.diff(start, final)
-  console.log(JSON.stringify({
-    d: d.toJSON(),
-    change: change.toJSON()
-  }))
   const updatedStart = delta.clone(start)
   updatedStart.apply(d)
   t.compare(updatedStart, final)
 }
 
+const $textDelta = delta.$delta({ text: true })
+const $mapDelta = delta.$delta({ attrs: { x: [1, 2, 'str'], y: s.$string } })
+const $arrayDelta = delta.$delta({ children: [0, 1, -1, s.$string, delta.$delta({ attrs: { a: [1, 2], b: [null, 'str'] } })], text: true })
+const $xmlDelta = delta.$delta({ name: ['div', 'p'], children: [0, 1, -1, s.$string, delta.$delta({ attrs: { a: [1, 2] } })], text: true, attrs: { a: [1, 2, 3] } })
+
 /**
  * @param {t.TestCase} tc
  */
 export const testRepeatRandomTextDeltaDiff = tc => {
-  // @todo continue testing diff here
-  testDeltaDiff(tc, delta.$delta({ text: true }), { minChildOps: 3, maxChildOps: 10 })
+  testDeltaDiff(tc, $textDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaDiffLarge = tc => {
+  testDeltaDiff(tc, $textDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaDiff = tc => {
+  testDeltaDiff(tc, $mapDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaDiffLarge = tc => {
+  testDeltaDiff(tc, $mapDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaDiff = tc => {
+  testDeltaDiff(tc, $arrayDelta, { minChildOps: 3, maxChildOps: 3 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaDiffLarge = tc => {
+  testDeltaDiff(tc, $arrayDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaDiff = tc => {
+  testDeltaDiff(tc, $xmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaDiffLarge = tc => {
+  testDeltaDiff(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
 }

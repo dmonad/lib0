@@ -34,12 +34,12 @@ export const testBasics = () => {
   console.log(dtrn)
 }
 
-export const testStatic = () => {
-  dt.projection('h1', {
-    k: dt.projection('h2')
-  }, ['hi there ', dt.query('name')])
-
-  dt.projection(null, {
-    name: dt.pipe(dt.firstChild('user'), dt.queryAttr('q'))
-  }).pipe(dt.projection('h1', {}, ['hi there ', dt.queryAttr('name')]))
-}
+// export const testStatic = () => {
+//   dt.projection('h1', {
+//     k: dt.projection('h2')
+//   }, ['hi there ', dt.query('name')])
+//
+//   dt.projection(null, {
+//     name: dt.pipe(dt.firstChild('user'), dt.queryAttr('q'))
+//   }).pipe(dt.projection('h1', {}, ['hi there ', dt.queryAttr('name')]))
+// }

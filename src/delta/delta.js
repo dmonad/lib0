@@ -1650,8 +1650,13 @@ export class DeltaBuilder extends Delta {
         }
         if ($modifyAttrOp.check(opsI)) {
           opsI._modValue.apply(/** @type {any} */ (op.value))
+          opsI = opsI.next
         } else if ($insertOp.check(opsI)) {
           opsI._modValue(offset).apply(op.value)
+          if (opsI.length === ++offset) {
+            opsI = opsI.next
+            offset = 0
+          }
         } else if ($retainOp.check(opsI)) {
           if (offset > 0) {
             const cpy = scheduleForMerge(opsI.clone(0, offset)) // skipped len
@@ -2017,16 +2022,23 @@ export const mergeDeltas = (a, b) => {
  * @param {prng.PRNG} gen
  * @param {s.Schema<Delta<Conf>>} $d
  * @param {object} conf
- * @param {number} [conf.sourceLen]
+ * @param {DeltaAny?} [conf.source]
  * @param {number} [conf.minChildOps]
  * @param {number} [conf.maxChildOps]
  * @return {DeltaBuilder<Conf>}
  */
-export const random = (gen, $d, { sourceLen = 0, minChildOps = 1, maxChildOps = 9 } = {}) => {
+export const random = (gen, $d, conf = {}) => {
+  let { source = null, minChildOps = 1, maxChildOps = 9 } = conf
+  let sourceLen = source == null ? 0 : source.childCnt
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any>} */ (/** @type {any} */ ($d)).shape
   const d = s.$$any.check($name) ? create($deltaAny) : create(s.random(gen, $name), $deltaAny)
   const $formats = s.$$any.check($formats_) ? s.$null : $formats_
-  prng.bool(gen) && d.setAttrs(s.random(gen, $attrs))
+  // set random attrs
+  prng.bool(gen) && d.setAttrs(s.random(gen, $attrs, random))
+  // delete a single attr
+  if (source && !object.isEmpty(source.attrs) && prng.bool(gen)) {
+    d.deleteAttr(prng.oneOf(gen, object.keys(source.attrs)))
+  }
   for (let i = prng.uint32(gen, minChildOps, maxChildOps); i > 0; i--) {
     /**
      * @type {Array<function():void>}
@@ -2045,7 +2057,7 @@ export const random = (gen, $d, { sourceLen = 0, minChildOps = 1, maxChildOps = 
         const ins = []
         let insN = prng.int32(gen, 0, 5)
         while (insN--) {
-          ins.push(s.random(gen, $children))
+          ins.push(s.random(gen, $children, random))
         }
         d.insert(ins, s.random(gen, $formats))
       })
@@ -2196,6 +2208,24 @@ export const from = (...args) => {
   return d
 }
 
+class _DiffStringWrapper {
+  /**
+   * @param {string} str
+   */
+  constructor (str) {
+    this.str = str
+    /**
+     * @type {string?}
+     */
+    this._fingerprint = null
+  }
+
+  [fingerprintTrait.FingerprintTraitSymbol] () {
+    return this._fingerprint || (this._fingerprint = fingerprintTrait.fingerprint(this.str))
+  }
+}
+
+
 /*
  * Delta Diffing approach - optimized for performance and creating readable deltas
  *
@@ -2218,7 +2248,7 @@ export const from = (...args) => {
  * @return {Delta<Conf>}
  */
 export const diff = (d1, d2) => {
-  const d = create($deltaAny)
+  const d = create(d1.name === d2.name ? d1.name : null, $deltaAny)
   if (d1.fingerprint !== d2.fingerprint) {
     /**
      * @type {ChildrenOpAny?}
@@ -2248,9 +2278,11 @@ export const diff = (d1, d2) => {
       left1 = left1.next
       left2 = left2.next
     }
-    while (right1 !== null && right1 !== left1 && right1.fingerprint === right2?.fingerprint) {
-      right1 = right1.prev
-      right2 = right2.prev
+    if (left1 !== null && left2 !== null) {
+      while (right1 !== null && right2 !== null && right1 !== left1 && right2 !== left2 && right1.fingerprint === right2.fingerprint) {
+        right1 = right1.prev
+        right2 = right2.prev
+      }
     }
     /**
      * @type {Array<fingerprintTrait.Fingerprintable>}
@@ -2260,22 +2292,23 @@ export const diff = (d1, d2) => {
      * @type {Array<fingerprintTrait.Fingerprintable>}
      */
     const cs2 = []
-    while (left1 !== null && left1 !== right1?.next) {
+    // if right is null, then we already matched everything
+    while (left1 !== null && right1 !== null && left1 !== right1.next) {
       if ($textOp.check(left1)) {
         cs1.push(left1.insert)
       } else if ($insertOp.check(left1)) {
-        cs1.push(...left1.insert)
+        cs1.push(...left1.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
       } else {
         error.unexpectedCase()
       }
       formattingNeedsDiff ||= left1.format != null
       left1 = left1.next
     }
-    while (left2 !== null && left2 !== right2?.next) {
+    while (left2 !== null && right2 !== null && left2 !== right2.next) {
       if ($textOp.check(left2)) {
         cs2.push(left2.insert)
       } else if ($insertOp.check(left2)) {
-        cs2.push(...left2.insert)
+        cs2.push(...left2.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
       } else {
         error.unexpectedCase()
       }
@@ -2346,22 +2379,29 @@ export const diff = (d1, d2) => {
       d.apply(formattingDiff)
     }
     for (const attr2 of d2.attrs) {
+      const key = attr2.key
       // @ts-ignore
-      const attr1 = d1.attrs[attr2.key]
+      const attr1 = d1.attrs[key]
       if (attr1 == null || (attr1.fingerprint !== attr2.fingerprint)) {
         /* c8 ignore else */
         if ($setAttrOp.check(attr2)) {
-          d.setAttr(attr2.key, attr2.value)
+          const prevVal = attr1?.value
+          const nextVal = attr2.value
+          if ($deltaAny.check(prevVal) && $deltaAny.check(nextVal) && prevVal.name === nextVal.name) {
+            d.modifyAttr(key, diff(prevVal, nextVal))
+          } else {
+            d.setAttr(key, nextVal)
+          }
         } else {
           /* c8 ignore next 2 */
           error.unexpectedCase()
         }
       }
     }
-    for (const attr1 of d1.attrs) {
+    for (const { key } of d1.attrs) {
       // @ts-ignore
-      if (d2.attrs[attr1.key] == null) {
-        d.deleteAttr(attr1.key)
+      if (d2.attrs[key] == null) {
+        d.deleteAttr(key)
       }
     }
   }
@@ -2388,7 +2428,7 @@ const applyRemoves = (d, crem, len) => { len > 0 && d.delete(crem.splice(0, len)
  * @param {Array<any>} cins
  * @param {number} len
  */
-const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(ins => d.insert(typeof ins === 'string' ? ins : [ins])) }
+const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(ins => d.insert(typeof ins === 'string' ? ins : [ins instanceof _DiffStringWrapper ? ins.str : ins])) }
 
 /**
  * @param {DeltaBuilderAny} d

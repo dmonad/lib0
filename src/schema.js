@@ -943,6 +943,9 @@ export const $promise = $constructedBy(Promise)
 export const $$promise = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Promise))
 
 /**
+ * Primitive JavaScript types: immutable, non-object value that is stored and compared directly by
+ * its value rather than by reference.
+ *
  * @type {Schema<Primitive>}
  */
 export const $primitive = $union($number, $string, $null, $undefined, $bigint, $boolean, $symbol)
@@ -1116,15 +1119,15 @@ export const match = state => new PatternMatcher(/** @type {any} */ (state))
 /**
  * Helper function to generate a (non-exhaustive) sample set from a gives schema.
  *
- * @type {<T>(o:T,gen:prng.PRNG)=>T}
+ * @type {<T>(o:T,opts:any)=>ReadSchemaUnwrapped<T>}
  */
-const _random = /** @type {any} */ /* @__PURE__ */(() => match(/** @type {Schema<prng.PRNG>} */ ($any))
-  .if($$number, (_o, gen) => prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER))
-  .if($$string, (_o, gen) => prng.word(gen))
-  .if($$boolean, (_o, gen) => prng.bool(gen))
-  .if($$bigint, (_o, gen) => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)))
-  .if($$union, (o, gen) => random(gen, prng.oneOf(gen, o.shape)))
-  .if($$object, (o, gen) => {
+const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>} */ ($any), fallback: $lambda($any,$any,$any).optional })
+  .if($$number, (_o, { gen }) => prng.oneOf(gen, [-1, 0, 1, prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)]))
+  .if($$string, (_o, { gen }) => prng.word(gen))
+  .if($$boolean, (_o, { gen }) => prng.bool(gen))
+  .if($$bigint, (_o, { gen }) => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)))
+  .if($$union, (o, opts) => _random(prng.oneOf(opts.gen, o.shape), opts))
+  .if($$object, (o, opts) => {
     /**
      * @type {any}
      */
@@ -1132,48 +1135,57 @@ const _random = /** @type {any} */ /* @__PURE__ */(() => match(/** @type {Schema
     for (const k in o.shape) {
       let prop = o.shape[k]
       if ($$optional.check(prop)) {
-        if (prng.bool(gen)) { continue }
+        if (prng.bool(opts.gen)) { continue }
         prop = prop.shape
       }
-      res[k] = _random(prop, gen)
+      res[k] = _random(prop, opts)
     }
     return res
   })
-  .if($$array, (o, gen) => {
+  .if($$array, (o, opts) => {
+    /**
+     * @type {Array<any>}
+     */
     const arr = []
-    const n = prng.int32(gen, 0, 42)
+    const n = prng.int32(opts.gen, 0, 42)
     for (let i = 0; i < n; i++) {
-      arr.push(random(gen, o.shape))
+      arr.push(_random(o.shape, opts))
     }
     return arr
   })
-  .if($$literal, (o, gen) => {
+  .if($$literal, (o, { gen }) => {
     return prng.oneOf(gen, o.shape)
   })
-  .if($$null, (_o, _gen) => {
+  .if($$null, (_o) => {
     return null
   })
-  .if($$lambda, (o, gen) => {
-    const res = random(gen, o.res)
+  .if($$lambda, (o, opts) => {
+    const res = _random(o.res, opts)
     return () => res
   })
-  .if($$any, (_o, gen) => random(gen, prng.oneOf(gen, [
+  .if($$any, (_o, opts) => _random(prng.oneOf(opts.gen, [
     $number, $string, $null, $undefined, $bigint, $boolean,
     $array($number),
     $record($union('a', 'b', 'c'), $number)
-  ])))
-  .if($$record, (o, gen) => {
+  ]), opts))
+  .if($$record, (o, opts) => {
     /**
      * @type {any}
      */
     const res = {}
-    const keysN = prng.int53(gen, 0, 3)
+    const keysN = prng.int53(opts.gen, 0, 3)
     for (let i = 0; i < keysN; i++) {
-      const key = random(gen, o.shape.keys)
-      const val = random(gen, o.shape.values)
+      const key = _random(o.shape.keys, opts)
+      const val = _random(o.shape.values, opts)
       res[key] = val
     }
     return res
+  })
+  .else((o, { gen, fallback }) => {
+    if (fallback == null) {
+      throw new Error('No random generator for schema provided')
+    }
+    return fallback(gen, o)
   })
   .done())()
 
@@ -1181,9 +1193,8 @@ const _random = /** @type {any} */ /* @__PURE__ */(() => match(/** @type {Schema
  * @template S
  * @param {prng.PRNG} gen
  * @param {S} schema
+ * @param {(gen:prng.PRNG,o:Schema<any>)=>any} [fallback]
  * @return {ReadSchemaUnwrapped<S>}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const random = (gen, schema) => /** @type {any} */ (/* @__PURE__ */_random($(schema), gen))
-
-export const ___test = 42
+export const random = (gen, schema, fallback) => /* @__PURE__ */_random($(schema), { gen, fallback })
