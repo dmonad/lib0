@@ -876,11 +876,74 @@ export class $Union extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s)) >= 0
-  ? $union(...schemas.map($s => $($s)).map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
+  ? $union(...schemas.map($).map($s => $$union.check($s) ? $s.shape : [$s]).flat(1))
   : (schemas.length === 1
       ? schemas[0]
-      : new $Union(schemas))
+      : new $Union(schemas.map($)))
 export const $$union = /** @type {Schema<$Union<any>>} */ (/* @__PURE__ */$constructedBy($Union))
+
+/**
+ * @template {any} IN
+ * @typedef {[Extract<IN,Schema<any>>,Extract<IN,string|number|boolean|null>,Extract<IN,new (...args:any[])=>any>,Extract<IN,any[]>,Extract<Exclude<IN,Schema<any>|string|number|boolean|null|(new (...args:any[])=>any)|any[]>,object>] extends [infer Schemas, infer Primitives, infer Constructors, infer Arrs, infer Obj]
+ *   ? (
+ *     (Schemas extends Schema<infer S> ? S : never)
+ *     | Primitives
+ *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
+ *     | (Arrs extends any[] ? { [K in keyof Arrs]: ReadSchemaUnwrapped<Arrs[K]> }[keyof Arrs & number] : never)
+ *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]:Schema<ReadSchemaUnwrapped<Obj[K]>>}> : never))
+ *   : never
+ * } ReadSchemaUnwrapped
+ */
+
+/**
+ * @template {any} IN
+ * @typedef {Schema<ReadSchemaUnwrapped<IN>>} ReadSchema
+ */
+
+/**
+ * @template IN
+ * @param {IN} o
+ * @return {Schema<import('./ts.js').TypeIsAny<IN,any,ReadSchemaUnwrapped<IN>>>}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const $ = o => {
+  if ($$schema.check(o)) {
+    return /** @type {any} */ (o)
+  } else if ($objectAny.check(o)) {
+    /**
+     * @type {any}
+     */
+    const o2 = {}
+    for (const k in o) {
+      o2[k] = $(o[k])
+    }
+    return /** @type {any} */ ($object(o2))
+  } else if ($arrayAny.check(o)) {
+    return /** @type {any} */ ($union(...o.map($)))
+  } else if ($primitive.check(o)) {
+    return /** @type {any} */ ($literal(o))
+  } else if ($function.check(o)) {
+    return /** @type {any} */ ($constructedBy(/** @type {any} */ (o)))
+  }
+  /* c8 ignore next */
+  error.unexpectedCase()
+}
+
+/* c8 ignore start */
+/**
+ * Assert that a variable is of this specific type.
+ * The assertion check is only performed in non-production environments.
+ *
+ * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const assert = (o, schema) => {
+  const err = new ValidationError()
+  if (!schema.check(o, err)) {
+    throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
+  }
+}
+/* c8 ignore end */
 
 /* @__NO_SIDE_EFFECTS__ */
 const _t = () => true
@@ -968,69 +1031,6 @@ export const $json = /* @__PURE__ */(() => {
   $jsonRecord.shape.values = $json
   return $json
 })()
-
-/**
- * @template {any} IN
- * @typedef {[Extract<IN,Schema<any>>,Extract<IN,string|number|boolean|null>,Extract<IN,new (...args:any[])=>any>,Extract<IN,any[]>,Extract<Exclude<IN,Schema<any>|string|number|boolean|null|(new (...args:any[])=>any)|any[]>,object>] extends [infer Schemas, infer Primitives, infer Constructors, infer Arrs, infer Obj]
- *   ? (
- *     (Schemas extends Schema<infer S> ? S : never)
- *     | Primitives
- *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
- *     | (Arrs extends any[] ? { [K in keyof Arrs]: ReadSchemaUnwrapped<Arrs[K]> }[keyof Arrs & number] : never)
- *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]:Schema<ReadSchemaUnwrapped<Obj[K]>>}> : never))
- *   : never
- * } ReadSchemaUnwrapped
- */
-
-/**
- * @template {any} IN
- * @typedef {Schema<ReadSchemaUnwrapped<IN>>} ReadSchema
- */
-
-/**
- * @template IN
- * @param {IN} o
- * @return {Schema<import('./ts.js').TypeIsAny<IN,any,ReadSchemaUnwrapped<IN>>>}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const $ = o => {
-  if ($$schema.check(o)) {
-    return /** @type {any} */ (o)
-  } else if ($objectAny.check(o)) {
-    /**
-     * @type {any}
-     */
-    const o2 = {}
-    for (const k in o) {
-      o2[k] = $(o[k])
-    }
-    return /** @type {any} */ ($object(o2))
-  } else if ($arrayAny.check(o)) {
-    return /** @type {any} */ ($union(...o.map($)))
-  } else if ($primitive.check(o)) {
-    return /** @type {any} */ ($literal(o))
-  } else if ($function.check(o)) {
-    return /** @type {any} */ ($constructedBy(/** @type {any} */ (o)))
-  }
-  /* c8 ignore next */
-  error.unexpectedCase()
-}
-
-/* c8 ignore start */
-/**
- * Assert that a variable is of this specific type.
- * The assertion check is only performed in non-production environments.
- *
- * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const assert = (o, schema) => {
-  const err = new ValidationError()
-  if (!schema.check(o, err)) {
-    throw error.create(`Expected value to be of type ${schema.constructor.name}.\n${err.toString()}`)
-  }
-}
-/* c8 ignore end */
 
 /**
  * @template In

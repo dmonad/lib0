@@ -16,7 +16,7 @@ import * as array from '../array.js'
  *
  * @param {Array<string>} as
  * @param {Array<string>} bs
- * @return {Array<{ index: number, remove: Array<string>, insert: Array<string>}>} changeset @todo should use delta instead
+ * @return {Array<{ index: number, remove: Array<string>, insert: Array<string>}>} changeset
  */
 export const diff = (as, bs) => {
   const {
@@ -35,9 +35,11 @@ export const diff = (as, bs) => {
 export const diffSplitBy = (a, b, regexp) => {
   const isStringSeparator = typeof regexp === 'string'
   const separator = /** @type {string} */ (isStringSeparator ? regexp : '')
-  regexp = new RegExp(regexp, 'g')
-  const as = splitByRegexp(a, regexp, !isStringSeparator)
-  const bs = splitByRegexp(b, regexp, !isStringSeparator)
+  if (isStringSeparator) {
+    regexp = new RegExp(regexp, 'g')
+  }
+  const as = splitByRegexp(a, /** @type {RegExp} */ (regexp), !isStringSeparator)
+  const bs = splitByRegexp(b, /** @type {RegExp} */ (regexp), !isStringSeparator)
   const changes = diff(as, bs)
   let prevSplitIndex = 0
   let prevStringIndex = 0
@@ -54,11 +56,13 @@ export const diffSplitBy = (a, b, regexp) => {
 }
 
 /**
- * For internal use.
+ * Idea: match all "non-word" characters and keep them separate (spaces, comma, exclamation marks, ..).
+ * Anything that can be classivied as a word (emoji, char, number) will be bundled together. All other tokens are kept
+ * individually. "hello, world!!!!" => ['hello', ',', ' ', 'world', '!', '!']
  *
  * @experimental
  */
-export const smartSplitRegex = /[^\p{L}\p{N}]+/gu
+export const smartSplitRegex = /[^\p{L}\p{N}\p{Extended_Pictographic}\p{Emoji_Modifier}\u200D\uFE0F]/gu
 
 /**
  * Sensible default for diffing strings using patience (it's fast though).
@@ -76,7 +80,7 @@ export const diffAuto = (a, b) =>
       remove: dd.remove,
       index: dd.index + d.index
     }))
-  ).flat()
+  ).flat(1)
 
 /**
  * @param {Array<string>} as

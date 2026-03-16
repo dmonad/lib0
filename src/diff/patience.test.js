@@ -119,6 +119,17 @@ export const testDiffing = _tc => {
       index: 8
     }]
   )
+  // when diffing emojis, we don't want to split them up, match them individually.
+  testDiffAuto(
+    // both emojis have the same prefix
+    'hi 👋🏻',
+    'hi 👋🏿',
+    [{
+      insert: '👋🏿', 
+      remove: '👋🏻',
+      index: 3
+    }]
+  )
 }
 
 /**
@@ -173,13 +184,13 @@ export const testRepeatRandomWordReplace = tc => {
 }
 
 /**
- * @param {t.TestCase} tc
+ * @param {t.TestCase} _tc
  */
-export const testDiffIdea = tc => {
+export const testDiffIdea = _tc => {
   const a = 'hi.there !hello'
   const b = 'hi you !hell'
-  const res = patience.diffSplitBy(a, b, /[\n. !]/)
+  const res = patience.diffSplitBy(a, b, /[\n. !]/g)
   t.info(`Diffing "${a}" with "${b}"`)
   console.log(res)
-  t.compare(res, [{ index: 2, remove: '.there', insert: ' you' }])
+  t.compare(res, [{ index: 2, remove: '.there', insert: ' you' }, { index: 10, remove: 'hello', insert: 'hell' }])
 }

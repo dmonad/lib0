@@ -9,7 +9,7 @@ export const testCache = async tc => {
   /**
    * @type {cache.Cache<string, string>}
    */
-  const c = cache.create(50)
+  const c = cache.create(250)
   cache.set(c, 'a', '1')
   t.assert(cache.get(c, 'a') === '1')
   t.assert(await cache.getAsync(c, 'a') === '1')
@@ -46,8 +46,8 @@ export const testCache = async tc => {
   t.assert(aTimestamp1 !== m.get('a').created)
   t.assert(bTimestamp1 !== m.get('b').created)
 
-  await promise.wait(60) // now the keys should be timed-out
-
+  // we can't just use time, because firefox is actively manipulating time - so wait doesn't help
+  await promise.untilAsync(() => cache.get(c, 'a') == null)
   t.assert(cache.get(c, 'a') == null)
   t.assert(cache.getAsync(c, 'b') == null)
 

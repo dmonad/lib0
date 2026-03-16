@@ -2325,7 +2325,7 @@ export const diff = (d1, d2) => {
     // split by alphanumerics and others
     const changeset3 = diffChangesetWithSeparator(changeset2, patience.smartSplitRegex)
     // split all
-    const changeset4 = diffChangesetWithSeparator(changeset3, /./g) // @todo this part should use myers diff
+    const changeset4 = diffChangesetWithSeparator(changeset3, /./g)
     applyChangesetToDelta(d, changeset4)
     if (formattingNeedsDiff) {
       const formattingDiff = create()

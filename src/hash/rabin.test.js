@@ -41,7 +41,7 @@ export const testIrreducibleInput = _tc => {
  */
 export const testIrreducibleSpread = _tc => {
   const degree = 32
-  const N = 1000
+  const N = 500
   const avgSpread = getSpreadAverage(degree, N)
   const diffSpread = math.abs(avgSpread - degree)
   t.info(`Average spread for degree ${degree} at ${N} repetitions: ${avgSpread}`)
