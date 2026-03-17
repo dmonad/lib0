@@ -1972,7 +1972,7 @@ export class $Delta extends s.Schema {
  * @param {Formats} [opts.formats]
  * @param {RecursiveChildren} [opts.recursiveChildren]
  * @return {[s.ReadSchemaUnwrapped<NodeNameSchema>,s.ReadSchemaUnwrapped<AttrsSchema>,s.ReadSchemaUnwrapped<ChildrenSchema>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<PrettifyDeltaConf<(import('../ts.js').TypeIsAny<NodeName, {}, { name: NodeName }> &
- *   ({} extends Attrs ? {} : { attrs: Attrs }) &
+ *   ([keyof Attrs] extends [never] ? {} : { attrs: Attrs }) &
  *   ([Children] extends [never] ? {} : { children: Children }) &
  *   (HasText extends false ? {} : { text: HasText }) &
  *   (RecursiveChildren extends false ? {} : { recursiveChildren: RecursiveChildren })) extends infer DC extends DeltaConf ? DC : never>>> : never}

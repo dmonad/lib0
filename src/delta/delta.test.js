@@ -144,6 +144,18 @@ export const testDeltaBasicCases = () => {
   m.apply(delta.create().deleteAttr('y').insert('hi'))
 }
 
+/**
+ * Focusing on attrs
+ */
+export const testDeltaBasicCases2 = () => {
+  const $dattrs = s.$record(s.$string, s.$number)
+  const $d = delta.$delta({ attrs: $dattrs })
+  const d = delta.create($d)
+  d.setAttr('a', 42)
+  // @ts-expect-error
+  d.setAttr('a', 'b')
+}
+
 export const testDeltaAttrAssignability = () => {
   const x1 = delta.create().setAttr('a', 42).setAttr('b', 'dtrn').insert('dtrn').insert([1234, 'dtrn']).setAttr('q', delta.create().setAttr('a', 42))
   x1.apply(delta.create().setAttr('a', 1234).done())
