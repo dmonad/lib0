@@ -15,6 +15,8 @@ import * as number from './number.js'
 import * as map from './map.js'
 import { global } from './environment.js'
 
+const schemaMarker = Symbol.for('lib0/schema')
+
 /**
  * @typedef {string|number|bigint|boolean|null|undefined|symbol} Primitive
  */
@@ -234,6 +236,12 @@ export class Schema {
     return o
   }
 }
+
+Object.defineProperty(Schema.prototype, schemaMarker, {
+  value: true,
+  enumerable: false,
+  configurable: false
+})
 
 /**
  * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} Constr
@@ -756,7 +764,7 @@ export class $InstanceOf extends Schema {
 export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
 export const $$instanceOf = /* @__PURE__ */$constructedBy($InstanceOf)
 
-export const $$schema = /* @__PURE__ */$instanceOf(Schema)
+export const $$schema = /** @type {Schema<Schema<any>>} */ (/* @__PURE__ */$custom(o => o instanceof Schema || o?.[schemaMarker] === true))
 
 /**
  * @template {Schema<any>[]} Args
@@ -1121,7 +1129,7 @@ export const match = state => new PatternMatcher(/** @type {any} */ (state))
  *
  * @type {<T>(o:T,opts:any)=>ReadSchemaUnwrapped<T>}
  */
-const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>} */ ($any), fallback: $lambda($any,$any,$any).optional })
+const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>} */ ($any), fallback: $lambda($any, $any, $any).optional })
   .if($$number, (_o, { gen }) => prng.oneOf(gen, [-1, 0, 1, prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)]))
   .if($$string, (_o, { gen }) => prng.word(gen))
   .if($$boolean, (_o, { gen }) => prng.bool(gen))
