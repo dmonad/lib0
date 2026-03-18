@@ -346,7 +346,7 @@ export class DeleteOp extends list.ListNode {
   }
 
   get length () {
-    return 0
+    return this.delete
   }
 
   get fingerprint () {

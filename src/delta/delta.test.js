@@ -628,6 +628,18 @@ export const testRepeatRebaseMergeDeltas = tc => {
   t.compare(dmerged1, dmerged2)
 }
 
+export const testRebaseBasic = () => {
+  const d1 = delta.create().retain(5).delete(6)
+  const d2 = delta.create().retain(11).insert('!')
+  const rebased = d2.rebase(d1, false)
+  console.log({
+    d1: JSON.stringify(d1.toJSON()),
+    d2: JSON.stringify(d2.toJSON()),
+    rebased: JSON.stringify(rebased.toJSON())
+  })
+  t.compare(rebased, delta.create().retain(5).insert('!'))
+}
+
 /**
  * @param {t.TestCase} _tc
  */
