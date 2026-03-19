@@ -1958,24 +1958,39 @@ export class $Delta extends s.Schema {
 }
 
 /**
- * @template {s.Schema<string>|string|Array<string>} [NodeNameSchema=s.Schema<any>]
- * @template {s.Schema<{ [key: string|number]: any }>|{ [key:string|number]:any }} [AttrsSchema=s.Schema<{}>]
- * @template {any} [ChildrenSchema=s.Schema<never>]
- * @template {boolean} [HasText=false]
- * @template {boolean} [RecursiveChildren=false]
- * @template {{ [k:string]:any }} [Formats={[k:string]:any}]
- * @param {object} opts
- * @param {NodeNameSchema?} [opts.name]
- * @param {AttrsSchema?} [opts.attrs] What key-value pairs are included.
- * @param {ChildrenSchema?} [opts.children] The type of content in `insertOp`
- * @param {HasText} [opts.text] Whether this delta contains text using `textOp`
- * @param {Formats} [opts.formats]
- * @param {RecursiveChildren} [opts.recursiveChildren]
- * @return {[s.ReadSchemaUnwrapped<NodeNameSchema>,s.ReadSchemaUnwrapped<AttrsSchema>,s.ReadSchemaUnwrapped<ChildrenSchema>] extends [infer NodeName, infer Attrs, infer Children] ? s.Schema<Delta<PrettifyDeltaConf<(import('../ts.js').TypeIsAny<NodeName, {}, { name: NodeName }> &
- *   ([keyof Attrs] extends [never] ? {} : { attrs: Attrs }) &
- *   ([Children] extends [never] ? {} : { children: Children }) &
- *   (HasText extends false ? {} : { text: HasText }) &
- *   (RecursiveChildren extends false ? {} : { recursiveChildren: RecursiveChildren })) extends infer DC extends DeltaConf ? DC : never>>> : never}
+ * @typedef {{
+ *   name?: s.Schema<string>|string|Array<string>,
+ *   attrs?: s.Schema<{ [key: string|number]: any }>|{ [key:string|number]:any },
+ *   children?: any,
+ *   text?: boolean,
+ *   recursiveChildren?: boolean,
+ *   formats?: { [k:string]: any }
+ * }} ReadableDeltaConf
+ */
+
+/**
+ * Transforms a ReadableDeltaConf (the input shape of `$delta(spec)`) to a DeltaConf.
+ * @template {ReadableDeltaConf} DConfSpec
+ * @typedef {[
+ *   DConfSpec extends {name: infer N} ? s.ReadSchemaUnwrapped<N> : any,
+ *   DConfSpec extends {attrs: infer A} ? s.ReadSchemaUnwrapped<A> : {},
+ *   DConfSpec extends {children: infer C} ? s.ReadSchemaUnwrapped<C> : never
+ * ] extends [infer NodeName, infer Attrs, infer Children]
+ *   ? PrettifyDeltaConf<(
+ *       import('../ts.js').TypeIsAny<NodeName, {}, { name: NodeName }> &
+ *       ([keyof Attrs] extends [never] ? {} : { attrs: Attrs }) &
+ *       ([Children] extends [never] ? {} : { children: Children }) &
+ *       (DConfSpec extends {text: true} ? { text: true } : {}) &
+ *       (DConfSpec extends {recursiveChildren: true} ? { recursiveChildren: true } : {})
+ *     ) extends infer DC extends DeltaConf ? DC : never>
+ *   : never
+ * } ReadDeltaConf
+ */
+
+/**
+ * @template {ReadableDeltaConf} [Opts={}]
+ * @param {Opts} opts
+ * @return {s.Schema<Delta<ReadDeltaConf<Opts>>>}
  */
 export const $delta = ({ name, attrs, children, text, formats, recursiveChildren: recursive }) => /** @type {any} */ (new $Delta(
   /** @type {any} */ (name == null ? s.$any : s.$(name)),
@@ -2028,7 +2043,7 @@ export const mergeDeltas = (a, b) => {
  * @return {DeltaBuilder<Conf>}
  */
 export const random = (gen, $d, conf = {}) => {
-  let { source = null, minChildOps = 1, maxChildOps = 9 } = conf
+  const { source = null, minChildOps = 1, maxChildOps = 9 } = conf
   let sourceLen = source == null ? 0 : source.childCnt
   const { $name, $attrs, $children, hasText, $formats: $formats_ } = /** @type {$Delta<any>} */ (/** @type {any} */ ($d)).shape
   const d = s.$$any.check($name) ? create($deltaAny) : create(s.random(gen, $name), $deltaAny)
@@ -2225,7 +2240,6 @@ class _DiffStringWrapper {
   }
 }
 
-
 /*
  * Delta Diffing approach - optimized for performance and creating readable deltas
  *
@@ -2293,27 +2307,31 @@ export const diff = (d1, d2) => {
      */
     const cs2 = []
     // if right is null, then we already matched everything
-    while (left1 !== null && right1 !== null && left1 !== right1.next) {
-      if ($textOp.check(left1)) {
-        cs1.push(left1.insert)
-      } else if ($insertOp.check(left1)) {
-        cs1.push(...left1.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
-      } else {
-        error.unexpectedCase()
+    if (right1 != null) {
+      while (left1 !== null && left1 !== right1.next) {
+        if ($textOp.check(left1)) {
+          cs1.push(left1.insert)
+        } else if ($insertOp.check(left1)) {
+          cs1.push(...left1.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
+        } else {
+          error.unexpectedCase()
+        }
+        formattingNeedsDiff ||= left1.format != null
+        left1 = left1.next
       }
-      formattingNeedsDiff ||= left1.format != null
-      left1 = left1.next
     }
-    while (left2 !== null && right2 !== null && left2 !== right2.next) {
-      if ($textOp.check(left2)) {
-        cs2.push(left2.insert)
-      } else if ($insertOp.check(left2)) {
-        cs2.push(...left2.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
-      } else {
-        error.unexpectedCase()
+    if (right2 != null) {
+      while (left2 !== null && left2 !== right2.next) {
+        if ($textOp.check(left2)) {
+          cs2.push(left2.insert)
+        } else if ($insertOp.check(left2)) {
+          cs2.push(...left2.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
+        } else {
+          error.unexpectedCase()
+        }
+        formattingNeedsDiff ||= left2.format != null
+        left2 = left2.next
       }
-      formattingNeedsDiff ||= left2.format != null
-      left2 = left2.next
     }
     const changeset1 = [{
       index: commonPrefixOffset,

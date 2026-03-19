@@ -125,7 +125,7 @@ export const testDiffing = _tc => {
     'hi 👋🏻',
     'hi 👋🏿',
     [{
-      insert: '👋🏿', 
+      insert: '👋🏿',
       remove: '👋🏻',
       index: 3
     }]

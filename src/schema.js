@@ -1121,7 +1121,7 @@ export const match = state => new PatternMatcher(/** @type {any} */ (state))
  *
  * @type {<T>(o:T,opts:any)=>ReadSchemaUnwrapped<T>}
  */
-const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>} */ ($any), fallback: $lambda($any,$any,$any).optional })
+const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>} */ ($any), fallback: $lambda($any, $any, $any).optional })
   .if($$number, (_o, { gen }) => prng.oneOf(gen, [-1, 0, 1, prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)]))
   .if($$string, (_o, { gen }) => prng.word(gen))
   .if($$boolean, (_o, { gen }) => prng.bool(gen))

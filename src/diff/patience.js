@@ -62,7 +62,7 @@ export const diffSplitBy = (a, b, regexp) => {
  *
  * @experimental
  */
-export const smartSplitRegex = /[^\p{L}\p{N}\p{Extended_Pictographic}\p{Emoji_Modifier}\u200D\uFE0F]/gu
+export const smartSplitRegex = /[^\p{L}\p{N}\p{Extended_Pictographic}\p{Emoji_Modifier}\u200D\uFE0F]/gu // eslint-disable-line no-misleading-character-class
 
 /**
  * Sensible default for diffing strings using patience (it's fast though).
