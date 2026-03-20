@@ -269,6 +269,23 @@ export const testSchemas = _tc => {
   })
 }
 
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testSchemaReloadStability = async _tc => {
+  const schemaUrl = new URL('./schema.js', import.meta.url).href
+  const s1 = await import(`${schemaUrl}?v=1`)
+  const s2 = await import(`${schemaUrl}?v=2`)
+
+  const t1 = s1.$type('insertOp')
+  const t2 = s2.$type('insertOp')
+
+  t.assert(t1 === t2)
+  t.assert(s1.$$schema.check(t1))
+  t.assert(s2.$$schema.check(t2))
+  t.assert(s2.$union(t2, s2.$string).validate('abc'))
+}
+
 export const testSchemaExpect = () => {
   // Array<never> is an edge case
   const q = s.$array(s.$string)

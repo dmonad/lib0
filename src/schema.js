@@ -15,6 +15,8 @@ import * as number from './number.js'
 import * as map from './map.js'
 import { global } from './environment.js'
 
+const schemaMarker = Symbol.for('lib0/schema')
+
 /**
  * @typedef {string|number|bigint|boolean|null|undefined|symbol} Primitive
  */
@@ -234,6 +236,12 @@ export class Schema {
     return o
   }
 }
+
+Object.defineProperty(Schema.prototype, schemaMarker, {
+  value: true,
+  enumerable: false,
+  configurable: false
+})
 
 /**
  * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} Constr
@@ -756,7 +764,7 @@ export class $InstanceOf extends Schema {
 export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
 export const $$instanceOf = /* @__PURE__ */$constructedBy($InstanceOf)
 
-export const $$schema = /* @__PURE__ */$instanceOf(Schema)
+export const $$schema = /** @type {Schema<Schema<any>>} */ (/* @__PURE__ */$custom(o => o instanceof Schema || o?.[schemaMarker] === true))
 
 /**
  * @template {Schema<any>[]} Args
