@@ -435,6 +435,39 @@ export const testPatternMatcherBase = () => {
   })
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
+export const testPatternMatchDifferentInputs = tc => {
+  const isSingleDigit = s.match()
+    .if(s.$constructedBy(Number, o => 0 <= o && o < 10), () => true)
+    .if(s.$constructedBy(Number, o => o >= 10), () => false)
+    .if(s.$string, _o => 'no')
+    .if(s.$null, () => null)
+    .else(() => ({x:42}))
+    .done()
+  const resNum = isSingleDigit(0)
+  s.$boolean.expect(resNum)
+  const resString = isSingleDigit('42')
+  s.$string.expect(resString)
+  t.assert(isSingleDigit(0))
+  t.assert(!isSingleDigit(42))
+  t.assert(isSingleDigit('42') === 'no')
+  t.assert(isSingleDigit(null) === null)
+  const unknownInput = isSingleDigit(undefined)
+  s.$({ x: 42 }).expect(unknownInput)
+  t.group('validate that result is filtered by input by assigning new values', () => {
+    let q = s.random(tc.prng, s.$union(s.$string, s.$number))
+    q = 42
+    let q2 = s.random(tc.prng, s.$union(s.$string, s.$number))
+    q2 = 'dtrn'
+    // null is not input, so the result can't be null
+    let q3 = s.random(tc.prng, s.$union(s.$string, s.$number))
+    // @ts-expect-error
+    q3 = null
+  })
+}
+
 export const testPatternMatcherWithState = () => {
   const numberConverterP = s.match({ cnt: s.$number })
     .if(s.$number, (o, s) => { s.cnt++; return '' + o })
@@ -604,6 +637,19 @@ export const testPatternMatcherBenchmark = () => {
   })
 }
 
+export const testCrossModuleCompatibility = async () => {
+  // @ts-ignore
+  const s1 = await import('./schema.js?v=1')
+  // @ts-ignore
+  const s2 = await import('./schema.js?v=2')
+  t.assert(s1.$number != null && s1.$$number != null)
+  t.assert(s2.$number != null && s2.$$number != null)
+  s1.$number.expect(42)
+  t.assert(s1.$number !== s2.$number) // imports are different instances
+  t.assert(s1.$$number.check(s2.$number)) // s1 can check identities of s2
+  t.assert(s2.$$number.check(s1.$number))
+}
+
 /**
  * @param {t.TestCase} tc
  */
@@ -617,7 +663,7 @@ export const testRepeatRandomFromSchema = tc => {
       for (let i = 0; i < 10; i++) {
         const res = s.random(tc.prng, $s)
         $s.expect(res)
-        console.info(caseName, res)
+        // console.info(caseName, res)
       }
     })
   }
@@ -647,8 +693,9 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
       this.a = a
     }
 
-    get $type () { return $a }
+    get $symbol () { return $asymbol }
   }
+  const $a = A.prototype.$type = s.$type(':a', A)
   class B {
     /**
      * @param {string} b
@@ -658,22 +705,24 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
       this.a = 42
     }
 
-    get $type () { return $b }
+    get $symbol () { return $bsymbol }
   }
+  const $b = B.prototype.$type = s.$type(':b', B)
   class C {
     constructor () {
       this.a = 'x'
       this.c = {}
     }
 
-    get $type () { return $c }
+    get $symbol () { return $csymbol }
   }
-  const ns = tc.testName
-  const $a = s.$type(ns, 1)
-  const $b = s.$type(ns, 1)
-  const $c = s.$type(ns, 1)
+  const $c = C.prototype.$type = s.$type(':c', C)
+  const $asymbol = s.$$type.cast($a).typeSymbol
+  const $bsymbol = s.$$type.cast($b).typeSymbol
+  const $csymbol = s.$$type.cast($c).typeSymbol
+  t.assert(s.$$type.check($a))
   const N = 30000
-  const Iterations = 3
+  const Iterations = 5
   /**
    * @type {Array<A|B|C>}
    */
@@ -684,6 +733,7 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
       () => new C()
     ])()
   )
+  t.info(`performing ${N} type checks in ${Iterations} iterations`)
   for (let iteration = 0; iteration < Iterations; iteration++) {
     t.group('iteration ' + iteration, () => {
       t.measureTime('constructor checks', () => {
@@ -748,6 +798,33 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
         }
         console.log({ as, bs, cs })
       })
+      // Switch case doesn't narrow down the checked type. Try fake checking them.
+      t.measureTime('type equal checks + type assertions (switch/case)', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          switch (o.$type) {
+            case $a: {
+              s.assertNoCheck(o, $a)
+              as++
+              break
+            }
+            case $b: {
+              s.assertNoCheck(o, $b)
+              bs++
+              break
+            }
+            case $c: {
+              s.assertNoCheck(o, $c)
+              cs++
+              break
+            }
+          }
+        }
+        console.log({ as, bs, cs })
+      })
       t.measureTime('type equal checks (if/then)', () => {
         let as = 0
         let bs = 0
@@ -770,13 +847,10 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
         let cs = 0
         for (let i = 0; i < os.length; i++) {
           const o = os[i]
-          // @ts-ignore
           if ($a.check(o)) {
             as++
-            // @ts-ignore
           } else if ($b.check(o)) {
             bs++
-            // @ts-ignore
           } else if ($c.check(o)) {
             cs++
           }
@@ -796,6 +870,45 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
           .done()
         os.forEach(o => f(o, state))
         console.log(state)
+      })
+      t.measureTime('symbol equal checks (if/then))', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          if (o.$symbol === $asymbol) {
+            as++
+          } else if (o.$symbol === $bsymbol) {
+            bs++
+          } else if (o.$symbol === $csymbol) {
+            cs++
+          }
+        }
+        console.log({ as, bs, cs })
+      })
+      t.measureTime('symbol equal checks (switch/case)', () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          switch (o.$symbol) {
+            case $asymbol: {
+              as++
+              break
+            }
+            case $bsymbol: {
+              bs++
+              break
+            }
+            case $csymbol: {
+              cs++
+              break
+            }
+          }
+        }
+        console.log({ as, bs, cs })
       })
     })
   }

@@ -127,10 +127,6 @@ export class TextOp extends list.ListNode {
     this._fingerprint = null
   }
 
-  get $type () {
-    return $textOp
-  }
-
   /**
    * @param {string} newVal
    */
@@ -225,10 +221,6 @@ export class InsertOp extends list.ListNode {
      * @type {string?}
      */
     this._fingerprint = null
-  }
-
-  get $type () {
-    return $insertOp
   }
 
   /**
@@ -334,10 +326,6 @@ export class DeleteOp extends list.ListNode {
     this._fingerprint = null
   }
 
-  get $type () {
-    return $deleteOp
-  }
-
   /**
    * @return {'delete'}
    */
@@ -420,10 +408,6 @@ export class RetainOp extends list.ListNode {
      * @type {string|null}
      */
     this._fingerprint = null
-  }
-
-  get $type () {
-    return $retainOp
   }
 
   /**
@@ -510,10 +494,6 @@ export class ModifyOp extends list.ListNode {
      * @type {string|null}
      */
     this._fingerprint = null
-  }
-
-  get $type () {
-    return $modifyOp
   }
 
   /**
@@ -623,10 +603,6 @@ export class SetAttrOp {
     this._fingerprint = null
   }
 
-  get $type () {
-    return $setAttrOp
-  }
-
   /**
    * @return {'insert'}
    */
@@ -715,10 +691,6 @@ export class DeleteAttrOp {
     this._fingerprint = null
   }
 
-  get $type () {
-    return $deleteAttrOp
-  }
-
   /**
    * @type {'delete'}
    */
@@ -784,10 +756,6 @@ export class ModifyAttrOp {
     this._fingerprint = null
   }
 
-  get $type () {
-    return $modifyAttrOp
-  }
-
   /**
    * @type {'modify'}
    */
@@ -839,16 +807,16 @@ export class ModifyAttrOp {
   }
 }
 
-export const $insertOp = /** @type {s.Schema<InsertOp<any>>} */ (s.$type('insertOp'))
-export const $modifyOp = /** @type {s.Schema<ModifyOp>} */ (s.$type('modifyOp'))
-export const $textOp = /** @type {s.Schema<TextOp>} */ (s.$type('textOp'))
-export const $deleteOp = /** @type {s.Schema<DeleteOp<any>>} */ (s.$type('deleteOp'))
-export const $retainOp = /** @type {s.Schema<RetainOp>} */ (s.$type('retainOp'))
+export const $insertOp = /** @type {s.Schema<InsertOp<any>>} */ (InsertOp.prototype.$type = s.$type('d:insertOp', InsertOp))
+export const $modifyOp = ModifyOp.prototype.$type = s.$type('d:modifyOp', ModifyOp)
+export const $textOp = TextOp.prototype.$type = s.$type('d:textOp', TextOp)
+export const $deleteOp = /** @type {s.Schema<DeleteOp<any>>} */ (DeleteOp.prototype.$type = s.$type('d:deleteOp', DeleteOp))
+export const $retainOp = RetainOp.prototype.$type = s.$type('d:retainOp', RetainOp)
 export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
-export const $setAttrOp = /** @type {s.Schema<SetAttrOp<any>>} */ (s.$type('setAttrOp'))
-export const $modifyAttrOp = /** @type {s.Schema<ModifyAttrOp<any,string|number>>} */ (s.$type('modifyAttrOp'))
-export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<any,string|number>>} */ (s.$type('deleteAttrOp'))
+export const $setAttrOp = /** @type {s.Schema<SetAttrOp<any>>} */ (SetAttrOp.prototype.$type = s.$type('d:setAttrOp', SetAttrOp))
+export const $modifyAttrOp = /** @type {s.Schema<ModifyAttrOp<any>>} */ (ModifyAttrOp.prototype.$type = s.$type('d:modifyAttrOp', ModifyAttrOp))
+export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<any>>} */ (DeleteAttrOp.prototype.$type = s.$type('d:deleteAttrOp', DeleteAttrOp))
 export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
@@ -1027,7 +995,6 @@ class DeltaData {
  * >}
  */
 export class Delta extends DeltaData {
-  get $type () { return $deltaAny }
   /**
    * @type {string}
    */
@@ -1988,9 +1955,9 @@ export class $Delta extends s.Schema {
  */
 
 /**
- * @template {ReadableDeltaConf} [Opts={}]
- * @param {Opts} opts
- * @return {s.Schema<Delta<ReadDeltaConf<Opts>>>}
+ * @template {ReadableDeltaConf} [DeltaConf={}]
+ * @param {DeltaConf} opts
+ * @return {s.Schema<Delta<ReadDeltaConf<DeltaConf>>>}
  */
 export const $delta = ({ name, attrs, children, text, formats, recursiveChildren: recursive }) => /** @type {any} */ (new $Delta(
   /** @type {any} */ (name == null ? s.$any : s.$(name)),
@@ -2003,7 +1970,7 @@ export const $delta = ({ name, attrs, children, text, formats, recursiveChildren
 
 export const $$delta = /* @__PURE__ */s.$constructedBy($Delta)
 
-export const $deltaAny = /** @type {s.Schema<DeltaAny>} */ (/* @__PURE__ */s.$type('delta'))
+export const $deltaAny = /* @__PURE__ *//** @type {s.Schema<Delta<any>>} */ (Delta.prototype.$type = s.$type('d:delta', Delta))
 export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (/* @__PURE__ */s.$custom(o => $deltaAny.check(o) && !o.isDone))
 
 /**

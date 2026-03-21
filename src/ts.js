@@ -46,6 +46,17 @@
  */
 
 /**
+ * Convert a union type to an intersection type.
+ *
+ * @example
+ * // { a: string } & { b: number }
+ * type R = UnionToIntersection<{ a: string } | { b: number }>
+ *
+ * @template U
+ * @typedef {(U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never} UnionToIntersection
+ */
+
+/**
  * Merge two objects, keeping only keys present in both with intersected value types.
  * e.g. IntersectObjects<{a:string,b:string|number},{b:string,c:number}> = {b:string}
  *

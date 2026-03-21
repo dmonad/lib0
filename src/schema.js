@@ -14,6 +14,7 @@ import * as prng from './prng.js'
 import * as number from './number.js'
 import * as map from './map.js'
 import { global } from './environment.js'
+import * as object from './object.js'
 
 /**
  * @typedef {string|number|bigint|boolean|null|undefined|symbol} Primitive
@@ -129,11 +130,14 @@ export const extendsShape = (a, b) => {
   return /** @type {any} */ (a.constructor)._dilutes ? _extendsShapeHelper(bShape, aShape) : _extendsShapeHelper(aShape, bShape)
 }
 
+const schemaSymbol = Symbol.for('schema:Schema')
+
 /**
  * @template T
  * @implements {equalityTraits.EqualityTrait}
  */
 export class Schema {
+  get isSchema () { return schemaSymbol }
   // this.shape must not be defined on Schema. Otherwise typecheck on metatypes (e.g. $$object) won't work as expected anymore
   /**
    * If true, the more things are added to the shape the more objects this schema will accept (e.g.
@@ -221,8 +225,6 @@ export class Schema {
    * "Always." - Snape, talking about type safety
    *
    * Ensures that a variable is a a specific type. Returns the value, or throws an exception if the assertion check failed.
-   * Use this if you know that the type is of a specific type and you just want to convince the type
-   * system.
    *
    * Can be useful when defining lambdas: `s.lambda(s.$number, s.$number).expect((n) => n + 1)`
    *
@@ -234,6 +236,75 @@ export class Schema {
     return o
   }
 }
+
+/**
+ * @extends {Schema<any>}
+ */
+export class $Type extends Schema {
+  /**
+   * @param {string} name
+   */
+  constructor (name) {
+    super()
+    /**
+     * @type {string}
+     */
+    this.name = name
+    this.typeSymbol = Symbol('schema:' + name)
+  }
+
+  /**
+   * @param {any} o
+   * @param {ValidationError} err
+   * @return {o is any}
+   */
+  check (o, err) {
+    const c = o && o.$type === this
+    /* c8 ignore next */
+    !c && err != null && err.extend(null, 'type check on', o?.constructor.name, 'failed')
+    return c
+  }
+}
+
+/**
+ * A shared gobal namespace to store schemas across lib0 installations
+ */
+const schemaStore = /* @__PURE__ */(() => {
+  const _ns = '_lib0@v1/$'
+  return (global[_ns] = (global[_ns] || new Map()))
+})()
+
+/**
+ * Define a schema for a type that can validate instances across duplicated module installations.
+ *
+ * You may only assign one "$type" to any class.
+ *
+ * The recommended way to assign a type to a class is by doing. While not strictly necessary - it ensures proper typing.
+ *
+ *   const $a = A.prototype.$type = s.$type(':a', A)
+ *
+ * Use $type if you need to validate duplicated classes from other (duplicate) installations of your
+ * js module. Don't use this only if needed and not as some "standard practice".
+ *
+ * It is good practice to define a $type property on the type constructor to enable efficient
+ * typechecks `myClassInstance.$type === $myClass`
+ *
+ * @template {new (...args:any[])=>any} T
+ * @param {string} uniqueName - a good name would be `{projectPrefix}:{ConstructorName}[@v{version}]`
+ * @param {T|{ [K:string|number|symbol]:any }|null} TypeConstructor
+ * @return {Schema<InstanceType<T>>}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const $type = (uniqueName, TypeConstructor) => {
+  const type = map.setIfUndefined(schemaStore, uniqueName, () => new $Type(uniqueName))
+  if (TypeConstructor) {
+    /* c8 ignore next */
+    if (TypeConstructor.prototype && object.hasProperty(TypeConstructor.prototype, '$type')) { error.unexpectedCase() }
+    (TypeConstructor.prototype || TypeConstructor).$type = type
+  }
+  return /** @type {any} */ (type)
+}
+export const $$type = $Type.prototype.$type = $type('s:$type', $Type)
 
 /**
  * @template {(new (...args:any[]) => any) | ((...args:any[]) => any)} Constr
@@ -261,6 +332,7 @@ export class $ConstructedBy extends Schema {
    * @return {o is C extends ((...args:any[]) => infer T) ? T : (C extends (new (...args:any[]) => any) ? InstanceType<C> : never)} o
    */
   check (o, err = undefined) {
+    /* c8 ignore next */
     const c = o?.constructor === this.shape && (this._c == null || this._c(o))
     /* c8 ignore next */
     !c && err?.extend(null, this.shape.name, o?.constructor.name, o?.constructor !== this.shape ? 'Constructor match failed' : 'Check failed')
@@ -276,7 +348,7 @@ export class $ConstructedBy extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $constructedBy = (c, check = null) => new $ConstructedBy(c, check)
-export const $$constructedBy = $constructedBy($ConstructedBy)
+export const $$constructedBy = $type('s:$ConstructedBy', $ConstructedBy)
 
 /**
  * Check custom properties on any object. You may want to overwrite the generated Schema<any>.
@@ -314,46 +386,7 @@ export class $Custom extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $custom = (check) => new $Custom(check)
-export const $$custom = $constructedBy($Custom)
-
-/**
- * @extends {Schema<{$type: Schema<any>}>}
- */
-export class $Type extends Schema {
-  /**
-   * @param {any} o
-   * @param {ValidationError} err
-   * @return {o is any}
-   */
-  check (o, err) {
-    const c = o && (o.$type === this)
-    /* c8 ignore next */
-    !c && err?.extend(null, 'type check on', o?.constructor.name, 'failed')
-    return c
-  }
-}
-
-/**
- * A shared gobal namespace to store schemas across lib0 installations
- */
-const schemaStore = /* @__PURE__ */(() => {
-  const _ns = '_lib0@v1/$'
-  return (global[_ns] = (global[_ns] || new Map()))
-})()
-
-/**
- * Define a schema for a type that can validate instances across duplicated module installations.
- *
- * Use this if you need to validate duplicated classes from other (duplicate) installations of your
- * js module. Don't use this only if needed and not as some "standard practice".
- *
- * @param {string} uniqueName
- * @param {number} version
- * @return {Schema<{ $type: Schema<any> }>}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const $type = (uniqueName, version = 0) => map.setIfUndefined(schemaStore, `${uniqueName}@v${version}`, () => new $Type())
-export const $$type = $constructedBy($Type)
+export const $$custom = $type('s:$Custom', $Custom)
 
 /**
  * @template {Primitive} T
@@ -389,7 +422,7 @@ export class $Literal extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $literal = (...literals) => new $Literal(literals)
-export const $$literal = $constructedBy($Literal)
+export const $$literal = $type('s:$Literal', $Literal)
 
 /**
  * @template {Array<string|Schema<string|number>>} Ts
@@ -428,7 +461,7 @@ const _schemaStringTemplateToRegex = s => {
   if ($$union.check(s)) {
     return s.shape.map(_schemaStringTemplateToRegex).flat(1)
   }
-  /* c8 ignore next 2 */
+  /* c8 ignore next 3 */
   // unexpected schema structure (only supports unions and string in literal types)
   error.unexpectedCase()
 }
@@ -467,7 +500,7 @@ export class $StringTemplate extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $stringTemplate = (...literals) => new $StringTemplate(literals)
-export const $$stringTemplate = $constructedBy($StringTemplate)
+export const $$stringTemplate = $type('s:$StringTemplate', $StringTemplate)
 
 /**
  * @template {Schema<any>} S
@@ -494,7 +527,7 @@ export class $Optional extends Schema {
     return c
   }
 }
-export const $$optional = $constructedBy($Optional)
+export const $$optional = $type('s:$Optional', $Optional)
 
 /**
  * @extends Schema<never>
@@ -516,7 +549,7 @@ class $Never extends Schema {
  * @type {Schema<never>}
  */
 export const $never = /* @__PURE__ */new $Never()
-export const $$never = /* @__PURE__ */$constructedBy($Never)
+export const $$never = /* @__PURE__ */$type('s:$Never', $Never)
 
 /**
  * @template {{ [key: string|symbol|number]: Schema<any> }} S
@@ -581,7 +614,7 @@ export class $Object extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $object = def => /** @type {any} */ (new $Object(def))
-export const $$object = /* @__PURE__ */$constructedBy($Object)
+export const $$object = /* @__PURE__ */$type('s:$Object', $Object)
 
 /**
  * @template {{ [key:string|symbol|number]: any }} S
@@ -637,7 +670,7 @@ export class $Record extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $record = (keys, values) => new $Record(keys, values)
-export const $$record = /* @__PURE__ */$constructedBy($Record)
+export const $$record = /* @__PURE__ */$type('s:$Record', $Record)
 
 /**
  * @template {Schema<any>[]} S
@@ -674,7 +707,7 @@ export class $Tuple extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $tuple = (...def) => new $Tuple(def)
-export const $$tuple = /* @__PURE__ */$constructedBy($Tuple)
+export const $$tuple = /* @__PURE__ */$type('s:$Tuple', $Tuple)
 
 /**
  * @template {Schema<any>} S
@@ -712,7 +745,7 @@ export class $Array extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $array = (...def) => new $Array(def)
-export const $$array = /* @__PURE__ */$constructedBy($Array)
+export const $$array = /* @__PURE__ */$type('s:$Array', $Array)
 /**
  * @type {Schema<Array<any>>}
  */
@@ -754,9 +787,9 @@ export class $InstanceOf extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $instanceOf = (c, check = null) => new $InstanceOf(c, check)
-export const $$instanceOf = /* @__PURE__ */$constructedBy($InstanceOf)
+export const $$instanceOf = /* @__PURE__ */$type('s:$InstanceOf', $InstanceOf)
 
-export const $$schema = /* @__PURE__ */$instanceOf(Schema)
+export const $$schema = /** @type {Schema<Schema<any>>} */ (Schema.prototype.$type = $custom(o => o?.isSchema === schemaSymbol))
 
 /**
  * @template {Schema<any>[]} Args
@@ -798,7 +831,7 @@ export class $Lambda extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $lambda = (...args) => new $Lambda(args.length > 0 ? args : [$void])
-export const $$lambda = /* @__PURE__ */$constructedBy($Lambda)
+export const $$lambda = /* @__PURE__ */$type('s:$Lambda', $Lambda)
 
 /**
  * @type {Schema<Function>}
@@ -842,7 +875,7 @@ export class $Intersection extends Schema {
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $intersect = (...def) => new $Intersection(def)
-export const $$intersect = /* @__PURE__ */$constructedBy($Intersection, o => o.shape.length > 0) // Intersection with length=0 is considered "any"
+export const $$intersect = /* @__PURE__ */$type('s:Intersection', $Intersection)
 
 /**
  * @template S
@@ -880,7 +913,7 @@ export const $union = (...schemas) => schemas.findIndex($s => $$union.check($s))
   : (schemas.length === 1
       ? schemas[0]
       : new $Union(schemas.map($)))
-export const $$union = /** @type {Schema<$Union<any>>} */ (/* @__PURE__ */$constructedBy($Union))
+export const $$union = /** @type {Schema<$Union<any>>} */ (/* @__PURE__ */$type('s:$Union', $Union))
 
 /**
  * @template {any} IN
@@ -925,15 +958,13 @@ export const $ = o => {
   } else if ($function.check(o)) {
     return /** @type {any} */ ($constructedBy(/** @type {any} */ (o)))
   }
-  /* c8 ignore next */
+  /* c8 ignore next 2 */
   error.unexpectedCase()
 }
 
 /* c8 ignore start */
 /**
  * Assert that a variable is of this specific type.
- * The assertion check is only performed in non-production environments.
- *
  * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
  */
 /* @__NO_SIDE_EFFECTS__ */
@@ -945,6 +976,13 @@ export const assert = (o, schema) => {
 }
 /* c8 ignore end */
 
+/**
+ * Assert that a variable is of this specific type.
+ * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const assertNoCheck = (o, schema) => { }
+
 /* @__NO_SIDE_EFFECTS__ */
 const _t = () => true
 /**
@@ -952,58 +990,58 @@ const _t = () => true
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const $any = $custom(_t)
-export const $$any = /** @type {Schema<Schema<any>>} */ (/* @__PURE__ */$constructedBy($Custom, o => o.shape === _t))
+export const $$any = /** @type {Schema<Schema<any>>} */ (/* @__PURE__ */$type('s:$any', $any))
 
 /**
  * @type {Schema<bigint>}
  */
 export const $bigint = /* @__PURE__ */$custom(o => typeof o === 'bigint')
-export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ (/* @__PURE__ */$custom(o => o === $bigint))
+export const $$bigint = /** @type {Schema<Schema<BigInt>>} */ (/* @__PURE__ */$type('s:$bigint', $bigint))
 
 /**
  * @type {Schema<symbol>}
  */
 export const $symbol = /* @__PURE__ */$custom(o => typeof o === 'symbol')
-export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ (/* @__PURE__ */$custom(o => o === $symbol))
+export const $$symbol = /** @type {Schema<Schema<Symbol>>} */ (/* @__PURE__ */$type('s:$symbol', $symbol))
 
 /**
  * @type {Schema<number>}
  */
 export const $number = /* @__PURE__ */$custom(o => typeof o === 'number')
-export const $$number = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$custom(o => o === $number))
+export const $$number = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$number', $number))
 
 /**
  * @type {Schema<string>}
  */
 export const $string = /* @__PURE__ */$custom(o => typeof o === 'string')
-export const $$string = /** @type {Schema<Schema<string>>} */ (/* @__PURE__ */$custom(o => o === $string))
+export const $$string = /** @type {Schema<Schema<string>>} */ (/* @__PURE__ */$type('s:$string', $string))
 
 /**
  * @type {Schema<boolean>}
  */
 export const $boolean = /* @__PURE__ */$custom(o => typeof o === 'boolean')
-export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ (/* @__PURE__ */$custom(o => o === $boolean))
+export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ (/* @__PURE__ */$type('s:$boolean', $boolean))
 
 /**
  * @type {Schema<undefined>}
  */
 export const $undefined = /* @__PURE__ */$literal(undefined)
-export const $$undefined = /** @type {Schema<Schema<undefined>>} */ (/* @__PURE__ */$constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === undefined))
+export const $$undefined = /** @type {Schema<Schema<undefined>>} */ (/* @__PURE__ */$type('s:$undefined', $undefined))
 
 /**
  * @type {Schema<void>}
  */
-export const $void = $literal(undefined)
+export const $void = $undefined
 export const $$void = /** @type {Schema<Schema<void>>} */ ($$undefined)
 
 export const $null = $literal(null)
-export const $$null = /** @type {Schema<Schema<null>>} */ ($constructedBy($Literal, o => o.shape.length === 1 && o.shape[0] === null))
+export const $$null = /** @type {Schema<Schema<null>>} */ ($type('s:$null', $null))
 
 export const $uint8Array = $constructedBy(Uint8Array)
-export const $$uint8Array = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Uint8Array))
+export const $$uint8Array = /** @type {Schema<Schema<Uint8Array>>} */ ($type('s:$uint8Array', $uint8Array))
 
 export const $promise = $constructedBy(Promise)
-export const $$promise = /** @type {Schema<Schema<Uint8Array>>} */ ($constructedBy($ConstructedBy, o => o.shape === Promise))
+export const $$promise = /** @type {Schema<Schema<Uint8Array>>} */ ($type('s:$promise', $promise))
 
 /**
  * Primitive JavaScript types: immutable, non-object value that is stored and compared directly by
@@ -1036,6 +1074,16 @@ export const $json = /* @__PURE__ */(() => {
  * @template In
  * @template Out
  * @typedef {{ if: Schema<In>, h: (o:In,state?:any)=>Out }} Pattern
+ */
+
+/**
+ * @template {Pattern<any,any>} Ps
+ * @template S
+ * @typedef {import('./ts.js').UnionToIntersection<Ps extends Pattern<infer In, infer Out> ? [S] extends [undefined] ? (o: In) => Out : (o: In, state: S) => Out : never>
+ *   & ([S] extends [undefined]
+ *     ? (o: Ps extends Pattern<infer In, any> ? In : never) => (Ps extends Pattern<any, infer Out> ? Out : never)
+ *     : (o: Ps extends Pattern<infer In, any> ? In : never, state: S) => (Ps extends Pattern<any, infer Out> ? Out : never))
+ * } PatternMatcherFn
  */
 
 const unhandledPatternError = 'Unhandled pattern'
@@ -1089,9 +1137,7 @@ export class PatternMatcher {
   }
 
   /**
-   * @return {(
-   *     Patterns extends Pattern<infer In, infer Out> ? (k: State extends undefined ? (o: In) => Out : (o: In, state: State) => Out) => void : never
-   *   ) extends (k: infer I) => void ? I : never}
+   * @return {PatternMatcherFn<Patterns, State>}
    */
   done () {
     // @ts-ignore
@@ -1125,6 +1171,7 @@ const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>
   .if($$number, (_o, { gen }) => prng.oneOf(gen, [-1, 0, 1, prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)]))
   .if($$string, (_o, { gen }) => prng.word(gen))
   .if($$boolean, (_o, { gen }) => prng.bool(gen))
+  .if($$undefined, (_o) => undefined)
   .if($$bigint, (_o, { gen }) => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)))
   .if($$union, (o, opts) => _random(prng.oneOf(opts.gen, o.shape), opts))
   .if($$object, (o, opts) => {
