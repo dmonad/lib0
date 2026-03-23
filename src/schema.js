@@ -4,7 +4,6 @@
  * Simple & efficient schemas for your data.
  */
 
-import * as obj from './object.js'
 import * as arr from './array.js'
 import * as error from './error.js'
 import * as equalityTraits from './trait/equality.js'
@@ -110,8 +109,8 @@ const _extendsShapeHelper = (a, b) => {
     return arr.every(a, aitem =>
       arr.some(b, bitem => _extendsShapeHelper(aitem, bitem))
     )
-  } else if (obj.isObject(a)) {
-    return obj.every(a, (aitem, akey) =>
+  } else if (object.isObject(a)) {
+    return object.every(a, (aitem, akey) =>
       _extendsShapeHelper(aitem, b[akey])
     )
   }
@@ -259,7 +258,7 @@ export class $Type extends Schema {
    * @return {o is any}
    */
   check (o, err) {
-    const c = o && o.$type === this
+    const c = o != null && o.$type === this
     /* c8 ignore next */
     !c && err != null && err.extend(null, 'type check on', o?.constructor.name, 'failed')
     return c
@@ -410,7 +409,7 @@ export class $Literal extends Schema {
   check (o, err) {
     const c = this.shape.some(a => a === o)
     /* c8 ignore next */
-    !c && err?.extend(null, this.shape.join(' | '), o.toString())
+    !c && err?.extend(null, this.shape.join(' | '), o + '')
     return c
   }
 }
@@ -488,7 +487,7 @@ export class $StringTemplate extends Schema {
   check (o, err) {
     const c = this._r.exec(o) != null
     /* c8 ignore next */
-    !c && err?.extend(null, this._r.toString(), o.toString(), 'String doesn\'t match string template.')
+    !c && err?.extend(null, this._r.toString(), o+'', 'String doesn\'t match string template.')
     return c
   }
 }
@@ -594,8 +593,8 @@ export class $Object extends Schema {
       err?.extend(null, 'object', 'null')
       return false
     }
-    return obj.every(this.shape, (vv, vk) => {
-      const c = (this._isPartial && !obj.hasProperty(o, vk)) || vv.check(o[vk], err)
+    return object.every(this.shape, (vv, vk) => {
+      const c = (this._isPartial && !object.hasProperty(o, vk)) || vv.check(o[vk], err)
       !c && err?.extend(vk.toString(), vv.toString(), typeof o[vk], 'Object property does not match')
       return c
     })
@@ -652,7 +651,7 @@ export class $Record extends Schema {
    * @return {o is { [key in Unwrap<Keys>]: Unwrap<Values> }}
    */
   check (o, err) {
-    return o != null && obj.every(o, (vv, vk) => {
+    return o != null && object.every(o, (vv, vk) => {
       const ck = this.shape.keys.check(vk, err)
       /* c8 ignore next */
       !ck && err?.extend(vk + '', 'Record', typeof o, ck ? 'Key doesn\'t match schema' : 'Value doesn\'t match value')
@@ -691,7 +690,7 @@ export class $Tuple extends Schema {
    * @return {o is { [K in keyof S]: S[K] extends Schema<infer Type> ? Type : never }}
    */
   check (o, err) {
-    return o != null && obj.every(this.shape, (vv, vk) => {
+    return o != null && object.every(this.shape, (vv, vk) => {
       const c = /** @type {Schema<any>} */ (vv).check(o[vk], err)
       /* c8 ignore next */
       !c && err?.extend(vk.toString(), 'Tuple', typeof vv)
@@ -981,7 +980,7 @@ export const assert = (o, schema) => {
  * @type {<T>(o:any,schema:Schema<T>) => asserts o is T}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const assertNoCheck = (o, schema) => { }
+export const assertNoCheck = (_o, _schema) => { }
 
 /* @__NO_SIDE_EFFECTS__ */
 const _t = () => true

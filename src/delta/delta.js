@@ -807,16 +807,16 @@ export class ModifyAttrOp {
   }
 }
 
-export const $insertOp = /** @type {s.Schema<InsertOp<any>>} */ (InsertOp.prototype.$type = s.$type('d:insertOp', InsertOp))
+export const $insertOp = /** @type {s.Schema<InsertOp<any>>} */ (InsertOp.prototype.$type = /** @type {s.Schema<InsertOp<any>>} */ (s.$type('d:insertOp', InsertOp)))
 export const $modifyOp = ModifyOp.prototype.$type = s.$type('d:modifyOp', ModifyOp)
 export const $textOp = TextOp.prototype.$type = s.$type('d:textOp', TextOp)
 export const $deleteOp = /** @type {s.Schema<DeleteOp<any>>} */ (DeleteOp.prototype.$type = s.$type('d:deleteOp', DeleteOp))
 export const $retainOp = RetainOp.prototype.$type = s.$type('d:retainOp', RetainOp)
 export const $anyOp = s.$union($insertOp, $deleteOp, $textOp, $modifyOp)
 
-export const $setAttrOp = /** @type {s.Schema<SetAttrOp<any>>} */ (SetAttrOp.prototype.$type = s.$type('d:setAttrOp', SetAttrOp))
-export const $modifyAttrOp = /** @type {s.Schema<ModifyAttrOp<any>>} */ (ModifyAttrOp.prototype.$type = s.$type('d:modifyAttrOp', ModifyAttrOp))
-export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<any>>} */ (DeleteAttrOp.prototype.$type = s.$type('d:deleteAttrOp', DeleteAttrOp))
+export const $setAttrOp = /** @type {s.Schema<SetAttrOp<any>>} */ (SetAttrOp.prototype.$type =/** @type {s.Schema<SetAttrOp<any>>} */ (s.$type('d:setAttrOp', SetAttrOp)))
+export const $modifyAttrOp = /** @type {s.Schema<ModifyAttrOp<any>>} */ (ModifyAttrOp.prototype.$type = /** @type {s.Schema<ModifyAttrOp<any>>} */ (s.$type('d:modifyAttrOp', ModifyAttrOp)))
+export const $deleteAttrOp = /** @type {s.Schema<DeleteAttrOp<any>>} */ (DeleteAttrOp.prototype.$type = /** @type {s.Schema<DeleteAttrOp<any>>} */ (s.$type('d:deleteAttrOp', DeleteAttrOp)))
 export const $anyAttrOp = s.$union($setAttrOp, $deleteAttrOp, $modifyAttrOp)
 
 /**
@@ -1341,7 +1341,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {Extract<DeltaConfGetAllowedChildren<Conf, FixedConf>,Delta>} NewContent
+   * @template {Extract<DeltaConfGetAllowedChildren<Conf, FixedConf>,Delta|DeltaData<any,any,any,any>|DeltaBuilder>} NewContent
    * @param {NewContent} modify
    * @param {FormattingAttributes?} formatting
    * @param {Attribution?} attribution

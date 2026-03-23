@@ -440,11 +440,11 @@ export const testPatternMatcherBase = () => {
  */
 export const testPatternMatchDifferentInputs = tc => {
   const isSingleDigit = s.match()
-    .if(s.$constructedBy(Number, o => 0 <= o && o < 10), () => true)
+    .if(s.$constructedBy(Number, o => o >= 0 && o < 10), () => true)
     .if(s.$constructedBy(Number, o => o >= 10), () => false)
     .if(s.$string, _o => 'no')
     .if(s.$null, () => null)
-    .else(() => ({x:42}))
+    .else(() => ({ x: 42 }))
     .done()
   const resNum = isSingleDigit(0)
   s.$boolean.expect(resNum)
@@ -465,6 +465,7 @@ export const testPatternMatchDifferentInputs = tc => {
     let q3 = s.random(tc.prng, s.$union(s.$string, s.$number))
     // @ts-expect-error
     q3 = null
+    console.log(q, q2, q3)
   })
 }
 
@@ -681,10 +682,7 @@ export const testRepeatRandomFromSchema = tc => {
   })
 }
 
-/**
- * @param {t.TestCase} tc
- */
-export const testBenchmarkTypeCheckUsingProps = tc => {
+export const testBenchmarkTypeCheckUsingProps = () => {
   class A {
     /**
      * @param {number} a
@@ -721,22 +719,37 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
   const $bsymbol = s.$$type.cast($b).typeSymbol
   const $csymbol = s.$$type.cast($c).typeSymbol
   t.assert(s.$$type.check($a))
-  const N = 30000
-  const Iterations = 5
+  const gen = prng.create(42)
+  const N = 20000
+  const Iterations = 10
+  const expectedResult = {
+    as: 0,
+    bs: 0,
+    cs: 0
+  }
   /**
    * @type {Array<A|B|C>}
    */
   const os = array.unfold(N, () =>
-    prng.oneOf(tc.prng, [
-      () => new A(prng.int32(tc.prng, 0, 10000)),
-      () => new B(prng.word(tc.prng)),
-      () => new C()
+    prng.oneOf(gen, [
+      () => {
+        expectedResult.as++
+        return new A(prng.int32(gen, 0, 10000))
+      },
+      () => {
+        expectedResult.bs++
+        return new B(prng.word(gen))
+      },
+      () => {
+        expectedResult.cs++
+        return new C()
+      }
     ])()
   )
-  t.info(`performing ${N} type checks in ${Iterations} iterations`)
-  for (let iteration = 0; iteration < Iterations; iteration++) {
-    t.group('iteration ' + iteration, () => {
-      t.measureTime('constructor checks', () => {
+  t.info(`performing ${N} type checks with ${Iterations} iterations`)
+  t.group('constructor checks (switch/case))', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} constructor checks (switch/case))`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -757,9 +770,33 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             }
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-      t.measureTime('instanceof checks (if/then)', () => {
+    }
+  })
+  t.group('constructor checks (if/then))', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} constructor checks (switch/case))`, () => {
+        let as = 0
+        let bs = 0
+        let cs = 0
+        for (let i = 0; i < os.length; i++) {
+          const o = os[i]
+          if (o.constructor === A) {
+            as++
+          } else if (o.constructor === B) {
+            bs++
+          } else if (o.constructor === C) {
+            cs++
+          }
+        }
+        t.compare(expectedResult, { as, bs, cs })
+      })
+    }
+  })
+  t.group('instanceof checks (if/then)', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} instanceof checks (if/then)`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -773,9 +810,13 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             cs++
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-      t.measureTime('type equal checks (switch/case)', () => {
+    }
+  })
+  t.group('type equal checks (switch/case)', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} type equal checks (switch/case)`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -796,10 +837,14 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             }
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
+    }
+  })
+  t.group('type equal checks + type assertions (switch/case)', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
       // Switch case doesn't narrow down the checked type. Try fake checking them.
-      t.measureTime('type equal checks + type assertions (switch/case)', () => {
+      t.measureTime(`I=${iteration} type equal checks + type assertions (switch/case)`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -823,9 +868,13 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             }
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-      t.measureTime('type equal checks (if/then)', () => {
+    }
+  })
+  t.group('type equal checks (if/then)', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} type equal checks (if/then)`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -839,9 +888,14 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             cs++
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-      t.measureTime('schema checks (if/then))', () => {
+    }
+  })
+
+  t.group('schema checks (if/then))', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} schema checks (if/then))`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -855,23 +909,71 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             cs++
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-      t.measureTime('schema checks (pattern match)', () => {
+    }
+  })
+  t.group('schema checks (pattern match + for loop)', () => {
+    const f = s.match({ as: s.$number, bs: s.$number, cs: s.$number })
+      .if($a, (_o, state) => { state.as++ })
+      .if($b, (_o, state) => { state.bs++ })
+      .if($c, (_o, state) => { state.cs++ })
+      .done()
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} schema checks (pattern match)`, () => {
         const state = {
           as: 0,
           bs: 0,
           cs: 0
         }
-        const f = s.match({ as: s.$number, bs: s.$number, cs: s.$number })
-          .if($a, (_o, state) => { state.as++ })
-          .if($b, (_o, state) => { state.bs++ })
-          .if($c, (_o, state) => { state.cs++ })
-          .done()
-        os.forEach(o => f(o, state))
-        console.log(state)
+        for (let i = 0; i < os.length; i++) {
+          f(os[i], state)
+        }
+        t.compare(expectedResult, state)
       })
-      t.measureTime('symbol equal checks (if/then))', () => {
+    }
+  })
+  t.group('schema checks (pattern match + foreach)', () => {
+    const f = s.match({ as: s.$number, bs: s.$number, cs: s.$number })
+      .if($a, (_o, state) => { state.as++ })
+      .if($b, (_o, state) => { state.bs++ })
+      .if($c, (_o, state) => { state.cs++ })
+      .done()
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} schema checks (pattern match)`, () => {
+        const state = {
+          as: 0,
+          bs: 0,
+          cs: 0
+        }
+        os.forEach(o => f(o, state))
+        t.compare(expectedResult, state)
+      })
+    }
+  })
+  t.group('schema checks (pattern match + foreach + inlined)', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} schema checks (pattern match)`, () => {
+        const state = {
+          as: 0,
+          bs: 0,
+          cs: 0
+        }
+        os.forEach(o =>
+          // inlining pattern-matching causes a ~5x overhead
+          s.match({ as: s.$number, bs: s.$number, cs: s.$number })
+            .if($a, (_o, state) => { state.as++ })
+            .if($b, (_o, state) => { state.bs++ })
+            .if($c, (_o, state) => { state.cs++ })
+            .done()(o, state)
+        )
+        t.compare(expectedResult, state)
+      })
+    }
+  })
+  t.group('symbol equal checks (if/then))', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} symbol equal checks (if/then))`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -885,9 +987,13 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             cs++
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-      t.measureTime('symbol equal checks (switch/case)', () => {
+    }
+  })
+  t.group('symbol equal checks (switch/case)', () => {
+    for (let iteration = 0; iteration < Iterations; iteration++) {
+      t.measureTime(`I=${iteration} symbol equal checks (switch/case)`, () => {
         let as = 0
         let bs = 0
         let cs = 0
@@ -908,8 +1014,8 @@ export const testBenchmarkTypeCheckUsingProps = tc => {
             }
           }
         }
-        console.log({ as, bs, cs })
+        t.compare(expectedResult, { as, bs, cs })
       })
-    })
-  }
+    }
+  })
 }
