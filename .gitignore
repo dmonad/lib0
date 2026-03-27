@@ -6,3 +6,4 @@ node_modules
 *.d.ts
 *.d.ts.map
 ./types
+.vscode
