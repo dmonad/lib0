@@ -50,8 +50,8 @@ jobs:
         id: npm-tag
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          if echo "$VERSION" | grep -qE '-(rc|alpha|beta|next)'; then
-            echo "tag=next" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
@@ -61,7 +61,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           PRERELEASE=""
-          if echo "$VERSION" | grep -qE '-(rc|alpha|beta|next)'; then
+          if [[ "$VERSION" == *-* ]]; then
             PRERELEASE="--prerelease"
           fi
           gh release create "v${VERSION}" --generate-notes $PRERELEASE
