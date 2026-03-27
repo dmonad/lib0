@@ -487,7 +487,7 @@ export class $StringTemplate extends Schema {
   check (o, err) {
     const c = this._r.exec(o) != null
     /* c8 ignore next */
-    !c && err?.extend(null, this._r.toString(), o+'', 'String doesn\'t match string template.')
+    !c && err?.extend(null, this._r.toString(), o + '', 'String doesn\'t match string template.')
     return c
   }
 }
