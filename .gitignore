@@ -2,7 +2,7 @@ dist
 .nyc_output
 coverage
 node_modules
+.claude
 *.d.ts
 *.d.ts.map
-*/*.d.ts
-*/*.d.ts.map
+./types
