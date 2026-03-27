@@ -289,7 +289,6 @@
     "trace-opt": "clear && node --trace-opt src/test.js",
     "lint": "tsc && standard && npx dpdm --exit-code circular:1 --warning false --tree false src/test.js",
     "gendocs": "node ./bin/gendocs.js",
-    "release": "npm run dist && np --test-script dist",
     "version": "npm run clean && npm run dist && git add README.md",
     "postpublish": "npm run clean",
     "gentesthtml": "node ./src/bin/gentesthtml.js --script src/test.js > test.html"
