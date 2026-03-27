@@ -13,6 +13,14 @@ import * as f from './function.js'
 /* c8 ignore next */
 export const isNode = /* @__PURE__ */(() => typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name) && Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]')()
 
+/**
+ * True iff this script is running in deno
+ * @type {boolean}
+ */
+/* c8 ignore next 2 */
+// @ts-ignore
+export const isDeno = /* @__PURE__ */(() => typeof Deno !== 'undefined')()
+
 /* c8 ignore next */
 export const isBrowser = /* @__PURE__ */(() => typeof window !== 'undefined' && typeof document !== 'undefined' && !isNode)()
 /* c8 ignore next */

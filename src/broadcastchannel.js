@@ -45,6 +45,10 @@ class LocalStoragePolyfill {
      */
     this.onmessage = null
     /**
+     * @type {null|((this: BroadcastChannel, ev: MessageEvent) => any)}
+     */
+    this.onmessageerror = null
+    /**
      * @param {any} e
      */
     this._onChange = e => e.key === room && this.onmessage !== null && this.onmessage({ data: buffer.fromBase64(e.newValue || '') })
@@ -79,8 +83,9 @@ const getChannel = room =>
     /**
      * @param {{data:ArrayBuffer}} e
      */
-    /* c8 ignore next */
+    /* c8 ignore next 3 */
     bc.onmessage = e => subs.forEach(sub => sub(e.data, 'broadcastchannel'))
+    bc.onmessageerror = e => console.error('broadcastchannel error', e)
     return {
       bc, subs
     }

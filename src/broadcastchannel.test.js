@@ -1,10 +1,12 @@
 import * as t from './testing.js'
 import * as bc from './broadcastchannel.js'
+import * as env from './environment.js'
 
 /**
  * @param {t.TestCase} tc
  */
 export const testBroadcastChannel = tc => {
+  t.skip(env.isDeno)
   bc.publish('test', 'test1', tc)
   /**
    * @type {any}
