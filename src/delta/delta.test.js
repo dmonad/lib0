@@ -811,7 +811,7 @@ export const testDeltaFormattingApply = () => {
   const start = delta.create().retain(11).delete(1)
   const formatting = delta.create().retain(2).retain(3, { a: null })
   start.apply(formatting)
-  const expected = delta.create().retain(2).retain(3, {a: null}).retain(6).delete(1)
+  const expected = delta.create().retain(2).retain(3, { a: null }).retain(6).delete(1)
   t.compare(start, expected)
 }
 
