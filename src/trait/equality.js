@@ -1,4 +1,4 @@
-export const EqualityTraitSymbol = Symbol('Equality')
+export const EqualityTraitSymbol = Symbol.for('0:equality')
 
 /**
  * @typedef {{ [EqualityTraitSymbol]:(other:EqualityTrait)=>boolean }} EqualityTrait

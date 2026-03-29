@@ -2,7 +2,7 @@ import * as encoding from '../encoding.js'
 import * as rabin from '../hash/rabin.js'
 import * as buffer from '../buffer.js'
 
-export const FingerprintTraitSymbol = Symbol('Fingerprint')
+export const FingerprintTraitSymbol = Symbol.for('0:fingerprint')
 
 /**
  * When implementing this trait, it is recommended to write some sort of "magic number" first to
