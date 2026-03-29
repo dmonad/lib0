@@ -1533,7 +1533,7 @@ export class DeltaBuilder extends Delta {
       } else if ($retainOp.check(op)) {
         let retainLen = op.length
 
-        if (offset > 0 && opsI != null && op.format != null && !$deleteOp.check(opsI) && !object.every(op.format, (v, k) => fun.equalityDeep(v, /** @type {InsertOp<any>|RetainOp|ModifyOp} */ (opsI).format?.[k] || null))) {
+        if (offset > 0 && opsI != null && op.format != null && !$deleteOp.check(opsI) && (/** @type {InsertOp<any>|RetainOp|ModifyOp} */ (opsI).format == null || !fun.equalityDeep(opsI.format, op.format))) {
           // need to split current op
           const cpy = scheduleForMerge(opsI.clone(offset))
           opsI._splice(offset, opsI.length - offset)
