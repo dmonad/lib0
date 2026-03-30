@@ -815,6 +815,29 @@ export const testDeltaFormattingApply = () => {
   t.compare(start, expected)
 }
 
+export const testDeltaFormattingDiff = () => {
+  const da = delta.create().insert('abc abc abc')
+  const db = delta.create()
+    .insert('a')
+    .insert('bc', { a: true })
+    .insert('!', { b: true })
+    .insert(' a')
+    .insert('bc', { a: true })
+    .insert('!', { b: true })
+    .insert(' abc')
+  const diff = delta.diff(db, da)
+  const expectedDiff = delta.create()
+    .retain(1)
+    .retain(2, { a: null })
+    .delete(1)
+    .retain(2)
+    .retain(2, { a: null })
+    .delete(1)
+  t.compare(diff, expectedDiff)
+  db.apply(diff)
+  t.compare(db, da)
+}
+
 // TEST TYPINGS
 
 /**

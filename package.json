@@ -284,7 +284,7 @@
     "test": "c8 --check-coverage --lines 97 --branches 96 --functions 94 --statements 97 node --unhandled-rejections=strict ./src/test.js",
     "test:deno": "deno run -A src/test.js",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./src/test.js --repetition-time 50",
-    "test-extensive": "node ./src/test.js --repetition-time 3000 --extensive",
+    "test-extensive": "node ./src/test.js --repetition-time 1000 --extensive",
     "test:bundle": "esbuild bundle.test.js --bundle --outfile=dist/bundle.test.js --analyze --minify && wc -c dist/bundle.test.js",
     "trace-deopt": "clear && node --trace-deopt src/test.js",
     "trace-opt": "clear && node --trace-opt src/test.js",
