@@ -838,6 +838,112 @@ export const testDeltaFormattingDiff = () => {
   t.compare(db, da)
 }
 
+/**
+ * We want to ensure that a.apply(b).apply(c) equals a.apply(b.apply(c)) - test the interactions of
+ * different ops
+ */
+export const testDeltaApply = () => {
+  const c = () => delta.create(delta.$deltaAny)
+  t.compare(
+    c().delete(1).apply(
+      c().delete(1)
+    ),
+    c().delete(2),
+    'delete + delete'
+  )
+  t.compare(
+    c().delete(1).apply(
+      c().insert('a')
+    ),
+    c().delete(1).insert('a'),
+    'delete + insert'
+  )
+  t.compare(
+    c().delete(1).apply(
+      c().retain(1, {a: 1})
+    ),
+    c().delete(1).retain(1, {a: 1}),
+    'delete + retain'
+  )
+  t.compare(
+    c().delete(1).apply(
+      c().modify(c().insert('a'))
+    ),
+    c().delete(1).modify(c().insert('a')),
+    'delete + modify'
+  )
+  t.compare(
+    c().insert('a').apply(
+      c().delete(2)
+    ),
+    c().delete(1),
+    'insert + delete'
+  )
+  t.compare(
+    c().insert('a').apply(
+      c().retain(2, {a: 1})
+    ),
+    c().insert('a', {a: 1}).retain(1, {a: 1}),
+    'insert + retain'
+  )
+  t.compare(
+    c().retain(1, {a: true}).apply(
+      c().delete(2)
+    ),
+    c().delete(1),
+    'retain + delete'
+  )
+  t.compare(
+    c().retain(2, {a: true}).apply(
+      c().retain(1).insert('a')
+    ),
+    c().retain(1, {a: true}).insert('a').retain(1, {a: true}),
+    'retain + insert'
+  )
+  t.compare(
+    c().retain(1, {a: 1}).apply(
+      c().retain(2, {b: 2})
+    ),
+    c().retain(1, {a: 1, b: 2}).retain(1, {b: 2}),
+    'retain + retain'
+  )
+  t.compare(
+    c().retain(1, {a: 1}).apply(
+      c().modify(c().insert('a'))
+    ),
+    c().modify(c().insert('a'), { a: 1 }),
+    'retain + modify'
+  )
+  t.compare(
+    c().modify(c().insert('a')).apply(
+      c().delete(2)
+    ),
+    c().delete(1),
+    'modify + delete'
+  )
+  t.compare(
+    c().modify(c().insert('a')).apply(
+      c().insert('a')
+    ),
+    c().insert('a').modify(c().insert('a')),
+    'modify + insert'
+  )
+  t.compare(
+    c().modify(c().insert('a')).apply(
+      c().retain(2, { a: 1 })
+    ),
+    c().modify(c().insert('a'), { a: 1 }).retain(1, {a: 1}),
+    'modify + retain'
+  )
+  t.compare(
+    c().modify(c().insert('a')).apply(
+      c().modify(c().insert('0'))
+    ),
+    c().modify(c().insert('0a')),
+    'modify + modify'
+  )
+}
+
 // TEST TYPINGS
 
 /**

@@ -1629,7 +1629,7 @@ export class DeltaBuilder extends Delta {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
-        } else if ($modifyAttrOp.check(opsI)) {
+        } else if ($modifyOp.check(opsI)) {
           opsI._modValue.apply(/** @type {any} */ (op.value))
           opsI = opNextUndeleted(opsI)
         } else if ($insertOp.check(opsI)) {
@@ -1645,7 +1645,9 @@ export class DeltaBuilder extends Delta {
             list.insertBetween(this.children, opsI.prev, opsI, cpy) // insert skipped len
             offset = 0
           }
-          list.insertBetween(this.children, opsI.prev, opsI, scheduleForMerge(op.clone())) // insert skipped len
+          const insertModOp = scheduleForMerge(op.clone())
+          opsI.format && updateOpFormat(insertModOp, opsI.format)
+          list.insertBetween(this.children, opsI.prev, opsI, insertModOp) // insert skipped len
           if (opsI.length === 1) {
             list.remove(this.children, opsI)
           } else {
