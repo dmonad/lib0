@@ -745,6 +745,8 @@ export const testRepeatRandomMapDiff = tc => {
   const $d = delta.$delta({ name: 'list', attrs: { a: s.$string, b: s.$number } })
   const d1 = delta.random(tc.prng, $d)
   const d2 = delta.random(tc.prng, $d)
+  d1.isFinal = true
+  d2.isFinal = true
   $d.expect(d1)
   $d.expect(d2)
   const d = delta.diff(d1, d2)
@@ -890,7 +892,7 @@ export const testDeltaApplyCases = () => {
     c().retain(1, { a: true }).apply(
       c().delete(2)
     ),
-    c().delete(1),
+    c().delete(2),
     'retain + delete'
   )
   t.compare(
@@ -984,9 +986,11 @@ const testDeltaDiff = (tc, $d, opts) => {
   const start = delta.random(tc.prng, $d, opts).done()
   const change = delta.random(tc.prng, $d, { source: start, ...opts })
   const final = delta.clone(start)
+  final.isFinal = true
   final.apply(change)
   const d = delta.diff(start, final)
   const updatedStart = delta.clone(start)
+  updatedStart.isFinal = true
   updatedStart.apply(d)
   t.compare(updatedStart, final)
 }

@@ -972,6 +972,9 @@ class DeltaData {
      * >}
      */
     this.children = /** @type {any} */ (list.create())
+    /**
+     * All child-ops sizes combined. Note that delete-ops also have a length
+     */
     this.childCnt = 0
     /**
      * @type {any}
@@ -982,6 +985,10 @@ class DeltaData {
      */
     this._fingerprint = null
     this.isDone = false
+    /**
+     * Is the final document and does not contain delete, modify, or retain ops.
+     */
+    this.isFinal = false
   }
 }
 
@@ -1472,9 +1479,10 @@ export class DeltaBuilder extends Delta {
    * @todo fuzz test the above property
    *
    * @param {Delta<Conf>?} other
+   * @param {{ final?: boolean }} opts -- experimental
    * @return {Delta<Conf>}
    */
-  apply (other) {
+  apply (other, { final = this.isFinal } = {}) {
     if (other == null) return this
     modDeltaCheck(this)
     this.$schema?.expect(other)
@@ -1497,8 +1505,13 @@ export class DeltaBuilder extends Delta {
         this.attrs[op.key] = op.clone()
       } else if ($deleteAttrOp.check(op)) {
         op.prevValue = c?.value
-        // @ts-ignore
-        delete this.attrs[op.key]
+        if (final) {
+          // @ts-ignore
+          delete this.attrs[op.key]
+        } else {
+          // @ts-ignore
+          this.attrs[op.key] = op.clone()
+        }
       }
     }
     // apply children
@@ -1520,6 +1533,7 @@ export class DeltaBuilder extends Delta {
      */
     const maybeMergeable = []
     /**
+     * Schedule an op to be merged later
      * @param {ChildrenOpAny?} op
      * @return {ChildrenOpAny}
      */
@@ -1527,36 +1541,40 @@ export class DeltaBuilder extends Delta {
       op && maybeMergeable.push(op)
       return /** @type {any} */ (op)
     }
+
+    /**
+     * Split opsI at the current offset - ensuring that we can insert safely at the current position
+     */
+    const splitHere = () => {
+      if (offset > 0 && opsI != null) {
+        const rightPart = scheduleForMerge(opsI.clone(offset))
+        opsI._splice(offset, opsI.length - offset)
+        list.insertBetween(this.children, opsI, opsI.next || null, rightPart)
+        offset = 0
+        opsI = rightPart
+      }
+    }
+    /**
+     * @param {ChildrenOpAny} op
+     */
+    const insertClonedOp = op => {
+      splitHere()
+      list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
+      this.childCnt += op.length
+    }
     for (const op of other.children) {
       if (opsI?.length === offset) {
         opsI = opNextUndeleted(opsI)
+        offset = 0
       }
       if ($textOp.check(op) || $insertOp.check(op)) {
-        if (offset === 0) {
-          list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
-        } else {
-          // @todo inmplement "splitHelper" and "insertHelper" - I'm splitting all the time and
-          // forget to update opsI
-          if (opsI == null) error.unexpectedCase()
-          const cpy = scheduleForMerge(opsI.clone(offset))
-          opsI._splice(offset, opsI.length - offset)
-          list.insertBetween(this.children, opsI, opsI.next || null, cpy)
-          list.insertBetween(this.children, opsI, cpy || null, scheduleForMerge(op.clone()))
-          opsI = cpy
-          offset = 0
-        }
-        this.childCnt += op.insert.length
+        insertClonedOp(op)
       } else if ($retainOp.check(op)) {
         let retainLen = op.length
         if (offset > 0 && opsI != null && op.format != null && !$deleteOp.check(opsI) && (/** @type {InsertOp<any>|RetainOp|ModifyOp} */ (opsI).format == null || !fun.equalityDeep(opsI.format, op.format))) {
           // need to split current op
-          const cpy = scheduleForMerge(opsI.clone(offset))
-          opsI._splice(offset, opsI.length - offset)
-          list.insertBetween(this.children, opsI, opsI.next || null, cpy)
-          opsI = cpy
-          offset = 0
+          splitHere()
         }
-
         while (opsI != null && opsI.length - offset <= retainLen) {
           if (op.format != null) {
             updateOpFormat(opsI, op.format)
@@ -1566,16 +1584,12 @@ export class DeltaBuilder extends Delta {
           opsI = opNextUndeleted(opsI)
           offset = 0
         }
-
         if (opsI != null) {
           if (op.format != null && retainLen > 0) {
-            // split current op and apply format
-            const cpy = scheduleForMerge(opsI.clone(retainLen))
-            opsI._splice(retainLen, opsI.length - retainLen)
-            list.insertBetween(this.children, opsI, opsI.next || null, cpy)
-            updateOpFormat(opsI, op.format)
-            scheduleForMerge(opsI)
-            opsI = cpy
+            offset = retainLen
+            splitHere()
+            updateOpFormat(/** @type {ChildrenOpAny} */ (opsI.prev), op.format)
+            scheduleForMerge(opsI.prev)
           } else {
             offset += retainLen
           }
@@ -1590,16 +1604,20 @@ export class DeltaBuilder extends Delta {
             list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen, null)))
             this.childCnt += remainingLen
             break
-          } else if ($retainOp.check(opsI)) {
+          } else if ($retainOp.check(opsI)) { // retain ⇒ splice retain, insert delete
             const delLen = math.min(opsI.length - offset, remainingLen)
             opsI._splice(offset, delLen)
-            const opClone = new DeleteOp(delLen, null)
-            list.insertBetween(this.children, opsI.prev, opsI, opClone)
-            scheduleForMerge(opClone)
+            this.childCnt -= delLen
             if (opsI.length === 0) {
               list.remove(this.children, opsI)
               opsI = opNextUndeleted(opsI)
+              offset = 0
             }
+            if (opsI?.length === offset) {
+              opsI = opNextUndeleted(opsI)
+              offset = 0
+            }
+            insertClonedOp(new DeleteOp(delLen, null))
             remainingLen -= delLen
           } else if (!$deleteOp.check(opsI)) { // insert / embed / modify ⇒ replace
             // case1: delete o fully
@@ -1610,9 +1628,9 @@ export class DeltaBuilder extends Delta {
             this.childCnt -= delLen
             if (opsI.length === delLen) {
               // case 1
-              offset = 0
               list.remove(this.children, opsI)
               scheduleForMerge(opsI = opNextUndeleted(opsI))
+              offset = 0
             } else if (offset === 0) {
               // case 2
               offset = 0
@@ -1620,8 +1638,8 @@ export class DeltaBuilder extends Delta {
             } else if (offset + delLen === opsI.length) {
               // case 3
               opsI._splice(offset, delLen)
-              offset = 0
               opsI = opNextUndeleted(opsI)
+              offset = 0
             } else {
               // case 4
               opsI._splice(offset, delLen)
@@ -1636,10 +1654,10 @@ export class DeltaBuilder extends Delta {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
         } else if ($modifyOp.check(opsI)) {
-          opsI._modValue.apply(/** @type {any} */ (op.value))
+          opsI._modValue.apply(/** @type {any} */ (op.value), { final })
           opsI = opNextUndeleted(opsI)
         } else if ($insertOp.check(opsI)) {
-          opsI._modValue(offset).apply(op.value)
+          opsI._modValue(offset).apply(op.value, { final })
           if (opsI.length === ++offset) {
             opsI = opNextUndeleted(opsI)
             offset = 0
