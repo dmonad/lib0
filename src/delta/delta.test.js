@@ -842,7 +842,7 @@ export const testDeltaFormattingDiff = () => {
  * We want to ensure that a.apply(b).apply(c) equals a.apply(b.apply(c)) - test the interactions of
  * different ops
  */
-export const testDeltaApply = () => {
+export const testDeltaApplyCases = () => {
   const c = () => delta.create(delta.$deltaAny)
   t.compare(
     c().delete(1).apply(
@@ -860,9 +860,9 @@ export const testDeltaApply = () => {
   )
   t.compare(
     c().delete(1).apply(
-      c().retain(1, {a: 1})
+      c().retain(1, { a: 1 })
     ),
-    c().delete(1).retain(1, {a: 1}),
+    c().delete(1).retain(1, { a: 1 }),
     'delete + retain'
   )
   t.compare(
@@ -881,34 +881,34 @@ export const testDeltaApply = () => {
   )
   t.compare(
     c().insert('a').apply(
-      c().retain(2, {a: 1})
+      c().retain(2, { a: 1 })
     ),
-    c().insert('a', {a: 1}).retain(1, {a: 1}),
+    c().insert('a', { a: 1 }).retain(1, { a: 1 }),
     'insert + retain'
   )
   t.compare(
-    c().retain(1, {a: true}).apply(
+    c().retain(1, { a: true }).apply(
       c().delete(2)
     ),
     c().delete(1),
     'retain + delete'
   )
   t.compare(
-    c().retain(2, {a: true}).apply(
+    c().retain(2, { a: true }).apply(
       c().retain(1).insert('a')
     ),
-    c().retain(1, {a: true}).insert('a').retain(1, {a: true}),
+    c().retain(1, { a: true }).insert('a').retain(1, { a: true }),
     'retain + insert'
   )
   t.compare(
-    c().retain(1, {a: 1}).apply(
-      c().retain(2, {b: 2})
+    c().retain(1, { a: 1 }).apply(
+      c().retain(2, { b: 2 })
     ),
-    c().retain(1, {a: 1, b: 2}).retain(1, {b: 2}),
+    c().retain(1, { a: 1, b: 2 }).retain(1, { b: 2 }),
     'retain + retain'
   )
   t.compare(
-    c().retain(1, {a: 1}).apply(
+    c().retain(1, { a: 1 }).apply(
       c().modify(c().insert('a'))
     ),
     c().modify(c().insert('a'), { a: 1 }),
@@ -932,7 +932,7 @@ export const testDeltaApply = () => {
     c().modify(c().insert('a')).apply(
       c().retain(2, { a: 1 })
     ),
-    c().modify(c().insert('a'), { a: 1 }).retain(1, {a: 1}),
+    c().modify(c().insert('a'), { a: 1 }).retain(1, { a: 1 }),
     'modify + retain'
   )
   t.compare(
@@ -1050,4 +1050,78 @@ export const testRepeatRandomXmlDeltaDiff = tc => {
  */
 export const testRepeatRandomXmlDeltaDiffLarge = tc => {
   testDeltaDiff(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @template {delta.DeltaConf} Conf
+ * @param {t.TestCase} tc
+ * @param {s.Schema<delta.Delta<Conf>>} $d
+ * @param {{ minChildOps: number, maxChildOps: number }} opts
+ */
+const testDeltaApply = (tc, $d, opts) => {
+  // @todo this should  create sentences, words, functions, etc
+  const start = delta.random(tc.prng, $d, opts).done()
+  const change1 = delta.random(tc.prng, $d, { source: start, ...opts })
+  const startUpdated = delta.clone(start).apply(change1)
+  const change2 = delta.random(tc.prng, $d, { source: startUpdated, ...opts })
+  const finalA = delta.clone(startUpdated).apply(change2)
+  const changesCombined = delta.clone(change1).apply(change2)
+  const finalB = delta.clone(start).apply(changesCombined)
+  t.compare(finalA, finalB)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaApply = tc => {
+  testDeltaApply(tc, $textDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaApplyLarge = tc => {
+  testDeltaApply(tc, $textDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaApply = tc => {
+  testDeltaApply(tc, $mapDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaApplyLarge = tc => {
+  testDeltaApply(tc, $mapDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaApply = tc => {
+  testDeltaApply(tc, $arrayDelta, { minChildOps: 3, maxChildOps: 3 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaApplyLarge = tc => {
+  testDeltaApply(tc, $arrayDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaApply = tc => {
+  testDeltaApply(tc, $xmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaApplyLarge = tc => {
+  testDeltaApply(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
 }

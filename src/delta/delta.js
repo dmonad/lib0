@@ -1528,6 +1528,9 @@ export class DeltaBuilder extends Delta {
       return /** @type {any} */ (op)
     }
     for (const op of other.children) {
+      if (opsI?.length === offset) {
+        opsI = opNextUndeleted(opsI)
+      }
       if ($textOp.check(op) || $insertOp.check(op)) {
         if (offset === 0) {
           list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
@@ -1587,17 +1590,18 @@ export class DeltaBuilder extends Delta {
             list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen, null)))
             this.childCnt += remainingLen
             break
-          } else if ($deleteOp.check(opsI)) {
-            const delLen = opsI.length - offset
-            // the same content can't be deleted twice, remove duplicated deletes
-            if (delLen >= remainingLen) {
-              offset = 0
+          } else if ($retainOp.check(opsI)) {
+            const delLen = math.min(opsI.length - offset, remainingLen)
+            opsI._splice(offset, delLen)
+            const opClone = new DeleteOp(delLen, null)
+            list.insertBetween(this.children, opsI.prev, opsI, opClone)
+            scheduleForMerge(opClone)
+            if (opsI.length === 0) {
+              list.remove(this.children, opsI)
               opsI = opNextUndeleted(opsI)
-            } else {
-              offset += remainingLen
             }
             remainingLen -= delLen
-          } else { // insert / embed / retain / modify ⇒ replace
+          } else if (!$deleteOp.check(opsI)) { // insert / embed / modify ⇒ replace
             // case1: delete o fully
             // case2: delete some part of beginning
             // case3: delete some part of end
@@ -1612,7 +1616,7 @@ export class DeltaBuilder extends Delta {
             } else if (offset === 0) {
               // case 2
               offset = 0
-              opsI._splice(0, delLen)
+              opsI._splice(offset, delLen)
             } else if (offset + delLen === opsI.length) {
               // case 3
               opsI._splice(offset, delLen)
@@ -1623,6 +1627,8 @@ export class DeltaBuilder extends Delta {
               opsI._splice(offset, delLen)
             }
             remainingLen -= delLen
+          } else {
+            error.unexpectedCase()
           }
         }
       } else if ($modifyOp.check(op)) {
