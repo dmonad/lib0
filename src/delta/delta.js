@@ -1190,8 +1190,12 @@ const tryMergeWithPrev = (parent, op) => {
   const prevOp = op.prev
   if (
     prevOp?.constructor !== op.constructor ||
+    $modifyOp.check(op) ||
     (
-      (!$deleteOp.check(op) && !$modifyOp.check(op)) && (!fun.equalityDeep(op.format, /** @type {InsertOp<any>} */ (prevOp).format) || !fun.equalityDeep(op.attribution, /** @type {InsertOp<any>} */ (prevOp).attribution))
+      !$deleteOp.check(op) && (
+        !fun.equalityDeep(op.format, /** @type {InsertOp<any>} */ (prevOp).format) 
+        || !fun.equalityDeep(op.attribution, /** @type {InsertOp<any>} */ (prevOp).attribution)
+      )
     )
   ) {
     // constructor mismatch or format/attribution mismatch
