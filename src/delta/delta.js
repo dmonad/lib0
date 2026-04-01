@@ -1193,8 +1193,8 @@ const tryMergeWithPrev = (parent, op) => {
     $modifyOp.check(op) ||
     (
       !$deleteOp.check(op) && (
-        !fun.equalityDeep(op.format, /** @type {InsertOp<any>} */ (prevOp).format) 
-        || !fun.equalityDeep(op.attribution, /** @type {InsertOp<any>} */ (prevOp).attribution)
+        !fun.equalityDeep(op.format, /** @type {InsertOp<any>} */ (prevOp).format) ||
+        !fun.equalityDeep(op.attribution, /** @type {InsertOp<any>} */ (prevOp).attribution)
       )
     )
   ) {
