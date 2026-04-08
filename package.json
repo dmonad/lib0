@@ -270,7 +270,7 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^24.11.0",
+    "@types/node": "^25.5.2",
     "c8": "^11.0.0",
     "dpdm": "^4.0.1",
     "standard": "^17.1.0",
