@@ -7,8 +7,23 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  test-extensive:
     if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: npm run test-extensive
+
+  check:
+    needs: test-extensive
     runs-on: ubuntu-latest
     outputs:
       should_publish: ${{ steps.version-check.outputs.should_publish }}
