@@ -1335,7 +1335,7 @@ export class DeltaBuilder extends Delta {
       if ($textOp.check(end) && checkMergedEquals(end)) {
         end._updateInsert(end.insert + insert)
       } else if (insert.length > 0) {
-        list.pushEnd(this.children, new TextOp(insert, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+        list.pushEnd(this.children, new TextOp(insert, mergedAttributes, mergedAttribution))
       }
       this.childCnt += insert.length
     } else if (arr.isArray(insert)) {
@@ -1344,7 +1344,7 @@ export class DeltaBuilder extends Delta {
         end.insert.push(...insert)
         end._fingerprint = null
       } else if (insert.length > 0) {
-        list.pushEnd(this.children, new InsertOp(insert.slice() /* ensures that we don't reuse an existing array */, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+        list.pushEnd(this.children, new InsertOp(insert.slice() /* ensures that we don't reuse an existing array */, mergedAttributes, mergedAttribution))
       }
       this.childCnt += insert.length
     }
@@ -1362,7 +1362,7 @@ export class DeltaBuilder extends Delta {
     modDeltaCheck(this)
     const mergedAttributes = mergeAttrs(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttrs(this.usedAttribution, attribution)
-    list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, object.isEmpty(mergedAttribution) ? null : mergedAttribution))
+    list.pushEnd(this.children, new ModifyOp(modify, mergedAttributes, mergedAttribution))
     this.childCnt += 1
     return /** @type {any} */ (this)
   }
@@ -1910,7 +1910,7 @@ const updateOpFormat = (op, formatUpdate) => {
         /** @type {any} */ (op).format = object.assign({}, op.format, { [k]: v })
       } else if (op.format != null) {
         const { [k]: _, ...rest } = op.format
-        ;/** @type {any} */ (op).format = object.isEmpty(rest) ? null : rest
+        ;/** @type {any} */ (op).format = rest ? null : rest
       }
     }
   }
@@ -2038,9 +2038,9 @@ export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (/* @__
  * @param {T | null} a
  * @param {T | null} b
  */
-export const mergeAttrs = (a, b) => object.isEmpty(a)
-  ? (object.isEmpty(b) ? null : b)
-  : (object.isEmpty(b) ? a : object.assign({}, a, b))
+export const mergeAttrs = (a, b) => a == null
+  ? b
+  : (b == null ? a : object.assign({}, a, b))
 
 /**
  * @template {DeltaAny|null} D
