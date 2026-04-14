@@ -180,7 +180,12 @@ export class TextOp extends list.ListNode {
    * @param {TextOp} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return $textOp.check(other) && fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $textOp.check(other) &&
+      fun.equalityDeep(this.insert, other.insert) &&
+      (
+        (object.isEmpty(this.format) && object.isEmpty(other.format)) || fun.equalityDeep(this.format, other.format)
+      ) &&
+      fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -297,7 +302,12 @@ export class InsertOp extends list.ListNode {
    * @param {InsertOp<ArrayContent>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return $insertOp.check(other) && fun.equalityDeep(this.insert, other.insert) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $insertOp.check(other) &&
+      fun.equalityDeep(this.insert, other.insert) &&
+      (
+        (object.isEmpty(this.format) && object.isEmpty(other.format)) || fun.equalityDeep(this.format, other.format)
+      ) &&
+      fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
@@ -454,7 +464,12 @@ export class RetainOp extends list.ListNode {
    * @param {RetainOp} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return $retainOp.check(other) && this.retain === other.retain && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $retainOp.check(other) &&
+      this.retain === other.retain &&
+      (
+        (object.isEmpty(this.format) && object.isEmpty(other.format)) || fun.equalityDeep(this.format, other.format)
+      ) &&
+      fun.equalityDeep(this.attribution, other.attribution)
   }
 
   clone (start = 0, end = this.retain) {
@@ -554,7 +569,12 @@ export class ModifyOp extends list.ListNode {
    * @param {ModifyOp<any>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return $modifyOp.check(other) && this.value[equalityTrait.EqualityTraitSymbol](other.value) && fun.equalityDeep(this.format, other.format) && fun.equalityDeep(this.attribution, other.attribution)
+    return $modifyOp.check(other) &&
+      this.value[equalityTrait.EqualityTraitSymbol](other.value) &&
+      (
+        (object.isEmpty(this.format) && object.isEmpty(other.format)) || fun.equalityDeep(this.format, other.format)
+      ) &&
+      fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**

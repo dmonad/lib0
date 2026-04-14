@@ -817,6 +817,13 @@ export const testDeltaFormattingApply = () => {
   t.compare(start, expected)
 }
 
+export const testDeltaFormattingComparability = () => {
+  const d1 = delta.create().insert('a', {}).retain(2, {}).modify(delta.create(), {}).insert([1], {})
+  const d2 = delta.create().insert('a').retain(2).modify(delta.create()).insert([1])
+  // semantically the same
+  t.compare(d1, d2)
+}
+
 /**
  * Current formatting & attribution semantics
  *
