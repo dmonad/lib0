@@ -1505,7 +1505,7 @@ export class DeltaBuilder extends Delta {
    *
    * @param {Delta<Conf>?} other
    * @param {{ final?: boolean }} opts -- experimental
-   * @return {Delta<Conf>}
+   * @return {DeltaBuilder<Conf>}
    */
   apply (other, { final = this.isFinal } = {}) {
     if (other == null) return this
