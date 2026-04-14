@@ -825,7 +825,7 @@ export const testDeltaFormattingComparability = () => {
 }
 
 /**
- * Current formatting & attribution semantics
+ * Formatting & attribution semantics
  *
  * - f=null => retain current formatting/attribution
  * Attributions only:
@@ -835,7 +835,6 @@ export const testDeltaFormattingComparability = () => {
  * - f={[k]:v} => update formatting/attribution to contain k=v
  * - f={[k]:null} => remove formatting/attribution to remove k
  *
- * @todo investigate whether we should share semantics
  * @todo there are a number of optimizations to apply. In formatting: null equals {} semantics.
  */
 export const testDeltaRemoveFormatOp = () => {
@@ -843,7 +842,10 @@ export const testDeltaRemoveFormatOp = () => {
   const rFormat = delta.create().retain(1).retain(1, {}).done()
   // there are two distinct items
   t.assert(rAttribution.children.start !== rAttribution.children.end)
-  t.assert(rFormat.children.start !== rFormat.children.end)
+  // items are merged because of different semantics
+  t.assert(rFormat.children.start === rFormat.children.end)
+  // is removed when "done"
+  t.assert(rFormat.children.start == null)
 }
 
 export const testDeltaFormattingDiff = () => {
