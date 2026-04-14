@@ -1345,7 +1345,7 @@ export class DeltaBuilder extends Delta {
    */
   insert (insert, formatting = null, attribution = null) {
     modDeltaCheck(this)
-    const mergedAttributes = mergeAttributions(this.usedAttributes, formatting)
+    const mergedAttributes = mergeFormats(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
     /**
      * @param {TextOp | InsertOp<any>} lastOp
@@ -1381,7 +1381,7 @@ export class DeltaBuilder extends Delta {
    */
   modify (modify, formatting = null, attribution = null) {
     modDeltaCheck(this)
-    const mergedAttributes = mergeAttributions(this.usedAttributes, formatting)
+    const mergedAttributes = mergeFormats(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
     list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution))
     this.childCnt += 1
@@ -1395,7 +1395,7 @@ export class DeltaBuilder extends Delta {
    */
   retain (len, format = null, attribution = null) {
     modDeltaCheck(this)
-    const mergedFormats = mergeAttributions(this.usedAttributes, format)
+    const mergedFormats = mergeFormats(this.usedAttributes, format)
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
     const lastOp = /** @type {RetainOp|InsertOp<any>} */ (this.children.end)
     if ($retainOp.check(lastOp) && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
