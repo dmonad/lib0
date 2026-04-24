@@ -7,11 +7,11 @@
     "allowJs": true,
     "checkJs": true,
     "outDir": "./dist",
-    "baseUrl": "./src",
     "rootDir": "./src",
     "strict": true,
     "noImplicitAny": true,
     "moduleResolution": "nodenext",
+    "types": ["node"],
     "paths": {
       "lib0/*": ["./src/*"],
       "lib0/webcrypto": ["./src/webcrypto.js"],
