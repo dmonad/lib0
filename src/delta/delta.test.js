@@ -1160,3 +1160,18 @@ export const testRepeatRandomXmlDeltaApply = tc => {
 export const testRepeatRandomXmlDeltaApplyLarge = tc => {
   testDeltaApply(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
 }
+
+export const testDiffAsymmetricTopLevelDelete = () => {
+  const d1 = /** @type {delta.DeltaAny} */ (delta.create().insert([delta.create('paragraph').insert('hello')]).delete(1).done())
+  const d2 = /** @type {delta.DeltaAny} */ (delta.create().insert([delta.create('paragraph').insert('world')]).done())
+  // Forward: inner content updates to match d2; d1's asymmetric top-level delete is preserved.
+  t.compare(
+    delta.clone(d1).apply(delta.diff(d1, d2)),
+    delta.create().insert([delta.create('paragraph').insert('world')]).delete(1)
+  )
+  // Reverse: inner content updates; d1's delete can't be forward-represented and is dropped.
+  t.compare(
+    delta.clone(d2).apply(delta.diff(d2, d1)),
+    delta.create().insert([delta.create('paragraph').insert('hello')])
+  )
+}
