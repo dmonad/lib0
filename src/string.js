@@ -84,8 +84,7 @@ export const _encodeUtf8Native = str => utf8TextEncoder.encode(str)
  * @param {string} str
  * @return {Uint8Array}
  */
-/* c8 ignore next 2 */
-/* @__NO_SIDE_EFFECTS__ */
+/* c8 ignore next 1 */
 export const encodeUtf8 = /* @__PURE__ */(() => utf8TextEncoder ? _encodeUtf8Native : _encodeUtf8Polyfill)()
 
 /**
@@ -135,9 +134,8 @@ export const _decodeUtf8Native = buf => /** @type {TextDecoder} */ (utf8TextDeco
  * @param {Uint8Array} buf
  * @return {string}
  */
-/* c8 ignore next 2 */
-/* @__NO_SIDE_EFFECTS__ */
-export const decodeUtf8 = utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill
+/* c8 ignore next 1 */
+export const decodeUtf8 = /* @__PURE__ */ (() => utf8TextDecoder ? _decodeUtf8Native : _decodeUtf8Polyfill)()
 
 /**
  * @param {string} str The initial string

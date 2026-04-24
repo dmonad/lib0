@@ -433,8 +433,7 @@ export const $$literal = $type('s:$Literal', $Literal)
  * @return {string}
  */
 /* c8 ignore start - else should be ignored */
-/* @__NO_SIDE_EFFECTS__ */
-const _regexEscape = (() =>/** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (
+const _regexEscape = /* @__PURE__ */(() =>/** @type {any} */ (RegExp).escape || /** @type {(str:string) => string} */ (
   str => str.replace(/[().|&,$^[\]]/g, s => '\\' + s))
 )()
 /* c8 ignore stop */
@@ -987,8 +986,7 @@ const _t = () => true
 /**
  * @type {Schema<any>}
  */
-/* @__NO_SIDE_EFFECTS__ */
-export const $any = $custom(_t)
+export const $any = /* @__PURE__ */$custom(_t)
 export const $$any = /** @type {Schema<Schema<any>>} */ (/* @__PURE__ */$type('s:$any', $any))
 
 /**
@@ -1059,7 +1057,6 @@ export const $primitive = $union($number, $string, $null, $undefined, $bigint, $
 /**
  * @type {Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
  */
-/* @__NO_SIDE_EFFECTS__ */
 export const $json = /* @__PURE__ */(() => {
   const $jsonArr = /** @type {$Array<$any>} */ ($array($any))
   const $jsonRecord = /** @type {$Record<$string,$any>} */ ($record($string, $any))

@@ -2049,7 +2049,7 @@ export const $delta = ({ name, attrs, children, text, formats, recursiveChildren
 
 export const $$delta = /* @__PURE__ */s.$constructedBy($Delta)
 
-export const $deltaAny = /* @__PURE__ *//** @type {s.Schema<Delta<any>>} */ (Delta.prototype.$type = s.$type('d:delta', Delta))
+export const $deltaAny = /** @type {s.Schema<Delta<any>>} */ (Delta.prototype.$type = s.$type('d:delta', Delta))
 export const $deltaBuilderAny = /** @type {s.Schema<DeltaBuilderAny>} */ (/* @__PURE__ */s.$custom(o => $deltaAny.check(o) && !o.isDone))
 
 /**
