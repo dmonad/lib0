@@ -41,10 +41,6 @@
       "types": "./types/cache.d.ts",
       "default": "./src/cache.js"
     },
-    "./component": {
-      "types": "./types/component.d.ts",
-      "default": "./src/component.js"
-    },
     "./conditions": {
       "types": "./types/conditions.d.ts",
       "default": "./src/conditions.js"
@@ -231,10 +227,6 @@
       "types": "./types/time.d.ts",
       "default": "./src/time.js"
     },
-    "./tree": {
-      "types": "./types/tree.d.ts",
-      "default": "./src/tree.js"
-    },
     "./url": {
       "types": "./types/url.d.ts",
       "default": "./src/url.js"
@@ -289,8 +281,6 @@
     "trace-deopt": "clear && node --trace-deopt src/test.js",
     "trace-opt": "clear && node --trace-opt src/test.js",
     "lint": "tsc && standard && npx dpdm --exit-code circular:1 --warning false --tree false src/test.js",
-    "gendocs": "node ./bin/gendocs.js",
-    "version": "npm run clean && npm run dist && git add README.md",
     "postpublish": "npm run clean",
     "gentesthtml": "node ./src/bin/gentesthtml.js --script src/test.js > test.html"
   },
@@ -311,6 +301,6 @@
     ]
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=22"
   }
 }
