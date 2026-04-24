@@ -341,7 +341,7 @@ export const _writeVarStringPolyfill = (encoder, str) => {
  * @param {String} str The string that is to be encoded.
  */
 /* c8 ignore next */
-export const writeVarString = (string.utf8TextEncoder && /** @type {any} */ (string.utf8TextEncoder).encodeInto) ? _writeVarStringNative : _writeVarStringPolyfill
+export const writeVarString = /* @__PURE__ */(() => (string.utf8TextEncoder && /** @type {any} */ (string.utf8TextEncoder).encodeInto) ? _writeVarStringNative : _writeVarStringPolyfill)()
 
 /**
  * Write a string terminated by a special byte sequence. This is not very performant and is

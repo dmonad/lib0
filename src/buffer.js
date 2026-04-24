@@ -78,10 +78,10 @@ const fromBase64Node = s => {
 }
 
 /* c8 ignore next */
-export const toBase64 = env.isBrowser ? toBase64Browser : toBase64Node
+export const toBase64 = /* @__PURE__ */(() => env.isBrowser ? toBase64Browser : toBase64Node)()
 
 /* c8 ignore next */
-export const fromBase64 = env.isBrowser ? fromBase64Browser : fromBase64Node
+export const fromBase64 = /* @__PURE__ */(() => env.isBrowser ? fromBase64Browser : fromBase64Node)()
 
 /**
  * Implements base64url - see https://datatracker.ietf.org/doc/html/rfc4648#section-5

@@ -14,7 +14,7 @@ import * as $ from './schema.js'
 /**
  * @type {Document}
  */
-export const doc = /** @type {Document} */ (typeof document !== 'undefined' ? document : {})
+export const doc = /** @type {Document} */ (/* @__PURE__ */ (() => typeof document !== 'undefined' ? document : {})())
 
 /**
  * @param {string} name
@@ -38,7 +38,7 @@ export const $fragment = $.$custom(el => el.nodeType === DOCUMENT_FRAGMENT_NODE)
  */
 export const createTextNode = text => doc.createTextNode(text)
 
-export const domParser = /** @type {DOMParser} */ (typeof DOMParser !== 'undefined' ? new DOMParser() : null)
+export const domParser = /** @type {DOMParser} */ (/* @__PURE__ */ (() => typeof DOMParser !== 'undefined' ? new DOMParser() : null)())
 
 /**
  * @param {HTMLElement} el

@@ -387,7 +387,7 @@ export const _readVarStringNative = decoder =>
  *
  */
 /* c8 ignore next */
-export const readVarString = string.utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill
+export const readVarString = /* @__PURE__ */(() => string.utf8TextDecoder ? _readVarStringNative : _readVarStringPolyfill)()
 
 /**
  * @param {Decoder} decoder

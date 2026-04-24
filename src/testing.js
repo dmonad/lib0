@@ -63,7 +63,7 @@ export { production } from './environment.js'
 export const extensive = env.hasConf('extensive')
 
 /* c8 ignore next */
-export const envSeed = env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed', '0')) : null
+export const envSeed = /* @__PURE__ */(() => env.hasParam('--seed') ? Number.parseInt(env.getParam('--seed', '0')) : null)()
 
 export class TestCase {
   /**
