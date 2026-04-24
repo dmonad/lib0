@@ -2298,7 +2298,8 @@ class _DiffStringWrapper {
 }
 
 /*
- * Delta Diffing approach - optimized for performance and creating readable deltas
+ * Delta Diffing approach - optimized for performance and creating readable deltas. You can only
+ * diff insertions (InsertOp & TextOp) not delete ops.
  *
  * # Children
  * Diff content first and then figure out the necessary formatting updates
@@ -2371,7 +2372,7 @@ export const diff = (d1, d2) => {
         } else if ($insertOp.check(left1)) {
           cs1.push(...left1.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
         } else {
-          error.unexpectedCase()
+          throw error.create('[lib0/delta] diffing deletes unsupported')
         }
         formattingNeedsDiff ||= left1.format != null
         left1 = left1.next
