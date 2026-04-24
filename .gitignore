@@ -2,7 +2,8 @@ dist
 .nyc_output
 coverage
 node_modules
-.claude
+.claude/*
+!.claude/skills/
 *.d.ts
 *.d.ts.map
 .vscode
