@@ -19,15 +19,14 @@ The entire codebase is `.js` with JSDoc annotations. TypeScript is used only as 
 
 ## Code style
 
-- **`sideEffects: false` in `package.json`** is the primary mechanism. Modules must be side-effect-free at import time.
-- **Test runner is homegrown (`src/testing.js`), not a third-party framework.** Every `*.test.js` file exports functions named `test<CamelCase>` which take a `TestCase` argument. `src/test.js` imports every test module and calls `runTests({...})`. Fuzz/property tests use `src/prng.js` seeded from `--seed` so failures are reproducible. When adding a new module with tests, add its import to `src/test.js` — missing it there means the CI suite won't run it. See the `lib0-testing` skill for details on the testing/PRNG APIs.
-- **Code style is performance-first and bundler-first** (detailed in `README.md` "Code style"). The important rules that affect patches:
+- **Minimalistic and correctness-focused.** Keep code short, direct, and free of unnecessary abstractions. Don't add defensive code, extra error handling, or validation beyond what is needed. Prefer simple, correct implementations over clever or verbose ones.
+- Pure JavaScript with JSDoc type annotations (no .ts files). TypeScript is used only for declaration generation (`emitDeclarationOnly`).
+- Linted with [standard](https://standardjs.com/) (no semicolons, 2-space indent).
 - Modules export only pure functions and constants. Top-level `export const x = cond ? A : B` defeats dead-code elimination — wrap the initializer in a `/*#__PURE__*/`-annotated IIFE: `export const x = /*#__PURE__*/ (() => cond ? A : B)()`. `/*#__PURE__*/` only binds to a `CallExpression` or `NewExpression`; placing it before a ternary, parenthesized expression, or bare identifier is silently a no-op.
 - Annotate pure function *declarations* with `/*#__NO_SIDE_EFFECTS__*/` so every call site is drop-if-unused without per-call `/*#__PURE__*/`. `sideEffects: false` in `package.json` is the primary tree-shake mechanism for lib0; the annotations are belt-and-braces for consumer pipelines that don't honor the package flag (notably React Native / Metro).
 - Avoid polymorphism. Use classes for data shape (stable hidden classes in V8), not for method dispatch; the only approved use of methods is when two classes implement the same signature differently (duck-typed dispatch).
 - Consumers should never call `new ClassName()`. Export factory functions (`createFoo(...)`) instead — class names don't survive mangling, factory names do.
 - Prefer `const`; `let` only in loops. No semicolons (`standard` lint enforces this).
-- Avoid recursion (stack limits, not always optimized).
 - No circular imports — `dpdm` enforces this in `npm run lint`.
 
 **JSDoc is the type system.** Source is plain `.js` with `@type` / `@template` / `@param` annotations; `tsconfig.json` has `allowJs: true, checkJs: true, strict: true`. Generated `.d.ts` files live in `dist/` and are what npm consumers import for types. Don't add a `.ts` file.

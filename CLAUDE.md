@@ -23,11 +23,10 @@ Run a single test file directly with `node ./src/<module>.test.js` only if it ha
 
 ## Architecture notes that aren't obvious from the file tree
 
-**One module per concern, flat.** `src/*.js` is the public surface; each file is its own entry in `package.json` `exports`. Subdirectories (`crypto/`, `hash/`, `diff/`, `delta/`, `trait/`, `prng/`, `bin/`) group related entries but are still flat from the consumer's perspective — `src/prng/Xoroshiro128plus.js` is *not* exported; only `src/prng.js` is. When adding a new public module, add it to `exports` in `package.json` and to `src/test.js`.
-
-**Delta module (`src/delta/`)** is a substantial subsystem for representing changes to map/text/array-like data with schema validation and OT-style rebase. It has its own `readme.md` in that directory — read it before editing.
-
-**Binaries in `src/bin/`** are exposed via `package.json` `bin` as `0gentesthtml`, `0serve`, `0ecdsa-generate-keypair`. `gentesthtml` is what makes the test suite runnable in a browser.
+- **`sideEffects: false` in `package.json`** is the primary mechanism. Modules must be side-effect-free at import time.
+- **One module per concern, flat.** `src/*.js` is the public surface; each file is its own entry in `package.json` `exports`. Subdirectories (`crypto/`, `hash/`, `diff/`, `delta/`, `trait/`, `prng/`, `bin/`) group related entries but are still flat from the consumer's perspective — `src/prng/Xoroshiro128plus.js` is *not* exported; only `src/prng.js` is. When adding a new public module, add it to `exports` in `package.json` and to `src/test.js`.
+- **Delta module (`src/delta/`)** is a substantial subsystem for representing changes to map/text/array-like data with schema validation and OT-style rebase. It has its own `readme.md` in that directory — read it before editing.
+- **Binaries in `src/bin/`** are exposed via `package.json` `bin` as `0gentesthtml`, `0serve`, `0ecdsa-generate-keypair`. `gentesthtml` is what makes the test suite runnable in a browser.
 
 ## Things to watch for
 
