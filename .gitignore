@@ -5,5 +5,4 @@ node_modules
 .claude
 *.d.ts
 *.d.ts.map
-./types
 .vscode

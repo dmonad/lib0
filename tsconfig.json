@@ -6,7 +6,7 @@
     "module": "nodenext",
     "allowJs": true,
     "checkJs": true,
-    "outDir": "./types",
+    "outDir": "./dist",
     "baseUrl": "./src",
     "rootDir": "./src",
     "strict": true,

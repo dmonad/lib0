@@ -14,125 +14,125 @@
     "0ecdsa-generate-keypair": "./src/bin/0ecdsa-generate-keypair.js"
   },
   "files": [
-    "types/**/*.d.ts",
-    "!types/**/*test.d.ts",
+    "dist/**/*.d.ts",
+    "!dist/**/*test.d.ts",
     "src/**/*.js",
     "!src/**/*test.js"
   ],
   "exports": {
     "./package.json": "./package.json",
     "./array": {
-      "types": "./types/array.d.ts",
+      "types": "./dist/array.d.ts",
       "default": "./src/array.js"
     },
     "./binary": {
-      "types": "./types/binary.d.ts",
+      "types": "./dist/binary.d.ts",
       "default": "./src/binary.js"
     },
     "./broadcastchannel": {
-      "types": "./types/broadcastchannel.d.ts",
+      "types": "./dist/broadcastchannel.d.ts",
       "default": "./src/broadcastchannel.js"
     },
     "./buffer": {
-      "types": "./types/buffer.d.ts",
+      "types": "./dist/buffer.d.ts",
       "default": "./src/buffer.js"
     },
     "./cache": {
-      "types": "./types/cache.d.ts",
+      "types": "./dist/cache.d.ts",
       "default": "./src/cache.js"
     },
     "./conditions": {
-      "types": "./types/conditions.d.ts",
+      "types": "./dist/conditions.d.ts",
       "default": "./src/conditions.js"
     },
     "./crypto/jwt": {
-      "types": "./types/crypto/jwt.d.ts",
+      "types": "./dist/crypto/jwt.d.ts",
       "default": "./src/crypto/jwt.js"
     },
     "./crypto/aes-gcm": {
-      "types": "./types/crypto/aes-gcm.d.ts",
+      "types": "./dist/crypto/aes-gcm.d.ts",
       "default": "./src/crypto/aes-gcm.js"
     },
     "./delta": {
-      "types": "./types/delta/delta.d.ts",
+      "types": "./dist/delta/delta.d.ts",
       "default": "./src/delta/delta.js"
     },
     "./delta/transformer": {
-      "types": "./types/delta/transformer.d.ts",
+      "types": "./dist/delta/transformer.d.ts",
       "default": "./src/delta/transformer.js"
     },
     "./crypto/ecdsa": {
-      "types": "./types/crypto/ecdsa.d.ts",
+      "types": "./dist/crypto/ecdsa.d.ts",
       "default": "./src/crypto/ecdsa.js"
     },
     "./crypto/rsa-oaep": {
-      "types": "./types/crypto/rsa-oaep.d.ts",
+      "types": "./dist/crypto/rsa-oaep.d.ts",
       "default": "./src/crypto/rsa-oaep.js"
     },
     "./hash/rabin": {
-      "types": "./types/hash/rabin.d.ts",
+      "types": "./dist/hash/rabin.d.ts",
       "default": "./src/hash/rabin.js"
     },
     "./hash/sha256": {
-      "types": "./types/hash/sha256.d.ts",
+      "types": "./dist/hash/sha256.d.ts",
       "browser": "./src/hash/sha256.js",
       "node": "./src/hash/sha256.node.js",
       "default": "./src/hash/sha256.js"
     },
     "./decoding": {
-      "types": "./types/decoding.d.ts",
+      "types": "./dist/decoding.d.ts",
       "default": "./src/decoding.js"
     },
     "./diff/patience": {
-      "types": "./types/diff/patience.d.ts",
+      "types": "./dist/diff/patience.d.ts",
       "default": "./src/diff/patience.js"
     },
     "./diff": {
-      "types": "./types/diff.d.ts",
+      "types": "./dist/diff.d.ts",
       "default": "./src/diff.js"
     },
     "./dom": {
-      "types": "./types/dom.d.ts",
+      "types": "./dist/dom.d.ts",
       "default": "./src/dom.js"
     },
     "./encoding": {
-      "types": "./types/encoding.d.ts",
+      "types": "./dist/encoding.d.ts",
       "default": "./src/encoding.js"
     },
     "./environment": {
-      "types": "./types/environment.d.ts",
+      "types": "./dist/environment.d.ts",
       "default": "./src/environment.js"
     },
     "./error": {
-      "types": "./types/error.d.ts",
+      "types": "./dist/error.d.ts",
       "default": "./src/error.js"
     },
     "./eventloop": {
-      "types": "./types/eventloop.d.ts",
+      "types": "./dist/eventloop.d.ts",
       "default": "./src/eventloop.js"
     },
     "./function": {
-      "types": "./types/function.d.ts",
+      "types": "./dist/function.d.ts",
       "default": "./src/function.js"
     },
     "./indexeddb": {
-      "types": "./types/indexeddb.d.ts",
+      "types": "./dist/indexeddb.d.ts",
       "default": "./src/indexeddb.js"
     },
     "./iterator": {
-      "types": "./types/iterator.d.ts",
+      "types": "./dist/iterator.d.ts",
       "default": "./src/iterator.js"
     },
     "./json": {
-      "types": "./types/json.d.ts",
+      "types": "./dist/json.d.ts",
       "default": "./src/json.js"
     },
     "./list": {
-      "types": "./types/list.d.ts",
+      "types": "./dist/list.d.ts",
       "default": "./src/list.js"
     },
     "./logging": {
-      "types": "./types/logging.node.d.ts",
+      "types": "./dist/logging.node.d.ts",
       "deno": "./src/logging.node.js",
       "bun": "./src/logging.js",
       "node": "./src/logging.node.js",
@@ -140,103 +140,103 @@
       "default": "./src/logging.js"
     },
     "./map": {
-      "types": "./types/map.d.ts",
+      "types": "./dist/map.d.ts",
       "default": "./src/map.js"
     },
     "./math": {
-      "types": "./types/math.d.ts",
+      "types": "./dist/math.d.ts",
       "default": "./src/math.js"
     },
     "./metric": {
-      "types": "./types/metric.d.ts",
+      "types": "./dist/metric.d.ts",
       "default": "./src/metric.js"
     },
     "./mutex": {
-      "types": "./types/mutex.d.ts",
+      "types": "./dist/mutex.d.ts",
       "default": "./src/mutex.js"
     },
     "./number": {
-      "types": "./types/number.d.ts",
+      "types": "./dist/number.d.ts",
       "default": "./src/number.js"
     },
     "./object": {
-      "types": "./types/object.d.ts",
+      "types": "./dist/object.d.ts",
       "default": "./src/object.js"
     },
     "./observable": {
-      "types": "./types/observable.d.ts",
+      "types": "./dist/observable.d.ts",
       "default": "./src/observable.js"
     },
     "./pair": {
-      "types": "./types/pair.d.ts",
+      "types": "./dist/pair.d.ts",
       "default": "./src/pair.js"
     },
     "./prng": {
-      "types": "./types/prng.d.ts",
+      "types": "./dist/prng.d.ts",
       "default": "./src/prng.js"
     },
     "./promise": {
-      "types": "./types/promise.d.ts",
+      "types": "./dist/promise.d.ts",
       "default": "./src/promise.js"
     },
     "./queue": {
-      "types": "./types/queue.d.ts",
+      "types": "./dist/queue.d.ts",
       "default": "./src/queue.js"
     },
     "./random": {
-      "types": "./types/random.d.ts",
+      "types": "./dist/random.d.ts",
       "default": "./src/random.js"
     },
     "./set": {
-      "types": "./types/set.d.ts",
+      "types": "./dist/set.d.ts",
       "default": "./src/set.js"
     },
     "./sort": {
-      "types": "./types/sort.d.ts",
+      "types": "./dist/sort.d.ts",
       "default": "./src/sort.js"
     },
     "./statistics": {
-      "types": "./types/statistics.d.ts",
+      "types": "./dist/statistics.d.ts",
       "default": "./src/statistics.js"
     },
     "./storage": {
-      "types": "./types/storage.d.ts",
+      "types": "./dist/storage.d.ts",
       "default": "./src/storage.js"
     },
     "./string": {
-      "types": "./types/string.d.ts",
+      "types": "./dist/string.d.ts",
       "default": "./src/string.js"
     },
     "./symbol": {
-      "types": "./types/symbol.d.ts",
+      "types": "./dist/symbol.d.ts",
       "default": "./src/symbol.js"
     },
     "./traits": {
-      "types": "./types/trait/traits.d.ts",
+      "types": "./dist/trait/traits.d.ts",
       "default": "./src/trait/traits.js"
     },
     "./trait/fingerprint": {
-      "types": "./types/trait/fingerprint.d.ts",
+      "types": "./dist/trait/fingerprint.d.ts",
       "default": "./src/trait/fingerprint.js"
     },
     "./testing": {
-      "types": "./types/testing.d.ts",
+      "types": "./dist/testing.d.ts",
       "default": "./src/testing.js"
     },
     "./time": {
-      "types": "./types/time.d.ts",
+      "types": "./dist/time.d.ts",
       "default": "./src/time.js"
     },
     "./url": {
-      "types": "./types/url.d.ts",
+      "types": "./dist/url.d.ts",
       "default": "./src/url.js"
     },
     "./websocket": {
-      "types": "./types/websocket.d.ts",
+      "types": "./dist/websocket.d.ts",
       "default": "./src/websocket.js"
     },
     "./webcrypto": {
-      "types": "./types/webcrypto.d.ts",
+      "types": "./dist/webcrypto.d.ts",
       "deno": "./src/webcrypto.deno.js",
       "react-native": "./src/webcrypto.react-native.js",
       "node": "./src/webcrypto.node.js",
@@ -245,11 +245,11 @@
       "default": "./src/webcrypto.js"
     },
     "./ts": {
-      "types": "./types/ts.d.ts",
+      "types": "./dist/ts.d.ts",
       "default": "./src/ts.js"
     },
     "./performance": {
-      "types": "./types/performance.d.ts",
+      "types": "./dist/performance.d.ts",
       "deno": "./src/performance.node.js",
       "bun": "./src/performance.node.js",
       "browser": "./src/performance.js",
@@ -257,7 +257,7 @@
       "default": "./src/performance.js"
     },
     "./schema": {
-      "types": "./types/schema.d.ts",
+      "types": "./dist/schema.d.ts",
       "default": "./src/schema.js"
     }
   },
@@ -269,8 +269,8 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "clean": "rm -rf types",
-    "types": "rm -rf types && tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "types": "rm -rf dist && tsc -p tsconfig.build.json",
     "dist": "npm run clean && npm run types",
     "debug": "npm run gentesthtml && node ./src/bin/0serve.js -o test.html",
     "test": "c8 --check-coverage --lines 97 --branches 96 --functions 94 --statements 97 node --unhandled-rejections=strict ./src/test.js",
@@ -296,7 +296,7 @@
   "homepage": "https://github.com/dmonad/lib0#readme",
   "standard": {
     "ignore": [
-      "/types",
+      "/dist",
       "/node_modules"
     ]
   },
