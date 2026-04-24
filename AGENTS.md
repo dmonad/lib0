@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI coding agents working in **lib0-like projects** — small, isomorphic JavaScript utility packages that follow the conventions pioneered by [lib0](https://github.com/dmonad/lib0). Read this before editing. If a project-specific `CLAUDE.md` (or equivalent) exists, it overrides anything here.
+Guidance for AI coding agents working in **lib0-like projects** — small, isomorphic JavaScript utility packages that follow the conventions pioneered by [lib0](https://github.com/dmonad/lib0). Project-specific `CLAUDE.md` (or equivalent) overrides anything here.
 
 ## No quick-fixes
 
@@ -10,37 +10,33 @@ Type error → fix the JSDoc or the invariant, don't widen. Failing test → fix
 
 ## Project shape
 
-- **ESM only.** No CommonJS build. `"type": "module"` in `package.json`.
-- **Isomorphic.** Code should run in Node, browsers, Deno, Bun, and React Native unless a module is explicitly environment-specific.
-- **Environment-specific variants** use conditional exports. A module with per-runtime implementations ships as `foo.js` (default/browser), `foo.node.js`, `foo.deno.js`, `foo.react-native.js`, wired up in `exports`.
-
-## Types: JSDoc, not TypeScript
-
-The entire codebase is `.js` with JSDoc annotations. TypeScript is used only as a checker.
-
-- `tsconfig.json` sets `allowJs: true`, `checkJs: true`, `strict: true`.
-- Annotate with `@type`, `@param`, `@returns`, `@template`, `@typedef`.
-- `npm run lint` runs `tsc --noEmit` — type errors fail CI.
-- **Do not add `.ts` files.** If you're tempted to, the fix is better JSDoc.
+- **ESM only.** `"type": "module"` in `package.json`. No CommonJS build.
+- **Isomorphic.** Runs in Node, browsers, Deno, Bun, React Native. Environment-specific modules ship as `foo.js` (default/browser), `foo.node.js`, `foo.deno.js`, `foo.react-native.js`, wired via conditional `exports`.
+- **JSDoc, not TypeScript.** Source is `.js` with JSDoc (`@type`, `@param`, `@returns`, `@template`, `@typedef`). `tsconfig.json` sets `allowJs: true, checkJs: true, strict: true`; `npm run lint` runs `tsc --noEmit`. If a type is hard to express, write better JSDoc — do not add `.ts` files.
+- **No circular imports.** `dpdm` enforces this in `npm run lint`.
 
 ## Code style
 
-- **Minimalistic and correctness-focused.** Keep code short, direct, and free of unnecessary abstractions. Don't add defensive code, extra error handling, or validation beyond what is needed. Prefer simple, correct implementations over clever or verbose ones.
-- Pure JavaScript with JSDoc type annotations (no .ts files). TypeScript is used only for declaration generation (`emitDeclarationOnly`).
-- Linted with [standard](https://standardjs.com/) (no semicolons, 2-space indent).
-- Modules export only pure functions and constants. Top-level `export const x = cond ? A : B` defeats dead-code elimination — wrap the initializer in a `/* @__PURE__ */`-annotated IIFE: `export const x = /* @__PURE__ */ (() => cond ? A : B)()`. `/* @__PURE__ */` only binds to a `CallExpression` or `NewExpression`; placing it before a ternary, parenthesized expression, or bare identifier is silently a no-op. Use the `@`-prefix, space-padded form (`/* @__PURE__ */`) not `/*#__PURE__*/` — `standard`'s `spaced-comment` rule rejects the latter; esbuild/rollup/terser accept both.
-- Annotate pure function *declarations* with `/* @__NO_SIDE_EFFECTS__ */` so every call site is drop-if-unused without per-call `/* @__PURE__ */`. `sideEffects: false` in `package.json` is the primary tree-shake mechanism for lib0; the annotations are belt-and-braces for consumer pipelines that don't honor the package flag (notably React Native / Metro).
-- Avoid polymorphism. Use classes for data shape (stable hidden classes in V8), not for method dispatch; the only approved use of methods is when two classes implement the same signature differently (duck-typed dispatch).
-- Consumers should never call `new ClassName()`. Export factory functions (`createFoo(...)`) instead — class names don't survive mangling, factory names do.
-- Prefer `const`; `let` only in loops. No semicolons (`standard` lint enforces this).
-- No circular imports — `dpdm` enforces this in `npm run lint`.
+- [standard](https://standardjs.com/): no semicolons, 2-space indent.
+- Minimal and correctness-focused. No defensive code, no try/catch around calls that can't throw, no validation beyond what's needed.
+- `const` by default; `let` only in loops.
+- Avoid polymorphism. Classes for data shape (stable hidden classes in V8), not method dispatch. The only approved use of methods is when two classes implement the same signature differently (duck-typed dispatch).
+- Export factory functions (`createFoo(...)`), never classes. Class names don't survive mangling, factory names do. Consumers must never write `new ClassName()`.
 
-**JSDoc is the type system.** Source is plain `.js` with `@type` / `@template` / `@param` annotations; `tsconfig.json` has `allowJs: true, checkJs: true, strict: true`. Generated `.d.ts` files live in `dist/` and are what npm consumers import for types. Don't add a `.ts` file.
+## Tree-shaking
 
-## Things that look like cleanup but aren't
+`sideEffects: false` in `package.json` is the primary mechanism. Two additional rules:
 
-- **Don't convert JSDoc to TypeScript.** The `.js`+JSDoc choice is deliberate (zero-build consumer experience, smaller published package).
-- **Don't introduce a bundler or build step for `src/`.** Published files are the source.
-- **Don't add semicolons** to match "normal" JS — `standard` will fail the lint.
-- **Don't replace factory functions with exported classes** for "ergonomics" — it breaks minified consumers.
-- **Don't add polyfills or runtime feature-detection** unless the module is explicitly cross-environment; use conditional exports for that.
+- Top-level conditional initializers defeat DCE. Wrap them in a `/* @__PURE__ */`-annotated IIFE:
+  ```js
+  export const x = /* @__PURE__ */ (() => cond ? A : B)()
+  ```
+  `/* @__PURE__ */` binds only to a `CallExpression` or `NewExpression` — before a ternary, parenthesized expression, or bare identifier it's silently a no-op. Use the space-padded `@`-prefix form; `/*#__PURE__*/` fails `standard`'s `spaced-comment` rule (bundlers accept both).
+- Annotate pure function *declarations* with `/* @__NO_SIDE_EFFECTS__ */` so every call site is drop-if-unused without per-call `/* @__PURE__ */`. Belt-and-braces for pipelines that ignore `sideEffects: false` (notably React Native / Metro).
+
+## Don't
+
+- Don't add `.ts` files, a bundler, or a build step for `src/` — published files are the source.
+- Don't add polyfills or runtime feature-detection — use conditional exports for cross-environment modules.
+- Don't replace factory functions with exported classes for "ergonomics".
+- Don't add semicolons to match "normal" JS — `standard` fails the lint.
