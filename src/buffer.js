@@ -34,17 +34,24 @@ export const createUint8ArrayFromArrayBuffer = buffer => new Uint8Array(buffer)
 
 /* c8 ignore start */
 /**
- * @param {Uint8Array} bytes
- * @return {string}
+ * Prefer native `Uint8Array.prototype.toBase64` (TC39 "Uint8Array to/from
+ * base64") when available; fall back to the btoa char-code loop for older
+ * browsers.
+ *
+ * @type {(bytes: Uint8Array) => string}
  */
-const toBase64Browser = bytes => {
-  let s = ''
-  for (let i = 0; i < bytes.byteLength; i++) {
-    s += string.fromCharCode(bytes[i])
-  }
-  // eslint-disable-next-line no-undef
-  return btoa(s)
-}
+const toBase64Browser = /* @__PURE__ */(() =>
+  typeof (/** @type {any} */ (Uint8Array.prototype).toBase64) === 'function'
+    ? bytes => /** @type {any} */ (bytes).toBase64()
+    : bytes => {
+      let s = ''
+      for (let i = 0; i < bytes.byteLength; i++) {
+        s += string.fromCharCode(bytes[i])
+      }
+      // eslint-disable-next-line no-undef
+      return btoa(s)
+    }
+)()
 /* c8 ignore stop */
 
 /**
@@ -55,18 +62,21 @@ const toBase64Node = bytes => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.
 
 /* c8 ignore start */
 /**
- * @param {string} s
- * @return {Uint8Array<ArrayBuffer>}
+ * @type {(s: string) => Uint8Array<ArrayBuffer>}
  */
-const fromBase64Browser = s => {
-  // eslint-disable-next-line no-undef
-  const a = atob(s)
-  const bytes = createUint8ArrayFromLen(a.length)
-  for (let i = 0; i < a.length; i++) {
-    bytes[i] = a.charCodeAt(i)
-  }
-  return bytes
-}
+const fromBase64Browser = /* @__PURE__ */(() =>
+  typeof (/** @type {any} */ (Uint8Array).fromBase64) === 'function'
+    ? s => /** @type {any} */ (Uint8Array).fromBase64(s)
+    : s => {
+      // eslint-disable-next-line no-undef
+      const a = atob(s)
+      const bytes = createUint8ArrayFromLen(a.length)
+      for (let i = 0; i < a.length; i++) {
+        bytes[i] = a.charCodeAt(i)
+      }
+      return bytes
+    }
+)()
 /* c8 ignore stop */
 
 /**
