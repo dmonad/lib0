@@ -2,6 +2,12 @@
 
 Guidance for AI coding agents working in **lib0-like projects** — small, isomorphic JavaScript utility packages that follow the conventions pioneered by [lib0](https://github.com/dmonad/lib0). Read this before editing. If a project-specific `CLAUDE.md` (or equivalent) exists, it overrides anything here.
 
+## No quick-fixes
+
+Before writing `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, `any`-cast, empty catch, widened type, or loosened assertion: stop. State the root cause in one sentence. If you can't, investigate or ask — don't suppress. If suppression is genuinely correct, add `// reason: <root cause>` on the line above; without it, the suppression is rejected.
+
+Type error → fix the JSDoc or the invariant, don't widen. Failing test → fix the bug or the wrong assumption, don't loosen. Flaky fuzz test → reproduce with `--seed <n>` and fix.
+
 ## Project shape
 
 - **ESM only.** No CommonJS build. `"type": "module"` in `package.json`.
