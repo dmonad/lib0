@@ -1096,6 +1096,19 @@ const $textDelta = delta.$delta({ text: true })
 const $mapDelta = delta.$delta({ attrs: { x: [1, 2, 'str'], y: s.$string } })
 const $arrayDelta = delta.$delta({ children: [0, 1, -1, s.$string, delta.$delta({ attrs: { a: [1, 2], b: [null, 'str'] } })], text: true })
 const $xmlDelta = delta.$delta({ name: ['div', 'p'], children: [0, 1, -1, s.$string, delta.$delta({ attrs: { a: [1, 2] } })], text: true, attrs: { a: [1, 2, 3] } })
+// $richTextDelta exercises format ops on text/insert/retain. The other schemas declare no
+// `formats`, so $formats normalizes to s.$null in delta.random and every op is generated with
+// format=null - leaving the format-bearing diff paths unfuzzed.
+const $richTextDelta = delta.$delta({ text: true, formats: { bold: s.$boolean, color: ['red', 'blue'] } })
+// $richXmlDelta exercises format ops on inner-node inserts (the insert→modify diff path) and
+// child-name unions (the findIndex(cc.name === ...) pairing in applyChangesetToDelta).
+const $richXmlDelta = delta.$delta({
+  name: ['div', 'p'],
+  text: true,
+  attrs: { a: [1, 2, 3] },
+  formats: { bold: s.$boolean },
+  children: s.$union(s.$number, s.$string, delta.$delta({ name: ['span', 'em'], text: true, attrs: { c: s.$string }, formats: { italic: s.$boolean } }))
+})
 
 /**
  * @param {t.TestCase} tc
@@ -1151,6 +1164,27 @@ export const testRepeatRandomXmlDeltaDiff = tc => {
  */
 export const testRepeatRandomXmlDeltaDiffLarge = tc => {
   testDeltaDiff(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichTextDeltaDiff = tc => {
+  testDeltaDiff(tc, $richTextDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichTextDeltaDiffLarge = tc => {
+  testDeltaDiff(tc, $richTextDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichXmlDeltaDiff = tc => {
+  testDeltaDiff(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 })
 }
 
 /**
