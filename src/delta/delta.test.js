@@ -789,6 +789,41 @@ export const testDeltaDiff1 = () => {
   t.assert(expectedDiff.equals(diffResult))
 }
 
+/**
+ * Minimal repro for `lib0/delta`'s `diff` losing node-level format
+ * changes when it converts an `insert` into a `modify`.
+ *
+ * `a` and `b` both have one paragraph child but differ in two ways:
+ *   1. Children: paragraph text "hello world" vs "hello".
+ *   2. Parent format on the insert op: `{x: 1}` vs none.
+ *
+ * Because the paragraph's identity is preserved (same name, same
+ * position), the diff turns the insert into a `modify` op describing
+ * only the children-level change ("delete ' world'"). The parent-level
+ * `format` change is dropped: the resulting `modify` op carries no
+ * `format: null` instruction.
+ */
+export const testDiffNodeLevelFormatOnModify = () => {
+  const a = delta.create()
+    .insert([delta.create('paragraph', {}, 'hello world')], { x: 1 })
+    .done()
+  const b = delta.create()
+    .insert([delta.create('paragraph', {}, 'hello')])
+    .done()
+  const diff = delta.diff(a, b)
+  // The diff must address BOTH the children change and the parent
+  // format change. Today it produces a `modify` with the children
+  // delete but no format-removal instruction, so this assertion fails.
+  const diffStr = JSON.stringify(diff)
+  t.assert(
+    diffStr.includes('"x":null') || diffStr.includes('"format":null'),
+    'diff should encode the removal of the parent-level format `x`'
+  )
+  // and applying the diff to a must yield b
+  const synced = delta.clone(a).apply(diff)
+  t.assert(synced.equals(b), 'a.apply(diff(a, b)) must equal b')
+}
+
 export const testDeltaDiff2 = () => {
   const stateA = delta.create().insert('hello world\n\nthis ')
   const stateB = delta.create().insert('hello world!\n\nth is')

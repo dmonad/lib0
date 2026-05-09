@@ -1675,6 +1675,17 @@ export class DeltaBuilder extends Delta {
           }
         }
       } else if ($modifyOp.check(op)) {
+        if (opsI != null && op.format != null && (!$deleteOp.check(opsI) && !$retainOp.check(opsI))) { // retain handles splitting seperately, without copying attrs
+          splitHere()
+          if (opsI.length > 1) {
+            offset = 1
+            splitHere()
+            opsI = /** @type {InsertOp<any>} */ (opsI.prev)
+          }
+          // at this point, opsI is guaranteed to be !deleteOp && !retainOp and of length 1
+          updateOpFormat(opsI, op.format)
+          scheduleForMerge(opsI)
+        }
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
@@ -1688,12 +1699,7 @@ export class DeltaBuilder extends Delta {
             offset = 0
           }
         } else if ($retainOp.check(opsI)) {
-          if (offset > 0) {
-            const cpy = scheduleForMerge(opsI.clone(0, offset)) // skipped len
-            opsI._splice(0, offset) // new remainder
-            list.insertBetween(this.children, opsI.prev, opsI, cpy) // insert skipped len
-            offset = 0
-          }
+          splitHere()
           const insertModOp = scheduleForMerge(op.clone())
           opsI.format && updateOpFormat(insertModOp, opsI.format)
           list.insertBetween(this.children, opsI.prev, opsI, insertModOp) // insert skipped len
@@ -1923,15 +1929,20 @@ export class DeltaBuilder extends Delta {
  */
 const updateOpFormat = (op, formatUpdate) => {
   if (!$deleteOp.check(op)) {
-    // apply formatting attributes
-    for (const k in formatUpdate) {
-      const v = formatUpdate[k]
-      if (v != null || $retainOp.check(op)) {
-        // never modify formats
-        /** @type {any} */ (op).format = object.assign({}, op.format, { [k]: v })
-      } else if (op.format != null) {
-        const { [k]: _, ...rest } = op.format
-        ;/** @type {any} */ (op).format = object.isEmpty(rest) ? null : rest
+    if ($retainOp.check(op) || $modifyOp.check(op)) {
+      // never modify formats
+      /** @type {any} */ (op).format = object.assign({}, op.format, formatUpdate)
+    } else {
+      // apply formatting attributes incrementally
+      for (const k in formatUpdate) {
+        const v = formatUpdate[k]
+        if (v != null) {
+          // never modify formats
+          /** @type {any} */ (op).format = object.assign({}, op.format, { [k]: v })
+        } else if (op.format != null) {
+          const { [k]: _, ...rest } = op.format
+          ;/** @type {any} */ (op).format = object.isEmpty(rest) ? null : rest
+        }
       }
     }
   }
