@@ -1260,3 +1260,317 @@ export const testRepeatRandomXmlDeltaApply = tc => {
 export const testRepeatRandomXmlDeltaApplyLarge = tc => {
   testDeltaApply(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
 }
+
+// ---------------------------------------------------------------------------
+// Targeted behavior tests (added to drive `delta.js` coverage from ~94 % to
+// 100 % while testing concrete behavior, not lines). Fuzz coverage of rebase
+// is left to a follow-up.
+// ---------------------------------------------------------------------------
+
+/**
+ * The variadic `delta.from(...)` helper builds a delta from positional args:
+ * an optional leading string is the node name, an optional next plain object
+ * is the attrs map, and any remaining args are inserted as children. Multiple
+ * trailing inserts merge when the builder allows it.
+ */
+export const testFrom = () => {
+  t.group('name only', () => {
+    const d = delta.from('div')
+    t.assert(d.name === 'div')
+    t.assert(d.isEmpty())
+  })
+  t.group('children only (no name)', () => {
+    const d = delta.from(['a', 'b'])
+    t.assert(d.name === null)
+    t.compare(d, delta.create().insert(['a', 'b']))
+  })
+  t.group('name + attrs', () => {
+    t.compare(delta.from('div', { x: 1 }), delta.create('div').setAttr('x', 1))
+  })
+  t.group('name + attrs + children', () => {
+    t.compare(delta.from('div', { x: 1 }, ['a']), delta.create('div').setAttr('x', 1).insert(['a']))
+  })
+  t.group('attrs + children, no name', () => {
+    t.compare(delta.from({ x: 1 }, ['a']), delta.create().setAttr('x', 1).insert(['a']))
+  })
+  t.group('multiple trailing insert args merge', () => {
+    // exercises the `for (; i < args.length; i++)` loop body
+    t.compare(delta.from('div', ['a'], ['b']), delta.create('div').insert(['a', 'b']))
+  })
+}
+
+/**
+ * `mergeDeltas(a, b)` is the null-safe equivalent of `clone(a).apply(b)`. It
+ * is used by callers that don't yet know whether either side has any changes.
+ */
+export const testMergeDeltas = () => {
+  const a = delta.create().insert('hi')
+  const b = delta.create().retain(2).insert('!')
+  t.group('both sides non-null', () => {
+    t.compare(delta.mergeDeltas(a, b), delta.clone(a).apply(b))
+  })
+  t.group('one side null returns the other', () => {
+    t.assert(delta.mergeDeltas(null, b) === b, 'left null → right is returned by reference')
+    t.assert(delta.mergeDeltas(a, null) === a, 'right null → left is returned by reference')
+  })
+  t.group('both null returns null', () => {
+    t.assert(delta.mergeDeltas(null, null) === null)
+  })
+}
+
+/**
+ * `isEmpty()` is true when a delta carries no attribute changes and no child
+ * ops. Trailing format-less retains do *not* count as content because `done()`
+ * cleans them up.
+ */
+export const testIsEmpty = () => {
+  t.assert(delta.create().isEmpty(), 'fresh builder is empty')
+  t.assert(!delta.create().setAttr('x', 1).isEmpty(), 'attrs make it non-empty')
+  t.assert(!delta.create().insert('hi').isEmpty(), 'children make it non-empty')
+  t.assert(delta.create().retain(3).done().isEmpty(), 'done() drops unformatted trailing retain')
+  t.assert(!delta.create().retain(3, { a: 1 }).done().isEmpty(), 'formatted retain survives done()')
+}
+
+/**
+ * After `.done()`, every mutating builder method must throw "Readonly Delta
+ * can't be modified". This is the readonly invariant of the builder API.
+ */
+export const testReadonlyAfterDone = () => {
+  const d = delta.create().insert('hi').done()
+  // children mutators
+  t.fails(() => /** @type {any} */ (d).insert('!'))
+  t.fails(() => /** @type {any} */ (d).retain(1))
+  t.fails(() => /** @type {any} */ (d).delete(1))
+  t.fails(() => /** @type {any} */ (d).modify(delta.create()))
+  // attr mutators
+  t.fails(() => /** @type {any} */ (d).setAttr('x', 1))
+  t.fails(() => /** @type {any} */ (d).setAttrs({ a: 1 }))
+  t.fails(() => /** @type {any} */ (d).deleteAttr('x'))
+  t.fails(() => /** @type {any} */ (d).modifyAttr('m', delta.create()))
+  // builder state mutators
+  t.fails(() => /** @type {any} */ (d).useAttributes({ bold: true }))
+  t.fails(() => /** @type {any} */ (d).useAttribution({ insert: ['x'] }))
+  t.fails(() => /** @type {any} */ (d).updateUsedAttributes('bold', true))
+  t.fails(() => /** @type {any} */ (d).updateUsedAttribution('insert', ['x']))
+  // higher-level mutators
+  t.fails(() => /** @type {any} */ (d).apply(delta.create()))
+  t.fails(() => /** @type {any} */ (d).rebase(delta.create(), false))
+  t.fails(() => /** @type {any} */ (d).rebaseOnInverse(delta.create(), false))
+}
+
+/**
+ * `delete(len, prevValue)` records the content that was removed (used to
+ * compute inverses). Two adjacent `.delete()` calls merge: their lengths add
+ * and their `prevValue` deltas concatenate via `append`.
+ */
+export const testDeleteWithPrevValue = () => {
+  t.group('adjacent deletes with non-null prevValue concatenate', () => {
+    const d = delta.create()
+      .delete(2, delta.create().insert('ab'))
+      .delete(3, delta.create().insert('cde'))
+    t.assert(d.children.len === 1, 'deletes merged into one op')
+    const op = d.children.start
+    t.assert(delta.$deleteOp.check(op))
+    t.assert(/** @type {any} */ (op).delete === 5, 'lengths added')
+    t.compare(/** @type {any} */ (op).prevValue, delta.create().insert('abcde'))
+  })
+  t.group('adjacent deletes with null prevValue still merge', () => {
+    const d = delta.create().delete(2).delete(3)
+    t.assert(d.children.len === 1)
+    const op = /** @type {any} */ (d.children.start)
+    t.assert(op.delete === 5)
+    t.assert(op.prevValue === null)
+  })
+}
+
+/**
+ * Every op class exposes a `type` getter and a `fingerprint` getter. The
+ * fingerprint must be stable across two semantically equal deltas and must
+ * change when any op-level data changes.
+ */
+export const testOpIntrospection = () => {
+  const buildD = () => delta.create()
+    .insert('hello') // TextOp
+    .insert([1, 2]) // InsertOp
+    .modify(delta.create().insert('a')) // ModifyOp
+    .retain(3, { x: 1 }) // RetainOp (with format so it survives `done`)
+    .delete(2) // DeleteOp
+    .setAttr('s', 1) // SetAttrOp
+    .deleteAttr('d') // DeleteAttrOp
+    .modifyAttr('m', delta.create().setAttr('y', 1)) // ModifyAttrOp
+  t.group('op.type per op kind', () => {
+    const d = buildD()
+    const childTypes = []
+    for (const op of d.children) childTypes.push(op.type)
+    t.compare(childTypes, ['insert', 'insert', 'modify', 'retain', 'delete'])
+    /** @type {{[k:string]:string}} */
+    const attrTypes = {}
+    for (const op of d.attrs) attrTypes[op.key] = op.type
+    t.compare(attrTypes, { s: 'insert', d: 'delete', m: 'modify' })
+  })
+  t.group('fingerprint is deterministic and reflects op content', () => {
+    const fp = buildD().fingerprint
+    t.assert(typeof fp === 'string' && fp.length > 0)
+    t.assert(buildD().fingerprint === fp, 'identical builders → identical fingerprint')
+    t.assert(delta.create().delete(3).fingerprint !== delta.create().delete(4).fingerprint, 'delete length changes fingerprint')
+    t.assert(delta.create().retain(2, { x: 1 }).fingerprint !== delta.create().retain(2, { x: 2 }).fingerprint, 'retain format changes fingerprint')
+    t.assert(delta.create().deleteAttr('a').fingerprint !== delta.create().deleteAttr('b').fingerprint, 'deleteAttr key changes fingerprint')
+    t.assert(
+      delta.create().modifyAttr('m', delta.create().setAttr('y', 1)).fingerprint !==
+        delta.create().modifyAttr('m', delta.create().setAttr('y', 2)).fingerprint,
+      'modifyAttr nested value changes fingerprint'
+    )
+  })
+}
+
+/**
+ * `slice` is exercised by `testSlice` for the simple in-single-op case. This
+ * test covers the multi-op walks: skipping leading nodes when `start` is past
+ * the first child, and a partial trailing node when `end` falls strictly
+ * inside a non-first child.
+ */
+export const testSliceMultiOp = () => {
+  t.group('slice that starts past the first node', () => {
+    const d = delta.create().insert('aa').insert([1, 2]).insert('bb')
+    // start=5 lands inside the third op; the loop must walk past 'aa' and [1,2]
+    t.compare(delta.slice(d, 5, 6), delta.create().insert('b'))
+  })
+  t.group('slice that ends mid non-first node', () => {
+    const d = delta.create().insert('ab').insert([1]).insert('cdef')
+    // start=1 lands inside 'ab' (partial-start branch);
+    // end=4 lands inside 'cdef' on a *different* node (partial-end branch).
+    t.compare(delta.slice(d, 1, 4), delta.create().insert('b').insert([1]).insert('c'))
+  })
+}
+
+/**
+ * Applying a `modify` op against an existing `retain` longer than one unit
+ * splits the retain: a new modify op is inserted, the retain shrinks by 1,
+ * and the retain's format propagates onto the inserted modify.
+ */
+export const testApplyModifyAgainstRetain = () => {
+  const c = () => delta.create(delta.$deltaAny)
+  t.group('modify against retain length > 1', () => {
+    const target = c().retain(3, { a: 1 })
+    target.apply(c().modify(c().insert('x')))
+    t.compare(target,
+      c()
+        .modify(c().insert('x'), { a: 1 })
+        .retain(2, { a: 1 })
+    )
+  })
+  t.group('modify with format mid-InsertOp splits the insert into three', () => {
+    // applying a `modify({...}, format)` at offset 1 of an InsertOp of three
+    // delta items should split the insert into [item0], [item1 with format],
+    // [item2] and apply the inner modify to item1.
+    const sub = /** @param {string} s */ (s) => c().insert(s)
+    const a = c().insert([sub('1'), sub('2'), sub('3')])
+    a.apply(c().retain(1).modify(c().insert('a'), { x: 1 }))
+    const ops = []
+    for (const op of a.children) ops.push(op)
+    t.assert(ops.length === 3, 'three insert ops after split')
+    t.assert(/** @type {any} */ (ops[1]).format?.x === 1, 'middle op picked up the format')
+    t.compare(/** @type {any} */ (ops[1]).insert[0], sub('a2'), 'inner modify applied')
+  })
+}
+
+/**
+ * Concrete rebase scenarios on children. Not exhaustive — fuzz tests will
+ * fill the matrix later. Each `t.group` locks in one of the rules from the
+ * comment at delta.js:1747-1753.
+ */
+export const testRebaseChildren = () => {
+  t.group('insert vs insert, priority=true keeps current at position 0', () => {
+    const c = delta.create().insert('A')
+    c.rebase(delta.create().insert('B'), true)
+    t.compare(c, delta.create().insert('A'))
+  })
+  t.group('insert vs insert, priority=false shifts current by a retain', () => {
+    const c = delta.create().insert('A')
+    c.rebase(delta.create().insert('B'), false)
+    t.compare(c, delta.create().retain(1).insert('A'))
+  })
+  t.group('modify vs insert prepends a retain so modify still hits original child', () => {
+    const c = delta.create().modify(delta.create().setAttr('x', 1))
+    c.rebase(delta.create().insert([1]), false)
+    t.compare(c, delta.create().retain(1).modify(delta.create().setAttr('x', 1)))
+  })
+  t.group('modify vs delete drops the modify entirely', () => {
+    const c = delta.create().modify(delta.create().setAttr('x', 1))
+    c.rebase(delta.create().delete(1), false)
+    t.assert(c.childCnt === 0)
+    t.assert(c.children.len === 0)
+  })
+  t.group('delete vs delete with the same length leaves no remaining childCnt', () => {
+    const c = delta.create().delete(2)
+    c.rebase(delta.create().delete(2), false)
+    t.assert(c.childCnt === 0, 'overlap consumed the entire delete')
+  })
+  t.group('retain vs insert (offset=0) inserts a leading retain', () => {
+    const c = delta.create().retain(3)
+    c.rebase(delta.create().insert('B'), false)
+    // rebase does not merge adjacent retains, so we get two retain ops
+    t.assert(c.childCnt === 4)
+    t.assert(c.children.len === 2)
+    const start = /** @type {any} */ (c.children.start)
+    const end = /** @type {any} */ (c.children.end)
+    t.assert(delta.$retainOp.check(start) && start.retain === 1)
+    t.assert(delta.$retainOp.check(end) && end.retain === 3)
+  })
+  t.group('rebaseOnInverse is currently a no-op stub', () => {
+    // unimplemented; locks in current behavior — the next implementer will see
+    // this fail and update it.
+    const c = delta.create().insert('hi')
+    const before = c.toJSON()
+    const result = c.rebaseOnInverse(delta.create().insert('!'), false)
+    t.assert(result === c, 'returns the receiver')
+    t.compare(c.toJSON(), before, 'state unchanged')
+  })
+}
+
+/**
+ * `delta.diff` cannot operate on inputs that already contain `delete` ops —
+ * the diff algorithm only knows how to compare insertions. Doing so throws a
+ * documented `[lib0/delta] diffing deletes unsupported` error.
+ */
+export const testDiffRejectsDeletes = () => {
+  const c = () => delta.create(delta.$deltaAny)
+  const d1 = c().retain(2).delete(3).done()
+  const d2 = c().insert('hi').done()
+  t.fails(() => delta.diff(d1, d2))
+}
+
+/**
+ * The `_modValue` getters on InsertOp / ModifyOp / SetAttrOp lazily clone the
+ * sub-delta when it is `done` (so a frozen value is never mutated in-place),
+ * and reuse it when it is still mutable.
+ */
+export const testLazyModValueClone = () => {
+  t.group('SetAttrOp with a not-yet-done value is reused', () => {
+    const inner = delta.create().setAttr('x', 1)
+    const a = delta.create().setAttr('m', inner)
+    a.apply(delta.create().modifyAttr('m', delta.create().setAttr('x', 2)))
+    const op = /** @type {any} */ (a.attrs).m
+    t.assert(delta.$setAttrOp.check(op))
+    t.assert(op.value === inner, 'no clone because inner was not done')
+    t.assert(op.value.attrs.x?.value === 2)
+  })
+  t.group('ModifyOp with a done value is cloned on apply', () => {
+    const inner = delta.create().setAttr('x', 1).done()
+    const a = delta.create().modify(inner)
+    a.apply(delta.create().modify(delta.create().setAttr('x', 2)))
+    const op = /** @type {any} */ (a.children.start)
+    t.assert(delta.$modifyOp.check(op))
+    t.assert(op.value !== inner, 'done value was cloned before mutation')
+    t.assert(op.value.attrs.x?.value === 2)
+  })
+  t.group('InsertOp with a not-yet-done sub-delta is reused', () => {
+    const sub = delta.create().setAttr('x', 1)
+    const a = delta.create().insert([sub])
+    a.apply(delta.create().modify(delta.create().setAttr('x', 2)))
+    const op = /** @type {any} */ (a.children.start)
+    t.assert(delta.$insertOp.check(op))
+    t.assert(op.insert[0] === sub, 'no clone because sub was not done')
+    t.assert(op.insert[0].attrs.x?.value === 2)
+  })
+}

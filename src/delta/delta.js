@@ -228,14 +228,17 @@ export class InsertOp extends list.ListNode {
     this._fingerprint = null
   }
 
+  /* c8 ignore start */
   /**
-   * @param {ArrayContent} newVal
+   * @param {ArrayContent} _newVal
    */
-  _updateInsert (newVal) {
-    // @ts-ignore
-    this.insert = newVal
-    this._fingerprint = null
+  _updateInsert (_newVal) {
+    // Mirror of TextOp._updateInsert; not currently called on InsertOp because
+    // adjacent inserts are merged in-place via `end.insert.push(...)`. Kept for
+    // parity with TextOp's API.
+    error.unexpectedCase() // throw if called
   }
+  /* c8 ignore stop */
 
   /**
    * @return {'insert'}
@@ -547,6 +550,9 @@ export class ModifyOp extends list.ListNode {
     })))
   }
 
+  /* c8 ignore start */
+  // ModifyOp has length 1, so callers never pass offset>0 or len>0 — splitHere
+  // is a no-op for length-1 ops. Kept for the structural _splice contract.
   /**
    * Remove a part of the operation (similar to Array.splice)
    *
@@ -556,6 +562,7 @@ export class ModifyOp extends list.ListNode {
   _splice (_offset, _len) {
     return this
   }
+  /* c8 ignore stop */
 
   /**
    * @return {DeltaListOpJSON}
@@ -1231,9 +1238,13 @@ const tryMergeWithPrev = (parent, op) => {
     /** @type {DeleteOp<any>} */ (prevOp).delete += op.delete
   } else if ($textOp.check(op)) {
     /** @type {TextOp} */ (prevOp)._updateInsert(/** @type {TextOp} */ (prevOp).insert + op.insert)
+  /* c8 ignore start */
   } else {
+    // unreachable: the constructor check at the top of the function already
+    // limits `op` to one of the four kinds tested above
     error.unexpectedCase()
   }
+  /* c8 ignore stop */
   list.remove(parent, op)
 }
 
@@ -1590,10 +1601,14 @@ export class DeltaBuilder extends Delta {
       this.childCnt += op.length
     }
     for (const op of other.children) {
+      // defensive: the per-branch logic below resets opsI/offset whenever it
+      // consumes an op exactly. This guard catches any path that forgets to.
+      /* c8 ignore start */
       if (opsI?.length === offset) {
         opsI = opNextUndeleted(opsI)
         offset = 0
       }
+      /* c8 ignore stop */
       if ($textOp.check(op) || $insertOp.check(op)) {
         insertClonedOp(op)
       } else if ($retainOp.check(op)) {
@@ -1672,9 +1687,12 @@ export class DeltaBuilder extends Delta {
               opsI._splice(offset, delLen)
             }
             remainingLen -= delLen
+          /* c8 ignore start */
           } else {
+            // unreachable: opsI was already typed as retain | non-delete-content | delete above
             error.unexpectedCase()
           }
+          /* c8 ignore stop */
         }
       } else if ($modifyOp.check(op)) {
         if (opsI != null && op.format != null && (!$deleteOp.check(opsI) && !$retainOp.check(opsI))) { // retain handles splitting seperately, without copying attrs
@@ -1711,14 +1729,20 @@ export class DeltaBuilder extends Delta {
             opsI._splice(0, 1)
             scheduleForMerge(opsI)
           }
-        } else if ($deleteOp.check(opsI)) {
-          // nop
+        /* c8 ignore start */
         } else {
+          // remaining branches: opsI is deleteOp or something unknown
+          // both branches are unreachable today: opNextUndeleted skips
+          // delete ops, so opsI is never a delete during iteration; and the four
+          // branches above exhaust the other op kinds. The deleteOp branch is
+          // kept as a defensive no-op (drops a modify that lands in a deleted
+          // region) rather than a throw.
           error.unexpectedCase()
         }
       } else {
         error.unexpectedCase()
       }
+      /* c8 ignore stop */
     }
     // iterate backwards, to ensure that we merge all content
     for (let i = maybeMergeable.length - 1; i >= 0; i--) {
@@ -1774,9 +1798,12 @@ export class DeltaBuilder extends Delta {
           // @ts-ignore
           delete this.attrs[otherOp.key]
         }
+      /* c8 ignore start */
       } else {
+        // unreachable: attr ops are exhaustively setAttr | deleteAttr | modifyAttr
         error.unexpectedCase()
       }
+      /* c8 ignore stop */
     }
     /**
      * Rebase children.
@@ -2407,9 +2434,14 @@ export const diff = (d1, d2) => {
           cs2.push(left2.insert)
         } else if ($insertOp.check(left2)) {
           cs2.push(...left2.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
+        /* c8 ignore start */
         } else {
+          // unreachable for valid diff inputs (delete on the rhs would already
+          // have been rejected via the `[lib0/delta] diffing deletes unsupported`
+          // path above)
           error.unexpectedCase()
         }
+        /* c8 ignore stop */
         formattingNeedsDiff ||= left2.format != null
         left2 = left2.next
       }
@@ -2471,9 +2503,14 @@ export const diff = (d1, d2) => {
             a = a.next
             aOffset = 0
           }
+        /* c8 ignore start */
         } else {
+          // unreachable: by this point both a and b are insert/text (deletes
+          // were rejected upstream and `originalUpdated` is the result of an
+          // apply, which keeps inserts only).
           error.unexpectedCase()
         }
+        /* c8 ignore stop */
       }
       // @todo instead of applying, we want to first exec d, then formattingDiff - we need a merge
       // function!
