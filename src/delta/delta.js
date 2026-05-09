@@ -1501,10 +1501,12 @@ export class DeltaBuilder extends Delta {
    *
    * a.apply(b).apply(c)
    *
-   * @todo fuzz test the above property
+   * If `final = true`, we consider this delta the final state and drop deleteAttrOps from
+   * attributes. (E.g. if `otherOp` deletes an attribute, this op will simply not have the
+   * attribute). Any kind of `delete` op might be considered a bug. A final delta is not idempotent.
    *
    * @param {Delta<Conf>?} other
-   * @param {{ final?: boolean }} opts -- experimental
+   * @param {{ final?: boolean }} opts -- (experimental) 
    * @return {DeltaBuilder<Conf>}
    */
   apply (other, { final = this.isFinal } = {}) {
