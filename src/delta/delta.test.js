@@ -824,6 +824,37 @@ export const testDiffNodeLevelFormatOnModify = () => {
   t.assert(synced.equals(b), 'a.apply(diff(a, b)) must equal b')
 }
 
+/**
+ * `apply(diff, { final: true })` does not propagate `final` through
+ * the `modifyAttr` recursion.
+ *
+ * The outer delta has an attribute `q` whose value is itself a delta
+ * with sub-attribute `weight: 'bold'`. `b` removes that sub-attribute.
+ * `diff` correctly produces a `modifyAttr` op whose nested value
+ * carries a `deleteAttr` for `weight`. But applying with `final: true`
+ * still leaves a `DeleteAttrOp` on the nested attrs map:
+ *
+ *   delta.js (apply attrs):
+ *     if ($modifyAttrOp.check(op)) {
+ *       if ($deltaAny.check(c?.value)) {
+ *         c._modValue.apply(op.value)         // ← `final` not forwarded
+ *       } ...
+ *     }
+ *
+ * Compare with the children path (`$modifyOp.check(op)` branch), which
+ * does forward `final` on the recursive `apply` calls.
+ */
+export const testDiffModifyAttrFinalPropagation = () => {
+  const a = delta.create('div')
+    .setAttr('q', delta.create('span', { weight: 'bold' }, 'hi'))
+    .done()
+  const b = delta.create('div')
+    .setAttr('q', delta.create('span', {}, 'hi'))
+    .done()
+  const synced = delta.clone(a).apply(delta.diff(a, b), { final: true })
+  t.assert(synced.equals(b), 'final must propagate through modifyAttr recursion')
+}
+
 export const testDeltaDiff2 = () => {
   const stateA = delta.create().insert('hello world\n\nthis ')
   const stateB = delta.create().insert('hello world!\n\nth is')

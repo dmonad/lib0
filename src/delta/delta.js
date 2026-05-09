@@ -1506,7 +1506,7 @@ export class DeltaBuilder extends Delta {
    * attribute). Any kind of `delete` op might be considered a bug. A final delta is not idempotent.
    *
    * @param {Delta<Conf>?} other
-   * @param {{ final?: boolean }} opts -- (experimental) 
+   * @param {{ final?: boolean }} opts -- (experimental)
    * @return {DeltaBuilder<Conf>}
    */
   apply (other, { final = this.isFinal } = {}) {
@@ -1519,7 +1519,7 @@ export class DeltaBuilder extends Delta {
       const c = /** @type {SetAttrOp<any,any>|DeleteAttrOp<any>|ModifyAttrOp<any,any>} */ (this.attrs[op.key])
       if ($modifyAttrOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
-          c._modValue.apply(op.value)
+          c._modValue.apply(op.value, { final })
         } else {
           // then this is a simple modify
           // @ts-ignore
@@ -2327,6 +2327,16 @@ class _DiffStringWrapper {
  */
 
 /**
+ * Compute a delta that, when applied to `d1`, produces `d2`. Only the children and attributes of
+ * `d1` and `d2` are compared; the top-level node names of `d1` and `d2` are *not*. Diffing
+ * `<div>a</div>` against `<span>a</span>` is valid and yields an empty diff — they have the same
+ * children and attributes, so as far as `diff` is concerned they are equal at the level it cares
+ * about. The top-level name is treated as a document-type marker, not as diffable content.
+ *
+ * Names *are* compared on children: a child node whose name changes between `d1` and `d2` is
+ * replaced wholesale (delete + insert), not converted into a `modify` op. Same-name child nodes
+ * at aligned positions are paired and recursed into via `modify`.
+ *
  * @template {DeltaConf} Conf
  * @param {Delta<Conf>} d1
  * @param {NoInfer<Delta<Conf>>} d2
