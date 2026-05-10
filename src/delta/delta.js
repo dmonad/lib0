@@ -1860,7 +1860,7 @@ export class DeltaBuilder extends Delta {
           otherOffset = otherChild.length
         } else {
           if ($modifyOp.check(otherChild)) {
-            /** @type {any} */ (currChild.value).rebase(otherChild, priority)
+            /** @type {DeltaBuilderAny} */ (currChild.value).rebase(otherChild.value, priority)
           } else if ($deleteOp.check(otherChild)) {
             list.remove(this.children, currChild)
             this.childCnt -= 1
@@ -1889,7 +1889,7 @@ export class DeltaBuilder extends Delta {
           this.childCnt -= maxCommonLen
         } else { // insert/text.check(currOp)
           if (currOffset > 0) {
-            const leftPart = currChild.clone(currOffset)
+            const leftPart = currChild.clone(0, currOffset)
             list.insertBetween(this.children, currChild.prev, currChild, leftPart)
             currChild._splice(currOffset, currChild.length - currOffset)
             currOffset = 0

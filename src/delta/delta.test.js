@@ -1261,10 +1261,117 @@ export const testRepeatRandomXmlDeltaApplyLarge = tc => {
   testDeltaApply(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
 }
 
+/**
+ * Convergence (TP1) property for `rebase`.
+ *
+ * Two users start from the same `base` and concurrently produce `diff1` and
+ * `diff2`. Each side replays the other's change after rebasing it, and the
+ * final states must agree:
+ *
+ *   user1: base.apply(diff1).apply( diff2.rebase(diff1, false /*no priority *\/) )
+ *   user2: base.apply(diff2).apply( diff1.rebase(diff2, true  /*priority    *\/) )
+ *
+ * The asymmetric `priority` arg encodes which side wins true conflicts. We
+ * assign priority to `diff1` on both paths, so both clients converge on the
+ * same conflict resolution.
+ *
+ * @template {delta.DeltaConf} Conf
+ * @param {t.TestCase} tc
+ * @param {s.Schema<delta.Delta<Conf>>} $d
+ * @param {{ minChildOps: number, maxChildOps: number }} opts
+ */
+const testDeltaRebase = (tc, $d, opts) => {
+  const base = delta.random(tc.prng, $d, opts).done()
+  // both users observe `base` then independently produce a change against it
+  const diff1 = delta.random(tc.prng, $d, { source: base, ...opts })
+  const diff2 = delta.random(tc.prng, $d, { source: base, ...opts })
+
+  // user1: applies own change first, then the rebased remote change
+  const stateA = delta.clone(base)
+    .apply(delta.clone(diff1))
+    .apply(delta.clone(diff2).rebase(diff1, false))
+
+  // user2: applies own change first, then the rebased remote change
+  const stateB = delta.clone(base)
+    .apply(delta.clone(diff2))
+    .apply(delta.clone(diff1).rebase(diff2, true))
+
+  t.compare(stateA, stateB)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaRebase = tc => {
+  testDeltaRebase(tc, $textDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaRebaseLarge = tc => {
+  testDeltaRebase(tc, $textDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaRebase = tc => {
+  testDeltaRebase(tc, $mapDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaRebaseLarge = tc => {
+  testDeltaRebase(tc, $mapDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaRebase = tc => {
+  testDeltaRebase(tc, $arrayDelta, { minChildOps: 3, maxChildOps: 3 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaRebaseLarge = tc => {
+  testDeltaRebase(tc, $arrayDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaRebase = tc => {
+  testDeltaRebase(tc, $xmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaRebaseLarge = tc => {
+  testDeltaRebase(tc, $xmlDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichTextDeltaRebase = tc => {
+  testDeltaRebase(tc, $richTextDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichXmlDeltaRebase = tc => {
+  testDeltaRebase(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
 // ---------------------------------------------------------------------------
 // Targeted behavior tests (added to drive `delta.js` coverage from ~94 % to
-// 100 % while testing concrete behavior, not lines). Fuzz coverage of rebase
-// is left to a follow-up.
+// 100 % while testing concrete behavior, not lines).
 // ---------------------------------------------------------------------------
 
 /**
