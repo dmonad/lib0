@@ -376,11 +376,13 @@ export class DeleteOp extends list.ListNode {
   /**
    * Remove a part of the operation (similar to Array.splice)
    *
-   * @param {number} _offset
+   * @param {number} offset
    * @param {number} len
    */
-  _splice (_offset, len) {
-    this.prevValue = /** @type {any} */ (this.prevValue ? slice(this.prevValue, _offset, len) : null)
+  _splice (offset, len) {
+    if (this.prevValue) {
+      /** @type {DeltaBuilder<any>} */ (this.prevValue).apply(create().retain(offset).delete(len))
+    }
     this._fingerprint = null
     this.delete -= len
     return this
