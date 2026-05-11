@@ -1880,7 +1880,10 @@ export class DeltaBuilder extends Delta {
           otherOffset = otherChild.length
         } else {
           if ($modifyOp.check(otherChild)) {
-            /** @type {DeltaBuilderAny} */ (currChild.value).rebase(otherChild.value, priority)
+            // _modValue (not .value) — ModifyOp.clone() marks its inner delta
+            // as `done`, so a cloned ModifyOp can only be rebased after the
+            // _modValue getter lazy-clones it back to mutable.
+            currChild._modValue.rebase(otherChild.value, priority)
           } else if ($deleteOp.check(otherChild)) {
             list.remove(this.children, currChild)
             this.childCnt -= 1

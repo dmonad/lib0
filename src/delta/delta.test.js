@@ -1099,15 +1099,19 @@ const $xmlDelta = delta.$delta({ name: ['div', 'p'], children: [0, 1, -1, s.$str
 // $richTextDelta exercises format ops on text/insert/retain. The other schemas declare no
 // `formats`, so $formats normalizes to s.$null in delta.random and every op is generated with
 // format=null - leaving the format-bearing diff paths unfuzzed.
-const $richTextDelta = delta.$delta({ text: true, formats: { bold: s.$boolean, color: ['red', 'blue'] } })
+// format keys are .optional so the random generator drops each ~50% of the
+// time — this is what makes the two sides of a concurrent edit hold a
+// non-identical key set, which in turn exercises the partial-strip branch in
+// rebase's format reconciliation.
+const $richTextDelta = delta.$delta({ text: true, formats: { bold: s.$boolean.optional, color: s.$(['red', 'blue']).optional } })
 // $richXmlDelta exercises format ops on inner-node inserts (the insert→modify diff path) and
 // child-name unions (the findIndex(cc.name === ...) pairing in applyChangesetToDelta).
 const $richXmlDelta = delta.$delta({
   name: ['div', 'p'],
   text: true,
   attrs: { a: [1, 2, 3] },
-  formats: { bold: s.$boolean },
-  children: s.$union(s.$number, s.$string, delta.$delta({ name: ['span', 'em'], text: true, attrs: { c: s.$string }, formats: { italic: s.$boolean } }))
+  formats: { bold: s.$boolean.optional },
+  children: s.$union(s.$number, s.$string, delta.$delta({ name: ['span', 'em'], text: true, attrs: { c: s.$string }, formats: { italic: s.$boolean.optional } }))
 })
 
 /**
@@ -1607,6 +1611,21 @@ export const testRebaseChildren = () => {
     c.rebase(delta.create().delete(1), false)
     t.assert(c.childCnt === 0)
     t.assert(c.children.len === 0)
+  })
+  t.group('modify vs modify recurses on the inner delta (priority decides)', () => {
+    // ModifyOp.clone() marks its inner delta as `done`. The rebase recursion
+    // must therefore go through `_modValue`, not `.value`, or it would throw
+    // "Readonly Delta can't be modified" the moment a cloned ModifyOp is
+    // rebased — which is exactly what happens on the `apply(diff.rebase(...))`
+    // path in convergence.
+    const base = delta.create().insert([delta.create().setAttr('x', 0).done()]).done()
+    const d1 = delta.create().modify(delta.create().setAttr('x', 1))
+    const d2 = delta.create().modify(delta.create().setAttr('x', 2))
+    const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
+    const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
+    t.compare(stateA, stateB) // TP1
+    // priority assigned to d1 on both paths, so x must end up as d1's value
+    t.assert(/** @type {any} */ (stateA.children.start).insert[0].attrs.x?.value === 1)
   })
   t.group('delete vs delete with the same length leaves no remaining childCnt', () => {
     const c = delta.create().delete(2)
