@@ -876,7 +876,7 @@ export const $setAttrOpWith = $content => s.$custom(o => $setAttrOp.check(o) && 
  * @param {s.Schema<Content>} $content
  * @return {s.Schema<InsertOp<Content>>}
  */
-export const $insertOpWith = $content => s.$custom(o => $insertOp.check(o) && $content.check(o.insert.every(ins => $content.check(ins))))
+export const $insertOpWith = $content => s.$custom(o => $insertOp.check(o) && o.insert.every(ins => $content.check(ins)))
 
 /**
  * @template {DeltaAny} Modify
@@ -2202,7 +2202,7 @@ export const mergeDeltas = (a, b) => {
     c.apply(b)
     return /** @type {any} */ (c)
   }
-  return a == null ? b : (a || null)
+  return /** @type {D} */ (a || b || null)
 }
 
 /**

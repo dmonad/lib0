@@ -1492,6 +1492,28 @@ export const testDeleteWithPrevValue = () => {
     t.assert(op.delete === 5)
     t.assert(op.prevValue === null)
   })
+  t.group('DeleteOp._splice keeps prevValue in sync when the delete is split by a concurrent insert', () => {
+    // A concurrent insert that lands in the middle of a delete forces the
+    // rebase to split the delete around the new content. The surviving tail
+    // DeleteOp must drop the prefix from its prevValue — otherwise the
+    // recorded "what was deleted" no longer matches `this.delete`, and an
+    // inverse computed from it would re-insert the wrong bytes.
+    const d1 = delta.create().delete(5, delta.create().insert('abcde'))
+    const d2 = delta.create().retain(2).insert('XYZ').done()
+    d1.rebase(d2, false)
+    /** @type {Array<any>} */
+    const ops = []
+    for (const op of d1.children) ops.push(op)
+    t.assert(ops.length === 3, 'split into [delete(2), retain(3), delete(3)]')
+    t.assert(delta.$deleteOp.check(ops[0]) && ops[0].delete === 2)
+    t.assert(delta.$retainOp.check(ops[1]) && ops[1].retain === 3)
+    t.assert(delta.$deleteOp.check(ops[2]) && ops[2].delete === 3)
+    // The original op survives as the tail (suffix); _splice removed the
+    // first two entries from its prevValue, leaving just 'cde'.
+    t.compare(ops[2].prevValue, delta.create().insert('cde'))
+    // DeleteOp.clone() drops prevValue, so the prefix DeleteOp has none.
+    t.assert(ops[0].prevValue === null)
+  })
 }
 
 /**
@@ -1822,6 +1844,116 @@ export const testFingerprintAttrKeyOrdering = () => {
   const a = delta.create().setAttr(2, 'b').setAttr(1, 'a').setAttr('z', 1).setAttr('a', 2)
   const b = delta.create().setAttr('a', 2).setAttr('z', 1).setAttr(1, 'a').setAttr(2, 'b')
   t.assert(a.fingerprint === b.fingerprint, 'order of setAttr calls does not affect fingerprint')
+}
+
+/**
+ * The `$XOpWith($content)` schemas wrap an op-shape schema in a content
+ * check: the op must be of the right kind AND its inner content must
+ * conform to `$content`. The point is to distinguish ops that look the
+ * same structurally but carry different payloads. Each sub-test passes the
+ * SAME op shape against two schemas — one whose content predicate accepts
+ * the payload, one whose predicate rejects it — so a "pass" or "fail"
+ * outcome can only come from the content check, not from the op-kind check.
+ */
+export const testOpWithSchemas = () => {
+  t.group('$setAttrOpWith inspects SetAttrOp.value', () => {
+    const strOp = /** @type {any} */ (delta.create().setAttr('k', 'hello').attrs.k)
+    const numOp = /** @type {any} */ (delta.create().setAttr('k', 42).attrs.k)
+    t.assert(delta.$setAttrOpWith(s.$string).check(strOp))
+    t.assert(!delta.$setAttrOpWith(s.$string).check(numOp),
+      'same SetAttrOp shape, different value type → rejected')
+    // sanity: a non-attr op fails the kind check regardless of content
+    t.assert(!delta.$setAttrOpWith(s.$string).check(delta.create().insert('hi').children.start))
+  })
+  t.group('$insertOpWith inspects EVERY element of InsertOp.insert', () => {
+    const allNums = /** @type {any} */ (delta.create().insert([1, 2, 3]).children.start)
+    // Same op shape (InsertOp wrapping an array), but one element breaks the
+    // homogeneity. `.every` short-circuits on the first mismatch — if this
+    // were instead checking the whole array against `$number`, both would
+    // fail; the point is that the schema drills INTO the array.
+    const oneBadApple = /** @type {any} */ (delta.create().insert([1, 2, /** @type {any} */ ('three')]).children.start)
+    t.assert(delta.$insertOpWith(s.$number).check(allNums))
+    t.assert(!delta.$insertOpWith(s.$number).check(oneBadApple),
+      'one non-number element fails the per-element check')
+  })
+  t.group('$modifyOpWith inspects the inner Delta of ModifyOp.value', () => {
+    // Both are ModifyOps wrapping a Delta — the inner deltas differ only in
+    // what they describe (mutation of children vs. mutation of attrs). A
+    // schema that demands the inner delta have at least one child op
+    // discriminates between them.
+    const $innerHasChildren = s.$custom(d => delta.$deltaAny.check(d) && d.children.len > 0)
+    const modWithChildren = /** @type {any} */ (delta.create().modify(delta.create().insert('x')).children.start)
+    const modAttrsOnly = /** @type {any} */ (delta.create().modify(delta.create().setAttr('y', 1)).children.start)
+    t.assert(delta.$modifyOpWith($innerHasChildren).check(modWithChildren))
+    t.assert(!delta.$modifyOpWith($innerHasChildren).check(modAttrsOnly),
+      'same ModifyOp shape with empty-children inner delta → rejected')
+  })
+  t.group('$modifyAttrOpWith inspects the inner Delta of ModifyAttrOp.value', () => {
+    // Symmetric to $modifyOpWith — here we discriminate on inner attrs.
+    // Object.keys() ignores Symbol-keyed entries, so the iterator helper
+    // on `attrs` doesn't pollute the count.
+    const $innerHasAttrs = s.$custom(d => delta.$deltaAny.check(d) && Object.keys(d.attrs).length > 0)
+    const modAttrsInner = /** @type {any} */ (delta.create().modifyAttr('k', delta.create().setAttr('z', 1)).attrs.k)
+    const modChildrenInner = /** @type {any} */ (delta.create().modifyAttr('k', delta.create().insert('x')).attrs.k)
+    t.assert(delta.$modifyAttrOpWith($innerHasAttrs).check(modAttrsInner))
+    t.assert(!delta.$modifyAttrOpWith($innerHasAttrs).check(modChildrenInner),
+      'same ModifyAttrOp shape with no-attrs inner delta → rejected')
+  })
+}
+
+/**
+ * Attribute keys may be numbers or strings. The two forms behave differently
+ * even though plain-object storage coerces numeric keys to their string form:
+ * `SetAttrOp.key` preserves the original type, which the fingerprint sort
+ * (numbers before strings) and the equality check both rely on.
+ */
+export const testNumericAndStringAttrKeys = () => {
+  t.group('setAttr(1, …) and setAttr("1", …) collide — JS object storage shares property "1"', () => {
+    // Both writes land at this.attrs['1'] because JS coerces numeric property
+    // keys to strings. Only the last one survives; the SetAttrOp it carries
+    // remembers the originally-passed key type on its `.key` field.
+    const numFirst = delta.create().setAttr(1, 'first').setAttr('1', 'second')
+    /** @type {Array<any>} */
+    const numFirstOps = []
+    for (const op of numFirst.attrs) numFirstOps.push(op)
+    t.assert(numFirstOps.length === 1, 'second write overwrites the first')
+    t.assert(numFirstOps[0].key === '1' && numFirstOps[0].value === 'second')
+
+    const strFirst = delta.create().setAttr('1', 'first').setAttr(1, 'second')
+    /** @type {Array<any>} */
+    const strFirstOps = []
+    for (const op of strFirst.attrs) strFirstOps.push(op)
+    t.assert(strFirstOps.length === 1)
+    t.assert(strFirstOps[0].key === 1 && strFirstOps[0].value === 'second',
+      'when number key is written last, op.key is the number 1')
+
+    // The two surviving SetAttrOps differ in op.key type (number vs string),
+    // so the fingerprints diverge even though storage location is the same.
+    t.assert(numFirst.fingerprint !== strFirst.fingerprint,
+      'numeric vs string key produces distinct fingerprints')
+  })
+  t.group('fingerprint sort is stable across numeric AND string keys', () => {
+    // The sort comparator places numbers before strings. With both kinds of
+    // keys present, two deltas built in different orders must still hash to
+    // the same fingerprint. Including a non-integer-like numeric key (-1)
+    // pushes it past the string keys in `for…in` iteration — that's the only
+    // shape that makes the sort comparator compare a number positioned AFTER
+    // a string in the keys array, reaching the (num, str) → -1 branch.
+    const a = delta.create()
+      .setAttr(2, 'B').setAttr('z', 1).setAttr(-1, 'neg').setAttr('a', 2).setAttr(1, 'A')
+    const b = delta.create()
+      .setAttr('a', 2).setAttr(1, 'A').setAttr(-1, 'neg').setAttr(2, 'B').setAttr('z', 1)
+    t.assert(a.fingerprint === b.fingerprint, 'fingerprint is independent of write order')
+    // Sanity-check the iteration shape that's required for sort coverage:
+    // '1' and '2' (integer-like) iterate first ascending, then the inserted
+    // string keys IN INSERTION ORDER — and '-1' is a string-keyed property
+    // (not integer-like in JS), so it iterates between 'z' and 'a'. The
+    // resulting keys array has a number positioned AFTER a string, which is
+    // the only shape that makes V8's sort comparator hit (num, str) → -1.
+    const keys = []
+    for (const op of a.attrs) keys.push(op.key)
+    t.compare(keys, [1, 2, 'z', -1, 'a'])
+  })
 }
 
 /**
