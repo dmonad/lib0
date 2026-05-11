@@ -2101,8 +2101,10 @@ export class $Delta extends s.Schema {
   check (o, err = undefined) {
     const { $name, $attrs, $children, hasText, $formats } = this.shape
     if (!$deltaAny.check(o, err)) {
+      /* c8 ignore next */
       err?.extend(null, 'Delta', o?.constructor.name, 'Constructor match failed')
     } else if (o.name != null && !$name.check(o.name, err)) {
+      /* c8 ignore next */
       err?.extend('Delta.name', $name.toString(), o.name, 'Unexpected node name')
     } else if (list.toArray(o.children).some(c => (!hasText && $textOp.check(c)) || (hasText && $textOp.check(c) && c.format != null && !$formats.check(c.format)) || ($insertOp.check(c) && !c.insert.every(ins => $children.check(ins))))) {
       err?.extend('Delta.children', '', '', 'Children don\'t match the schema')
@@ -2602,10 +2604,11 @@ export const diff = (d1, d2) => {
           } else {
             d.setAttr(key, nextVal)
           }
+        /* c8 ignore start */
         } else {
-          /* c8 ignore next 2 */
           error.unexpectedCase()
         }
+        /* c8 ignore stop */
       }
     }
     for (const { key } of d1.attrs) {

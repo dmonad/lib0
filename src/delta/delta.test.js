@@ -1627,6 +1627,27 @@ export const testRebaseChildren = () => {
     // priority assigned to d1 on both paths, so x must end up as d1's value
     t.assert(/** @type {any} */ (stateA.children.start).insert[0].attrs.x?.value === 1)
   })
+  t.group('retain vs retain format conflict: split prefix AND suffix when overlap is mid-op', () => {
+    // The format-reconciliation block has to split currChild on BOTH sides
+    // whenever the overlap is strictly interior — `currOffset > 0` *and*
+    // `currOffset + maxCommonLen < currChild.length`. Fuzz tests rarely line
+    // up exactly this way: diff2's wide formatted retain spans diff1's
+    // narrow conflicting retain in the middle, forcing the reconciliation
+    // to emit three retain ops (prefix-with-orig-format, middle-stripped,
+    // suffix-with-orig-format).
+    const base = delta.create().insert('abcde').done()
+    const d1 = delta.create().retain(1).retain(2, { bold: false }).retain(2)
+    const d2 = delta.create().retain(5, { bold: true })
+    const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
+    const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
+    t.compare(stateA, stateB) // TP1
+    // d1 has priority on both paths → bold:false survives on the inner 'bc'
+    t.compare(stateA, delta.create()
+      .insert('a', { bold: true })
+      .insert('bc', { bold: false })
+      .insert('de', { bold: true })
+    )
+  })
   t.group('delete vs delete with the same length leaves no remaining childCnt', () => {
     const c = delta.create().delete(2)
     c.rebase(delta.create().delete(2), false)
@@ -1698,5 +1719,155 @@ export const testLazyModValueClone = () => {
     t.assert(delta.$insertOp.check(op))
     t.assert(op.insert[0] === sub, 'no clone because sub was not done')
     t.assert(op.insert[0].attrs.x?.value === 2)
+  })
+}
+
+/**
+ * `toJSON` round-trips the structural data of every op kind, including nested
+ * deltas (recursively) and optional `format` / `attribution` blobs. The op
+ * level is where embedded deltas get unwrapped to plain JSON.
+ */
+export const testOpJsonSerialization = () => {
+  t.group('InsertOp with nested deltas, format, and attribution', () => {
+    const inner = delta.create().insert('hi')
+    const d = delta.create().insert([inner], { bold: true }, { insert: ['me'] })
+    t.compare(d.toJSON(), {
+      type: 'delta',
+      children: [{
+        type: 'insert',
+        insert: [{ type: 'delta', children: [{ type: 'insert', insert: 'hi' }] }],
+        format: { bold: true },
+        attribution: { insert: ['me'] }
+      }]
+    })
+  })
+  t.group('RetainOp with format and attribution', () => {
+    const d = delta.create().retain(2, { italic: true }, { insert: ['x'] })
+    t.compare(d.toJSON(), {
+      type: 'delta',
+      children: [{ type: 'retain', retain: 2, format: { italic: true }, attribution: { insert: ['x'] } }]
+    })
+  })
+  t.group('ModifyOp with format and attribution', () => {
+    const d = delta.create().modify(delta.create().setAttr('x', 1), { bold: true }, { insert: ['m'] })
+    t.compare(d.toJSON(), /** @type {any} */ ({
+      type: 'delta',
+      children: [{
+        type: 'modify',
+        value: { type: 'delta', attrs: { x: { type: 'insert', value: 1 } } },
+        format: { bold: true },
+        attribution: { insert: ['m'] }
+      }]
+    }))
+  })
+  t.group('ModifyOp without extras emits no format/attribution keys', () => {
+    const d = delta.create().modify(delta.create().setAttr('x', 1))
+    t.compare(d.toJSON(), /** @type {any} */ ({
+      type: 'delta',
+      children: [{
+        type: 'modify',
+        value: { type: 'delta', attrs: { x: { type: 'insert', value: 1 } } }
+      }]
+    }))
+  })
+  t.group('SetAttrOp with a delta value + attribution recurses', () => {
+    const d = delta.create().setAttr('m', delta.create().setAttr('x', 1), { insert: ['u'] })
+    t.compare(d.toJSON(), {
+      type: 'delta',
+      attrs: {
+        m: {
+          type: 'insert',
+          value: { type: 'delta', attrs: { x: { type: 'insert', value: 1 } } },
+          attribution: { insert: ['u'] }
+        }
+      }
+    })
+  })
+}
+
+/**
+ * `delta.apply(null)` is documented as a no-op so callers can apply an
+ * optional change without a null guard at every call site.
+ */
+export const testApplyNullIsNoop = () => {
+  const d = delta.create().insert('hi')
+  const before = d.toJSON()
+  const result = d.apply(null)
+  t.assert(result === d, 'returns the receiver')
+  t.compare(d.toJSON(), before, 'state unchanged')
+}
+
+/**
+ * The top-level `name` is a document-type marker, not diffable content. Diff
+ * of `<div>a</div>` against `<span>a</span>` yields an empty diff with no
+ * name — the children/attrs match, so as far as `diff` is concerned the two
+ * inputs are equal at the level it cares about.
+ */
+export const testDiffMismatchedNames = () => {
+  const d1 = /** @type {delta.DeltaAny} */ (delta.create('div').insert('a').done())
+  const d2 = /** @type {delta.DeltaAny} */ (delta.create('span').insert('a').done())
+  const diff = delta.diff(d1, d2)
+  t.assert(diff.name === null, 'mismatched names → diff is name-less')
+  t.assert(diff.isEmpty(), 'children are equal → diff has no ops')
+}
+
+/**
+ * `Delta.fingerprint` sorts attribute keys deterministically: numeric keys
+ * first (ascending), then string keys (locale-compared). The fingerprint
+ * must therefore be order-independent w.r.t. the order in which `setAttr`
+ * calls were made.
+ */
+export const testFingerprintAttrKeyOrdering = () => {
+  // mix numeric and string keys, set in different orders on each delta
+  const a = delta.create().setAttr(2, 'b').setAttr(1, 'a').setAttr('z', 1).setAttr('a', 2)
+  const b = delta.create().setAttr('a', 2).setAttr('z', 1).setAttr(1, 'a').setAttr(2, 'b')
+  t.assert(a.fingerprint === b.fingerprint, 'order of setAttr calls does not affect fingerprint')
+}
+
+/**
+ * `updateUsedAttributes` / `updateUsedAttribution` are intended for repeated
+ * incremental updates. Setting a key to the value it already holds is a
+ * no-op — it preserves object identity so consumers can cheaply detect "did
+ * anything change?" via `===`.
+ */
+export const testUsedAttributesIdempotent = () => {
+  t.group('updateUsedAttributes(name, sameValue) preserves identity', () => {
+    const d = delta.create().updateUsedAttributes('bold', true)
+    const before = d.usedAttributes
+    d.updateUsedAttributes('bold', true)
+    t.assert(d.usedAttributes === before)
+  })
+  t.group('updateUsedAttribution(name, equalValue) preserves identity', () => {
+    const d = delta.create().updateUsedAttribution('insert', ['me'])
+    const before = d.usedAttribution
+    // structurally equal array — still a no-op because `equalityDeep` is used
+    d.updateUsedAttribution('insert', ['me'])
+    t.assert(d.usedAttribution === before)
+  })
+}
+
+/**
+ * `$delta(spec).check(d)` returns `false` (instead of throwing) when the
+ * delta violates the spec. Each branch covers one shape of mismatch.
+ */
+export const testSchemaCheckRejections = () => {
+  t.group('text content in a no-text schema is rejected', () => {
+    const $d = delta.$delta({ children: s.$number })
+    t.assert(!$d.check(delta.create().insert('hi')))
+  })
+  t.group('insert item that does not match `children` is rejected', () => {
+    const $d = delta.$delta({ children: s.$number })
+    t.assert($d.check(delta.create().insert([42])), 'valid item accepted')
+    t.assert(!$d.check(delta.create().insert(['not-a-number'])))
+  })
+  t.group('attr value that does not match `attrs` is rejected', () => {
+    const $d = delta.$delta({ attrs: { x: s.$number } })
+    t.assert($d.check(delta.create().setAttr('x', 1)), 'valid attr accepted')
+    t.assert(!$d.check(delta.create().setAttr('x', 'str')))
+  })
+  t.group('text-op format that does not match `formats` is rejected', () => {
+    const $d = delta.$delta({ text: true, formats: { bold: s.$boolean } })
+    t.assert($d.check(delta.create().insert('hi', { bold: true })), 'valid format accepted')
+    t.assert(!$d.check(delta.create().insert('hi', { bold: 'not-bool' })))
   })
 }
