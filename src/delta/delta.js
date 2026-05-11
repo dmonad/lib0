@@ -1887,11 +1887,17 @@ export class DeltaBuilder extends Delta {
             currChild.delete -= maxCommonLen
           }
           this.childCnt -= maxCommonLen
-        } else { // insert/text.check(currOp)
+          // advance other so subsequent currChild ops see what comes AFTER this
+          // delete; without this we'd loop against the same delete forever and
+          // never reach other's later inserts.
+          otherOffset += maxCommonLen
+        } else { // insert/text.check(otherChild)
           if (currOffset > 0) {
             const leftPart = currChild.clone(0, currOffset)
             list.insertBetween(this.children, currChild.prev, currChild, leftPart)
-            currChild._splice(currOffset, currChild.length - currOffset)
+            // leftPart is the prefix; currChild becomes the suffix. Remove the
+            // prefix portion from currChild so it represents [currOffset..length].
+            currChild._splice(0, currOffset)
             currOffset = 0
           }
           list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
