@@ -101,6 +101,22 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  */
 const _markMaybeDeltaAsDone = maybeDelta => $deltaAny.check(maybeDelta) ? /** @type {MaybeDelta} */ (maybeDelta.done()) : maybeDelta
 
+/**
+ * Invariants shared by all op classes below (TextOp, InsertOp, DeleteOp,
+ * RetainOp, ModifyOp, SetAttrOp, DeleteAttrOp, ModifyAttrOp):
+ *
+ * - **Only code inside `delta.js` may mutate op fields.** External consumers
+ *   treat ops as immutable; structural fields are JSDoc-annotated `@readonly`
+ *   to reinforce this. Mutation is permitted only while the owning Delta is
+ *   not `done` — every builder entry point routes through `modDeltaCheck`
+ *   to enforce this at runtime.
+ * - **Any mutation of a fingerprinted field MUST null `_fingerprint`.** The
+ *   fingerprint is a lazy cache; if it has already been computed and the
+ *   underlying data changes without invalidating it, every subsequent
+ *   fingerprint read (and any `diff` / equality check that relies on it) is
+ *   wrong. Fields covered: insert, delete, retain, format, attribution,
+ *   value, key.
+ */
 export class TextOp extends list.ListNode {
   /**
    * @param {string} insert
@@ -1628,7 +1644,11 @@ export class DeltaBuilder extends Delta {
         }
         if (opsI != null) {
           if (op.format != null && retainLen > 0) {
-            offset = retainLen
+            // accumulate onto the existing offset — the else-branch below uses
+            // `offset += retainLen`, and we must agree with it when prior
+            // iterations have advanced offset into opsI without splitting (e.g.
+            // a format-less retain followed by a same-format retain).
+            offset += retainLen
             splitHere()
             updateOpFormat(/** @type {ChildrenOpAny} */ (opsI.prev), op.format)
             scheduleForMerge(opsI.prev)
@@ -1877,14 +1897,57 @@ export class DeltaBuilder extends Delta {
          * - insert: split curr op and insert retain
          */
         if ($retainOp.check(otherChild) || $modifyOp.check(otherChild)) {
+          // Format reconciliation. priority=true is a no-op (currChild's format
+          // wins). For !priority, currChild concedes any format key that
+          // otherChild also writes — but only over the [currOffset..currOffset+
+          // maxCommonLen] overlap. Split currChild around the overlap so the
+          // prefix/suffix keep their original format and only the middle piece
+          // carries the stripped format.
+          if (
+            !priority &&
+            $retainOp.check(currChild) &&
+            currChild.format != null &&
+            otherChild.format != null
+          ) {
+            /** @type {FormattingAttributes} */
+            const stripped = {}
+            let strippedAny = false
+            for (const k in currChild.format) {
+              if (k in otherChild.format) {
+                strippedAny = true
+              } else {
+                stripped[k] = currChild.format[k]
+              }
+            }
+            if (strippedAny) {
+              // split off the suffix [currOffset+maxCommonLen..length] if any
+              if (currOffset + maxCommonLen < currChild.length) {
+                const suffix = currChild.clone(currOffset + maxCommonLen, currChild.length)
+                list.insertBetween(this.children, currChild, currChild.next, suffix)
+                currChild._splice(currOffset + maxCommonLen, currChild.length - (currOffset + maxCommonLen))
+              }
+              // split off the prefix [0..currOffset] if any
+              if (currOffset > 0) {
+                const prefix = currChild.clone(0, currOffset)
+                list.insertBetween(this.children, currChild.prev, currChild, prefix)
+                currChild._splice(0, currOffset)
+                currOffset = 0
+              }
+              // currChild now spans exactly the overlap. Replace its format.
+              /** @type {any} */ (currChild).format = object.isEmpty(stripped) ? null : stripped
+              currChild._fingerprint = null
+            }
+          }
           currOffset += maxCommonLen
           otherOffset += maxCommonLen
         } else if ($deleteOp.check(otherChild)) {
           if ($retainOp.check(currChild)) {
             // @ts-ignore
             currChild.retain -= maxCommonLen
+            currChild._fingerprint = null
           } else if ($deleteOp.check(currChild)) {
             currChild.delete -= maxCommonLen
+            currChild._fingerprint = null
           }
           this.childCnt -= maxCommonLen
           // advance other so subsequent currChild ops see what comes AFTER this
