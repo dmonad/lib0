@@ -89,9 +89,17 @@ const server = http.createServer((req, res) => {
 server.listen(port, host, () => {
   logging.print(logging.BOLD, logging.ORANGE, `Server is running on http://${host}:${port}`)
   if (paramOpenFile) {
-    const start = debugBrowser || (process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open')
+    const url = `http://${host}:${port}/${paramOpenFile}`
     import('child_process').then(cp => {
-      cp.exec(`${start} http://${host}:${port}/${paramOpenFile}`)
+      if (debugBrowser) {
+        cp.execFile(debugBrowser, [url])
+      } else if (process.platform === 'darwin') {
+        cp.execFile('open', [url])
+      } else if (process.platform === 'win32') {
+        cp.execFile('cmd', ['/c', 'start', '', url])
+      } else {
+        cp.execFile('xdg-open', [url])
+      }
     })
   }
 })
