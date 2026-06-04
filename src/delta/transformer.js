@@ -213,12 +213,24 @@ export const $transformer = transformerWith(s.$any, s.$any)
 
 /**
  * Apply each Template to a NormalizedDeltaConf - must mirror the semantics of ApplyAttrRename /
- * ApplyExpectType. NC is always in normalized form, so all its props are inferred in a single
- * destructuring step per template. That inference also forces typescript to resolve the previous
- * step's result, so the accumulated conf stays flat - chaining deferred alias instantiations
- * instead (the conf of step k referencing the unevaluated conf of step k-1) hits typescript's
- * instantiation-depth limit (TS2589) after ~27 steps. The outer check is on TS alone, which
- * keeps the conditional resolvable when the conf is still generic.
+ * ApplyExpectType.
+ *
+ * This shape is tuned to stay below typescript's instantiation-depth limit (TS2589) for long
+ * pipes (~85 templates via pipe().init(), measured). What we learned:
+ *
+ * - The per-step destructure of NC is the load-bearing part: typescript resolves types lazily,
+ *   and member inference out of the literal that was passed as a type argument in the previous
+ *   step is what forces resolution of the accumulated conf. Without it (e.g. carrying the conf
+ *   props as individual type params), the attrs accumulate as a deferred PropsRename chain and
+ *   the limit hits at ~45 templates. Local annotations do NOT force resolution: `X & {}`,
+ *   `X extends infer N ? ...`, and an inline `{ attrs: X } extends { attrs: infer A } ? ...`
+ *   roundtrip were all measured to have no effect.
+ * - The recursion must carry a plain object literal. Wrapping the accumulator in a helper alias
+ *   (even a trivial one like NormalizedDeltaConf) defers per step and rebuilds the chain.
+ * - The outer check must be on TS alone. Coupling NC into the check type (e.g.
+ *   `[TS, NC] extends [[...], {...}]`) makes the conditional generic-deferred whenever the conf
+ *   is generic, which sends constraint comparisons (e.g. Pipe<TS> vs Pipe<any>) into infinite
+ *   recursion.
  *
  * @template {Array<Template>} TS
  * @template NC
