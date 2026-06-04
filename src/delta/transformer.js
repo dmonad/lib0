@@ -164,9 +164,85 @@ export const $transformer = transformerWith(s.$any, s.$any)
  */
 
 /**
+ * Marker for absent props in a NormalizedDeltaConf.
+ *
+ * @typedef {{ 'lib0:notset': true }} NotSet
+ */
+
+/**
+ * DeltaConf in normalized form: all props defined, absent props are set to NotSet.
+ *
+ * ApplyPipe iterates over this form (see ApplyPipeNorm).
+ *
+ * @template Name
+ * @template Attrs
+ * @template Children
+ * @template Text
+ * @template RecursiveChildren
+ * @template RecursiveAttrs
+ * @typedef {{ name: Name, attrs: Attrs, children: Children, text: Text, recursiveChildren: RecursiveChildren, recursiveAttrs: RecursiveAttrs }} NormalizedDeltaConf
+ */
+
+/**
+ * @template {delta.DeltaConf} C
+ * @typedef {NormalizedDeltaConf<
+ *   C extends { name: infer Name extends string } ? Name : NotSet,
+ *   C extends { attrs: infer Attrs extends {[K:string|number]:any} } ? Attrs : NotSet,
+ *   C extends { children: infer Children } ? Children : NotSet,
+ *   C extends { text: infer Text extends boolean } ? Text : NotSet,
+ *   C extends { recursiveChildren: infer RecursiveChildren extends boolean } ? RecursiveChildren : NotSet,
+ *   C extends { recursiveAttrs: infer RecursiveAttrs extends boolean } ? RecursiveAttrs : NotSet
+ * >} NormalizeDeltaConf
+ */
+
+/**
+ * Strip NotSet props from a NormalizedDeltaConf, producing a regular DeltaConf again.
+ *
+ * @template NC
+ * @typedef {{ [K in keyof NC as NC[K] extends NotSet ? never : K]: NC[K] } & {}} DenormalizeDeltaConf
+ */
+
+/**
+ * Intersect a prop of a Filter conf with the corresponding pipe conf prop. The prop is only kept
+ * if it is defined on both sides (mirrors ApplyExpectType).
+ *
+ * @template FilterProp
+ * @template PipeProp
+ * @typedef {FilterProp extends NotSet ? NotSet : PipeProp extends NotSet ? NotSet : FilterProp & PipeProp} FilterConfProp
+ */
+
+/**
+ * Apply each Template to a NormalizedDeltaConf - must mirror the semantics of ApplyAttrRename /
+ * ApplyExpectType. NC is always in normalized form, so all its props are inferred in a single
+ * destructuring step per template. That inference also forces typescript to resolve the previous
+ * step's result, so the accumulated conf stays flat - chaining deferred alias instantiations
+ * instead (the conf of step k referencing the unevaluated conf of step k-1) hits typescript's
+ * instantiation-depth limit (TS2589) after ~27 steps. The outer check is on TS alone, which
+ * keeps the conditional resolvable when the conf is still generic.
+ *
+ * @template {Array<Template>} TS
+ * @template NC
+ * @typedef {TS extends [infer FirstT extends Template, ...infer RestT extends Template[]]
+ *   ? (NC extends { name: infer Name, attrs: infer Attrs extends {[K:string|number]:any}, children: infer Children, text: infer Text, recursiveChildren: infer RecursiveChildren, recursiveAttrs: infer RecursiveAttrs }
+ *     ? ApplyPipeNorm<RestT,
+ *       FirstT extends AttrRename<infer Renames> ? { name: Name, attrs: import('../ts.js').PropsRename<Attrs extends NotSet ? {} : Attrs, Renames>, children: Children, text: Text, recursiveChildren: RecursiveChildren, recursiveAttrs: RecursiveAttrs } :
+ *       FirstT extends Filter<infer DConf extends delta.DeltaConf> ? (NormalizeDeltaConf<DConf> extends { name: infer FilterName, attrs: infer FilterAttrs, children: infer FilterChildren, text: infer FilterText, recursiveChildren: infer FilterRecursiveChildren, recursiveAttrs: infer FilterRecursiveAttrs } ? {
+ *         name: FilterConfProp<FilterName, Name>,
+ *         attrs: FilterAttrs extends NotSet ? NotSet : Attrs extends NotSet ? NotSet : import('../ts.js').PropsPickShared<FilterAttrs, Attrs>,
+ *         children: FilterConfProp<FilterChildren, Children>,
+ *         text: FilterConfProp<FilterText, Text>,
+ *         recursiveChildren: FilterConfProp<FilterRecursiveChildren, RecursiveChildren>,
+ *         recursiveAttrs: FilterConfProp<FilterRecursiveAttrs, RecursiveAttrs>
+ *       } : never) :
+ *       NC>
+ *     : NC)
+ *   : NC} ApplyPipeNorm
+ */
+
+/**
  * @template {Array<Template>} TS
  * @template {delta.DeltaConf} IN
- * @typedef {TS extends [infer FirstT extends Template, ...infer RestT extends Template[]] ? ApplyPipe<RestT,ApplyTemplate<FirstT,IN>> : IN } ApplyPipe
+ * @typedef {DenormalizeDeltaConf<ApplyPipeNorm<TS, NormalizeDeltaConf<IN>>>} ApplyPipe
  */
 
 /**
@@ -176,31 +252,16 @@ export const $transformer = transformerWith(s.$any, s.$any)
  */
 
 /**
- * @template IN
- * @typedef {IN extends infer OUT extends delta.DeltaConf ? OUT : never} EnsureDeltaConf
- */
-
-/**
- * @template {Template} T
- * @template {delta.DeltaConf} IN
- * @typedef {EnsureDeltaConf<
- *     T extends AttrRename<infer Renames> ? ApplyAttrRename<Renames,IN> :
- *     T extends Filter<infer DConf extends delta.DeltaConf> ? ApplyExpectType<DConf,IN> :
- *     IN
- * >} ApplyTemplate
- */
-
-/**
  * Flattens nested Pipe instances into a single flat Template array.
  * Since pipe() always produces flat Pipes, Inner is already flat and
  * only one level of unwrapping is needed per Pipe element.
+ * Tail-recursive with an accumulator so the instantiation depth stays constant.
  *
  * @template {Array<Template>} TS
+ * @template {Array<Template>} [Acc=[]]
  * @typedef {TS extends [infer F extends Template, ...infer R extends Template[]]
- *   ? F extends Pipe<infer Inner extends Template[]>
- *     ? [...Inner, ...FlattenTemplates<R>]
- *     : [F, ...FlattenTemplates<R>]
- *   : []} FlattenTemplates
+ *   ? FlattenTemplates<R, F extends Pipe<infer Inner extends Template[]> ? [...Acc, ...Inner] : [...Acc, F]>
+ *   : Acc} FlattenTemplates
  */
 
 /**
@@ -563,7 +624,7 @@ export class ProjectionTransformer extends Transformer {
 /**
  * @template {delta.DeltaConf} A
  * @template {delta.DeltaConf} B
- * @template {Pipe<Template[]>} PipeTemplate
+ * @template {Pipe<any>} PipeTemplate
  * @extends {Transformer<A,B>}
  */
 export class PipeTransformer extends Transformer {
@@ -576,7 +637,7 @@ export class PipeTransformer extends Transformer {
     /**
      * @type {Transformer<any,any>[]}
      */
-    this.ts = tpipe.templates.map(t => t.init(delta.$deltaAny))
+    this.ts = tpipe.templates.map((/** @type {Template} */ t) => t.init(delta.$deltaAny))
   }
 
   /**

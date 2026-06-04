@@ -15,7 +15,7 @@ export const testBasics = () => {
   t.assert(dt.transformerWith($d3, delta.$delta({ attrs: { a: s.$string } })).validate(i3))
   const i31 = r31.init($d3)
   t.assert(dt.transformerWith($d3, delta.$delta({ attrs: { b: s.$string } })).validate(i31))
-  const p12 = dt.pipe(r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1)
+  const p12 = dt.pipe(r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1, r2, r1)
   const $da = delta.$delta(/** @type {const} */ ({
     attrs: {
       a: s.$string
