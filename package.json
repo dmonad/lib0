@@ -69,6 +69,10 @@
       "types": "./dist/crypto/rsa-oaep.d.ts",
       "default": "./src/crypto/rsa-oaep.js"
     },
+    "./hash/fnv1a": {
+      "types": "./dist/hash/fnv1a.d.ts",
+      "default": "./src/hash/fnv1a.js"
+    },
     "./hash/rabin": {
       "types": "./dist/hash/rabin.d.ts",
       "default": "./src/hash/rabin.js"

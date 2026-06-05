@@ -2,6 +2,7 @@ import { runTests } from './testing.js'
 import * as array from './array.test.js'
 import * as broadcastchannel from './broadcastchannel.test.js'
 import * as crypto from './crypto.test.js'
+import * as fnv1a from './hash/fnv1a.test.js'
 import * as rabin from './hash/rabin.test.js'
 import * as sha256 from './hash/sha256.test.js'
 import * as logging from './logging.test.js'
@@ -56,6 +57,7 @@ runTests({
   array,
   broadcastchannel,
   crypto,
+  fnv1a,
   rabin,
   sha256,
   logging,
