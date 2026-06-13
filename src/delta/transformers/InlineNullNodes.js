@@ -87,45 +87,171 @@ const hasNullNodeChild = d => {
 }
 
 /**
- * Derive the segment layout (the "offsets and inline node length" state) from a settled structured
- * state. One level only: the children of a direct null node are counted via its `childCnt`, but a
- * null node nested deeper is just an opaque element of length 1.
+ * Net change in a parent's direct child count from applying a settled child-change delta: positions
+ * inserted minus positions deleted (retain/modify keep the count). Lets a null node's inlined length
+ * be kept current when a `modify` edits it, without re-deriving the node's children.
  *
  * @param {delta.DeltaAny} d
- * @return {Array<Seg>}
+ * @return {number}
  */
-const deriveSegs = d => {
-  /**
-   * @type {Array<Seg>}
-   */
-  const segs = []
-  /**
-   * @param {number} len
-   */
-  const pushPass = len => {
-    const last = segs[segs.length - 1]
-    if (last !== undefined && !last.isNull) {
-      last.structLen += len
-      last.inlineLen += len
-    } else {
-      segs.push(new Seg(false, len, len))
+const netLen = d => {
+  let n = 0
+  for (const op of d.children) {
+    if (delta.$insertOp.check(op) || delta.$textOp.check(op)) {
+      n += op.insert.length
+    } else if (delta.$deleteOp.check(op)) {
+      n -= op.delete
     }
   }
-  for (const op of d.children) {
-    if (delta.$insertOp.check(op)) {
-      for (const el of op.insert) {
-        if (isNullNode(el)) {
-          segs.push(new Seg(true, 1, /** @type {delta.DeltaAny} */ (el).childCnt))
+  return n
+}
+
+/**
+ * Apply a settled *structured* change to the segment layout `segs` in place, advancing it to the
+ * layout of the changed state without re-deriving the whole list. The cursor `(si, so)` is a
+ * structured position - seg index plus structural offset within that seg. The layout is kept
+ * coalesced (no two adjacent pass-through segs, no empty pass-through seg; every null node is its own
+ * length-1 seg, kept even when its inlined length is 0) so it stays identical to a from-scratch
+ * derivation of the settled state. One level only: a direct null node's length is `childCnt`; a null
+ * node nested deeper is an opaque element of length 1.
+ *
+ * @param {Array<Seg>} segs
+ * @param {delta.DeltaAny} change
+ */
+const applySegsChange = (segs, change) => {
+  let si = 0
+  let so = 0
+  // Move the cursor onto a seg boundary (so === 0), splitting the current pass-through seg if the
+  // cursor sits in its interior. A null seg has structLen 1, so the cursor is never in its interior.
+  const ensureBoundary = () => {
+    if (so === 0) return
+    const s = segs[si]
+    segs.splice(si + 1, 0, new Seg(false, s.structLen - so, s.inlineLen - so))
+    s.structLen = so
+    s.inlineLen = so
+    si++
+    so = 0
+  }
+  for (const op of change.children) {
+    if (delta.$retainOp.check(op)) {
+      // formats on a retain never change the layout - just advance the cursor
+      let rem = op.retain
+      while (rem > 0 && si < segs.length) {
+        const room = segs[si].structLen - so
+        if (rem < room) {
+          so += rem
+          rem = 0
         } else {
-          pushPass(1)
+          rem -= room
+          si++
+          so = 0
         }
       }
-    } else if (delta.$textOp.check(op)) {
-      pushPass(op.insert.length)
+    } else if (delta.$textOp.check(op) || delta.$insertOp.check(op)) {
+      // Build the inserted layout: a text op is one pass-through run; an insert op is a mix of
+      // length-1 null segs and pass-through runs that coalesce the opaque (named) elements.
+      /** @type {Array<Seg>} */
+      const ins = []
+      if (delta.$textOp.check(op)) {
+        ins.push(new Seg(false, op.insert.length, op.insert.length))
+      } else {
+        for (const el of op.insert) {
+          const last = ins[ins.length - 1]
+          if (isNullNode(el)) {
+            ins.push(new Seg(true, 1, /** @type {delta.DeltaAny} */ (el).childCnt))
+          } else if (last !== undefined && !last.isNull) {
+            last.structLen++
+            last.inlineLen++
+          } else {
+            ins.push(new Seg(false, 1, 1))
+          }
+        }
+      }
+      if (ins.length === 1 && !ins[0].isNull) {
+        // fast path - pure pass-through content grows an adjacent run (no split); the common case
+        const len = ins[0].structLen
+        if (so > 0) {
+          segs[si].structLen += len
+          segs[si].inlineLen += len
+          so += len
+        } else if (si > 0 && !segs[si - 1].isNull) {
+          segs[si - 1].structLen += len
+          segs[si - 1].inlineLen += len
+        } else if (si < segs.length && !segs[si].isNull) {
+          segs[si].structLen += len
+          segs[si].inlineLen += len
+          so = len
+        } else {
+          segs.splice(si, 0, ins[0])
+          si++
+        }
+      } else {
+        // general case (the content contains a null node): land on a boundary, then coalesce the
+        // block's pass-through ends into the surrounding runs
+        ensureBoundary()
+        let block = ins
+        if (si > 0 && !segs[si - 1].isNull && !block[0].isNull) {
+          segs[si - 1].structLen += block[0].structLen
+          segs[si - 1].inlineLen += block[0].inlineLen
+          block = block.slice(1)
+        }
+        let tail = 0
+        if (si < segs.length && !segs[si].isNull && block.length > 0 && !block[block.length - 1].isNull) {
+          const lastSeg = block[block.length - 1]
+          tail = lastSeg.structLen
+          segs[si].structLen += lastSeg.structLen
+          segs[si].inlineLen += lastSeg.inlineLen
+          block = block.slice(0, -1)
+        }
+        segs.splice(si, 0, ...block)
+        si += block.length
+        so = tail
+      }
+    } else if (delta.$deleteOp.check(op)) {
+      ensureBoundary()
+      let rem = op.delete
+      while (rem > 0 && si < segs.length) {
+        const s = segs[si]
+        if (s.isNull) {
+          // the single structured position is the whole null node
+          segs.splice(si, 1)
+          rem -= 1
+        } else {
+          const take = math.min(s.structLen, rem)
+          s.structLen -= take
+          s.inlineLen -= take
+          rem -= take
+          if (s.structLen === 0) segs.splice(si, 1)
+          // a partial delete leaves rem 0 and the shortened seg in place
+        }
+      }
+      // a deletion can bring two pass-through runs together - coalesce, keeping the cursor on the seam
+      if (si > 0 && si < segs.length && !segs[si - 1].isNull && !segs[si].isNull) {
+        const leftLen = segs[si - 1].structLen
+        segs[si - 1].structLen += segs[si].structLen
+        segs[si - 1].inlineLen += segs[si].inlineLen
+        segs.splice(si, 1)
+        si--
+        so = leftLen
+      }
+    } else if (delta.$modifyOp.check(op)) {
+      if (si < segs.length) {
+        const s = segs[si]
+        if (so === 0 && s.isNull) {
+          // editing inside a null node changes only its inlined length
+          s.inlineLen += netLen(op.value)
+          si++
+        } else {
+          // an opaque (named) node - no layout change; step over its single structured position
+          so++
+          if (so >= s.structLen) {
+            si++
+            so = 0
+          }
+        }
+      }
     }
-    // a settled state only contains insert/text ops; anything else is ignored defensively
   }
-  return segs
 }
 
 /**
@@ -156,9 +282,11 @@ const passThrough = src => {
  * (null nodes present, e.g. `<p>some<>text</></p>`), side B is the inlined representation (null
  * nodes flattened, e.g. `<p>sometext</p>`).
  *
- * The state the user calls "offsets and inline node length" is the segment layout, derived on each
- * apply from `aState` - a mirror of the structured side that is kept current by applying every
- * mapped change to it.
+ * The state the user calls "offsets and inline node length" is the segment layout {@link Seg} stored
+ * in `segs`: a coalesced run-length view of the structured side where each null node is one
+ * structured position expanding to `inlineLen` inlined positions, and every other position (root text
+ * and named/opaque nodes) is a pass-through run. It is kept current incrementally - every mapped
+ * change is folded into `segs` by {@link applySegsChange} rather than re-derived from scratch.
  *
  * @extends {Transformer<any,any>}
  */
@@ -166,13 +294,15 @@ export class InlineNullNodesTransformer extends Transformer {
   constructor () {
     super()
     /**
-     * @type {delta.DeltaBuilderAny}
+     * The segment layout of the structured side, maintained incrementally (see {@link applySegsChange}).
+     *
+     * @type {Array<Seg>}
      */
-    this.aState = delta.create()
+    this.segs = []
     /**
-     * Whether `aState` has ever contained a direct null node child - the cached value of
-     * `hasNullNodeChild(this.aState)`. Monotonic: once a change introduces a null node it stays set
-     * (even if that node is later deleted), which only costs a missed fast-path, never correctness.
+     * Whether the structured side has ever contained a direct null node child. Monotonic: once a
+     * change introduces a null node it stays set (even if that node is later deleted), which only
+     * costs a missed fast-path, never correctness.
      *
      * @type {boolean}
      */
@@ -188,11 +318,11 @@ export class InlineNullNodesTransformer extends Transformer {
     this.hasNullNode ||= hasNullNodeChild(da)
     if (!this.hasNullNode) {
       // fast-path: nothing to inline now or after this change - structured === inlined, so the
-      // change passes through unchanged. Keep the mirror current and hand back the same delta.
-      this.aState.apply(da)
+      // change passes through unchanged. Keep the layout current and hand back the same delta.
+      applySegsChange(this.segs, da)
       return createTransformResult(null, da)
     }
-    const segs = deriveSegs(this.aState)
+    const segs = this.segs
     const b = passThrough(da)
     let si = 0
     let so = 0
@@ -299,7 +429,7 @@ export class InlineNullNodesTransformer extends Transformer {
         }
       }
     }
-    this.aState.apply(da)
+    applySegsChange(this.segs, da)
     b.done(false)
     return createTransformResult(null, b)
   }
@@ -314,10 +444,10 @@ export class InlineNullNodesTransformer extends Transformer {
     if (!this.hasNullNode) {
       // fast-path: with no null nodes the inlined and structured coordinate spaces coincide, so the
       // inlined change is already the structured change.
-      this.aState.apply(db)
+      applySegsChange(this.segs, db)
       return createTransformResult(db, null)
     }
-    const segs = deriveSegs(this.aState)
+    const segs = this.segs
     const a = passThrough(db)
     let si = 0
     let so = 0
@@ -517,7 +647,7 @@ export class InlineNullNodesTransformer extends Transformer {
       }
     }
     flushModify()
-    this.aState.apply(a)
+    applySegsChange(this.segs, a)
     a.done(false)
     return createTransformResult(a, null)
   }

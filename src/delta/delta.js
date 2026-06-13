@@ -2524,7 +2524,7 @@ class _DiffStringWrapper {
  * @param {DiffOptions} [options]
  * @return {Delta<Conf>}
  */
-export const diff = (d1, d2, options) => {
+export const diff = (d1, d2, options = {}) => {
   const d = create(d1.name === d2.name ? d1.name : null, $deltaAny)
   const compare = options?.compare ?? defaultCompare
   if (d1.fingerprint !== d2.fingerprint) {
@@ -2738,7 +2738,7 @@ const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(
  * @param {DeltaBuilderAny} d
  * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
  * @param {(d1: DeltaAny, d2: DeltaAny) => boolean} compare
- * @param {DiffOptions & { compare: (d1: DeltaAny, d2: DeltaAny) => boolean }} options
+ * @param {DiffOptions} options
  */
 const applyChangesetToDelta = (d, changeset, compare, options) => {
   for (let ci = 0, lastIndex = 0; ci < changeset.length; ci++) {
