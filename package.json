@@ -61,9 +61,9 @@
       "types": "./dist/delta/transformer.d.ts",
       "default": "./src/delta/transformer.js"
     },
-    "./delta/transformers/InlineNullNodes": {
-      "types": "./dist/delta/transformers/InlineNullNodes.d.ts",
-      "default": "./src/delta/transformers/InlineNullNodes.js"
+    "./delta/transformers/inline": {
+      "types": "./dist/delta/transformers/inline.d.ts",
+      "default": "./src/delta/transformers/inline.js"
     },
     "./delta/transformers/id": {
       "types": "./dist/delta/transformers/id.d.ts",

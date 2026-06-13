@@ -13,7 +13,7 @@
  * - {@link pipe} — chain templates
  * - {@link query} — project a single attribute into a `lib0:value` node
  * - {@link projection} — project onto a fixed node shape
- * - {@link inlineNullNodes} — inline anonymous ("null") child nodes
+ * - {@link inline} — inline child nodes whose name is in a configured set
  *
  * @module delta/transformer
  */
@@ -25,7 +25,7 @@ export * from './transformers/filter.js'
 export * from './transformers/pipe.js'
 export * from './transformers/query.js'
 export * from './transformers/projection.js'
-export * from './transformers/InlineNullNodes.js'
+export * from './transformers/inline.js'
 
 /**
  * Re-exported here so `import('./transformer.js').Template` keeps working for consumers that import

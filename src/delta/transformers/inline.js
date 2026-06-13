@@ -7,79 +7,50 @@ import { Transformer, createTransformResult } from './core.js'
  */
 
 /**
- * Replace each null-node child (a child delta with no `name`) by its own children; keep named-node
- * children. One level only - a null node nested inside another stays a node.
- *
- * @template Children
- * @typedef {Children extends delta.Delta<infer C extends delta.DeltaConf>
- *   ? (C extends { name: string } ? Children : delta.DeltaConfGetChildren<C>)
- *   : Children} InlineNullChildren
- */
-
-/**
- * `true` if any null-node child of `IN` allows text - inlining merges that text into the parent.
- *
- * @template {delta.DeltaConf} IN
- * @typedef {(delta.DeltaConfGetChildren<IN> extends delta.Delta<infer C extends delta.DeltaConf>
- *   ? (C extends { name: string } ? never : (delta.DeltaConfGetText<C> extends string ? true : never))
- *   : never) extends never ? false : true} NullChildHasText
- */
-
-/**
- * Output conf of inlining null nodes: every null node's children (and text) are merged into the
- * parent and the null wrapper is dropped; name, attrs and named-node children are unchanged. One
- * level only. `any` in yields `any` out (via DeltaConfOverwrite's TypeIsAny short-circuit).
- *
- * @template {delta.DeltaConf} IN
- * @typedef {import('../../ts.js').TypeIsAny<IN, any, delta.DeltaConfOverwrite<IN,
- *   { children: InlineNullChildren<delta.DeltaConfGetChildren<IN>> }
- *   & (NullChildHasText<IN> extends true ? { text: true } : {})
- * >>} ApplyInlineNullNodes
- */
-
-/**
- * One entry of the segment layout maintained by InlineNullNodesTransformer. A segment is either a
- * coalesced run of pass-through positions (root text + opaque/named nodes - same length in both
- * coordinate spaces) or a single null node (1 structured position that expands to `inlineLen`
+ * One entry of the segment layout maintained by {@link InlineTransformer}. A segment is either a
+ * coalesced run of pass-through positions (root text + opaque non-inlined nodes - same length in both
+ * coordinate spaces) or a single inline node (1 structured position that expands to `inlineLen`
  * inlined positions).
  */
 class Seg {
   /**
-   * @param {boolean} isNull
+   * @param {boolean} isInline whether this seg is an inline node (its children are spliced into the parent)
    * @param {number} structLen
    * @param {number} inlineLen
    */
-  constructor (isNull, structLen, inlineLen) {
-    this.isNull = isNull
+  constructor (isInline, structLen, inlineLen) {
+    this.isInline = isInline
     this.structLen = structLen
     this.inlineLen = inlineLen
   }
 }
 
 /**
- * A "null node" is an anonymous/typeless child node (`name === null`) that gets inlined into its
- * parent's child sequence.
+ * Whether `el` is a child node that should be inlined - i.e. a node delta whose `name` is in the
+ * configured `names` set (use `null` to select anonymous/typeless nodes).
  *
  * @param {any} el
+ * @param {Array<string|null>} names
  * @return {boolean}
  */
-const isNullNode = el => delta.$deltaAny.check(el) && el.name === null
+const isInlineNode = (el, names) => delta.$deltaAny.check(el) && names.includes(el.name)
 
 /**
- * Whether any direct child of `d` is a null node - the only thing this transformer inlines. Called
- * on each incoming change to feed the cached {@link InlineNullNodesTransformer#hasNullNode} flag,
- * which drives the fast-path: while no null node has ever appeared, the structured and inlined
- * representations are identical and a change is its own transform. A null node nested inside a named
- * node is opaque (one level) and intentionally not counted.
+ * Whether any direct child of `d` is an inline node - the only thing this transformer inlines. Called
+ * on each incoming change to feed the cached {@link InlineTransformer#hasInline} flag, which drives
+ * the fast-path: while no inline node has ever appeared, the structured and inlined representations
+ * are identical and a change is its own transform. An inline node nested inside a non-inlined node is
+ * opaque (one level) and intentionally not counted.
  *
  * @param {delta.DeltaAny} d
+ * @param {Array<string|null>} names
  * @return {boolean}
  */
-const hasNullNodeChild = d => {
+const hasInlineChild = (d, names) => {
   for (const op of d.children) {
     if (delta.$insertOp.check(op)) {
       for (const el of op.insert) {
-        if (isNullNode(el)) return true
+        if (isInlineNode(el, names)) return true
       }
     }
   }
@@ -88,8 +59,8 @@ const hasNullNodeChild = d => {
 
 /**
  * Net change in a parent's direct child count from applying a settled child-change delta: positions
- * inserted minus positions deleted (retain/modify keep the count). Lets a null node's inlined length
- * be kept current when a `modify` edits it, without re-deriving the node's children.
+ * inserted minus positions deleted (retain/modify keep the count). Lets an inline node's inlined
+ * length be kept current when a `modify` edits it, without re-deriving the node's children.
  *
  * @param {delta.DeltaAny} d
  * @return {number}
@@ -110,15 +81,16 @@ const netLen = d => {
  * Apply a settled *structured* change to the segment layout `segs` in place, advancing it to the
  * layout of the changed state without re-deriving the whole list. The cursor `(si, so)` is a
  * structured position - seg index plus structural offset within that seg. The layout is kept
- * coalesced (no two adjacent pass-through segs, no empty pass-through seg; every null node is its own
- * length-1 seg, kept even when its inlined length is 0) so it stays identical to a from-scratch
- * derivation of the settled state. One level only: a direct null node's length is `childCnt`; a null
- * node nested deeper is an opaque element of length 1.
+ * coalesced (no two adjacent pass-through segs, no empty pass-through seg; every inline node is its
+ * own length-1 seg, kept even when its inlined length is 0) so it stays identical to a from-scratch
+ * derivation of the settled state. One level only: a direct inline node's length is `childCnt`; an
+ * inline node nested deeper is an opaque element of length 1.
  *
  * @param {Array<Seg>} segs
  * @param {delta.DeltaAny} change
+ * @param {Array<string|null>} names the node names that are inlined (see {@link isInlineNode})
  */
-const applySegsChange = (segs, change) => {
+const applySegsChange = (segs, change, names) => {
   let si = 0
   let so = 0
   // Move the cursor onto a seg boundary (so === 0), splitting the current pass-through seg if the
@@ -157,9 +129,9 @@ const applySegsChange = (segs, change) => {
       } else {
         for (const el of op.insert) {
           const last = ins[ins.length - 1]
-          if (isNullNode(el)) {
+          if (isInlineNode(el, names)) {
             ins.push(new Seg(true, 1, /** @type {delta.DeltaAny} */ (el).childCnt))
-          } else if (last !== undefined && !last.isNull) {
+          } else if (last !== undefined && !last.isInline) {
             last.structLen++
             last.inlineLen++
           } else {
@@ -167,17 +139,17 @@ const applySegsChange = (segs, change) => {
           }
         }
       }
-      if (ins.length === 1 && !ins[0].isNull) {
+      if (ins.length === 1 && !ins[0].isInline) {
         // fast path - pure pass-through content grows an adjacent run (no split); the common case
         const len = ins[0].structLen
         if (so > 0) {
           segs[si].structLen += len
           segs[si].inlineLen += len
           so += len
-        } else if (si > 0 && !segs[si - 1].isNull) {
+        } else if (si > 0 && !segs[si - 1].isInline) {
           segs[si - 1].structLen += len
           segs[si - 1].inlineLen += len
-        } else if (si < segs.length && !segs[si].isNull) {
+        } else if (si < segs.length && !segs[si].isInline) {
           segs[si].structLen += len
           segs[si].inlineLen += len
           so = len
@@ -186,17 +158,17 @@ const applySegsChange = (segs, change) => {
           si++
         }
       } else {
-        // general case (the content contains a null node): land on a boundary, then coalesce the
+        // general case (the content contains an inline node): land on a boundary, then coalesce the
         // block's pass-through ends into the surrounding runs
         ensureBoundary()
         let block = ins
-        if (si > 0 && !segs[si - 1].isNull && !block[0].isNull) {
+        if (si > 0 && !segs[si - 1].isInline && !block[0].isInline) {
           segs[si - 1].structLen += block[0].structLen
           segs[si - 1].inlineLen += block[0].inlineLen
           block = block.slice(1)
         }
         let tail = 0
-        if (si < segs.length && !segs[si].isNull && block.length > 0 && !block[block.length - 1].isNull) {
+        if (si < segs.length && !segs[si].isInline && block.length > 0 && !block[block.length - 1].isInline) {
           const lastSeg = block[block.length - 1]
           tail = lastSeg.structLen
           segs[si].structLen += lastSeg.structLen
@@ -212,8 +184,8 @@ const applySegsChange = (segs, change) => {
       let rem = op.delete
       while (rem > 0 && si < segs.length) {
         const s = segs[si]
-        if (s.isNull) {
-          // the single structured position is the whole null node
+        if (s.isInline) {
+          // the single structured position is the whole inline node
           segs.splice(si, 1)
           rem -= 1
         } else {
@@ -226,7 +198,7 @@ const applySegsChange = (segs, change) => {
         }
       }
       // a deletion can bring two pass-through runs together - coalesce, keeping the cursor on the seam
-      if (si > 0 && si < segs.length && !segs[si - 1].isNull && !segs[si].isNull) {
+      if (si > 0 && si < segs.length && !segs[si - 1].isInline && !segs[si].isInline) {
         const leftLen = segs[si - 1].structLen
         segs[si - 1].structLen += segs[si].structLen
         segs[si - 1].inlineLen += segs[si].inlineLen
@@ -237,8 +209,8 @@ const applySegsChange = (segs, change) => {
     } else if (delta.$modifyOp.check(op)) {
       if (si < segs.length) {
         const s = segs[si]
-        if (so === 0 && s.isNull) {
-          // editing inside a null node changes only its inlined length
+        if (so === 0 && s.isInline) {
+          // editing inside an inline node changes only its inlined length
           s.inlineLen += netLen(op.value)
           si++
         } else {
@@ -278,21 +250,28 @@ const passThrough = src => {
 }
 
 /**
- * Stateful transformer that inlines null-type child nodes. Side A is the structured representation
- * (null nodes present, e.g. `<p>some<>text</></p>`), side B is the inlined representation (null
- * nodes flattened, e.g. `<p>sometext</p>`).
+ * Stateful transformer that inlines child nodes whose name is in the configured `names` set. Side A
+ * is the structured representation (inline nodes present, e.g. `<p>some<>text</></p>`), side B is the
+ * inlined representation (inline nodes flattened, e.g. `<p>sometext</p>`).
  *
  * The state the user calls "offsets and inline node length" is the segment layout {@link Seg} stored
- * in `segs`: a coalesced run-length view of the structured side where each null node is one
+ * in `segs`: a coalesced run-length view of the structured side where each inline node is one
  * structured position expanding to `inlineLen` inlined positions, and every other position (root text
- * and named/opaque nodes) is a pass-through run. It is kept current incrementally - every mapped
+ * and opaque non-inlined nodes) is a pass-through run. It is kept current incrementally - every mapped
  * change is folded into `segs` by {@link applySegsChange} rather than re-derived from scratch.
  *
  * @extends {Transformer<any,any>}
  */
-export class InlineNullNodesTransformer extends Transformer {
-  constructor () {
+export class InlineTransformer extends Transformer {
+  /**
+   * @param {Array<string|null>} names the node names to inline (`null` selects anonymous nodes)
+   */
+  constructor (names) {
     super()
+    /**
+     * @type {Array<string|null>}
+     */
+    this.names = names
     /**
      * The segment layout of the structured side, maintained incrementally (see {@link applySegsChange}).
      *
@@ -300,13 +279,13 @@ export class InlineNullNodesTransformer extends Transformer {
      */
     this.segs = []
     /**
-     * Whether the structured side has ever contained a direct null node child. Monotonic: once a
-     * change introduces a null node it stays set (even if that node is later deleted), which only
+     * Whether the structured side has ever contained a direct inline-node child. Monotonic: once a
+     * change introduces an inline node it stays set (even if that node is later deleted), which only
      * costs a missed fast-path, never correctness.
      *
      * @type {boolean}
      */
-    this.hasNullNode = false
+    this.hasInline = false
   }
 
   /**
@@ -315,11 +294,11 @@ export class InlineNullNodesTransformer extends Transformer {
    * @param {delta.DeltaBuilderAny} da
    */
   applyA (da) {
-    this.hasNullNode ||= hasNullNodeChild(da)
-    if (!this.hasNullNode) {
+    this.hasInline ||= hasInlineChild(da, this.names)
+    if (!this.hasInline) {
       // fast-path: nothing to inline now or after this change - structured === inlined, so the
       // change passes through unchanged. Keep the layout current and hand back the same delta.
-      applySegsChange(this.segs, da)
+      applySegsChange(this.segs, da, this.names)
       return createTransformResult(null, da)
     }
     const segs = this.segs
@@ -348,7 +327,7 @@ export class InlineNullNodesTransformer extends Transformer {
       while (rem > 0 && si < segs.length) {
         const s = segs[si]
         const take = math.min(s.structLen - so, rem)
-        inl += s.isNull ? s.inlineLen : take
+        inl += s.isInline ? s.inlineLen : take
         so += take
         rem -= take
         if (so >= s.structLen) {
@@ -363,16 +342,16 @@ export class InlineNullNodesTransformer extends Transformer {
         if (op.format == null && op.attribution == null) {
           srcInline += advanceStruct(op.retain)
         } else {
-          // formatted retain: emit the format over the mapped inline range. A null node's wrapper has
-          // no inlined representation, so its format is dropped (consistent with the inliner); root
+          // formatted retain: emit the format over the mapped inline range. An inline node's wrapper
+          // has no inlined representation, so its format is dropped (consistent with the inliner); root
           // text and opaque nodes carry the format straight through.
           alignB(srcInline)
           let rem = op.retain
           while (rem > 0 && si < segs.length) {
             const s = segs[si]
             const take = math.min(s.structLen - so, rem)
-            const inl = s.isNull ? s.inlineLen : take
-            b.retain(inl, s.isNull ? null : op.format, s.isNull ? null : op.attribution)
+            const inl = s.isInline ? s.inlineLen : take
+            b.retain(inl, s.isInline ? null : op.format, s.isInline ? null : op.attribution)
             emitted += inl
             srcInline += inl
             so += take
@@ -386,8 +365,8 @@ export class InlineNullNodesTransformer extends Transformer {
       } else if (delta.$insertOp.check(op)) {
         alignB(srcInline)
         for (const el of op.insert) {
-          if (isNullNode(el)) {
-            // splice the null node's children verbatim (one level)
+          if (isInlineNode(el, this.names)) {
+            // splice the inline node's children verbatim (one level)
             b.append(/** @type {delta.DeltaAny} */ (el))
           } else {
             b.insert([el], op.format, op.attribution)
@@ -402,8 +381,8 @@ export class InlineNullNodesTransformer extends Transformer {
       } else if (delta.$modifyOp.check(op)) {
         const s = segs[si]
         alignB(srcInline)
-        if (s !== undefined && s.isNull) {
-          // data side edited inside a null node: its inner ops act on the node's children, which are
+        if (s !== undefined && s.isInline) {
+          // data side edited inside an inline node: its inner ops act on the node's children, which are
           // spliced into b at the same offset - replay them directly
           for (const inner of op.value.children) {
             if (delta.$retainOp.check(inner)) {
@@ -429,7 +408,7 @@ export class InlineNullNodesTransformer extends Transformer {
         }
       }
     }
-    applySegsChange(this.segs, da)
+    applySegsChange(this.segs, da, this.names)
     b.done(false)
     return createTransformResult(null, b)
   }
@@ -440,11 +419,11 @@ export class InlineNullNodesTransformer extends Transformer {
    * @param {delta.DeltaBuilderAny} db
    */
   applyB (db) {
-    this.hasNullNode ||= hasNullNodeChild(db)
-    if (!this.hasNullNode) {
-      // fast-path: with no null nodes the inlined and structured coordinate spaces coincide, so the
+    this.hasInline ||= hasInlineChild(db, this.names)
+    if (!this.hasInline) {
+      // fast-path: with no inline nodes the inlined and structured coordinate spaces coincide, so the
       // inlined change is already the structured change.
-      applySegsChange(this.segs, db)
+      applySegsChange(this.segs, db, this.names)
       return createTransformResult(db, null)
     }
     const segs = this.segs
@@ -453,8 +432,8 @@ export class InlineNullNodesTransformer extends Transformer {
     let so = 0
     let structBefore = 0
     let emittedStruct = 0
-    // An accumulator for edits that fall inside the current null node. Several inlined ops can
-    // target the same null node, so they must coalesce into a single `modify` op. `openSegIdx` is
+    // An accumulator for edits that fall inside the current inline node. Several inlined ops can
+    // target the same inline node, so they must coalesce into a single `modify` op. `openSegIdx` is
     // the seg index it belongs to, or -1 when there is no open modify.
     let openInner = /** @type {any} */ (delta.create())
     let openNodeStruct = 0
@@ -478,7 +457,7 @@ export class InlineNullNodesTransformer extends Transformer {
       }
     }
     /**
-     * @param {number} target inlined offset within the open null node
+     * @param {number} target inlined offset within the open inline node
      */
     const alignInner = target => {
       if (target > openInnerEmitted) {
@@ -495,11 +474,11 @@ export class InlineNullNodesTransformer extends Transformer {
       openInnerEmitted = 0
       openSegIdx = idx
     }
-    // empty null nodes (inlineLen 0) are zero-width in inlined coords - step over them. Only at a
+    // empty inline nodes (inlineLen 0) are zero-width in inlined coords - step over them. Only at a
     // seg boundary (so === 0); `so` does not change while skipping.
     const skipEmpty = () => {
       if (so !== 0) return
-      while (si < segs.length && segs[si].isNull && segs[si].inlineLen === 0) {
+      while (si < segs.length && segs[si].isInline && segs[si].inlineLen === 0) {
         structBefore += segs[si].structLen
         si++
       }
@@ -516,8 +495,8 @@ export class InlineNullNodesTransformer extends Transformer {
           const take = math.min(s.inlineLen - so, rem)
           if (fmt != null || attr != null) {
             // a formatted retain re-formats existing content: pass-through content takes it
-            // directly; content inside a null node is reached through a modify on that node.
-            if (!s.isNull) {
+            // directly; content inside an inline node is reached through a modify on that node.
+            if (!s.isInline) {
               flushModify()
               alignA(structBefore + so)
               a.retain(take, fmt, attr)
@@ -547,17 +526,17 @@ export class InlineNullNodesTransformer extends Transformer {
           flushModify()
           alignA(structBefore)
           a.insert(op.insert, op.format, op.attribution)
-        } else if (!s.isNull) {
+        } else if (!s.isInline) {
           flushModify()
           alignA(structBefore + so)
           a.insert(op.insert, op.format, op.attribution)
         } else if (so === 0) {
-          // boundary preference: an insert at the start of a null node lands in the root
+          // boundary preference: an insert at the start of an inline node lands in the root
           flushModify()
           alignA(structBefore)
           a.insert(op.insert, op.format, op.attribution)
         } else {
-          // strict interior: insert into the null node
+          // strict interior: insert into the inline node
           if (openSegIdx !== si) {
             flushModify()
             openModifyFor(si)
@@ -572,7 +551,7 @@ export class InlineNullNodesTransformer extends Transformer {
           skipEmpty()
           if (si >= segs.length) break
           const s = segs[si]
-          if (!s.isNull) {
+          if (!s.isInline) {
             const k = math.min(s.inlineLen - so, rem)
             flushModify()
             alignA(structBefore + so)
@@ -596,7 +575,7 @@ export class InlineNullNodesTransformer extends Transformer {
             si++
             so = 0
           } else {
-            // strict interior delete: remove inside the null node
+            // strict interior delete: remove inside the inline node
             const k = math.min(s.inlineLen - so, rem)
             if (openSegIdx !== si) {
               flushModify()
@@ -617,8 +596,8 @@ export class InlineNullNodesTransformer extends Transformer {
       } else if (delta.$modifyOp.check(op)) {
         skipEmpty()
         const s = segs[si]
-        if (s !== undefined && s.isNull) {
-          // modify targets an element inside the null node
+        if (s !== undefined && s.isInline) {
+          // modify targets an element inside the inline node
           if (openSegIdx !== si) {
             flushModify()
             openModifyFor(si)
@@ -647,32 +626,46 @@ export class InlineNullNodesTransformer extends Transformer {
       }
     }
     flushModify()
-    applySegsChange(this.segs, a)
+    applySegsChange(this.segs, a, this.names)
     a.done(false)
     return createTransformResult(a, null)
   }
 }
 
 /**
- * Template for {@link InlineNullNodesTransformer}.
+ * Template for {@link InlineTransformer}.
  *
  * @implements Template
  */
-export class InlineNullNodes {
+export class Inline {
+  /**
+   * @param {Array<string|null>} names the node names to inline (`null` selects anonymous nodes)
+   */
+  constructor (names) {
+    this.names = names
+  }
+
   get stateless () { return false }
 
   /**
+   * Typed loosely: the inlined output shape is not computed at compile time (it depends on the
+   * runtime `names`), so the B side is `any`.
+   *
    * @template {delta.DeltaConf} IN
    * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
-   * @return {Transformer<IN, ApplyInlineNullNodes<IN>>}
+   * @return {Transformer<IN, any>}
    */
   init (_$d) {
-    return new InlineNullNodesTransformer()
+    return new InlineTransformer(this.names)
   }
 }
 
 /**
- * Inline null-type child nodes (`<p>some<>text</></p>` <-> `<p>sometext</p>`). Stateful: the
- * returned template's `init()` yields a fresh {@link InlineNullNodesTransformer}.
+ * Inline child nodes whose name is in `names` by splicing each one's children into its parent (one
+ * level; e.g. with `[null]`: `<p>some<>text</></p>` <-> `<p>sometext</p>`). Use `null` for
+ * anonymous/typeless nodes, or a node name like `'b'`. Stateful: the returned template's `init()`
+ * yields a fresh {@link InlineTransformer}.
+ *
+ * @param {Array<string|null>} names
  */
-export const inlineNullNodes = () => new InlineNullNodes()
+export const inline = names => new Inline(names)
