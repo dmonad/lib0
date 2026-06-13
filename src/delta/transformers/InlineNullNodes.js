@@ -1,9 +1,9 @@
 import * as delta from '../delta.js'
 import * as math from '../../math.js'
-import { Transformer, createTransformResult } from '../transformer.js'
+import { Transformer, createTransformResult } from './core.js'
 
 /**
- * @typedef {import('../transformer.js').Template} Template
+ * @typedef {import('./core.js').Template} Template
  */
 
 /**

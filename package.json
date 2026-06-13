@@ -65,6 +65,30 @@
       "types": "./dist/delta/transformers/InlineNullNodes.d.ts",
       "default": "./src/delta/transformers/InlineNullNodes.js"
     },
+    "./delta/transformers/id": {
+      "types": "./dist/delta/transformers/id.d.ts",
+      "default": "./src/delta/transformers/id.js"
+    },
+    "./delta/transformers/rename": {
+      "types": "./dist/delta/transformers/rename.d.ts",
+      "default": "./src/delta/transformers/rename.js"
+    },
+    "./delta/transformers/filter": {
+      "types": "./dist/delta/transformers/filter.d.ts",
+      "default": "./src/delta/transformers/filter.js"
+    },
+    "./delta/transformers/pipe": {
+      "types": "./dist/delta/transformers/pipe.d.ts",
+      "default": "./src/delta/transformers/pipe.js"
+    },
+    "./delta/transformers/query": {
+      "types": "./dist/delta/transformers/query.d.ts",
+      "default": "./src/delta/transformers/query.js"
+    },
+    "./delta/transformers/projection": {
+      "types": "./dist/delta/transformers/projection.d.ts",
+      "default": "./src/delta/transformers/projection.js"
+    },
     "./delta/binding": {
       "types": "./dist/delta/binding.d.ts",
       "default": "./src/delta/binding.js"

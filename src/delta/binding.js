@@ -59,9 +59,9 @@ export class Binding {
   /**
    * @param {RDT<DeltaA>} a
    * @param {RDT<delta.DeltaAny>} b
-   * @param {dt.Template} [template] defaults to the {@link dt.identity identity} transformer
+   * @param {dt.Template} [template] defaults to the {@link dt.id identity} transformer
    */
-  constructor (a, b, template = dt.identity) {
+  constructor (a, b, template = dt.id) {
     /**
      * @type {dt.Transformer<any,any>}
      */
@@ -99,7 +99,7 @@ export class Binding {
 
 /**
  * Connect two RDTs through a transformer template. Changes on `a` are mapped onto `b` and vice versa.
- * Without a `template` the {@link dt.identity identity} transformer is used, keeping both sides equal.
+ * Without a `template` the {@link dt.id identity} transformer is used, keeping both sides equal.
  *
  * @template {delta.DeltaAny} DeltaA
  * @param {RDT<DeltaA>} a
