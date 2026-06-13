@@ -1017,7 +1017,10 @@ export const testDeltaApplyCases = () => {
     c().modify(c().insert('a')).apply(
       c().delete(2)
     ),
-    c().delete(1),
+    // a modify stands in for a retained source position, so deleting over it deletes that
+    // position too: modify(1) + delete(2) === delete(2) (not delete(1) - that dropped the
+    // modify's underlying position).
+    c().delete(2),
     'modify + delete'
   )
   t.compare(

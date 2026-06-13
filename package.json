@@ -61,6 +61,10 @@
       "types": "./dist/delta/transformer.d.ts",
       "default": "./src/delta/transformer.js"
     },
+    "./delta/transformers/InlineNullNodes": {
+      "types": "./dist/delta/transformers/InlineNullNodes.d.ts",
+      "default": "./src/delta/transformers/InlineNullNodes.js"
+    },
     "./crypto/ecdsa": {
       "types": "./dist/crypto/ecdsa.d.ts",
       "default": "./src/crypto/ecdsa.js"

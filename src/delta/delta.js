@@ -1683,7 +1683,18 @@ export class DeltaBuilder extends Delta {
             }
             insertClonedOp(new DeleteOp(delLen, null))
             remainingLen -= delLen
-          } else if (!$deleteOp.check(opsI)) { // insert / embed / modify ⇒ replace
+          } else if ($modifyOp.check(opsI)) { // modify ⇒ delete the source position it stands for
+            // a modify op addresses an underlying source position (retain + change), so deleting it
+            // must emit a DeleteOp for that position - exactly like the retain case above. (The
+            // insert/embed branch below instead just cancels the inserted content, because that
+            // content is new and has no source position to delete.)
+            this.childCnt -= 1
+            list.remove(this.children, opsI)
+            opsI = opNextUndeleted(opsI)
+            offset = 0
+            insertClonedOp(new DeleteOp(1, null))
+            remainingLen -= 1
+          } else if (!$deleteOp.check(opsI)) { // insert / embed ⇒ replace
             // case1: delete o fully
             // case2: delete some part of beginning
             // case3: delete some part of end
@@ -1747,6 +1758,8 @@ export class DeltaBuilder extends Delta {
           list.insertBetween(this.children, opsI.prev, opsI, insertModOp) // insert skipped len
           if (opsI.length === 1) {
             list.remove(this.children, opsI)
+            opsI = opNextUndeleted(opsI)
+            offset = 0
           } else {
             opsI._splice(0, 1)
             scheduleForMerge(opsI)
@@ -1852,7 +1865,7 @@ export class DeltaBuilder extends Delta {
          * - insert: transform based on priority
          * - retain/delete/modify: transform next op against other
          */
-        if ($insertOp.check(otherChild) || $modifyOp.check(otherChild) || $textOp.check(otherChild)) {
+        if ($insertOp.check(otherChild) || $textOp.check(otherChild)) {
           if (!priority) {
             list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
             this.childCnt += otherChild.length
@@ -2206,6 +2219,46 @@ export const mergeDeltas = (a, b) => {
 }
 
 /**
+ * The node (child delta) at child-position `pos` of `source`, or `null` when `pos` lands on a text
+ * run or a non-delta child. Lets {@link random} target an existing node with a `modify` op.
+ *
+ * @param {DeltaAny} source
+ * @param {number} pos
+ * @return {DeltaAny?}
+ */
+const childNodeAt = (source, pos) => {
+  let p = 0
+  for (const op of source.children) {
+    if ($textOp.check(op)) {
+      if (pos < p + op.insert.length) return null
+      p += op.insert.length
+    } else if ($insertOp.check(op)) {
+      for (const el of op.insert) {
+        if (p === pos) return $deltaAny.check(el) ? el : null
+        p++
+      }
+    }
+  }
+  /* c8 ignore start */
+  // the sole caller passes pos < source.childCnt (sourceLen >= 1), so a node or text run always
+  // resolves first; this guards an out-of-range pos defensively.
+  return null
+  /* c8 ignore stop */
+}
+
+/**
+ * "Find the child schema for this node": the `$Delta` schemas within `$children` (a single schema or
+ * any member of a union) that accept `node`. Only `$Delta` members can drive a recursive `random`
+ * modify, so non-delta children (numbers, strings, `$any`) and non-matching names are dropped.
+ *
+ * @param {s.Schema<any>} $children
+ * @param {DeltaAny} node
+ * @return {Array<s.Schema<DeltaAny>>}
+ */
+const matchingNodeSchemas = ($children, node) => (s.$$union.check($children) ? $children.shape : [$children])
+  .filter($c => $$delta.check($c) && $c.check(node))
+
+/**
  * @template {DeltaConf} Conf
  * @param {prng.PRNG} gen
  * @param {s.Schema<Delta<Conf>>} $d
@@ -2265,6 +2318,17 @@ export const random = (gen, $d, conf = {}) => {
           d.retain(len, s.random(gen, $formats))
         }
       })
+      // if the op we currently point at is a node, it's also a choice to modify it: find the child
+      // schema that matches the node and recursively generate a change against it.
+      const src = /** @type {DeltaAny} */ (source)
+      const node = childNodeAt(src, src.childCnt - sourceLen)
+      const $nodeMatches = node != null ? matchingNodeSchemas($children, node) : []
+      if ($nodeMatches.length > 0) {
+        possibleOps.push(() => {
+          d.modify(random(gen, prng.oneOf(gen, $nodeMatches), { source: node }))
+          sourceLen -= 1
+        })
+      }
     }
     if (possibleOps.length > 0) {
       prng.oneOf(gen, possibleOps)()

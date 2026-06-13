@@ -74,12 +74,15 @@ class TransformResult {
 export const $tresult = ($a, $b) => /** @type {any} */ (s.$instanceOf(TransformResult, tr => (tr.a === null || $a.check(tr.a)) && (tr.b === null || $b.check(tr.b))))
 
 /**
+ * Build a {@link TransformResult}. Exposed so transformers in `./transformers/` can construct their
+ * results.
+ *
  * @template {delta.DeltaBuilderAny} [DeltaA=delta.DeltaBuilderAny]
  * @template {delta.DeltaBuilderAny} [DeltaB=delta.DeltaBuilderAny]
  * @param {DeltaA?} a
  * @param {DeltaB?} b
  */
-const createTransformResult = (a, b) => new TransformResult(a, b)
+export const createTransformResult = (a, b) => new TransformResult(a, b)
 
 /**
  * @template {delta.DeltaConf} A
@@ -231,6 +234,10 @@ export const $transformer = transformerWith(s.$any, s.$any)
  *   `[TS, NC] extends [[...], {...}]`) makes the conditional generic-deferred whenever the conf
  *   is generic, which sends constraint comparisons (e.g. Pipe<TS> vs Pipe<any>) into infinite
  *   recursion.
+ * - Each dispatch branch costs instantiation depth. A conf-passthrough template (one whose output
+ *   conf equals its input conf, e.g. transformers/InlineNullNodes - see ApplyInlineNullNodes)
+ *   needs NO branch: it falls through to the trailing `NC` and composes correctly. Adding a branch
+ *   for it (even `FirstT extends X ? NC : ...`) deepens every step and lowers the ~85 ceiling.
  *
  * @template {Array<Template>} TS
  * @template NC
