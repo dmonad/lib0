@@ -669,3 +669,9 @@ export class Inline {
  * @param {Array<string|null>} names
  */
 export const inline = names => new Inline(names)
+
+/**
+ * Convenience {@link Inline} template that inlines anonymous ("null") child nodes
+ * (`<p>some<>text</></p>` <-> `<p>sometext</p>`) - i.e. `inline([null])`.
+ */
+export const inlineNullNodes = /* @__PURE__ */ inline([null])
