@@ -790,6 +790,62 @@ export const testDeltaDiff1 = () => {
 }
 
 /**
+ * `diff` decides child pairing via `options.compare`, which defaults to a name comparison. A
+ * stricter predicate (here: name AND first child must match) causes nodes that don't satisfy it to
+ * be replaced wholesale instead of paired into a `modify`.
+ */
+export const testDiffCompareGranularity = () => {
+  // pair only when name AND first child match
+  const compare = (/** @type {delta.DeltaAny} */ a, /** @type {delta.DeltaAny} */ b) =>
+    a.name === b.name && a.children.start?.fingerprint === b.children.start?.fingerprint
+
+  // two paragraphs share the name 'paragraph' but differ in their first child ('alpha' vs 'beta')
+  const stateA = delta.create().insert([delta.create('paragraph').insert('alpha').insert(' tail')])
+  const stateB = delta.create().insert([delta.create('paragraph').insert('beta').insert(' tail')])
+
+  // default: same name → paired → single modify op
+  const defaultDiff = delta.diff(stateA, stateB)
+  t.assert(delta.$modifyOp.check(defaultDiff.children.start), 'default compare pairs same-name children into a modify')
+  t.assert(delta.clone(stateA).apply(defaultDiff).equals(stateB), 'default diff roundtrips')
+
+  // strict: first children differ → not paired → wholesale replace (delete + insert)
+  const strictDiff = delta.diff(stateA, stateB, { compare })
+  t.assert(delta.$deleteOp.check(strictDiff.children.start), 'strict compare replaces wholesale → starts with a delete')
+  t.assert(delta.clone(stateA).apply(strictDiff).equals(stateB), 'strict diff roundtrips')
+  let hasModify = false
+  for (let op = strictDiff.children.start; op != null; op = op.next) { hasModify ||= delta.$modifyOp.check(op) }
+  t.assert(!hasModify, 'strict diff contains no modify op')
+}
+
+/**
+ * `compare` is forwarded to every child diff, so the chosen granularity applies all the way down
+ * the tree. Here the top-level rows pair under both predicates (same name AND same first child),
+ * but their grandchild cells share a name while differing in their first child — so only a forwarded
+ * `compare` can change the diff at that nested level.
+ */
+export const testDiffCompareForwardedToChildren = () => {
+  const compare = (/** @type {delta.DeltaAny} */ a, /** @type {delta.DeltaAny} */ b) =>
+    a.name === b.name && a.children.start?.fingerprint === b.children.start?.fingerprint
+
+  // rows: same name + same first child ('mark') → paired at the top level under either predicate.
+  // cells: same name 'cell' but first children differ ('x' vs 'y') → only strict `compare` replaces.
+  const stateA = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell').insert('x')])])
+  const stateB = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell').insert('y')])])
+
+  const defaultDiff = delta.diff(stateA, stateB)
+  const strictDiff = delta.diff(stateA, stateB, { compare })
+
+  // both roundtrip correctly...
+  t.assert(delta.clone(stateA).apply(defaultDiff).equals(stateB), 'default diff roundtrips')
+  t.assert(delta.clone(stateA).apply(strictDiff).equals(stateB), 'strict diff roundtrips')
+  // ...and both pair the rows at the top level (a modify op)...
+  t.assert(delta.$modifyOp.check(defaultDiff.children.start), 'default: top-level row paired')
+  t.assert(delta.$modifyOp.check(strictDiff.children.start), 'strict: top-level row still paired')
+  // ...but the diffs differ — proving `compare` reached the nested cell and changed its pairing.
+  t.assert(!strictDiff.equals(defaultDiff), 'forwarded compare changes the diff at the nested level')
+}
+
+/**
  * Minimal repro for `lib0/delta`'s `diff` losing node-level format
  * changes when it converts an `insert` into a `modify`.
  *

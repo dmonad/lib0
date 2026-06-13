@@ -2494,6 +2494,13 @@ class _DiffStringWrapper {
  */
 
 /**
+ * @typedef {object} DiffOptions
+ * @property {(d1: DeltaAny, d2: DeltaAny) => boolean} [compare] Predicate deciding when two nodes
+ * are paired into a `modify` (vs. replaced wholesale). Defaults to comparing names
+ * (`(d1, d2) => d1.name === d2.name`). Called as `compare(fromNode, toNode)`.
+ */
+
+/**
  * Compute a delta that, when applied to `d1`, produces `d2`. Only the children and attributes of
  * `d1` and `d2` are compared; the top-level node names of `d1` and `d2` are *not*. Diffing
  * `<div>a</div>` against `<span>a</span>` is valid and yields an empty diff — they have the same
@@ -2504,13 +2511,22 @@ class _DiffStringWrapper {
  * replaced wholesale (delete + insert), not converted into a `modify` op. Same-name child nodes
  * at aligned positions are paired and recursed into via `modify`.
  *
+ * Pairing is decided by `options.compare`, which defaults to comparing names
+ * (`(d1, d2) => d1.name === d2.name`). Supply a stricter predicate to tighten the granularity —
+ * e.g. to also require their first child to match — in which case nodes that don't satisfy it are
+ * replaced wholesale instead. `options` is forwarded to every child diff, so the chosen granularity
+ * applies consistently all the way down the tree. `compare` is always called as
+ * `compare(fromNode, toNode)` (the node from `d1` first).
+ *
  * @template {DeltaConf} Conf
  * @param {Delta<Conf>} d1
  * @param {NoInfer<Delta<Conf>>} d2
+ * @param {DiffOptions} [options]
  * @return {Delta<Conf>}
  */
-export const diff = (d1, d2) => {
+export const diff = (d1, d2, options) => {
   const d = create(d1.name === d2.name ? d1.name : null, $deltaAny)
+  const compare = options?.compare ?? defaultCompare
   if (d1.fingerprint !== d2.fingerprint) {
     /**
      * @type {ChildrenOpAny?}
@@ -2597,7 +2613,7 @@ export const diff = (d1, d2) => {
     const changeset3 = diffChangesetWithSeparator(changeset2, patience.smartSplitRegex)
     // split all
     const changeset4 = diffChangesetWithSeparator(changeset3, /./g)
-    applyChangesetToDelta(d, changeset4)
+    applyChangesetToDelta(d, changeset4, compare, options)
     if (formattingNeedsDiff) {
       const formattingDiff = create()
       // update opsIs with content diff. then we can figure out the formatting diff.
@@ -2665,8 +2681,8 @@ export const diff = (d1, d2) => {
         if ($setAttrOp.check(attr2)) {
           const prevVal = attr1?.value
           const nextVal = attr2.value
-          if ($deltaAny.check(prevVal) && $deltaAny.check(nextVal) && prevVal.name === nextVal.name) {
-            d.modifyAttr(key, diff(prevVal, nextVal))
+          if ($deltaAny.check(prevVal) && $deltaAny.check(nextVal) && compare(prevVal, nextVal)) {
+            d.modifyAttr(key, diff(prevVal, nextVal, options))
           } else {
             d.setAttr(key, nextVal)
           }
@@ -2686,6 +2702,15 @@ export const diff = (d1, d2) => {
   }
   return d.done(false)
 }
+
+/**
+ * Default pairing predicate for {@link diff}: two delta nodes are paired (and recursed into via
+ * `modify`) when their names match.
+ *
+ * @param {DeltaAny} d1
+ * @param {DeltaAny} d2
+ */
+const defaultCompare = (d1, d2) => d1.name === d2.name
 
 /**
  * @param {string|any} c
@@ -2712,8 +2737,10 @@ const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(
 /**
  * @param {DeltaBuilderAny} d
  * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
+ * @param {(d1: DeltaAny, d2: DeltaAny) => boolean} compare
+ * @param {DiffOptions & { compare: (d1: DeltaAny, d2: DeltaAny) => boolean }} options
  */
-const applyChangesetToDelta = (d, changeset) => {
+const applyChangesetToDelta = (d, changeset, compare, options) => {
   for (let ci = 0, lastIndex = 0; ci < changeset.length; ci++) {
     const c = changeset[ci]
     d.retain(c.index - lastIndex)
@@ -2724,14 +2751,14 @@ const applyChangesetToDelta = (d, changeset) => {
       const cremoveDeltaIndex = c.remove.findIndex(cc => $deltaAny.check(cc))
       if (cremoveDeltaIndex < 0) break
       const cremoveDelta = c.remove[cremoveDeltaIndex]
-      const cinsertDeltaIndex = c.insert.findIndex(cc => $deltaAny.check(cc) && cc.name === cremoveDelta.name)
+      const cinsertDeltaIndex = c.insert.findIndex(cc => $deltaAny.check(cc) && compare(cremoveDelta, cc))
       if (cinsertDeltaIndex < 0) {
         applyRemoves(d, c.remove, cremoveDeltaIndex + 1)
         continue
       }
       applyRemoves(d, c.remove, cremoveDeltaIndex)
       applyInserts(d, c.insert, cinsertDeltaIndex)
-      d.modify(diff(c.remove[0], c.insert[0]))
+      d.modify(diff(c.remove[0], c.insert[0], options))
       c.remove.splice(0, 1)
       c.insert.splice(0, 1)
     }
