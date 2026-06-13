@@ -49,14 +49,16 @@ class DeltaRDT extends ObservableV2 {
    *
    * @param {D} d
    */
-  applyDelta = d => d.isEmpty() || this._mux(() => {
-    if (this.state != null) {
-      this.state.apply(d)
-    } else {
-      this.state = delta.clone(d)
-    }
-    this.emit('delta', [d])
-  })
+  applyDelta (d) {
+    d.isEmpty() || this._mux(() => {
+      if (this.state != null) {
+        this.state.apply(d)
+      } else {
+        this.state = delta.clone(d)
+      }
+      this.emit('delta', [d])
+    })
+  }
 
   destroy () {
     this.emit('destroy', [this])

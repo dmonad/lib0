@@ -70,9 +70,13 @@ export class Binding {
     // mutable `DeltaBuilder` it consumes/produces, and the binding is generic over both sides; typing
     // the internal handles as `RDT<any>` lets changes pass through the transformer without unsound
     // cross-casts, while `bind`/the constructor keep precise public signatures.
-    /** @type {RDT<any>} */
+    /**
+     * @type {RDT<any>}
+     */
     this.a = a
-    /** @type {RDT<any>} */
+    /**
+     * @type {RDT<any>}
+     */
     this.b = b
     this._mux = mux.createMutex()
     this._achanged = this.a.on('delta', d => this._mux(() => {

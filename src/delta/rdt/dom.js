@@ -283,7 +283,7 @@ class DomRDT extends ObservableV2 {
   /**
    * @param {D} d
    */
-  applyDelta = d => {
+  applyDelta (d) {
     if (d.origin !== this) {
       // @todo the retrieved changes must be transformed against the updated changes. need a proper
       // transaction system
