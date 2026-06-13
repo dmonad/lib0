@@ -65,6 +65,18 @@
       "types": "./dist/delta/transformers/InlineNullNodes.d.ts",
       "default": "./src/delta/transformers/InlineNullNodes.js"
     },
+    "./delta/binding": {
+      "types": "./dist/delta/binding.d.ts",
+      "default": "./src/delta/binding.js"
+    },
+    "./delta/rdt/delta": {
+      "types": "./dist/delta/rdt/delta.d.ts",
+      "default": "./src/delta/rdt/delta.js"
+    },
+    "./delta/rdt/dom": {
+      "types": "./dist/delta/rdt/dom.d.ts",
+      "default": "./src/delta/rdt/dom.js"
+    },
     "./crypto/ecdsa": {
       "types": "./dist/crypto/ecdsa.d.ts",
       "default": "./src/crypto/ecdsa.js"
@@ -285,7 +297,7 @@
     "test:deno": "deno run -A src/test.js",
     "test-inspect": "node --inspect-brk --unhandled-rejections=strict ./src/test.js --repetition-time 50",
     "test-extensive": "node ./src/test.js --repetition-time 1000 --extensive",
-    "test:bundle": "esbuild bundle.test.js --bundle --outfile=dist/bundle.test.js --analyze --minify && wc -c dist/bundle.test.js",
+    "test:bundle": "esbuild src/bundle.test.js --bundle --outfile=dist/bundle.test.js --analyze --minify && wc -c dist/bundle.test.js",
     "trace-deopt": "clear && node --trace-deopt src/test.js",
     "trace-opt": "clear && node --trace-opt src/test.js",
     "lint": "tsc && standard && npx dpdm --exit-code circular:1 --warning false --tree false src/test.js",

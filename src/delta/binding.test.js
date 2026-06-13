@@ -1,96 +1,87 @@
-/* eslint-disable */
-// @ts-nocheck
 import * as t from '../testing.js'
-import * as Λ from './transformer.js'
-import * as Δ from './index.js'
-import * as binding from './binding.js'
-import * as env from '../environment.js'
-import * as dom from '../dom.js'
-import * as $ from '../schema.js'
+import * as delta from './delta.js'
+import * as dt from './transformer.js'
+import { bind } from './binding.js'
+import { deltaRDT } from './rdt/delta.js'
+import * as s from '../schema.js'
 
-export const testBinding = () => {
-  if (!env.isBrowser) t.skip()
-  const el = dom.element('div')
-  const domRDT = binding.domRDT(el)
-  const $deltaRDT = Δ.$node($.$literal('test'), $.$object({ x: $.$string, y: $.$string }), $.$any, { withText: true })
-  const deltaRDT = binding.deltaRDT($deltaRDT)
-  const template = Λ.node('div', { height: Λ.query('x')($deltaRDT) }, [])
-  const b = binding.bind(deltaRDT, domRDT, template)
-  deltaRDT.update(Δ.node('test'))
-  deltaRDT.update(Δ.node('test', { x: 'some val' }, 'hi there'))
-  console.log(b)
-  console.log('dom html content:', domRDT.observedNode.outerHTML)
-  console.log('delta rdt content:', deltaRDT.state?.toJSON())
-  console.log('delta rdt content:', deltaRDT.state)
+// ---------------------------------------------------------------------------
+// Binding
+//
+// These tests exercise the binding machinery (binding.js): a `Binding` routes
+// each side's changes through a transformer and feeds the result back, with a
+// mutex breaking the echo loop. `DeltaRDT` is used as the (DOM-free) vehicle on
+// both sides; the individual RDTs are tested in ./rdt/*.test.js.
+// ---------------------------------------------------------------------------
+
+/**
+ * `dt.rename({})` is the identity transformer: `applyA` maps a change verbatim
+ * onto the B side and `applyB` maps it back onto A, so a binding using it keeps
+ * both sides bit-for-bit equal.
+ */
+const identity = () => dt.rename(/** @type {const} */ ({}))
+
+export const testBindIdentity = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  bind(a, b, identity())
+  /** @type {Array<delta.DeltaAny>} */
+  const aChanges = []
+  /** @type {Array<delta.DeltaAny>} */
+  const bChanges = []
+  a.on('delta', d => aChanges.push(d))
+  b.on('delta', d => bChanges.push(d))
+  // a change on `a` is mirrored onto `b`
+  a.applyDelta(delta.create().setAttr('x', 'hello').insert('world'))
+  t.compare(a.state, b.state, 'states equal after a-side change')
+  t.compare(b.state, delta.create().setAttr('x', 'hello').insert('world'))
+  // the echo loop is broken: `a` sees its own change once, `b` sees it once
+  t.assert(aChanges.length === 1)
+  t.assert(bChanges.length === 1)
+  // a change on `b` is mirrored back onto `a`
+  b.applyDelta(delta.create().setAttr('x', 'again'))
+  t.compare(a.state, b.state, 'states equal after b-side change')
+  t.assert(aChanges.length === 2)
+  t.assert(bChanges.length === 2)
 }
 
-export const testDomBindingBasics = () => {
-  if (!env.isBrowser) t.skip()
-  const el = dom.element('div')
-  const domRDT = binding.domRDT(el)
-  const $deltaRDT = Δ.$node($.$literal('test'), $.$object({ x: $.$string }), $.$any, { withText: true })
-  const deltaRDT = binding.deltaRDT($deltaRDT)
-  const template = Λ.node('div', { height: Λ.query('x')($deltaRDT) }, [])
-  const b = binding.bind(deltaRDT, domRDT, template)
-  deltaRDT.update(Δ.node('test'))
-  deltaRDT.update(Δ.node('test', { x: 'xval' }, 'hi there'))
-  console.log(b)
-  console.log('dom html content:', domRDT.observedNode.outerHTML)
-  console.log('delta rdt content:', deltaRDT.state?.toJSON())
-  console.log('delta rdt content:', deltaRDT.state)
+export const testBindDefaultIdentity = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  // omitting the template defaults to the identity transformer
+  bind(a, b)
+  a.applyDelta(delta.create().setAttr('x', 'hi').insert('there'))
+  t.compare(a.state, b.state, 'states equal with default (identity) template')
+  t.compare(b.state, delta.create().setAttr('x', 'hi').insert('there'))
 }
 
-export const testDomBindingBackAndForth = () => {
-  if (!env.isBrowser) t.skip()
-  const $deltaRDT = binding.$domDelta
-  const el1 = dom.element('div')
-  const domRDT1 = binding.domRDT(el1)
-  const el2 = dom.element('div')
-  const domRDT2 = binding.domRDT(el2)
-  const deltaRDT1 = binding.deltaRDT($deltaRDT)
-  const deltaRDT2 = binding.deltaRDT($deltaRDT)
-  binding.bind(deltaRDT1, domRDT1, Λ.id($deltaRDT))
-  binding.bind(domRDT1, deltaRDT2, Λ.id($deltaRDT))
-  binding.bind(deltaRDT2, domRDT2, Λ.id($deltaRDT))
-
-  /**
-   * @param {string} description
-   * @param {() => void} f
-   */
-  const test = (description, f) =>
-    t.group(description, () => {
-      f()
-      t.compare(el1.outerHTML, el2.outerHTML, 'dom nodes match')
-      t.compare(deltaRDT1.state, deltaRDT2.state, 'generated deltas match')
-    })
-  test('insert paragraph', () => {
-    deltaRDT1.update(Δ.node('div', { id: '43' }, [Δ.node('p', {}, 'text')]))
-  })
-  test('modify paragraph attr & paragraph content', () => {
-    // @todo fix typings below
-    deltaRDT1.update(Δ.node('div', { id: '42' }, Δ.array(binding.$domDelta).modify(/** @type {never} */ (Δ.node('p', {}, 'new text & old ')))))
-  })
-  console.log('el1', el1.outerHTML)
-  console.log('el2', el2.outerHTML)
-  console.log('d1', deltaRDT1.state?.toJSON())
-  console.log('d2', deltaRDT2.state?.toJSON())
+export const testBindRename = () => {
+  const $a = delta.$delta({ attrs: { a: s.$string } })
+  const $b = delta.$delta({ attrs: { b: s.$string } })
+  const a = deltaRDT($a)
+  const b = deltaRDT($b)
+  // a -> b renames attr `a` to `b`; the binding maps changes both ways
+  bind(a, b, dt.rename(/** @type {const} */ ({ a: 'b' })))
+  a.applyDelta(delta.create().setAttr('a', 'x'))
+  t.compare(a.state, delta.create().setAttr('a', 'x'))
+  t.compare(b.state, delta.create().setAttr('b', 'x'), 'attr renamed a->b')
+  // a change on the b side maps back to the a side (b -> a renames `b` to `a`)
+  b.applyDelta(delta.create().setAttr('b', 'y'))
+  t.compare(b.state, delta.create().setAttr('b', 'y'))
+  t.compare(a.state, delta.create().setAttr('a', 'y'), 'attr renamed b->a')
 }
 
-export const testDataToDom = () => {
-  if (!env.isBrowser) t.skip()
-  const $data = Δ.$node($.$literal('data'), $.$object({ version: $.$number, description: $.$string }), $.$any, { withText: true })
-  const Λdata = Λ.transform($data, $d => Λ.node('h1', Λ.map({ bold: 'true', content: Λ.query('description')($d) }), []))
-  const dataRDT = binding.deltaRDT($data)
-  const domRDT = binding.domRDT(dom.element('div'))
-  binding.bind(dataRDT, domRDT, Λdata($data))
-  dataRDT.update(Δ.node('data', { version: 42, description: 'good description' }))
-  console.log('el1', domRDT.observedNode.outerHTML)
-  console.log('d1', dataRDT.state?.toJSON())
-  domRDT.update(Δ.node('h1', { content: 'new description' }))
-  console.log('el1', domRDT.observedNode.outerHTML)
-  console.log('d1', dataRDT.state?.toJSON())
-  t.compare(
-    dataRDT.state,
-    Δ.node('data', { version: 42, description: 'new description' })
-  )
+export const testBindDestroy = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string } })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  bind(a, b, identity())
+  // destroying one side tears the binding down (it listens for 'destroy')
+  a.destroy()
+  // further changes on the surviving side are no longer propagated
+  b.applyDelta(delta.create().setAttr('x', 'orphan'))
+  t.compare(b.state, delta.create().setAttr('x', 'orphan'))
+  t.assert(a.state === null, 'destroyed side received no further updates')
 }

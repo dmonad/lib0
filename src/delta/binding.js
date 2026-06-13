@@ -1,17 +1,34 @@
-/* eslint-disable */
-// @ts-nocheck
-// @todo remove all @ts-nocheck and eslint-disable
-/* global MutationObserver */
-import { ObservableV2 } from '../observable.js'
-import * as delta from './delta.js'
-import * as dt from './t3.test.js' // eslint-disable-line
-import * as dom from '../dom.js'
-import * as set from '../set.js'
-import * as map from '../map.js'
-import * as error from '../error.js'
-import * as math from '../math.js'
+/**
+ * # Bindings between Replicated Data Types (RDTs)
+ *
+ * An **RDT** ("replicated data type") is any object that represents some state and communicates changes
+ * to that state as {@link delta.Delta deltas}. Every RDT is an {@link ObservableV2}:
+ * - it **emits** a `'delta'` event carrying a delta whenever its own state changes, and
+ * - it **accepts** foreign changes through `applyDelta(delta)`, which mutates its state to match.
+ *
+ * Because the changes are deltas, two different representations of "the same" data can be kept in sync
+ * even when their shapes differ. That is the job of a {@link Binding}: it connects two RDTs `a` and `b`
+ * through a {@link dt.Template transformer template}. The template is instantiated once (against `a`'s
+ * schema) into a stateful {@link dt.Transformer}, and every change is routed through it:
+ *
+ * - a change on `a` is fed to `transformer.applyA(d)`, whose result `{ a, b }` is pushed back via
+ *   `a.applyDelta` (self-heal) and `b.applyDelta` (the mapped change), and symmetrically for `b` via `applyB`.
+ *
+ * Feeding the mapped change back into the other RDT makes it emit its own `'delta'`, which would loop
+ * forever; a {@link mux mutex} shared per side breaks that echo so a change is only transformed once.
+ *
+ * Two reference RDTs live in `./rdt/`:
+ * - `./rdt/delta.js` ({@link RDT}) — an in-memory delta whose state is just the accumulated delta.
+ * - `./rdt/dom.js` — a live DOM subtree, observed with a `MutationObserver`, that turns DOM mutations
+ *   into deltas and applies incoming deltas back onto the DOM.
+ *
+ * @module delta/binding
+ */
+
+import { ObservableV2 } from '../observable.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations (RDT)
+import * as delta from './delta.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations (DeltaAny)
+import * as dt from './transformer.js'
 import * as mux from '../mutex.js'
-import * as s from '../schema.js'
 
 /**
  * @template T
@@ -19,354 +36,74 @@ import * as s from '../schema.js'
  */
 
 /**
- * @template {delta.AbstractDelta} DeltaA
- * @template {delta.AbstractDelta} DeltaB
+ * Abstract interface for a delta-based Replicated Data Type.
+ *
+ * An RDT is an observable that emits a `'delta'` (and, on teardown, a `'destroy'`) event, exposes the
+ * {@link Schema schema} of the deltas it produces via `$schema` (so a {@link Binding} can initialize a
+ * transformer for it), and accepts foreign deltas via `applyDelta`.
+ *
+ * @template {delta.DeltaAny} D
+ * @typedef {ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
+ *   $schema: Schema<D>,
+ *   applyDelta: (delta: D) => void,
+ *   destroy: () => void
+ * }} RDT
+ */
+
+/**
+ * Connects two RDTs so that changes on either side are transformed and reflected on the other.
+ *
+ * @template {delta.DeltaAny} DeltaA
  */
 export class Binding {
   /**
    * @param {RDT<DeltaA>} a
-   * @param {RDT<DeltaB>} b
-   * @param {dt.Template<any,DeltaA,DeltaB>} template
+   * @param {RDT<delta.DeltaAny>} b
+   * @param {dt.Template} [template] defaults to the {@link dt.identity identity} transformer
    */
-  constructor (a, b, template) {
+  constructor (a, b, template = dt.identity) {
     /**
-     * @type {dt.Transformer<any,DeltaA,DeltaB>}
+     * @type {dt.Transformer<any,any>}
      */
-    this.t = template.init()
+    this.t = template.init(a.$schema)
+    // reason: the `'delta'` channel carries `Delta` values while the transformer is typed for the
+    // mutable `DeltaBuilder` it consumes/produces, and the binding is generic over both sides; typing
+    // the internal handles as `RDT<any>` lets changes pass through the transformer without unsound
+    // cross-casts, while `bind`/the constructor keep precise public signatures.
+    /** @type {RDT<any>} */
     this.a = a
+    /** @type {RDT<any>} */
     this.b = b
     this._mux = mux.createMutex()
-    this._achanged = this.a.on('change', d => this._mux(() => {
+    this._achanged = this.a.on('delta', d => this._mux(() => {
       const tres = this.t.applyA(d)
-      if (tres.a) {
-        a.update(tres.a)
-      }
-      if (tres.b) {
-        b.update(tres.b)
-      }
+      if (tres.a) this.a.applyDelta(tres.a)
+      if (tres.b) this.b.applyDelta(tres.b)
     }))
-    this._bchanged = this.b.on('change', d => this._mux(() => {
+    this._bchanged = this.b.on('delta', d => this._mux(() => {
       const tres = this.t.applyB(d)
-      if (tres.b) {
-        this.b.update(tres.b)
-      }
-      if (tres.a) {
-        a.update(tres.a)
-      }
+      if (tres.b) this.b.applyDelta(tres.b)
+      if (tres.a) this.a.applyDelta(tres.a)
     }))
+    this.a.on('destroy', this.destroy)
+    this.b.on('destroy', this.destroy)
   }
 
   destroy = () => {
     this.a.off('destroy', this.destroy)
     this.b.off('destroy', this.destroy)
-    this.a.off('change', this._achanged)
-    this.b.off('change', this._bchanged)
+    this.a.off('delta', this._achanged)
+    this.b.off('delta', this._bchanged)
   }
 }
 
 /**
- * Abstract Interface for a delta-based Replicated Data Type.
+ * Connect two RDTs through a transformer template. Changes on `a` are mapped onto `b` and vice versa.
+ * Without a `template` the {@link dt.identity identity} transformer is used, keeping both sides equal.
  *
- * @template {delta.AbstractDelta} Delta
- * @typedef {ObservableV2<{ 'change': (delta: Delta) => void, 'destroy': (rdt:RDT<Delta>)=>void }> & { update: (delta: Delta) => any, destroy: () => void }} RDT
- */
-
-/**
- * @template {delta.AbstractDelta} DeltaA
- * @template {dt.Template<any,DeltaA,any>} Transformer
+ * @template {delta.DeltaAny} DeltaA
  * @param {RDT<DeltaA>} a
- * @param {RDT<Transformer extends dt.Template<any,DeltaA,infer DeltaB> ? DeltaB : never>} b
- * @param {dt.Template<any,DeltaA,any>} template
+ * @param {RDT<delta.DeltaAny>} b
+ * @param {dt.Template} [template]
  */
 export const bind = (a, b, template) => new Binding(a, b, template)
-
-/**
- * @template {delta.AbstractDelta} Delta
- * @implements RDT<Delta>
- * @extends {ObservableV2<{ change: (delta: Delta) => void, 'destroy': (rdt:DeltaRDT<Delta>)=>void }>}
- */
-class DeltaRDT extends ObservableV2 {
-  /**
-   * @param {Schema<Delta>} $delta
-   */
-  constructor ($delta) {
-    super()
-    this.$delta = $delta
-    /**
-     * @type {Delta?}
-     */
-    this.state = null
-    this._mux = mux.createMutex()
-  }
-
-  /**
-   * @param {Delta} delta
-   */
-  update = delta => delta.isEmpty() || this._mux(() => {
-    if (this.state != null) {
-      this.state.apply(delta)
-    } else {
-      this.state = delta
-    }
-    this.emit('change', [delta])
-  })
-
-  destroy () {
-    this.emit('destroy', [this])
-    super.destroy()
-  }
-}
-
-/**
- * @template {delta.AbstractDelta} Delta
- * @param {Schema<Delta>} $delta
- */
-export const deltaRDT = $delta => new DeltaRDT($delta)
-
-/**
- * @param {Node} domNode
- */
-const domToDelta = domNode => {
-  if (dom.$element.check(domNode)) {
-    const d = delta.node(domNode.nodeName.toLowerCase())
-    for (let i = 0; i < domNode.attributes.length; i++) {
-      const attr = /** @type {Attr} */ (domNode.attributes.item(i))
-      d.attributes.set(attr.nodeName, attr.value)
-    }
-    domNode.childNodes.forEach(child => {
-      d.children.insert(dom.$text.check(child) ? child.textContent : [domToDelta(child)])
-    })
-    return d
-  }
-  error.unexpectedCase()
-}
-
-/**
- * @param {DomDelta} d
- */
-const deltaToDom = d => {
-  if (delta.$nodeAny.check(d)) {
-    const n = dom.element(d.name)
-    d.attributes.forEach(change => {
-      if (delta.$insertOp.check(change)) {
-        n.setAttribute(change.key, change.value)
-      }
-    })
-    d.children.forEach(child => {
-      if (delta.$insertOp.check(child)) {
-        n.append(...child.insert.map(deltaToDom))
-      } else if (delta.$textOp.check(child)) {
-        n.append(dom.text(child.insert))
-      }
-    })
-    return n
-  }
-  error.unexpectedCase()
-}
-
-/**
- * @param {Element} el
- * @param {delta.Node<string,any,any,any>} d
- */
-const applyDeltaToDom = (el, d) => {
-  d.attributes.forEach(change => {
-    if (delta.$deleteOp.check(change)) {
-      el.removeAttribute(change.key)
-    } else {
-      el.setAttribute(change.key, change.value)
-    }
-  })
-  let childIndex = 0
-  let childOffset = 0
-  d.children.forEach(change => {
-    let child = el.childNodes[childIndex] || null
-    if (delta.$deleteOp.check(change)) {
-      let len = change.length
-      while (len > 0) {
-        if (dom.$element.check(child)) {
-          child.remove()
-          len--
-        } else if (dom.$text.check(child)) {
-          const childLen = child.length
-          if (childOffset === 0 && childLen <= len) {
-            child.remove()
-            len -= childLen
-          } else {
-            const spliceLen = math.min(len, childLen - childOffset)
-            child.deleteData(childOffset, spliceLen)
-            if (child.length <= childOffset) {
-              childOffset = 0
-              childIndex++
-            }
-          }
-        }
-      }
-    } else if (delta.$insertOp.check(change)) {
-      if (childOffset > 0) {
-        const tchild = dom.$text.cast(child)
-        child = tchild.splitText(childOffset)
-        childIndex++
-        childOffset = 0
-      }
-      el.insertBefore(dom.fragment(change.insert.map(deltaToDom)), child)
-    } else if (delta.$modifyOp.check(change)) {
-      applyDeltaToDom(dom.$element.cast(child), change.modify)
-    } else if (delta.$textOp.check(change)) {
-      el.insertBefore(dom.text(change.insert), child)
-    } else {
-      error.unexpectedCase()
-    }
-  })
-}
-
-export const $domDelta = delta.$node(s.$string, s.$record(s.$string, s.$string), s.$never, { recursive: true, withText: true })
-
-/**
- * @param {Element} observedNode
- * @param {MutationRecord[]} mutations
- * @param {any} origin assign this origin to the generated delta
- */
-const _mutationsToDelta = (observedNode, mutations, origin) => {
-  /**
-   * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: delta.Node }} ChangedNodeInfo
-   */
-  /**
-   * Compute all deltas without recursion.
-   *
-   * 1. mark all changed parents in parentsChanged
-   * 2. fill out necessary information for each changed parent ()
-   */
-  //
-  /**
-   * @type {Map<Node,ChangedNodeInfo>}
-   */
-  const changedNodes = map.create()
-  /**
-   * @param {Node} node
-   * @return {ChangedNodeInfo}
-   */
-  const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: delta.node(node.nodeName.toLowerCase()) }))
-  const observedNodeInfo = getChangedNodeInfo(observedNode)
-  mutations.forEach(mutation => {
-    const target = /** @type {HTMLElement} */ (mutation.target)
-    const parent = target.parentNode
-    const attrName = /** @type {string} */ (mutation.attributeName)
-    const newVal = target.getAttribute(attrName)
-    const info = getChangedNodeInfo(target)
-    const d = info.d
-    // go up the tree and mark that a child has been modified
-    for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== observedNode; changedParent = changedParent.parentNode) {
-      // nop
-    }
-    switch (mutation.type) {
-      case 'attributes': {
-        const attrs = /** @type {delta.Node<any,any,any>} */ (d).attributes
-        if (newVal == null) {
-          attrs.delete(attrName)
-        } else {
-          attrs.set(/** @type {string} */ (attrName), newVal)
-        }
-        break
-      }
-      case 'characterData': {
-        error.methodUnimplemented()
-        break
-      }
-      case 'childList': {
-        const targetInfo = getChangedNodeInfo(target)
-        mutation.addedNodes.forEach(node => {
-          targetInfo.added.add(node)
-        })
-        const removed = mutation.removedNodes.length
-        if (removed > 0) {
-          // @todo this can't work because next can be null
-          targetInfo.removedBefore.set(mutation.nextSibling, removed)
-        }
-        break
-      }
-    }
-  })
-  changedNodes.forEach((info, node) => {
-    const numOfChildChanges = info.modified + info.removedBefore.size + info.added.size
-    const d = /** @type {delta.Node<any,any,any>} */ (info.d)
-    if (numOfChildChanges > 0) {
-      node.childNodes.forEach(nchild => {
-        if (info.removedBefore.has(nchild)) { // can happen separately
-          d.children.delete(/** @type {number} */ (info.removedBefore.get(nchild)))
-        }
-        if (info.added.has(nchild)) {
-          d.children.insert(dom.$text.check(nchild) ? nchild.textContent : [domToDelta(nchild)])
-        } else if (changedNodes.has(nchild)) {
-          d.children.modify(getChangedNodeInfo(nchild).d)
-        }
-      })
-      // remove items to the end, if necessary
-      d.children.delete(info.removedBefore.get(null) ?? 0)
-    }
-    d.done()
-  })
-  observedNodeInfo.d.origin = origin
-  return observedNodeInfo.d
-}
-
-/**
- * @typedef {delta.RecursiveNode<string, { [key:string]: string }, never, true>} DomDelta
- */
-
-/**
- * @template {DomDelta} [D=DomDelta]
- * @implements RDT<D>
- * @extends {ObservableV2<{ change: (delta: D)=>void, destroy: (rdt:DomRDT<D>)=>void }>}>}
- */
-class DomRDT extends ObservableV2 {
-  /**
-   * @param {Element} observedNode
-   */
-  constructor (observedNode) {
-    super()
-    this.observedNode = observedNode
-    this._mux = mux.createMutex()
-    this.observer = new MutationObserver(this._mutationHandler)
-    this.observer.observe(observedNode, {
-      subtree: true,
-      childList: true,
-      attributes: true,
-      characterDataOldValue: true
-    })
-  }
-
-  /**
-   * @param {MutationRecord[]} mutations
-   */
-  _mutationHandler = mutations =>
-    mutations.length > 0 && this._mux(() => {
-      this.emit('change', [/** @type {D} */(_mutationsToDelta(this.observedNode, mutations, this))])
-    })
-
-  /**
-   * @param {D} delta
-   */
-  update = delta => {
-    if (delta.origin !== this) {
-      // @todo the retrieved changes must be transformed agains the updated changes. need a proper
-      // transaction system
-      this._mutationHandler(this.observer.takeRecords())
-      this._mux(() => {
-        applyDeltaToDom(this.observedNode, delta)
-        const mutations = this.observer.takeRecords()
-        this.emit('change', [/** @type {D} */(_mutationsToDelta(this.observedNode, mutations, delta.origin))])
-      })
-    }
-  }
-
-  destroy () {
-    this.emit('destroy', [this])
-    super.destroy()
-    this.observer.disconnect()
-  }
-}
-
-/**
- * @param {Element} dom
- */
-export const domRDT = dom => new DomRDT(dom)

@@ -44,7 +44,9 @@ import * as schema from './schema.test.js'
 import * as delta from './delta/delta.test.js'
 import * as deltaPitch from './delta/delta-pitch.test.js'
 import * as deltaTransformer from './delta/delta-transformer.test.js'
-// import * as deltaBinding from './delta/binding.test.js'
+import * as deltaBinding from './delta/binding.test.js'
+import * as rdtDelta from './delta/rdt/delta.test.js'
+import * as rdtDom from './delta/rdt/dom.test.js'
 import * as mutex from './mutex.test.js'
 import { isBrowser, isNode } from './environment.js'
 
@@ -98,6 +100,9 @@ runTests({
   delta,
   deltaPitch,
   deltaTransformer,
+  deltaBinding,
+  rdtDelta,
+  rdtDom,
   mutex
 }).then(success => {
   /* c8 ignore next 3 */

@@ -719,6 +719,14 @@ export class PipeTransformer extends Transformer {
 export const rename = renames => new AttrRename(renames)
 
 /**
+ * The identity {@link Template}: it maps every change verbatim in both directions, so both sides stay
+ * bit-for-bit equal. A stateless singleton (an attr-rename with no renames).
+ *
+ * @type {Template}
+ */
+export const identity = /* @__PURE__ */ rename({})
+
+/**
  * @template {delta.DeltaConf} DConf
  * @param {s.Schema<delta.Delta<DConf>>} $d
  */
