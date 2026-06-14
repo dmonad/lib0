@@ -77,7 +77,7 @@ import { Filter } from './filter.js' // eslint-disable-line no-unused-vars -- re
  *   is generic, which sends constraint comparisons (e.g. Pipe<TS> vs Pipe<any>) into infinite
  *   recursion.
  * - Each dispatch branch costs instantiation depth. A conf-passthrough template (one whose output
- *   conf equals its input conf, e.g. transformers/inline, whose init() is typed loosely as
+ *   conf equals its input conf, e.g. transformer/inline, whose init() is typed loosely as
  *   `Transformer<IN, any>`) needs NO branch: it falls through to the trailing `NC` and composes
  *   correctly. Adding a branch for it (even `FirstT extends X ? NC : ...`) deepens every step and
  *   lowers the ~85 ceiling.

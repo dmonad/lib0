@@ -61,37 +61,37 @@
       "types": "./dist/delta/transformer.d.ts",
       "default": "./src/delta/transformer.js"
     },
-    "./delta/transformers/inline": {
-      "types": "./dist/delta/transformers/inline.d.ts",
-      "default": "./src/delta/transformers/inline.js"
+    "./delta/transformer/inline": {
+      "types": "./dist/delta/transformer/inline.d.ts",
+      "default": "./src/delta/transformer/inline.js"
     },
-    "./delta/transformers/children": {
-      "types": "./dist/delta/transformers/children.d.ts",
-      "default": "./src/delta/transformers/children.js"
+    "./delta/transformer/children": {
+      "types": "./dist/delta/transformer/children.d.ts",
+      "default": "./src/delta/transformer/children.js"
     },
-    "./delta/transformers/id": {
-      "types": "./dist/delta/transformers/id.d.ts",
-      "default": "./src/delta/transformers/id.js"
+    "./delta/transformer/id": {
+      "types": "./dist/delta/transformer/id.d.ts",
+      "default": "./src/delta/transformer/id.js"
     },
-    "./delta/transformers/rename": {
-      "types": "./dist/delta/transformers/rename.d.ts",
-      "default": "./src/delta/transformers/rename.js"
+    "./delta/transformer/rename": {
+      "types": "./dist/delta/transformer/rename.d.ts",
+      "default": "./src/delta/transformer/rename.js"
     },
-    "./delta/transformers/filter": {
-      "types": "./dist/delta/transformers/filter.d.ts",
-      "default": "./src/delta/transformers/filter.js"
+    "./delta/transformer/filter": {
+      "types": "./dist/delta/transformer/filter.d.ts",
+      "default": "./src/delta/transformer/filter.js"
     },
-    "./delta/transformers/pipe": {
-      "types": "./dist/delta/transformers/pipe.d.ts",
-      "default": "./src/delta/transformers/pipe.js"
+    "./delta/transformer/pipe": {
+      "types": "./dist/delta/transformer/pipe.d.ts",
+      "default": "./src/delta/transformer/pipe.js"
     },
-    "./delta/transformers/query": {
-      "types": "./dist/delta/transformers/query.d.ts",
-      "default": "./src/delta/transformers/query.js"
+    "./delta/transformer/query": {
+      "types": "./dist/delta/transformer/query.d.ts",
+      "default": "./src/delta/transformer/query.js"
     },
-    "./delta/transformers/projection": {
-      "types": "./dist/delta/transformers/projection.d.ts",
-      "default": "./src/delta/transformers/projection.js"
+    "./delta/transformer/projection": {
+      "types": "./dist/delta/transformer/projection.d.ts",
+      "default": "./src/delta/transformer/projection.js"
     },
     "./delta/binding": {
       "types": "./dist/delta/binding.d.ts",
