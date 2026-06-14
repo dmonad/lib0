@@ -194,7 +194,7 @@ export class PipeTransformer extends Transformer {
         madeChange = false
         let forward = trs[0].a != null
         let i = forward ? 0 : ts.length - 1
-        while (i <= 0 && i < ts.length) {
+        while (i >= 0 && i < ts.length) {
           const ti = ts[i]
           const tri = trs[i]
           if (!tri.isEmpty()) {
@@ -212,7 +212,7 @@ export class PipeTransformer extends Transformer {
             }
           }
           tri.clear()
-          const hasForwardChange = i < ts.length && !trs[i + 1].isEmpty()
+          const hasForwardChange = i + 1 < ts.length && !trs[i + 1].isEmpty()
           const hasBackwardChange = i > 0 && !trs[i - 1].isEmpty()
           // go back and forth
           if (forward && hasBackwardChange) {

@@ -65,6 +65,10 @@
       "types": "./dist/delta/transformers/inline.d.ts",
       "default": "./src/delta/transformers/inline.js"
     },
+    "./delta/transformers/children": {
+      "types": "./dist/delta/transformers/children.d.ts",
+      "default": "./src/delta/transformers/children.js"
+    },
     "./delta/transformers/id": {
       "types": "./dist/delta/transformers/id.d.ts",
       "default": "./src/delta/transformers/id.js"
