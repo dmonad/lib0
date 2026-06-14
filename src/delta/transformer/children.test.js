@@ -137,3 +137,74 @@ export const testChildrenInlineAllNestedGap = () => {
     delta.create('p').insert([delta.create().insert('x')])
   ]))
 }
+
+// Recursive null-node inlining built from `children`: at each level recurse into child nodes, then
+// inline that level's null nodes (the user-requested `pipe(recurse, inline)` order - bottom-up, so
+// nulls collapse at every depth).
+const inlineNullNodesRecursive = children(_d => pipe(inlineNullNodesRecursive, inline([null])))
+
+/**
+ * Concatenate all text in document order (depth-first), ignoring node boundaries.
+ *
+ * @param {delta.DeltaAny} d
+ * @return {string}
+ */
+const allText = d => {
+  let s = ''
+  for (const op of d.children) {
+    if (delta.$textOp.check(op)) {
+      s += op.insert
+    } else if (delta.$insertOp.check(op)) {
+      for (const el of op.insert) {
+        if (delta.$deltaAny.check(el)) s += allText(el)
+      }
+    }
+  }
+  return s
+}
+
+export const testChildrenInlineNullNodesRecursive = () => {
+  // cast to any: the typed PipeTransformer narrows r.b to the pipe's input conf, not `any`
+  const entry = () => /** @type {any} */ (pipe(inlineNullNodesRecursive, inline([null])).init(delta.$deltaAny))
+  // <div><p>hello<null> world</null></p><null>!!</null></div> (wrapped in a root delta)
+  const buildA = () => delta.create().insert([
+    delta.create('div')
+      .insert([delta.create('p').insert('hello').insert([delta.create().insert(' world')])])
+      .insert([delta.create().insert('!!')])
+  ])
+  const it = entry()
+  // initial render: every null node is inlined into its parent, recursively at every depth
+  const r0 = it.applyA(buildA())
+  t.compare(r0.b, delta.create().insert([
+    delta.create('div').insert([delta.create('p').insert('hello world')]).insert('!!')
+  ]))
+  t.compare(allText(r0.b), 'hello world!!', 'the inlined text reads "hello world!!"')
+
+  // live states; a from-scratch transform of A must always equal B (incremental oracle)
+  const myA = /** @type {delta.DeltaBuilderAny} */ (buildA())
+  const myB = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  myB.apply(r0.b)
+  const fresh = () => entry().applyA(myA).b
+  t.compare(fresh(), myB)
+
+  // basic op on A: append "?" to the deep null node " world" (root -> div -> p -> the <null> at p[5])
+  const aEdit = delta.create().modify(delta.create().modify(delta.create().retain(5).modify(delta.create().retain(6).insert('?'))))
+  const rA = it.applyA(aEdit)
+  myA.apply(aEdit)
+  if (rA.b) myB.apply(rA.b)
+  // maps to a modify descending div -> p, inserting into the inlined "hello world" text
+  t.compare(rA.b, delta.create().modify(delta.create().modify(delta.create().retain(11).insert('?'))))
+  t.compare(allText(myB), 'hello world?!!')
+  t.compare(fresh(), myB, 'B == inline(A) after the A-side edit')
+
+  // basic op on B: append "?" after the inlined "!!" (B: div = [ p@0, "!!"@1..2 ], insert at div[3])
+  const bEdit = delta.create().modify(delta.create().retain(3).insert('?'))
+  const rB = it.applyB(bEdit)
+  myB.apply(bEdit)
+  if (rB.a) myA.apply(rB.a)
+  // boundary preference: the insert at the inlined null's end lands in the parent (div), after the
+  // still-structured null node on side A
+  t.compare(rB.a, delta.create().modify(delta.create().retain(2).insert('?')))
+  t.compare(allText(myA), 'hello world?!!?')
+  t.compare(fresh(), myB, 'B == inline(A) after the B-side edit')
+}
