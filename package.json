@@ -319,7 +319,8 @@
   "scripts": {
     "clean": "rm -rf dist",
     "types": "rm -rf dist && tsc -p tsconfig.build.json",
-    "dist": "npm run clean && npm run types",
+    "check-dist-types": "tsc -p tsconfig.dist-check.json",
+    "dist": "npm run clean && npm run types && npm run check-dist-types",
     "debug": "npm run gentesthtml && node ./src/bin/0serve.js -o test.html",
     "test": "c8 --check-coverage --lines 97 --branches 96 --functions 94 --statements 97 node --unhandled-rejections=strict ./src/test.js",
     "test:deno": "deno run -A src/test.js",
