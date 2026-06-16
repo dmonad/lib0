@@ -147,7 +147,7 @@ const applyDeltaToDom = (el, d) => {
  * Schema describing the deltas produced/consumed by a {@link DomRDT}: a recursive node with a string
  * name, string→string attributes, and text content.
  */
-export const $domDelta = delta.$delta({ name: s.$string, attrs: s.$record(s.$string, s.$string), children: s.$never, text: true, recursiveChildren: true })
+export const $domDelta = /* @__PURE__ */ delta.$delta({ name: s.$string, attrs: s.$record(s.$string, s.$string), children: s.$never, text: true, recursiveChildren: true })
 
 /**
  * @typedef {delta.Delta<{ name: string, attrs: { [key:string]: string }, text: true, recursiveChildren: true }>} DomDelta
