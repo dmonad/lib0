@@ -1,9 +1,10 @@
-// Per-transformer tests live next to their implementation in ./transformers/ and are re-exported
+// Per-transformer tests live next to their implementation in ./transformer/ and are re-exported
 // here so they run under this (registered) module.
-export * from './transformers/id.test.js'
-export * from './transformers/rename.test.js'
-export * from './transformers/filter.test.js'
-export * from './transformers/pipe.test.js'
-export * from './transformers/query.test.js'
-export * from './transformers/projection.test.js'
-export * from './transformers/InlineNullNodes.test.js'
+export * from './transformer/id.test.js'
+export * from './transformer/rename.test.js'
+export * from './transformer/filter.test.js'
+export * from './transformer/pipe.test.js'
+export * from './transformer/query.test.js'
+export * from './transformer/projection.test.js'
+export * from './transformer/inline.test.js'
+export * from './transformer/children.test.js'

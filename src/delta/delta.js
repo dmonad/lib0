@@ -924,6 +924,16 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  */
 
 /**
+ * Coerce a computed conf to provably satisfy the `DeltaConf` constraint. Declaration emit re-checks
+ * type arguments eagerly, so a deeply-computed conf (mapped/recursive) passed to `Delta<…>` /
+ * `Transformer<…>` must be wrapped here: the conditional exposes `DeltaConf` as its upper bound,
+ * letting the constraint resolve without forcing TS to expand the (self-referential) body.
+ *
+ * @template T
+ * @typedef {T extends infer DC extends DeltaConf ? DC : never} AsDeltaConf
+ */
+
+/**
  * @template {DeltaConf} Conf
  * @typedef {Conf extends {name:infer Name} ? (unknown extends Name ? any : (Exclude<Name,undefined>)) : any} DeltaConfGetName
  */
@@ -2151,13 +2161,13 @@ export class $Delta extends s.Schema {
  *   DConfSpec extends {attrs: infer A} ? s.ReadSchemaUnwrapped<A> : {},
  *   DConfSpec extends {children: infer C} ? s.ReadSchemaUnwrapped<C> : never
  * ] extends [infer NodeName, infer Attrs, infer Children]
- *   ? PrettifyDeltaConf<(
+ *   ? AsDeltaConf<PrettifyDeltaConf<(
  *       import('../ts.js').TypeIsAny<NodeName, {}, { name: NodeName }> &
  *       ([keyof Attrs] extends [never] ? {} : { attrs: Attrs }) &
  *       ([Children] extends [never] ? {} : { children: Children }) &
  *       (DConfSpec extends {text: true} ? { text: true } : {}) &
  *       (DConfSpec extends {recursiveChildren: true} ? { recursiveChildren: true } : {})
- *     ) extends infer DC extends DeltaConf ? DC : never>
+ *     )>>
  *   : never
  * } ReadDeltaConf
  */
@@ -2371,8 +2381,7 @@ export const random = (gen, $d, conf = {}) => {
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
  * @param {Children} [children]
- * @return {DeltaBuilder<{
- *   name: NodeName,
+ * @return {DeltaBuilder<(NodeName extends string ? { name: NodeName } : {}) & {
  *   attrs: Attrs extends null ? {} : Attrs,
  *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
  *   text: Extract<Children,string> extends never ? false : true
@@ -2401,8 +2410,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @overload
  * @param {NodeName} nodeName
  * @param {...Array<Children>} children
- * @return {DeltaBuilder<{
- *   name: NodeName,
+ * @return {DeltaBuilder<(NodeName extends string ? { name: NodeName } : {}) & {
  *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
  *   text: Extract<Children,string> extends never ? false : true
  * }>}
@@ -2436,8 +2444,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
  * @param {...Array<Children>} children
- * @return {DeltaBuilder<{
- *   name: NodeName,
+ * @return {DeltaBuilder<(NodeName extends string ? { name: NodeName } : {}) & {
  *   attrs: Attrs extends null ? {} : Attrs,
  *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
  *   text: Extract<Children,string> extends never ? false : true
@@ -2524,7 +2531,7 @@ class _DiffStringWrapper {
  * @param {DiffOptions} [options]
  * @return {Delta<Conf>}
  */
-export const diff = (d1, d2, options) => {
+export const diff = (d1, d2, options = {}) => {
   const d = create(d1.name === d2.name ? d1.name : null, $deltaAny)
   const compare = options?.compare ?? defaultCompare
   if (d1.fingerprint !== d2.fingerprint) {
@@ -2738,7 +2745,7 @@ const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(
  * @param {DeltaBuilderAny} d
  * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
  * @param {(d1: DeltaAny, d2: DeltaAny) => boolean} compare
- * @param {DiffOptions & { compare: (d1: DeltaAny, d2: DeltaAny) => boolean }} options
+ * @param {DiffOptions} options
  */
 const applyChangesetToDelta = (d, changeset, compare, options) => {
   for (let ci = 0, lastIndex = 0; ci < changeset.length; ci++) {

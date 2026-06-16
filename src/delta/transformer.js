@@ -5,7 +5,7 @@
  * {@link Transformer} that maps changes ("deltas") of one delta shape (side A) onto another (side B)
  * and back. Transformers compose with {@link pipe}.
  *
- * Each concrete transformer lives in `./transformers/` and is re-exported here so the whole set is
+ * Each concrete transformer lives in `./transformer/` and is re-exported here so the whole set is
  * available from a single module (`lib0/delta/transformer`):
  * - {@link id} — identity (both sides stay equal)
  * - {@link rename} — rename node attributes
@@ -13,23 +13,25 @@
  * - {@link pipe} — chain templates
  * - {@link query} — project a single attribute into a `lib0:value` node
  * - {@link projection} — project onto a fixed node shape
- * - {@link inlineNullNodes} — inline anonymous ("null") child nodes
+ * - {@link inline} — inline child nodes whose name is in a configured set
+ * - {@link children} — descend into child nodes and apply a per-child sub-transformer
  *
  * @module delta/transformer
  */
 
-export * from './transformers/core.js'
-export * from './transformers/id.js'
-export * from './transformers/rename.js'
-export * from './transformers/filter.js'
-export * from './transformers/pipe.js'
-export * from './transformers/query.js'
-export * from './transformers/projection.js'
-export * from './transformers/InlineNullNodes.js'
+export * from './transformer/core.js'
+export * from './transformer/id.js'
+export * from './transformer/rename.js'
+export * from './transformer/filter.js'
+export * from './transformer/pipe.js'
+export * from './transformer/query.js'
+export * from './transformer/projection.js'
+export * from './transformer/inline.js'
+export * from './transformer/children.js'
 
 /**
  * Re-exported here so `import('./transformer.js').Template` keeps working for consumers that import
  * the aggregate module.
  *
- * @typedef {import('./transformers/core.js').Template} Template
+ * @typedef {import('./transformer/core.js').Template} Template
  */

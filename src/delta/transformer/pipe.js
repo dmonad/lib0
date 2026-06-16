@@ -77,9 +77,10 @@ import { Filter } from './filter.js' // eslint-disable-line no-unused-vars -- re
  *   is generic, which sends constraint comparisons (e.g. Pipe<TS> vs Pipe<any>) into infinite
  *   recursion.
  * - Each dispatch branch costs instantiation depth. A conf-passthrough template (one whose output
- *   conf equals its input conf, e.g. transformers/InlineNullNodes - see ApplyInlineNullNodes)
- *   needs NO branch: it falls through to the trailing `NC` and composes correctly. Adding a branch
- *   for it (even `FirstT extends X ? NC : ...`) deepens every step and lowers the ~85 ceiling.
+ *   conf equals its input conf, e.g. transformer/inline, whose init() is typed loosely as
+ *   `Transformer<IN, any>`) needs NO branch: it falls through to the trailing `NC` and composes
+ *   correctly. Adding a branch for it (even `FirstT extends X ? NC : ...`) deepens every step and
+ *   lowers the ~85 ceiling.
  *
  * @template {Array<Template>} TS
  * @template NC
@@ -193,7 +194,7 @@ export class PipeTransformer extends Transformer {
         madeChange = false
         let forward = trs[0].a != null
         let i = forward ? 0 : ts.length - 1
-        while (i <= 0 && i < ts.length) {
+        while (i >= 0 && i < ts.length) {
           const ti = ts[i]
           const tri = trs[i]
           if (!tri.isEmpty()) {
@@ -211,7 +212,7 @@ export class PipeTransformer extends Transformer {
             }
           }
           tri.clear()
-          const hasForwardChange = i < ts.length && !trs[i + 1].isEmpty()
+          const hasForwardChange = i + 1 < ts.length && !trs[i + 1].isEmpty()
           const hasBackwardChange = i > 0 && !trs[i - 1].isEmpty()
           // go back and forth
           if (forward && hasBackwardChange) {

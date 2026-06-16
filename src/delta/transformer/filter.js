@@ -9,7 +9,7 @@ import { Transformer, createTransformResult } from './core.js'
 /**
  * @template {delta.DeltaConf} DConf
  * @template {delta.DeltaConf} IN
- * @typedef {{ [K in keyof DConf & keyof IN]: K extends 'attrs' ? import('../../ts.js').PropsPickShared<DConf[K], IN[K]> : (DConf[K] & IN[K])} & {}} ApplyExpectType
+ * @typedef {delta.AsDeltaConf<{ [K in keyof DConf & keyof IN]: K extends 'attrs' ? import('../../ts.js').PropsPickShared<DConf[K], IN[K]> : (DConf[K] & IN[K])}>} ApplyExpectType
  */
 
 /**

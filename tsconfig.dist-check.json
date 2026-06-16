@@ -1,0 +1,17 @@
+{
+  // Type-checks the generated declaration files in dist/ (run by `npm run dist`). Mirrors the
+  // consumer-facing compiler settings; declaration emit can produce .d.ts that don't themselves
+  // type-check, which `npm run lint` (source-only) would not catch. Standalone (no `extends`) so the
+  // base config's `outDir: ./dist` does not auto-exclude the very files we want to check.
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": true,
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ESNext", "dom"],
+    "types": ["node"],
+    "skipLibCheck": false
+  },
+  "include": ["dist/**/*.d.ts"]
+}

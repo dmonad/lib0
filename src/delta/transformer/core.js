@@ -146,7 +146,7 @@ export class Transformer {
  * @return {s.Schema<Transformer<A,B>>}
  */
 export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ (s.$instanceOf(Transformer))
-export const $transformer = transformerWith(s.$any, s.$any)
+export const $transformer = /* @__PURE__ */ transformerWith(s.$any, s.$any)
 
 /**
  * A composable transformer factory. `init` instantiates a stateful {@link Transformer} for a given

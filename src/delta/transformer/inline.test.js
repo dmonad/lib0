@@ -3,13 +3,16 @@ import * as prng from 'lib0/prng'
 import * as s from '../../schema.js'
 import * as delta from '../delta.js'
 import { pipe, transformerWith } from '../transformer.js'
-import { inlineNullNodes } from './InlineNullNodes.js'
+import { inline } from './inline.js'
 
 // ---------------------------------------------------------------------------
-// InlineNullNodes
+// inline
 //
-// A = structured (null nodes present, e.g. <p>some<>text</></p>)
-// B = inlined (null nodes flattened, e.g. <p>sometext</p>)
+// Inlines child nodes whose name is in the configured `names` set (splicing each one's children into
+// the parent, one level). `inline([null])` is the anonymous-node case used by most tests below:
+// A = structured (inline nodes present, e.g. <p>some<>text</></p>)
+// B = inlined (inline nodes flattened, e.g. <p>sometext</p>)
+// Named inlining (e.g. inline(['b'])) is covered by testInlineNamed / testInlineMixed / the named fuzz.
 // ---------------------------------------------------------------------------
 
 /**
@@ -20,7 +23,7 @@ import { inlineNullNodes } from './InlineNullNodes.js'
 const structuredSomeText = () => delta.create().insert('some').insert([delta.create().insert('text')])
 
 export const testInlineNullNodesRender = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   const res = it.applyA(structuredSomeText())
   // null node is inlined: <p>some<>text</></p> -> <p>sometext</p>
   t.compare(res.b, delta.create().insert('sometext'))
@@ -28,7 +31,7 @@ export const testInlineNullNodesRender = () => {
 }
 
 export const testInlineNullNodesBackwardInterior = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // insert 'X' at inlined position 5 -> inside the null node at offset 1
   const res = it.applyB(delta.create().retain(5).insert('X'))
@@ -41,7 +44,7 @@ export const testInlineNullNodesBackwardInterior = () => {
 }
 
 export const testInlineNullNodesBackwardBoundary = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // insert 'Y' at inlined position 4 -> the boundary; prefer the root node
   const res = it.applyB(delta.create().retain(4).insert('Y'))
@@ -52,7 +55,7 @@ export const testInlineNullNodesBackwardBoundary = () => {
 }
 
 export const testInlineNullNodesWholeNodeDelete = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // delete the whole inlined null node content (positions 4..8) from its boundary
   const res = it.applyB(delta.create().retain(4).delete(4))
@@ -63,7 +66,7 @@ export const testInlineNullNodesWholeNodeDelete = () => {
 }
 
 export const testInlineNullNodesDeleteAcrossBoundary = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // delete positions 3..6 of "sometext" -> "e" (root) + "te" (inside null node)
   const res = it.applyB(delta.create().retain(3).delete(3))
@@ -74,14 +77,14 @@ export const testInlineNullNodesDeleteAcrossBoundary = () => {
 }
 
 export const testInlineNullNodesInsertAtEnd = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   const res = it.applyB(delta.create().retain(8).insert('!'))
   t.compare(res.a, delta.create().retain(5).insert('!'))
 }
 
 export const testInlineNullNodesInteriorDeleteToEnd = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // delete from inside the null node (offset 1) to its end -> interior delete crossing the boundary
   const res = it.applyB(delta.create().retain(5).delete(3))
@@ -92,7 +95,7 @@ export const testInlineNullNodesInteriorDeleteToEnd = () => {
 }
 
 export const testInlineNullNodesRetainPastEnd = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // a retain past the document end exits the retain loop via its end-guard; the insert then appends to root
   const res = it.applyB(delta.create().retain(20).insert('!'))
@@ -100,7 +103,7 @@ export const testInlineNullNodesRetainPastEnd = () => {
 }
 
 export const testInlineNullNodesDeletePastEnd = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // a delete past the document end exits the delete loop via its end-guard; the whole document is deleted
   const res = it.applyB(delta.create().delete(20))
@@ -108,7 +111,7 @@ export const testInlineNullNodesDeletePastEnd = () => {
 }
 
 export const testInlineNullNodesModifyAccumulation = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // two inserts that both fall inside the same null node must coalesce into one modify
   const res = it.applyB(delta.create().retain(5).insert('X').retain(1).insert('Z'))
@@ -116,7 +119,7 @@ export const testInlineNullNodesModifyAccumulation = () => {
 }
 
 export const testInlineNullNodesNamedNodePassThrough = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // a named node among the children is NOT inlined (opaque, length 1)
   const structured = delta.create().insert('a').insert([delta.create('span').insert('x')]).insert('b')
   const res = it.applyA(structured)
@@ -127,7 +130,7 @@ export const testInlineNullNodesNamedNodePassThrough = () => {
 }
 
 export const testInlineNullNodesForwardModifyIntoNull = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // data-side edit inside the null node maps to an inlined insert
   const res = it.applyA(delta.create().retain(4).modify(delta.create().retain(1).insert('Q')))
@@ -135,7 +138,7 @@ export const testInlineNullNodesForwardModifyIntoNull = () => {
 }
 
 export const testInlineNullNodesForwardModifyNamedInNull = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // null node holding text and a named node; named node stays opaque in the inlined view
   it.applyA(delta.create().insert([delta.create().insert('x').insert([delta.create('b').insert('y')])]))
   // data-side modify into the null node whose inner modify edits the nested named node
@@ -144,7 +147,7 @@ export const testInlineNullNodesForwardModifyNamedInNull = () => {
 }
 
 export const testInlineNullNodesEmptyNull = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   const structured = delta.create().insert('ab').insert([delta.create()]).insert('cd')
   const res = it.applyA(structured)
   // the empty null node is zero-width inlined
@@ -155,7 +158,7 @@ export const testInlineNullNodesEmptyNull = () => {
 }
 
 export const testInlineNullNodesAttrs = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // node attributes pass through; only the children are transformed
   const structured = delta.create().setAttr('k', 1).insert('a').insert([delta.create().insert('b')])
   const res = it.applyA(structured)
@@ -165,7 +168,7 @@ export const testInlineNullNodesAttrs = () => {
 }
 
 export const testInlineNullNodesForwardDelete = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // a structured delete of the null node maps to deleting its whole inlined span
   const res = it.applyA(delta.create().retain(4).delete(1))
@@ -173,7 +176,7 @@ export const testInlineNullNodesForwardDelete = () => {
 }
 
 export const testInlineNullNodesForwardModifyDelete = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // data-side delete inside the null node maps to an inlined delete
   const res = it.applyA(delta.create().retain(4).modify(delta.create().retain(1).delete(1)))
@@ -181,7 +184,7 @@ export const testInlineNullNodesForwardModifyDelete = () => {
 }
 
 export const testInlineNullNodesForwardModifyNamed = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // a named node at the root is opaque; a data-side modify of it is forwarded verbatim
   it.applyA(delta.create().insert([delta.create('span').insert('x')]))
   const res = it.applyA(delta.create().modify(delta.create().retain(1).insert('Z')))
@@ -189,7 +192,7 @@ export const testInlineNullNodesForwardModifyNamed = () => {
 }
 
 export const testInlineNullNodesBackwardModifyIntoNull = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // null node holding text and a named node
   it.applyA(delta.create().insert([delta.create().insert('x').insert([delta.create('b').insert('y')])]))
   // a B-edit modifying the named node (inlined position 1, inside the null node) descends via modify
@@ -198,7 +201,7 @@ export const testInlineNullNodesBackwardModifyIntoNull = () => {
 }
 
 export const testInlineNullNodesBackwardModifyNamedAtEnd = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // a named node immediately followed by a null node: modifying the named node crosses the boundary
   it.applyA(delta.create().insert([delta.create('span').insert('x')]).insert([delta.create().insert('t')]))
   const res = it.applyB(delta.create().modify(delta.create().retain(1).insert('Z')))
@@ -208,7 +211,7 @@ export const testInlineNullNodesBackwardModifyNamedAtEnd = () => {
 // --- deleting a null node maps to deleting its whole inlined range ---
 
 export const testInlineNullNodesDeleteNullTypeNested = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // null node holding text 'x', a named <b>y</b> and text 'z' => inlined length 1+1+1 = 3
   it.applyA(delta.create().insert('a').insert([delta.create().insert('x').insert([delta.create('b').insert('y')]).insert('z')]).insert('c'))
   // delete the null node (one structured position) => delete its whole mapped inline range
@@ -217,7 +220,7 @@ export const testInlineNullNodesDeleteNullTypeNested = () => {
 }
 
 export const testInlineNullNodesDeleteAcrossNullTypes = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // 'a' + null('xy') + null('z') + 'b'  => inline 'a'(1) 'xy'(2) 'z'(1) 'b'(1)
   it.applyA(delta.create().insert('a').insert([delta.create().insert('xy')]).insert([delta.create().insert('z')]).insert('b'))
   // delete both null nodes (two structured positions) => delete their combined inline range (2+1)
@@ -228,7 +231,7 @@ export const testInlineNullNodesDeleteAcrossNullTypes = () => {
 // --- format passthrough ---
 
 export const testInlineNullNodesFormatRender = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // a null node whose text is bold; the surrounding text is plain
   const res = it.applyA(delta.create().insert('a').insert([delta.create().insert('x', { bold: true })]))
   // the inlined view keeps the null node child's own format
@@ -236,7 +239,7 @@ export const testInlineNullNodesFormatRender = () => {
 }
 
 export const testInlineNullNodesFormatForwardInsert = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // a formatted insert at the root maps straight through
   const res = it.applyA(delta.create().retain(2).insert('Q', { bold: true }))
@@ -244,7 +247,7 @@ export const testInlineNullNodesFormatForwardInsert = () => {
 }
 
 export const testInlineNullNodesFormatForwardRetain = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   // 'some' + null('text') + 'end'
   it.applyA(delta.create().insert('some').insert([delta.create().insert('text')]).insert('end'))
   // format 'some' bold; format the null node wrapper italic (dropped - no inlined wrapper); 'end' under
@@ -255,7 +258,7 @@ export const testInlineNullNodesFormatForwardRetain = () => {
 }
 
 export const testInlineNullNodesBackwardFormatRetainRoot = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // format inline positions 2..3 (root text 'me') bold => pass-through retain on A
   const res = it.applyB(delta.create().retain(2).retain(2, { bold: true }))
@@ -263,7 +266,7 @@ export const testInlineNullNodesBackwardFormatRetainRoot = () => {
 }
 
 export const testInlineNullNodesBackwardFormatRetainIntoNull = () => {
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   it.applyA(structuredSomeText())
   // format inline positions 5..7 ('ext', inside the null node) bold => a modify on the null node
   const res = it.applyB(delta.create().retain(5).retain(3, { bold: true }))
@@ -272,52 +275,77 @@ export const testInlineNullNodesBackwardFormatRetainIntoNull = () => {
 
 export const testInlineNullNodesInPipe = () => {
   // composes as a pipe Template: Pipe construction reads each template's `stateless`, and the
-  // resulting pipe is stateful because InlineNullNodes is.
-  const tpl = pipe(inlineNullNodes())
+  // resulting pipe is stateful because inline is.
+  const tpl = pipe(inline([null]))
   t.assert(tpl.stateless === false)
-  t.assert(inlineNullNodes().stateless === false)
+  t.assert(inline([null]).stateless === false)
 }
 
 /**
- * Type-level check of the pipeline typing (ApplyInlineNullNodes). A `<p>` that holds `<span>`
- * children and null-node children (the null nodes hold a `<b>` and text) is transformed into a
- * `<p>` that holds `<span>` and `<b>` children plus text: each null node's children and text are
- * merged into the parent and the null wrapper is dropped. The transformer is therefore typed
- * `Transformer<inConf, outConf>` with the merged outConf - if the typing regressed (e.g. back to a
- * passthrough), this stops compiling (B is invariant in Transformer).
+ * The transformer is typed loosely: `init($in)` yields a `Transformer<IN, any>`, so it validates
+ * against the input schema with a `DeltaAny` output side. (Precise compile-time output shapes were
+ * intentionally dropped when inlining became configurable via `names`.)
  */
 export const testInlineNullNodesTyping = () => {
   const $in = delta.$delta({
     name: 'p',
     children: [delta.$delta({ name: 'span' }), delta.$delta({ text: true, children: delta.$delta({ name: 'b' }) })]
   })
-  const $out = delta.$delta({
-    name: 'p',
-    text: true,
-    children: [delta.$delta({ name: 'span' }), delta.$delta({ name: 'b' })]
-  })
-  const it = inlineNullNodes().init($in)
-  t.assert(transformerWith($in, $out).validate(it))
+  const it = inline([null]).init($in)
+  t.assert(transformerWith($in, delta.$deltaAny).validate(it))
+}
+
+// --- named-node inlining (the configurable `names`) ---
+
+export const testInlineNamed = () => {
+  const it = inline(['b']).init(delta.$deltaAny)
+  // <b> is inlined by name: a<b>xy</b>c -> axyc
+  const structured = delta.create().insert('a').insert([delta.create('b').insert('xy')]).insert('c')
+  const res = it.applyA(structured)
+  t.compare(res.b, delta.create().insert('axyc'))
+  // a B-side insert interior to the inlined <b> (inlined offset 2) maps back to a modify on <b>
+  const res2 = it.applyB(delta.create().retain(2).insert('Y'))
+  t.compare(res2.a, delta.create().retain(1).modify(delta.create().retain(1).insert('Y')))
+  const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('a').insert([delta.create('b').insert('xy')]).insert('c'))
+  doc.apply(res2.a)
+  t.compare(doc, delta.create().insert('a').insert([delta.create('b').insert('xYy')]).insert('c'))
+}
+
+export const testInlineMixed = () => {
+  const it = inline(['b', null]).init(delta.$deltaAny)
+  // both a named <b> and an anonymous null node are inlined; <span> stays opaque
+  const structured = delta.create()
+    .insert([delta.create('b').insert('x')])
+    .insert([delta.create('span').insert('s')])
+    .insert([delta.create().insert('y')])
+  const res = it.applyA(structured)
+  t.compare(res.b, delta.create().insert('x').insert([delta.create('span').insert('s')]).insert('y'))
+  // deleting the opaque <span> at inlined position 1 (after the inlined <b>'s 'x') passes through as a
+  // structural delete after the retained <b>
+  const res2 = it.applyB(delta.create().retain(1).delete(1))
+  t.compare(res2.a, delta.create().retain(1).delete(1))
 }
 
 // --- fuzz round-trip ---
 
 /**
  * Reference one-level inliner, used as an independent oracle: splice the children of every direct
- * null node into the parent verbatim; leave text and opaque (named / nested-null) nodes alone.
+ * child whose name is in `names` into the parent verbatim; leave text and opaque (non-inlined) nodes
+ * alone.
  *
  * @param {delta.DeltaAny} d
+ * @param {Array<string|null>} names
  * @return {delta.DeltaAny}
  */
-const refInline = d => {
+const refInline = (d, names) => {
   const out = delta.create()
   for (const op of d.children) {
     if (delta.$textOp.check(op)) {
       out.insert(op.insert, op.format, op.attribution)
     } else if (delta.$insertOp.check(op)) {
       for (const el of op.insert) {
-        if (delta.$deltaAny.check(el) && el.name === null) {
-          // a null node's children are spliced in verbatim (keeping their own formats); the null
+        if (delta.$deltaAny.check(el) && names.includes(el.name)) {
+          // an inline node's children are spliced in verbatim (keeping their own formats); the
           // wrapper - and any format on it - has no inlined representation and is dropped.
           out.append(el)
         } else {
@@ -438,10 +466,10 @@ const genEdit = (gen, state, allowNullNodes, depth = 2) => {
  */
 export const testRepeatInlineNullNodes = tc => {
   const gen = tc.prng
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   const myA = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   const myB = /** @type {delta.DeltaBuilderAny} */ (delta.create())
-  const check = () => t.compare(refInline(myA), myB, 'inline(A) === B')
+  const check = () => t.compare(refInline(myA, [null]), myB, 'inline(A) === B')
   /**
    * @param {delta.DeltaBuilderAny} da
    */
@@ -502,7 +530,7 @@ const genComplexStructured = gen => {
  */
 export const testRepeatInlineNullNodesFullTransform = tc => {
   const gen = tc.prng
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   const myA = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   const myB = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   /**
@@ -510,7 +538,7 @@ export const testRepeatInlineNullNodesFullTransform = tc => {
    *
    * @param {delta.DeltaBuilderAny} a
    */
-  const fullTransform = a => inlineNullNodes().init(delta.$deltaAny).applyA(a).b
+  const fullTransform = a => inline([null]).init(delta.$deltaAny).applyA(a).b
   const check = () => t.compare(fullTransform(myA), myB, 'fullTransform(A) === B')
   /**
    * @param {delta.DeltaBuilderAny} da
@@ -565,12 +593,12 @@ const $inlinedDoc = delta.$delta({ text: true, children: s.$union($bNode, $spanN
  */
 export const testRepeatInlineNullNodesRandom = tc => {
   const gen = tc.prng
-  const it = inlineNullNodes().init(delta.$deltaAny)
+  const it = inline([null]).init(delta.$deltaAny)
   const myA = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   const myB = /** @type {delta.DeltaBuilderAny} */ (delta.create())
-  const fullTransform = () => inlineNullNodes().init(delta.$deltaAny).applyA(myA).b
+  const fullTransform = () => inline([null]).init(delta.$deltaAny).applyA(myA).b
   const check = () => {
-    t.compare(refInline(myA), myB, 'inline(A) === B')
+    t.compare(refInline(myA, [null]), myB, 'inline(A) === B')
     t.compare(fullTransform(), myB, 'fullTransform(A) === B')
   }
   /**
@@ -598,6 +626,61 @@ export const testRepeatInlineNullNodesRandom = tc => {
       stepA(/** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $structuredDoc, { source: myA })))
     } else {
       stepB(/** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $inlinedDoc, { source: myB })))
+    }
+  }
+}
+
+// Schema-driven fuzz for NAMED inlining (`inline(['b'])`): `<b>` nodes (holding text and opaque `<i>`
+// leaves) are inlined; `<i>`/`<span>` stay opaque. The inlined side admits `<i>`/`<span>` but not
+// `<b>` (a raw `<b>` in a B-side change would be flattened and not round-trip). This exercises the
+// name-membership branch with a non-null name.
+const $fmtNamed = { bold: s.$boolean.optional }
+const $iLeaf = delta.$delta({ name: 'i', text: true, formats: $fmtNamed })
+const $spanLeaf = delta.$delta({ name: 'span', text: true, formats: $fmtNamed })
+const $bInline = delta.$delta({ name: 'b', text: true, children: $iLeaf, formats: $fmtNamed })
+const $structuredNamed = delta.$delta({ text: true, children: s.$union($bInline, $spanLeaf), formats: $fmtNamed })
+const $inlinedNamed = delta.$delta({ text: true, children: s.$union($iLeaf, $spanLeaf), formats: $fmtNamed })
+
+/**
+ * Fuzz `inline(['b'])` with schema-generated random deltas. After every step the inlined view must
+ * equal both the reference inlining of A (with names `['b']`) and a from-scratch transform of A.
+ *
+ * @param {t.TestCase} tc
+ */
+export const testRepeatInlineNamed = tc => {
+  const gen = tc.prng
+  const it = inline(['b']).init(delta.$deltaAny)
+  const myA = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  const myB = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  const fullTransform = () => inline(['b']).init(delta.$deltaAny).applyA(myA).b
+  const check = () => {
+    t.compare(refInline(myA, ['b']), myB, 'inline(A) === B')
+    t.compare(fullTransform(), myB, 'fullTransform(A) === B')
+  }
+  /**
+   * @param {delta.DeltaBuilderAny} da
+   */
+  const stepA = da => {
+    const res = it.applyA(da)
+    myA.apply(da)
+    if (res.b) myB.apply(res.b)
+    check()
+  }
+  /**
+   * @param {delta.DeltaBuilderAny} db
+   */
+  const stepB = db => {
+    const res = it.applyB(db)
+    myB.apply(db)
+    if (res.a) myA.apply(res.a)
+    check()
+  }
+  stepA(/** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $structuredNamed)))
+  for (let i = prng.int32(gen, 1, 10); i > 0; i--) {
+    if (prng.bool(gen)) {
+      stepA(/** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $structuredNamed, { source: myA })))
+    } else {
+      stepB(/** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $inlinedNamed, { source: myB })))
     }
   }
 }
