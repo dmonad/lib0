@@ -39,12 +39,14 @@ import * as mux from '../mutex.js'
  * Abstract interface for a delta-based Replicated Data Type.
  *
  * An RDT is an observable that emits a `'delta'` (and, on teardown, a `'destroy'`) event, exposes the
- * {@link Schema schema} of the deltas it produces via `$schema` (so a {@link Binding} can initialize a
- * transformer for it), and accepts foreign deltas via `applyDelta`.
+ * {@link Schema schema} of the deltas it produces via `$delta` (so a {@link Binding} can initialize a
+ * transformer for it), exposes its current state as a delta via `toDelta`, and accepts foreign deltas
+ * via `applyDelta`.
  *
  * @template {delta.DeltaAny} D
  * @typedef {ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
- *   $schema: Schema<D>,
+ *   $delta: Schema<D>,
+ *   toDelta: () => D,
  *   applyDelta: (delta: D) => void,
  *   destroy: () => void
  * }} RDT
@@ -65,7 +67,7 @@ export class Binding {
     /**
      * @type {dt.Transformer<any,any>}
      */
-    this.t = template.init(a.$schema)
+    this.t = template.init(a.$delta)
     // reason: the `'delta'` channel carries `Delta` values while the transformer is typed for the
     // mutable `DeltaBuilder` it consumes/produces, and the binding is generic over both sides; typing
     // the internal handles as `RDT<any>` lets changes pass through the transformer without unsound

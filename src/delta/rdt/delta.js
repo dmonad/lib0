@@ -32,11 +32,11 @@ import * as mux from '../../mutex.js'
  */
 class DeltaRDT extends ObservableV2 {
   /**
-   * @param {Schema<D>} $schema schema of the deltas this RDT produces
+   * @param {Schema<D>} $delta schema of the deltas this RDT produces
    */
-  constructor ($schema) {
+  constructor ($delta) {
     super()
-    this.$schema = $schema
+    this.$delta = $delta
     /**
      * @type {delta.DeltaBuilderAny?}
      */
@@ -60,6 +60,16 @@ class DeltaRDT extends ObservableV2 {
     })
   }
 
+  /**
+   * The current state as a delta: the accumulated `state`, or an empty delta when nothing has been
+   * applied yet.
+   *
+   * @return {D}
+   */
+  toDelta () {
+    return /** @type {any} */ (this.state ?? delta.create(this.$delta))
+  }
+
   destroy () {
     this.emit('destroy', [this])
     super.destroy()
@@ -67,9 +77,9 @@ class DeltaRDT extends ObservableV2 {
 }
 
 /**
- * Create a {@link DeltaRDT} for deltas described by `$schema`.
+ * Create a {@link DeltaRDT} for deltas described by `$delta`.
  *
  * @template {delta.DeltaAny} D
- * @param {Schema<D>} $schema
+ * @param {Schema<D>} $delta
  */
-export const deltaRDT = $schema => new DeltaRDT($schema)
+export const deltaRDT = $delta => new DeltaRDT($delta)

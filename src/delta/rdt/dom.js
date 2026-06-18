@@ -259,7 +259,7 @@ class DomRDT extends ObservableV2 {
     /**
      * @type {Schema<D>}
      */
-    this.$schema = /** @type {any} */ ($domDelta)
+    this.$delta = /** @type {any} */ ($domDelta)
     this.observedNode = observedNode
     this._mux = mux.createMutex()
     this.observer = new MutationObserver(this._mutationHandler)
@@ -295,6 +295,15 @@ class DomRDT extends ObservableV2 {
         this.emit('delta', [change])
       })
     }
+  }
+
+  /**
+   * The current state as a delta: an "insert everything" delta describing the observed subtree.
+   *
+   * @return {D}
+   */
+  toDelta () {
+    return /** @type {D} */ (domToDelta(this.observedNode))
   }
 
   destroy () {
