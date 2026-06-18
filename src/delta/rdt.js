@@ -1,8 +1,9 @@
 /**
- * # Bindings between Replicated Data Types (RDTs)
+ * # Replicated Data Types (RDTs) and bindings
  *
  * An **RDT** ("replicated data type") is any object that represents some state and communicates changes
- * to that state as {@link delta.Delta deltas}. Every RDT is an {@link ObservableV2}:
+ * to that state as {@link import('./delta.js').Delta deltas}. Every RDT is an
+ * {@link import('../observable.js').ObservableV2 observable}:
  * - it **emits** a `'delta'` event carrying a delta whenever its own state changes, and
  * - it **accepts** foreign changes through `applyDelta(delta)`, which mutates its state to match.
  *
@@ -22,11 +23,9 @@
  * - `./rdt/dom.js` — a live DOM subtree, observed with a `MutationObserver`, that turns DOM mutations
  *   into deltas and applies incoming deltas back onto the DOM.
  *
- * @module delta/binding
+ * @module delta/rdt
  */
 
-import { ObservableV2 } from '../observable.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations (RDT)
-import * as delta from './delta.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations (DeltaAny)
 import * as dt from './transformer.js'
 import * as mux from '../mutex.js'
 
@@ -43,8 +42,8 @@ import * as mux from '../mutex.js'
  * transformer for it), exposes its current state as a delta via `toDelta`, and accepts foreign deltas
  * via `applyDelta`.
  *
- * @template {delta.DeltaAny} D
- * @typedef {ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
+ * @template {import('./delta.js').DeltaAny} D
+ * @typedef {import('../observable.js').ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
  *   $delta: Schema<D>,
  *   toDelta: () => D,
  *   applyDelta: (delta: D) => void,
@@ -55,12 +54,12 @@ import * as mux from '../mutex.js'
 /**
  * Connects two RDTs so that changes on either side are transformed and reflected on the other.
  *
- * @template {delta.DeltaAny} DeltaA
+ * @template {import('./delta.js').DeltaAny} DeltaA
  */
 export class Binding {
   /**
    * @param {RDT<DeltaA>} a
-   * @param {RDT<delta.DeltaAny>} b
+   * @param {RDT<import('./delta.js').DeltaAny>} b
    * @param {dt.Template} [template] defaults to the {@link dt.id identity} transformer
    */
   constructor (a, b, template = dt.id) {
@@ -107,9 +106,9 @@ export class Binding {
  * Connect two RDTs through a transformer template. Changes on `a` are mapped onto `b` and vice versa.
  * Without a `template` the {@link dt.id identity} transformer is used, keeping both sides equal.
  *
- * @template {delta.DeltaAny} DeltaA
+ * @template {import('./delta.js').DeltaAny} DeltaA
  * @param {RDT<DeltaA>} a
- * @param {RDT<delta.DeltaAny>} b
+ * @param {RDT<import('./delta.js').DeltaAny>} b
  * @param {dt.Template} [template]
  */
 export const bind = (a, b, template) => new Binding(a, b, template)

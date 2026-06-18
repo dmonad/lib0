@@ -1,22 +1,21 @@
-import * as delta from '../delta.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations
 import * as s from '../../schema.js'
 
 /**
- * @template {delta.DeltaConf} [A={}]
- * @template {delta.DeltaConf} [B={}]
+ * @template {import('../delta.js').DeltaConf} [A={}]
+ * @template {import('../delta.js').DeltaConf} [B={}]
  */
 class TransformResult {
   /**
-   * @param {delta.DeltaBuilder<A>?} a
-   * @param {delta.DeltaBuilder<B>?} b
+   * @param {import('../delta.js').DeltaBuilder<A>?} a
+   * @param {import('../delta.js').DeltaBuilder<B>?} b
    */
   constructor (a, b) {
     /**
-     * @type {delta.DeltaBuilder<A>?}
+     * @type {import('../delta.js').DeltaBuilder<A>?}
      */
     this.a = a
     /**
-     * @type {delta.DeltaBuilder<B>?}
+     * @type {import('../delta.js').DeltaBuilder<B>?}
      */
     this.b = b
   }
@@ -31,7 +30,7 @@ class TransformResult {
   }
 
   /**
-   * @param {delta.DeltaBuilder<A>?} a
+   * @param {import('../delta.js').DeltaBuilder<A>?} a
    */
   applyA (a) {
     if (a !== null) {
@@ -45,7 +44,7 @@ class TransformResult {
   }
 
   /**
-   * @param {delta.DeltaBuilder<B>?} b
+   * @param {import('../delta.js').DeltaBuilder<B>?} b
    */
   applyB (b) {
     if (b !== null) {
@@ -68,10 +67,10 @@ class TransformResult {
  */
 
 /**
- * @template {delta.DeltaConf} A
- * @template {delta.DeltaConf} B
- * @param {s.Schema<delta.Delta<A>>} $a
- * @param {s.Schema<delta.Delta<B>>} $b
+ * @template {import('../delta.js').DeltaConf} A
+ * @template {import('../delta.js').DeltaConf} B
+ * @param {s.Schema<import('../delta.js').Delta<A>>} $a
+ * @param {s.Schema<import('../delta.js').Delta<B>>} $b
  * @return {s.Schema<TransformResult<A,B>>}
  */
 export const $tresult = ($a, $b) => /** @type {any} */ (s.$instanceOf(TransformResult, tr => (tr.a === null || $a.check(tr.a)) && (tr.b === null || $b.check(tr.b))))
@@ -79,16 +78,16 @@ export const $tresult = ($a, $b) => /** @type {any} */ (s.$instanceOf(TransformR
 /**
  * Build a {@link TransformResult}. Exposed so transformers in `./` can construct their results.
  *
- * @template {delta.DeltaBuilderAny} [DeltaA=delta.DeltaBuilderAny]
- * @template {delta.DeltaBuilderAny} [DeltaB=delta.DeltaBuilderAny]
+ * @template {import('../delta.js').DeltaBuilderAny} [DeltaA=import('../delta.js').DeltaBuilderAny]
+ * @template {import('../delta.js').DeltaBuilderAny} [DeltaB=import('../delta.js').DeltaBuilderAny]
  * @param {DeltaA?} a
  * @param {DeltaB?} b
  */
 export const createTransformResult = (a, b) => new TransformResult(a, b)
 
 /**
- * @template {delta.DeltaConf} A
- * @template {delta.DeltaConf} B
+ * @template {import('../delta.js').DeltaConf} A
+ * @template {import('../delta.js').DeltaConf} B
  */
 export class Transformer {
   /**
@@ -120,7 +119,7 @@ export class Transformer {
   }
 
   /**
-   * @param {delta.DeltaBuilder<A>} t
+   * @param {import('../delta.js').DeltaBuilder<A>} t
    * @return {TransformResult<A,B>}
    */
   applyA (t) {
@@ -128,7 +127,7 @@ export class Transformer {
   }
 
   /**
-   * @param {delta.DeltaBuilder<B>} t
+   * @param {import('../delta.js').DeltaBuilder<B>} t
    * @return {TransformResult<A,B>}
    */
   applyB (t) {
@@ -139,10 +138,10 @@ export class Transformer {
 /**
  * This schema is only for typechecking, it does not actually check the transformer behavior!
  *
- * @template {delta.DeltaConf} A
- * @template {delta.DeltaConf} B
- * @param {s.Schema<delta.Delta<A>>|A} _a
- * @param {s.Schema<delta.Delta<B>>|A} _b
+ * @template {import('../delta.js').DeltaConf} A
+ * @template {import('../delta.js').DeltaConf} B
+ * @param {s.Schema<import('../delta.js').Delta<A>>|A} _a
+ * @param {s.Schema<import('../delta.js').Delta<B>>|A} _b
  * @return {s.Schema<Transformer<A,B>>}
  */
 export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ (s.$instanceOf(Transformer))
@@ -155,5 +154,5 @@ export const $transformer = /* @__PURE__ */ transformerWith(s.$any, s.$any)
  *
  * @typedef {object} Template
  * @property {boolean} Template.stateless
- * @property {($d:s.Schema<delta.DeltaAny>)=>Transformer<any,any>} Template.init
+ * @property {($d:s.Schema<import('../delta.js').DeltaAny>)=>Transformer<any,any>} Template.init
  */

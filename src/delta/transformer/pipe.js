@@ -1,11 +1,19 @@
 import * as array from 'lib0/array'
 import * as delta from '../delta.js'
 import { Transformer, createTransformResult } from './core.js'
-import { AttrRename } from './rename.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations (ApplyPipeNorm)
-import { Filter } from './filter.js' // eslint-disable-line no-unused-vars -- referenced only in JSDoc type annotations (ApplyPipeNorm)
 
 /**
  * @typedef {import('./core.js').Template} Template
+ */
+
+/**
+ * @template {{[K:string|number]:string|number}} Renames
+ * @typedef {import('./rename.js').AttrRename<Renames>} AttrRenameTemplate
+ */
+
+/**
+ * @template {delta.DeltaConf} DConf
+ * @typedef {import('./filter.js').Filter<DConf>} FilterTemplate
  */
 
 /**
@@ -87,8 +95,8 @@ import { Filter } from './filter.js' // eslint-disable-line no-unused-vars -- re
  * @typedef {TS extends [infer FirstT extends Template, ...infer RestT extends Template[]]
  *   ? (NC extends { name: infer Name, attrs: infer Attrs extends {[K:string|number]:any}, children: infer Children, text: infer Text, recursiveChildren: infer RecursiveChildren, recursiveAttrs: infer RecursiveAttrs }
  *     ? ApplyPipeNorm<RestT,
- *       FirstT extends AttrRename<infer Renames> ? { name: Name, attrs: import('../../ts.js').PropsRename<Attrs extends NotSet ? {} : Attrs, Renames>, children: Children, text: Text, recursiveChildren: RecursiveChildren, recursiveAttrs: RecursiveAttrs } :
- *       FirstT extends Filter<infer DConf extends delta.DeltaConf> ? (NormalizeDeltaConf<DConf> extends { name: infer FilterName, attrs: infer FilterAttrs, children: infer FilterChildren, text: infer FilterText, recursiveChildren: infer FilterRecursiveChildren, recursiveAttrs: infer FilterRecursiveAttrs } ? {
+ *       FirstT extends AttrRenameTemplate<infer Renames> ? { name: Name, attrs: import('../../ts.js').PropsRename<Attrs extends NotSet ? {} : Attrs, Renames>, children: Children, text: Text, recursiveChildren: RecursiveChildren, recursiveAttrs: RecursiveAttrs } :
+ *       FirstT extends FilterTemplate<infer DConf extends delta.DeltaConf> ? (NormalizeDeltaConf<DConf> extends { name: infer FilterName, attrs: infer FilterAttrs, children: infer FilterChildren, text: infer FilterText, recursiveChildren: infer FilterRecursiveChildren, recursiveAttrs: infer FilterRecursiveAttrs } ? {
  *         name: FilterConfProp<FilterName, Name>,
  *         attrs: FilterAttrs extends NotSet ? NotSet : Attrs extends NotSet ? NotSet : import('../../ts.js').PropsPickShared<FilterAttrs, Attrs>,
  *         children: FilterConfProp<FilterChildren, Children>,

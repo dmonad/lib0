@@ -3,7 +3,7 @@ import * as delta from '../delta.js'
 import * as dt from '../transformer.js'
 import * as env from '../../environment.js'
 import * as dom from '../../dom.js'
-import { bind } from '../binding.js'
+import { bind } from '../rdt.js'
 import { deltaRDT } from './delta.js'
 import { domRDT, $domDelta } from './dom.js'
 

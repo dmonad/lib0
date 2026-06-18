@@ -1,14 +1,14 @@
 import * as t from '../testing.js'
 import * as delta from './delta.js'
 import * as dt from './transformer.js'
-import { bind } from './binding.js'
+import { bind } from './rdt.js'
 import { deltaRDT } from './rdt/delta.js'
 import * as s from '../schema.js'
 
 // ---------------------------------------------------------------------------
 // Binding
 //
-// These tests exercise the binding machinery (binding.js): a `Binding` routes
+// These tests exercise the binding machinery (rdt.js): a `Binding` routes
 // each side's changes through a transformer and feeds the result back, with a
 // mutex breaking the echo loop. `DeltaRDT` is used as the (DOM-free) vehicle on
 // both sides; the individual RDTs are tested in ./rdt/*.test.js.

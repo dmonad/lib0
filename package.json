@@ -93,9 +93,9 @@
       "types": "./dist/delta/transformer/projection.d.ts",
       "default": "./src/delta/transformer/projection.js"
     },
-    "./delta/binding": {
-      "types": "./dist/delta/binding.d.ts",
-      "default": "./src/delta/binding.js"
+    "./delta/rdt": {
+      "types": "./dist/delta/rdt.d.ts",
+      "default": "./src/delta/rdt.js"
     },
     "./delta/rdt/delta": {
       "types": "./dist/delta/rdt/delta.d.ts",

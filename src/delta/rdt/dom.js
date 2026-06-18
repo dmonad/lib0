@@ -3,7 +3,7 @@
 /**
  * # DOM delta RDT
  *
- * {@link domRDT} creates an RDT (see `../binding.js`) backed by a live DOM subtree. DOM mutations are
+ * {@link domRDT} creates an RDT (see `../rdt.js`) backed by a live DOM subtree. DOM mutations are
  * observed with a `MutationObserver`, turned into deltas and emitted as `'delta'` events; incoming
  * deltas are applied back onto the DOM. This lets a DOM subtree be bound to any other RDT.
  *
@@ -31,7 +31,7 @@ import * as s from '../../schema.js'
 
 /**
  * @template {delta.DeltaAny} D
- * @typedef {import('../binding.js').RDT<D>} RDT
+ * @typedef {import('../rdt.js').RDT<D>} RDT
  */
 
 /* c8 ignore start */

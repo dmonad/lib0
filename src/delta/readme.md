@@ -272,7 +272,7 @@ level, so `t.applyA(…)` / schema checks are fully typed:
 
 ## Extensions (out of scope for v1)
 
-- **Live DOM binding** — `binding.js` sketches RDTs for both sides:
+- **Live DOM binding** — `rdt.js` sketches RDTs for both sides:
   `bind(dataRDT, domRDT, UserList.init($users))` wires MutationObserver-derived
   deltas through the transformer and back.
 - **Computed one-way bindings** (`dt.computed(f)`) — not invertible; write-backs

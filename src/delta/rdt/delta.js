@@ -1,7 +1,7 @@
 /**
  * # In-memory delta RDT
  *
- * {@link deltaRDT} creates an RDT (see `../binding.js`) whose state is simply the accumulated delta.
+ * {@link deltaRDT} creates an RDT (see `../rdt.js`) whose state is simply the accumulated delta.
  * Calling `applyDelta` merges the incoming delta into `state` and re-emits it as a `'delta'` event, so
  * it can be bound to any other RDT.
  *
@@ -19,7 +19,7 @@ import * as mux from '../../mutex.js'
 
 /**
  * @template {delta.DeltaAny} D
- * @typedef {import('../binding.js').RDT<D>} RDT
+ * @typedef {import('../rdt.js').RDT<D>} RDT
  */
 
 /**

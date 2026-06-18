@@ -32,5 +32,6 @@ Run a single test file directly with `node ./src/<module>.test.js` only if it ha
 
 - Changing `exports` in `package.json` is a public API change — every new module needs `types`, `default`, and any environment-specific variants wired up consistently.
 - Node `>=22` is the declared floor; don't use newer-only APIs without a fallback.
+- Never use `eslint-disable-line` (or `eslint-disable`). For a symbol needed only in JSDoc type annotations, don't add a value `import` and silence the unused-var lint — reference it inline via `import('./mod.js').Name` in the JSDoc instead, so no runtime import exists.
 
 @AGENTS.md
