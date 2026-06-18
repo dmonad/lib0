@@ -107,10 +107,10 @@ export const testBindInitialStateClears = () => {
   // only `b` holds state; since `a` (the source of truth) is empty, `b`'s extra content is removed
   b.applyDelta(delta.create().setAttr('x', 'gone').insert('content'))
   bind(a, b, identity())
-  // `b`'s children are dropped; the leftover `deleteAttr('x')` is just how DeltaRDT records a
-  // removed attribute in its (non-final) accumulated state — semantically `b` is now empty like `a`
+  // `b` maintains a final document, so removing its content leaves a clean empty delta (no leftover
+  // delete-op markers) — semantically and structurally empty, matching the empty `a`
   t.assert(b.state?.childCnt === 0, 'b children cleared')
-  t.compare(b.state, delta.create().deleteAttr('x'), 'x removed from b to match empty a')
+  t.compare(b.state, delta.create(), 'b emptied to match empty a')
 }
 
 export const testBindInitialStateThenChange = () => {
@@ -176,16 +176,16 @@ class ConstrainedRDT extends ObservableV2 {
     /** @type {any} */
     let effective = d
     this._mux(() => {
-      if (this.state != null) {
-        this.state.apply(d)
-      } else {
-        this.state = delta.clone(d)
+      if (this.state == null) {
+        this.state = delta.create(d.name)
+        this.state.isFinal = true // keep a final document, like deltaRDT
       }
+      this.state.apply(d) // final → deletes/deleteAttrs clean up the state
       const f = this.computeFix(this.state)
       if (f != null && !f.isEmpty()) {
-        this.state.apply(f)
+        this.state.apply(f) // final → a deleteAttr fix removes the attr cleanly
         fix = f
-        effective = delta.clone(d).apply(f)
+        effective = delta.clone(d).apply(f) // the emitted change keeps the deleteAttr (not final)
       }
     })
     this.emit('delta', [effective])
@@ -224,8 +224,9 @@ export const testBindFixReceivingSide = () => {
   // an external change on `a` carries the forbidden attr; b strips it (a fix returned from applyDelta)
   // and that fix must propagate back through the transformer onto `a`
   a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'))
-  t.assert(delta.$deleteAttrOp.check(b.state?.attrs.secret), 'b stripped secret')
-  t.assert(delta.$deleteAttrOp.check(a.state?.attrs.secret), 'strip fix propagated back onto a')
+  // both sides maintain a final document, so the stripped attr is removed outright (no delete marker)
+  t.assert(b.state?.attrs.secret === undefined, 'b stripped secret')
+  t.assert(a.state?.attrs.secret === undefined, 'strip fix propagated back onto a')
   t.assert(b.state?.attrs.ok?.value === 'y' && a.state?.attrs.ok?.value === 'y', 'ok preserved on both')
   t.compare(a.state, b.state, 'both sides converge after the fix')
 }

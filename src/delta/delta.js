@@ -1545,7 +1545,7 @@ export class DeltaBuilder extends Delta {
    * attribute). Any kind of `delete` op might be considered a bug. A final delta is not idempotent.
    *
    * @param {Delta<Conf>?} other
-   * @param {{ final?: boolean }} opts -- (experimental)
+   * @param {{ final?: boolean }} opts
    * @return {DeltaBuilder<Conf>}
    */
   apply (other, { final = this.isFinal } = {}) {

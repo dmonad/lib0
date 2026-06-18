@@ -1,9 +1,13 @@
 /**
  * # In-memory delta RDT
  *
- * {@link deltaRDT} creates an RDT (see `../rdt.js`) whose state is simply the accumulated delta.
- * Calling `applyDelta` merges the incoming delta into `state` and re-emits it as a `'delta'` event, so
- * it can be bound to any other RDT. It accepts every valid delta as-is, so it never returns a fix.
+ * {@link deltaRDT} creates an RDT (see `../rdt.js`) whose state is the accumulated delta. Calling
+ * `applyDelta` merges the incoming delta into `state` and re-emits it as a `'delta'` event, so it can
+ * be bound to any other RDT. It accepts every valid delta as-is, so it never returns a fix.
+ *
+ * `state` is kept as a **final** delta (`isFinal`): it represents the current document, so a `delete`
+ * or `deleteAttr` removes the content/attribute outright instead of accumulating a delete-op marker.
+ * `toDelta()` therefore always returns a clean insert-only document.
  *
  * @module delta/rdt/delta
  */
@@ -54,11 +58,13 @@ class DeltaRDT extends ObservableV2 {
   applyDelta (d) {
     if (d.isEmpty()) return null
     this._mux(() => {
-      if (this.state != null) {
-        this.state.apply(d)
-      } else {
-        this.state = delta.clone(d)
+      if (this.state == null) {
+        // start from an empty *final* document (see module doc) so deletes/deleteAttrs — even in the
+        // very first delta — remove content instead of leaving delete-op markers
+        this.state = delta.create(d.name)
+        this.state.isFinal = true
       }
+      this.state.apply(d) // `final` defaults to `state.isFinal`, so deletes clean up the state
     })
     // emit AFTER releasing the mutex. When bound to a fix-producing RDT, that side's fix is mapped
     // back here and applied via a synchronous re-entrant `applyDelta` while this call is still on the
