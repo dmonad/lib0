@@ -8,7 +8,7 @@ import { Transformer, createTransformResult } from './core.js'
 /**
  * @template {string} AttrName
  * @template {delta.DeltaConf} IN
- * @typedef {{ name: 'lib0:value', attrs: { value: IN extends { attrs: { [K in AttrName]: infer V } } ? V : never }}} ApplyQueryAttr
+ * @typedef {{ name: 'lib0:value', attrs: { value: IN extends { attrs: { [K in AttrName]: infer V } } ? V : never }}} ApplyAttr
  */
 
 /**
@@ -17,7 +17,7 @@ import { Transformer, createTransformResult } from './core.js'
  * @param {string|number} to
  * @param {delta.DeltaBuilderAny} inDelta
  */
-const queryAttrTransformHelper = (outDelta, from, to, inDelta) => {
+const attrTransformHelper = (outDelta, from, to, inDelta) => {
   const attrOp = inDelta.attrs[from]
   if (attrOp != null) {
     const c = attrOp.clone()
@@ -34,7 +34,7 @@ const queryAttrTransformHelper = (outDelta, from, to, inDelta) => {
  * @template {string} AttrName
  * @implements Template
  */
-export class QueryAttr {
+export class Attr {
   /**
    * @param {AttrName} attrName
    */
@@ -47,10 +47,10 @@ export class QueryAttr {
   /**
    * @template {delta.DeltaConf} IN
    * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
-   * @return {Transformer<IN, ApplyQueryAttr<AttrName, IN>>}
+   * @return {Transformer<IN, ApplyAttr<AttrName, IN>>}
    */
   init (_$d) {
-    return new QueryAttrTransformer(this.attrName)
+    return new AttrTransformer(this.attrName)
   }
 }
 
@@ -59,7 +59,7 @@ export class QueryAttr {
  * @template {delta.DeltaConf} B
  * @extends {Transformer<A,B>}
  */
-export class QueryAttrTransformer extends Transformer {
+export class AttrTransformer extends Transformer {
   /**
    * @param {string} attrName
    */
@@ -75,7 +75,7 @@ export class QueryAttrTransformer extends Transformer {
   applyA (d) {
     return createTransformResult(
       null,
-      queryAttrTransformHelper(
+      attrTransformHelper(
         delta.create('lib0:value'),
         this.attrName,
         'value',
@@ -90,7 +90,7 @@ export class QueryAttrTransformer extends Transformer {
    */
   applyB (d) {
     return createTransformResult(
-      queryAttrTransformHelper(
+      attrTransformHelper(
         delta.create(),
         'value',
         this.attrName,
@@ -102,9 +102,9 @@ export class QueryAttrTransformer extends Transformer {
 }
 
 /**
- * Create a {@link QueryAttr} template that projects the attribute `attrName`.
+ * Create a {@link Attr} template that projects the attribute `attrName`.
  *
  * @template {string} AttrName
  * @param {AttrName} attrName
  */
-export const query = attrName => new QueryAttr(attrName)
+export const attr = attrName => new Attr(attrName)

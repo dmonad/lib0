@@ -11,7 +11,7 @@
  * - {@link rename} — rename node attributes
  * - {@link filter} — drop everything not matching a schema
  * - {@link pipe} — chain templates
- * - {@link query} — project a single attribute into a `lib0:value` node
+ * - {@link attr} — project a single attribute into a `lib0:value` node
  * - {@link projection} — project onto a fixed node shape
  * - {@link inline} — inline child nodes whose name is in a configured set
  * - {@link children} — descend into child nodes and apply a per-child sub-transformer
@@ -24,7 +24,7 @@ export * from './transformer/id.js'
 export * from './transformer/rename.js'
 export * from './transformer/filter.js'
 export * from './transformer/pipe.js'
-export * from './transformer/query.js'
+export * from './transformer/attr.js'
 export * from './transformer/projection.js'
 export * from './transformer/inline.js'
 export * from './transformer/children.js'

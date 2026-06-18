@@ -1,7 +1,7 @@
 import * as t from '../../testing.js'
 import * as delta from '../delta.js'
 import { projection } from './projection.js'
-import { QueryAttrTransformer } from './query.js'
+import { AttrTransformer } from './attr.js'
 
 // NOTE: LLM-generated, needs review.
 
@@ -16,7 +16,7 @@ export const testProjectionFixed = () => {
 
 export const testProjectionDynamic = () => {
   // a dynamic attr backed by a transformer: project attr `x` into output attr `title`
-  const p = projection('h1', { title: new QueryAttrTransformer('x') }, [])
+  const p = projection('h1', { title: new AttrTransformer('x') }, [])
   const res = p.applyA(/** @type {any} */ (delta.create().setAttr('x', 'hello')))
   t.assert(res.a === null)
   const b = /** @type {any} */ (res.b)

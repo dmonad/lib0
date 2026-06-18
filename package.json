@@ -85,9 +85,9 @@
       "types": "./dist/delta/transformer/pipe.d.ts",
       "default": "./src/delta/transformer/pipe.js"
     },
-    "./delta/transformer/query": {
-      "types": "./dist/delta/transformer/query.d.ts",
-      "default": "./src/delta/transformer/query.js"
+    "./delta/transformer/attr": {
+      "types": "./dist/delta/transformer/attr.d.ts",
+      "default": "./src/delta/transformer/attr.js"
     },
     "./delta/transformer/projection": {
       "types": "./dist/delta/transformer/projection.d.ts",

@@ -98,7 +98,7 @@ sides via rebase (see `Transformer.apply` in `transformer.js`).
 
 # Projections — React-like templates (design)
 
-> **Status: design-stage.** `rename`, `filter`, `queryAttr` and `pipe` exist in
+> **Status: design-stage.** `rename`, `filter`, `attr` and `pipe` exist in
 > `transformer.js`. The projection templates specified here — `dt.node`, `dt.map`,
 > `dt.queryText` and the `queryAttr` factory — are not implemented yet. This section
 > is the spec for them.
@@ -148,7 +148,7 @@ How this relates to React:
   static strings or templates. Mixing is fine:
   `dt.node('p', {}, ['Address: ', dt.queryAttr('address')])`.
 - **`dt.queryAttr(name)`** — binds the value of attr `name` of the input delta
-  (factory over the existing `QueryAttr` template).
+  (factory over the existing `Attr` template).
 - **`dt.queryText()`** — binds the text content of the input delta. Unlike attr
   bindings (replacement semantics, see below), text↔text maps char-level:
   retain/insert/delete pass through directly.
@@ -159,7 +159,7 @@ How this relates to React:
 
 **The `lib0:value` carrier convention.** Scalar bindings transport their value as a
 `lib0:value` node with the value in `attrs.value` (established by
-`QueryAttrTransformer`). `dt.node` unwraps carriers at attr positions (set the attr)
+`AttrTransformer`). `dt.node` unwraps carriers at attr positions (set the attr)
 and at child positions (render as text); any other template output splices in as a
 subtree. This is the interop contract between all binding combinators.
 
@@ -257,7 +257,7 @@ level, so `t.applyA(…)` / schema checks are fully typed:
 - `dt.node` returns `NodeTpl<Name, AttrsSpec, ChildrenSpec>`; an
   `ApplyNode<Name, AttrsSpec, ChildrenSpec, IN>` alias derives the output conf:
   `name: Name`; per attr key the static value type or the unwrapped carrier value
-  (cf. `ApplyQueryAttr`); children as the union of static text (`text: true`),
+  (cf. `ApplyAttr`); children as the union of static text (`text: true`),
   nested `delta.Delta<ApplyNode<…>>` confs, and — for `dt.map` —
   `delta.Delta<ApplyNode<ItemTpl…, ChildConf<IN>>>` where `ChildConf` extracts the
   input's `children` conf.

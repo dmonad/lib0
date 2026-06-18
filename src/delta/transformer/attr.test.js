@@ -1,12 +1,12 @@
 import * as t from '../../testing.js'
 import * as delta from '../delta.js'
 import * as s from '../../schema.js'
-import { query } from './query.js'
+import { attr } from './attr.js'
 
 // NOTE: LLM-generated, needs review.
 
-export const testQueryAttr = () => {
-  const q = query('x')
+export const testAttr = () => {
+  const q = attr('x')
   const it = q.init(delta.$delta({ attrs: { x: s.$string } }))
   t.assert(q.stateless === true)
   // forward: extract attr `x` into a `lib0:value` node's `value` attribute
