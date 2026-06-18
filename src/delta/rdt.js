@@ -18,6 +18,14 @@
  * Feeding the mapped change back into the other RDT makes it emit its own `'delta'`, which would loop
  * forever; a {@link mux mutex} shared per side breaks that echo so a change is only transformed once.
  *
+ * Applying a mapped change can make the receiving RDT enforce its own invariants and return a **fix**
+ * (see {@link RDT}) — a further change it made to itself. Because the echo mutex swallows the RDT's
+ * re-emit during propagation, the binding reads that fix from `applyDelta`'s return value and feeds it
+ * back as a fresh change on its side. A fix on one side and a fix on the other are concurrent, so they
+ * are rebased against each other: the pending pair `{ a, b }` is run through `transformer.apply`, whose
+ * machinery already transposes the two sides. This repeats until neither side reports a fix, so fixes
+ * must converge to a fixpoint (a well-behaved RDT applies them idempotently).
+ *
  * On creation a binding first **synchronizes the initial state**: `a`'s current state (`a.toDelta()`)
  * is projected through the transformer, and the projection is diffed against `b`'s current state
  * (`b.toDelta()`); the resulting difference is applied to `b` so it matches `a`'s projection (and any
@@ -49,14 +57,40 @@ import * as mux from '../mutex.js'
  * transformer for it), exposes its current state as a delta via `toDelta`, and accepts foreign deltas
  * via `applyDelta`.
  *
+ * `applyDelta(d)` applies `d` and then, if the change would violate the RDT's own invariants, applies
+ * a **fix** of its own (e.g. reversing part of `d`, or inserting missing content) and returns that fix
+ * — `null` when none was needed. The fix is a regular change on this RDT, so a {@link Binding} maps it
+ * onto the other side just like any other change. `applyDelta` also emits the *effective* change
+ * (`d` together with the fix) on the `'delta'` channel.
+ *
  * @template {import('./delta.js').DeltaAny} D
  * @typedef {import('../observable.js').ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
  *   $delta: Schema<D>,
  *   toDelta: () => D,
- *   applyDelta: (delta: D) => void,
+ *   applyDelta: (delta: D) => D | null,
  *   destroy: () => void
  * }} RDT
  */
+
+/**
+ * Propagate a pair of concurrent changes between the two sides of `binding` until they converge.
+ *
+ * `ta` / `tb` are changes that have ALREADY been applied to `a` / `b` (an incoming `'delta'`, or a fix
+ * returned by a previous `applyDelta`). Each is mapped onto the other side via the transformer —
+ * `apply` rebases the two against each other — and the mapped results are applied, which may yield
+ * further RDT fixes. We repeat until neither side reports a fix.
+ *
+ * @param {Binding<any>} binding
+ * @param {any} ta change already applied on `a` (or `null`)
+ * @param {any} tb change already applied on `b` (or `null`)
+ */
+const propagate = (binding, ta, tb) => {
+  while ((ta != null && !ta.isEmpty()) || (tb != null && !tb.isEmpty())) {
+    const tres = binding.t.apply(dt.createTransformResult(ta, tb))
+    ta = tres.a != null ? binding.a.applyDelta(tres.a) : null
+    tb = tres.b != null ? binding.b.applyDelta(tres.b) : null
+  }
+}
 
 /**
  * Connects two RDTs so that changes on either side are transformed and reflected on the other.
@@ -87,27 +121,21 @@ export class Binding {
      */
     this.b = b
     this._mux = mux.createMutex()
-    this._achanged = this.a.on('delta', d => this._mux(() => {
-      const tres = this.t.applyA(d)
-      if (tres.a) this.a.applyDelta(tres.a)
-      if (tres.b) this.b.applyDelta(tres.b)
-    }))
-    this._bchanged = this.b.on('delta', d => this._mux(() => {
-      const tres = this.t.applyB(d)
-      if (tres.b) this.b.applyDelta(tres.b)
-      if (tres.a) this.a.applyDelta(tres.a)
-    }))
+    this._achanged = this.a.on('delta', d => this._mux(() => propagate(this, d, null)))
+    this._bchanged = this.b.on('delta', d => this._mux(() => propagate(this, null, d)))
     this.a.on('destroy', this.destroy)
     this.b.on('destroy', this.destroy)
     // Sync the initial state. `a` is the source of truth: project its current state through the
     // transformer (`applyA`) — which also yields any self-heal correction for `a` (`tres.a`) — then
     // diff the projection against `b`'s current state and apply the difference so `b` ends up
-    // matching `a`'s projection. Wrapped in the mutex so these `applyDelta` calls don't echo back
-    // through the listeners above.
+    // matching `a`'s projection. Any fixes the two sides report are reconciled via `propagate`.
+    // Wrapped in the mutex so these `applyDelta` calls don't echo back through the listeners above.
     this._mux(() => {
       const tres = this.t.applyA(this.a.toDelta())
-      if (tres.a) this.a.applyDelta(tres.a)
-      if (tres.b) this.b.applyDelta(delta.diff(/** @type {delta.DeltaAny} */ (this.b.toDelta()), tres.b))
+      const fa = tres.a ? this.a.applyDelta(tres.a) : null
+      const diffB = tres.b ? delta.diff(/** @type {delta.DeltaAny} */ (this.b.toDelta()), tres.b) : null
+      const fb = diffB ? this.b.applyDelta(diffB) : null
+      propagate(this, fa, fb)
     })
   }
 

@@ -3,6 +3,8 @@ import * as delta from './delta.js'
 import * as dt from './transformer.js'
 import { bind } from './rdt.js'
 import { deltaRDT } from './rdt/delta.js'
+import { ObservableV2 } from '../observable.js'
+import * as mux from '../mutex.js'
 import * as s from '../schema.js'
 
 // ---------------------------------------------------------------------------
@@ -134,6 +136,126 @@ export const testBindInitialStateRename = () => {
   bind(a, b, dt.rename(/** @type {const} */ ({ a: 'b' })))
   t.compare(a.state, delta.create().setAttr('a', 'x'), 'a unchanged')
   t.compare(b.state, delta.create().setAttr('b', 'x'), 'initial a-state projected & renamed onto b')
+}
+
+/**
+ * @typedef {import('./rdt.js').RDT<delta.DeltaAny>} RDT
+ */
+
+/**
+ * A fix-producing RDT used only in these tests. Like the in-memory `deltaRDT`, but after applying a
+ * change it consults `computeFix(state)` and, when that returns a non-empty delta, applies it on top
+ * and returns it as the fix (emitting the effective change). This exercises the binding's
+ * fix-propagation logic without baking invariants into the shipped `deltaRDT`.
+ *
+ * @implements {RDT}
+ * @extends {ObservableV2<{ delta: (d: delta.DeltaAny) => void, destroy: (rdt: any) => void }>}
+ */
+class ConstrainedRDT extends ObservableV2 {
+  /**
+   * @param {import('../schema.js').Schema<delta.DeltaAny>} $delta
+   * @param {(state: delta.DeltaBuilderAny) => (delta.DeltaAny | null)} computeFix
+   */
+  constructor ($delta, computeFix) {
+    super()
+    this.$delta = $delta
+    /** @type {delta.DeltaBuilderAny?} */
+    this.state = null
+    this.computeFix = computeFix
+    this._mux = mux.createMutex()
+  }
+
+  /**
+   * @param {delta.DeltaAny} d
+   * @return {delta.DeltaAny | null}
+   */
+  applyDelta (d) {
+    if (d.isEmpty()) return null
+    /** @type {delta.DeltaAny | null} */
+    let fix = null
+    /** @type {any} */
+    let effective = d
+    this._mux(() => {
+      if (this.state != null) {
+        this.state.apply(d)
+      } else {
+        this.state = delta.clone(d)
+      }
+      const f = this.computeFix(this.state)
+      if (f != null && !f.isEmpty()) {
+        this.state.apply(f)
+        fix = f
+        effective = delta.clone(d).apply(f)
+      }
+    })
+    this.emit('delta', [effective])
+    return fix
+  }
+
+  toDelta () {
+    return /** @type {any} */ (this.state ?? delta.create(this.$delta))
+  }
+
+  destroy () {
+    this.emit('destroy', [this])
+    super.destroy()
+  }
+}
+
+/**
+ * @param {import('../schema.js').Schema<delta.DeltaAny>} $delta
+ * @param {(state: delta.DeltaBuilderAny) => (delta.DeltaAny | null)} computeFix
+ */
+const constrainedRDT = ($delta, computeFix) => new ConstrainedRDT($delta, computeFix)
+
+/**
+ * Invariant "the `secret` attribute is forbidden": whenever a change sets it, strip it back out.
+ *
+ * @param {delta.DeltaBuilderAny} state
+ */
+const stripSecret = state =>
+  delta.$setAttrOp.check(state.attrs.secret) ? delta.create().deleteAttr('secret') : null
+
+export const testBindFixReceivingSide = () => {
+  const $d = delta.$delta({ attrs: { secret: s.$string, ok: s.$string } })
+  const a = deltaRDT($d)
+  const b = constrainedRDT($d, stripSecret) // b forbids `secret`
+  bind(a, b, identity())
+  // an external change on `a` carries the forbidden attr; b strips it (a fix returned from applyDelta)
+  // and that fix must propagate back through the transformer onto `a`
+  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'))
+  t.assert(delta.$deleteAttrOp.check(b.state?.attrs.secret), 'b stripped secret')
+  t.assert(delta.$deleteAttrOp.check(a.state?.attrs.secret), 'strip fix propagated back onto a')
+  t.assert(b.state?.attrs.ok?.value === 'y' && a.state?.attrs.ok?.value === 'y', 'ok preserved on both')
+  t.compare(a.state, b.state, 'both sides converge after the fix')
+}
+
+export const testBindFixOriginatingSide = () => {
+  const $d = delta.$delta({ attrs: { secret: s.$string, ok: s.$string } })
+  const a = constrainedRDT($d, stripSecret) // a itself forbids `secret`
+  const b = deltaRDT($d)
+  bind(a, b, identity())
+  // `a` strips `secret` locally; the *effective* change it emits (with secret already removed) is what
+  // reaches `b`, so `b` never sees secret as a live set
+  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'))
+  t.assert(!delta.$setAttrOp.check(b.state?.attrs.secret), 'b never received secret as a set')
+  t.assert(b.state?.attrs.ok?.value === 'y', 'ok reached b')
+  t.compare(a.state, b.state, 'both sides converge')
+}
+
+export const testBindFixAddsContent = () => {
+  const $d = delta.$delta({ attrs: { version: s.$string, data: s.$string } })
+  // b requires a `version` attribute and adds a default one when it is missing
+  const ensureVersion = (/** @type {delta.DeltaBuilderAny} */ state) =>
+    delta.$setAttrOp.check(state.attrs.version) ? null : delta.create().setAttr('version', '1')
+  const a = deltaRDT($d)
+  const b = constrainedRDT($d, ensureVersion)
+  bind(a, b, identity())
+  a.applyDelta(delta.create().setAttr('data', 'x'))
+  // b adds the missing version (a fix); it propagates back so `a` gains it too
+  t.assert(b.state?.attrs.version?.value === '1', 'b added the missing version')
+  t.assert(a.state?.attrs.version?.value === '1', 'version fix propagated back onto a')
+  t.compare(a.state, b.state, 'both sides converge after the fix')
 }
 
 export const testBindDestroy = () => {

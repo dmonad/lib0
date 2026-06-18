@@ -282,6 +282,8 @@ class DomRDT extends ObservableV2 {
 
   /**
    * @param {D} d
+   * @return {D | null} the fix restoring this RDT's invariants — always `null`; the DOM RDT does not
+   * (yet) enforce invariants beyond what the incoming delta describes
    */
   applyDelta (d) {
     if (d.origin !== this) {
@@ -295,6 +297,7 @@ class DomRDT extends ObservableV2 {
         this.emit('delta', [change])
       })
     }
+    return null
   }
 
   /**

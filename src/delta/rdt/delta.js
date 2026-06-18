@@ -3,7 +3,7 @@
  *
  * {@link deltaRDT} creates an RDT (see `../rdt.js`) whose state is simply the accumulated delta.
  * Calling `applyDelta` merges the incoming delta into `state` and re-emits it as a `'delta'` event, so
- * it can be bound to any other RDT.
+ * it can be bound to any other RDT. It accepts every valid delta as-is, so it never returns a fix.
  *
  * @module delta/rdt/delta
  */
@@ -45,19 +45,27 @@ class DeltaRDT extends ObservableV2 {
   }
 
   /**
-   * Merge an incoming delta into the current state and notify observers.
+   * Merge an incoming delta into the current state and notify observers. Always returns `null`: this
+   * RDT accepts every valid delta unchanged, so it never produces a fix.
    *
    * @param {D} d
+   * @return {null}
    */
   applyDelta (d) {
-    d.isEmpty() || this._mux(() => {
+    if (d.isEmpty()) return null
+    this._mux(() => {
       if (this.state != null) {
         this.state.apply(d)
       } else {
         this.state = delta.clone(d)
       }
-      this.emit('delta', [d])
     })
+    // emit AFTER releasing the mutex. When bound to a fix-producing RDT, that side's fix is mapped
+    // back here and applied via a synchronous re-entrant `applyDelta` while this call is still on the
+    // stack; with the emit inside the mutex that re-entrant mutation would be dropped. The binding's
+    // own mutex still breaks the echo loop.
+    this.emit('delta', [d])
+    return null
   }
 
   /**

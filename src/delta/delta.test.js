@@ -1729,6 +1729,24 @@ export const testRebaseChildren = () => {
       .insert('de', { bold: true })
     )
   })
+  t.group('retain vs retain format conflict: partial overlap keeps the non-conflicting key', () => {
+    // currChild carries TWO format keys; only `bold` is also written by otherChild. `bold` is
+    // conceded (strippedAny) while `color` is kept, so `stripped` is non-empty and the middle retain
+    // takes {color:'red'} — the `: stripped` branch of the format reconciliation in rebase (the
+    // all-keys-conceded `null` branch is covered by the group above).
+    const base = delta.create().insert('abcde').done()
+    const d1 = delta.create().retain(1).retain(2, { bold: false }).retain(2)
+    const d2 = delta.create().retain(5, { bold: true, color: 'red' })
+    const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
+    const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
+    t.compare(stateA, stateB) // TP1
+    // d1 has priority → bold:false wins on 'bc'; color:'red' (only on d2) survives everywhere
+    t.compare(stateA, delta.create()
+      .insert('a', { bold: true, color: 'red' })
+      .insert('bc', { bold: false, color: 'red' })
+      .insert('de', { bold: true, color: 'red' })
+    )
+  })
   t.group('delete vs delete with the same length leaves no remaining childCnt', () => {
     const c = delta.create().delete(2)
     c.rebase(delta.create().delete(2), false)
