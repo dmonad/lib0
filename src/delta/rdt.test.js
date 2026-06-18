@@ -73,6 +73,69 @@ export const testBindRename = () => {
   t.compare(a.state, delta.create().setAttr('a', 'y'), 'attr renamed b->a')
 }
 
+export const testBindInitialState = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  // `a` already holds state before the binding is created
+  a.applyDelta(delta.create().setAttr('x', 'hello').insert('world'))
+  // binding must sync `a`'s existing state onto the (empty) `b`
+  bind(a, b, identity())
+  t.compare(b.state, delta.create().setAttr('x', 'hello').insert('world'), 'b initialized from a')
+  t.compare(a.state, b.state, 'states equal after initial sync')
+}
+
+export const testBindInitialStateReconcile = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  // both sides hold (different) state before binding
+  a.applyDelta(delta.create().setAttr('x', 'a').insert('AAA'))
+  b.applyDelta(delta.create().setAttr('x', 'b').insert('BBB'))
+  bind(a, b, identity())
+  // `a` is the source of truth: `b` is reconciled to match a's projection
+  t.compare(b.state, delta.create().setAttr('x', 'a').insert('AAA'), 'b reconciled to a on bind')
+  t.compare(a.state, b.state, 'states equal after reconcile')
+}
+
+export const testBindInitialStateClears = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  // only `b` holds state; since `a` (the source of truth) is empty, `b`'s extra content is removed
+  b.applyDelta(delta.create().setAttr('x', 'gone').insert('content'))
+  bind(a, b, identity())
+  // `b`'s children are dropped; the leftover `deleteAttr('x')` is just how DeltaRDT records a
+  // removed attribute in its (non-final) accumulated state — semantically `b` is now empty like `a`
+  t.assert(b.state?.childCnt === 0, 'b children cleared')
+  t.compare(b.state, delta.create().deleteAttr('x'), 'x removed from b to match empty a')
+}
+
+export const testBindInitialStateThenChange = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  a.applyDelta(delta.create().setAttr('x', 'init').insert('hi'))
+  bind(a, b, identity())
+  t.compare(b.state, a.state, 'b initialized from a')
+  // ongoing changes still propagate after the initial sync
+  b.applyDelta(delta.create().setAttr('x', 'changed'))
+  t.compare(a.state, b.state, 'b-side change propagated to a after initial sync')
+  t.compare(a.state, delta.create().setAttr('x', 'changed').insert('hi'))
+}
+
+export const testBindInitialStateRename = () => {
+  const $a = delta.$delta({ attrs: { a: s.$string } })
+  const $b = delta.$delta({ attrs: { b: s.$string } })
+  const a = deltaRDT($a)
+  const b = deltaRDT($b)
+  // `a` holds state before binding; the transformer renames attr `a` -> `b`
+  a.applyDelta(delta.create().setAttr('a', 'x'))
+  bind(a, b, dt.rename(/** @type {const} */ ({ a: 'b' })))
+  t.compare(a.state, delta.create().setAttr('a', 'x'), 'a unchanged')
+  t.compare(b.state, delta.create().setAttr('b', 'x'), 'initial a-state projected & renamed onto b')
+}
+
 export const testBindDestroy = () => {
   const $d = delta.$delta({ attrs: { x: s.$string } })
   const a = deltaRDT($d)

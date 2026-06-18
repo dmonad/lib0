@@ -18,6 +18,12 @@
  * Feeding the mapped change back into the other RDT makes it emit its own `'delta'`, which would loop
  * forever; a {@link mux mutex} shared per side breaks that echo so a change is only transformed once.
  *
+ * On creation a binding first **synchronizes the initial state**: `a`'s current state (`a.toDelta()`)
+ * is projected through the transformer, and the projection is diffed against `b`'s current state
+ * (`b.toDelta()`); the resulting difference is applied to `b` so it matches `a`'s projection (and any
+ * self-heal correction is applied back to `a`). `a` is the source of truth — pre-existing state on `b`
+ * that `a` does not project to is overwritten.
+ *
  * Two reference RDTs live in `./rdt/`:
  * - `./rdt/delta.js` ({@link RDT}) — an in-memory delta whose state is just the accumulated delta.
  * - `./rdt/dom.js` — a live DOM subtree, observed with a `MutationObserver`, that turns DOM mutations
@@ -27,6 +33,7 @@
  */
 
 import * as dt from './transformer.js'
+import * as delta from './delta.js'
 import * as mux from '../mutex.js'
 
 /**
@@ -92,6 +99,16 @@ export class Binding {
     }))
     this.a.on('destroy', this.destroy)
     this.b.on('destroy', this.destroy)
+    // Sync the initial state. `a` is the source of truth: project its current state through the
+    // transformer (`applyA`) — which also yields any self-heal correction for `a` (`tres.a`) — then
+    // diff the projection against `b`'s current state and apply the difference so `b` ends up
+    // matching `a`'s projection. Wrapped in the mutex so these `applyDelta` calls don't echo back
+    // through the listeners above.
+    this._mux(() => {
+      const tres = this.t.applyA(this.a.toDelta())
+      if (tres.a) this.a.applyDelta(tres.a)
+      if (tres.b) this.b.applyDelta(delta.diff(/** @type {delta.DeltaAny} */ (this.b.toDelta()), tres.b))
+    })
   }
 
   destroy = () => {
