@@ -158,8 +158,8 @@ A *carrier* is a reserved node name a transformer emits to signal "resolve me":
   `inline` transformer configured with the `lib0:inline` name).
 
 `project` resolves carriers in its *own* structure. For a carrier emitted **outside** a
-`project` — e.g. a bare `children(() => attr('x'))` map, or a `children`-map you mark
-`as('lib0:inline')` — compose the matching flat resolver yourself, exactly as you would any
+`project` — e.g. a bare `children(() => attr('x'))` map, or a `children`-map you
+`rename('lib0:inline')` — compose the matching flat resolver yourself, exactly as you would any
 other transformer:
 
 - `dt.unwrapValue` — lifts `lib0:value` children to their scalar (the composable counterpart
@@ -171,11 +171,11 @@ other transformer:
 ## Lists and tables
 
 Map a collection's children with the `children` transformer and relabel the container with
-`as`. Each row is a `project`, so it lifts its own values — no resolver needed:
+`rename`. Each row is a `project`, so it lifts its own values — no resolver needed:
 
 ```javascript
 const rowSpec = delta.create('li').insert([dt.attr('name')])
-const list = dt.pipe(dt.children(() => dt.project(rowSpec)), dt.as('ul'))
+const list = dt.pipe(dt.children(() => dt.project(rowSpec)), dt.rename('ul'))
 
 list.init(delta.$deltaAny).applyA(delta.create('users').insert([
   delta.create('user').setAttr('name', 'Erika'),
@@ -185,7 +185,7 @@ list.init(delta.$deltaAny).applyA(delta.create('users').insert([
 ```
 
 `children` maps one data item to one row (incremental insert/delete/retain/modify, per-item
-transformer state preserved positionally); `as('ul')` relabels the mapped container. For an
+transformer state preserved positionally); `rename('ul')` relabels the mapped container. For an
 **editable** row binding use an *attribute* hole (`delta.create('li').setAttr('label',
 dt.attr('name'))`): a view edit of the attribute round-trips back to the data item.
 

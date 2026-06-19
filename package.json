@@ -97,9 +97,9 @@
       "types": "./dist/delta/transformer/value.d.ts",
       "default": "./src/delta/transformer/value.js"
     },
-    "./delta/transformer/node": {
-      "types": "./dist/delta/transformer/node.d.ts",
-      "default": "./src/delta/transformer/node.js"
+    "./delta/transformer/rename-attrs": {
+      "types": "./dist/delta/transformer/rename-attrs.d.ts",
+      "default": "./src/delta/transformer/rename-attrs.js"
     },
     "./delta/rdt": {
       "types": "./dist/delta/rdt.d.ts",

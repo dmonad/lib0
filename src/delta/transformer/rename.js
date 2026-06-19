@@ -2,116 +2,72 @@ import * as delta from '../delta.js'
 import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
- * @template {{[K:string|number]:string|number}} Renames
- * @template {delta.DeltaConf} IN
- * @typedef {delta.DeltaConfOverwrite<IN,{ attrs: import('../../ts.js').PropsRename<delta.DeltaConfGetAttrs<IN>,Renames> }>} ApplyAttrRename
- */
-
-/**
- * @param {delta.DeltaAny?} d
- * @param {{[K:string|number]:string|number}} renames
- * @param {{[K:string|number]:string|number}} revRenames
- * @return {import('./core.js').TransformResultAny}
- */
-const renameAttrs = (d, renames, revRenames) => {
-  if (d == null) return createTransformResult(null, null)
-  const forwardTransform = delta.clone(d)
-  for (const attr of forwardTransform.attrs) {
-    const key = attr.key
-    const r = renames[key]
-    const rv = revRenames[key]
-    if (r != null) {
-      // @ts-ignore
-      forwardTransform.attrs[r] = attr
-      // delete original
-      delete forwardTransform.attrs[key]
-      // @ts-ignore
-      attr.key = r
-    } else if (rv != null) {
-      // used in a rename, delete original
-      delete forwardTransform.attrs[key]
-    }
-  }
-  return createTransformResult(null, forwardTransform)
-}
-
-/**
- * Renames node attributes (`a` -> `b`) in both directions. Holds no per-application state, so
- * {@link AttrRename} builds a single instance and shares it across every `init`.
+ * Relabels a node: side B carries the configured `name`, side A keeps the source node's original
+ * name. Otherwise identity. Useful to mark a `children`-mapped collection as `lib0:inline` (so a
+ * downstream {@link import('./inline.js').inline}`(['lib0:inline'])` splices it into its parent) or
+ * simply to rename the container (e.g. a data collection projected as a `<ul>`).
  *
- * @extends Transformer<any,any>
+ * @extends {Transformer<any,any>}
  */
-export class AttrRenameTransformer extends Transformer {
+export class RenameTransformer extends Transformer {
   /**
-   * @param {{[K:string|number]:string|number}} renames
+   * @param {string} name
    */
-  constructor (renames) {
+  constructor (name) {
     super()
-    this.arenames = renames
-    /**
-     * @type {{[K:string|number]:string|number}}
-     */
-    this.brenames = {}
-    for (const k in renames) {
-      this.brenames[renames[k]] = k
-    }
+    this.target = name
+    /** @type {string|undefined} */
+    this.srcName = undefined
   }
 
   /**
-   * @param {delta.DeltaAny} deltaA
+   * @param {delta.DeltaBuilderAny} d
    * @return {import('./core.js').TransformResultAny}
    */
-  applyA (deltaA) {
-    return renameAttrs(deltaA, this.arenames, this.brenames)
+  applyA (d) {
+    if (d.name != null) this.srcName = d.name
+    const out = delta.clone(d)
+    out.name = /** @type {any} */ (this.target)
+    return createTransformResult(null, out)
   }
 
   /**
-   * @param {delta.DeltaAny} deltaB
+   * @param {delta.DeltaBuilderAny} d
    * @return {import('./core.js').TransformResultAny}
    */
-  applyB (deltaB) {
-    return renameAttrs(deltaB, this.brenames, this.arenames).reverse()
+  applyB (d) {
+    const out = delta.clone(d)
+    out.name = /** @type {any} */ (this.srcName)
+    return createTransformResult(out, null)
   }
 }
 
 /**
- * Template that renames node attributes (`a` -> `b`) in both directions. Stateless: it builds its
- * {@link AttrRenameTransformer} once and returns that same instance from every `init`.
- *
- * @template {{[K:string|number]:string|number}} Renames
+ * Template for {@link RenameTransformer}.
  */
-export class AttrRename extends Template {
+export class Rename extends Template {
   /**
-   * @param {Renames} renames
+   * @param {string} name
    */
-  constructor (renames) {
+  constructor (name) {
     super()
-    /**
-     * Retained (beyond the built transformer) so the `Renames` type parameter stays inferrable from
-     * an `AttrRename<Renames>` instance - `pipe`'s `ApplyPipe` dispatches on `infer Renames`.
-     *
-     * @type {Renames}
-     */
-    this.renames = renames
-    this.transformer = new AttrRenameTransformer(renames)
+    this.target = name
   }
 
-  get stateless () { return true }
+  get stateless () { return false }
 
   /**
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
-   * @return {Transformer<IN,ApplyAttrRename<Renames,IN>>}
+   * @param {import('../../schema.js').Schema<delta.DeltaAny>} _$d
+   * @return {Transformer<any,any>}
    */
   init (_$d) {
-    return /** @type {Transformer<IN,ApplyAttrRename<Renames,IN>>} */ (this.transformer)
+    return new RenameTransformer(this.target)
   }
 }
 
 /**
- * Create an {@link AttrRename} template that renames the given node attributes in both directions.
+ * Create a {@link Rename} template that relabels a node to `name` (side B) and back (side A).
  *
- * @template {{[K:string|number]:string|number}} Renames
- * @param {Renames} renames
+ * @param {string} name
  */
-export const rename = renames => new AttrRename(renames)
+export const rename = name => new Rename(name)

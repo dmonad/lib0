@@ -2,7 +2,7 @@ import * as t from 'lib0/testing'
 import * as delta from '../delta.js'
 import { pipe } from '../transformer.js'
 import { inline } from './inline.js'
-import { rename } from './rename.js'
+import { renameAttrs } from './rename-attrs.js'
 import { children } from './children.js'
 
 // ---------------------------------------------------------------------------
@@ -13,7 +13,7 @@ import { children } from './children.js'
 // ---------------------------------------------------------------------------
 
 export const testChildrenRenameChild = () => {
-  const it = children(_d => rename({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
   // inserting a child node transforms its initial content (attr a -> b)
   const r1 = it.applyA(delta.create().insert([delta.create('p', { a: 1 })]))
   t.compare(r1.b, delta.create().insert([delta.create('p', { b: 1 })]))
@@ -37,7 +37,7 @@ export const testChildrenNullPassThrough = () => {
 
 export const testChildrenAttrsAndTextUntouched = () => {
   // the parent's own attrs pass through; text children get no sub-transformer
-  const it = children(_d => rename({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
   const doc = delta.create(null, { root: 1 }).insert('hi').insert([delta.create('p', { a: 1 })])
   const r = it.applyA(doc)
   t.compare(r.b, delta.create(null, { root: 1 }).insert('hi').insert([delta.create('p', { b: 1 })]))
@@ -47,7 +47,7 @@ export const testChildrenAttrsAndTextUntouched = () => {
 }
 
 export const testChildrenDeleteAlignment = () => {
-  const it = children(_d => rename({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
   it.applyA(delta.create().insert([delta.create('x', { a: 1 }), delta.create('y', { a: 2 })]))
   // delete the first node, then modify what is now first (the former 'y') - childTs must stay aligned
   const r = it.applyA(delta.create().delete(1).modify(delta.create().setAttr('a', 5)))
@@ -57,7 +57,7 @@ export const testChildrenDeleteAlignment = () => {
 export const testChildrenTrailingUntouched = () => {
   // the sparse childTs map must preserve sub-transformers for positions a change leaves untouched (the
   // implicit trailing retain). Regression: an earlier rebuild dropped the tail.
-  const it = children(_d => rename({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
   it.applyA(delta.create().insert([delta.create('x', { a: 1 }), delta.create('y', { a: 2 })]).insert('tail'))
   // a change that only modifies the FIRST node, leaving the second node and the trailing text untouched
   it.applyA(delta.create().modify(delta.create().setAttr('a', 9)))
@@ -72,7 +72,7 @@ export const testChildrenTrailingUntouched = () => {
 export const testChildrenDeleteSpansNodeAndText = () => {
   // a delete that fully consumes a map op (the first node) and continues through the text gap into the
   // next node - exercises the cursor advancing across nodes inside `drop`
-  const it = children(_d => rename({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
   it.applyA(delta.create().insert([delta.create('p', { a: 1 })]).insert('hi').insert([delta.create('q', { a: 2 })]))
   const r = it.applyA(delta.create().delete(3).modify(delta.create().setAttr('a', 5)))
   t.compare(r.b, delta.create().delete(3).modify(delta.create().setAttr('b', 5)))
@@ -85,7 +85,7 @@ export const testChildrenStateless = () => {
 
 export const testChildrenInsertBackward = () => {
   // a child node inserted on the B side is transformed back to A through its sub-transformer
-  const it = children(_d => rename({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
   const r = it.applyB(delta.create().insert([delta.create('p', { b: 1 })]))
   t.compare(r.a, delta.create().insert([delta.create('p', { a: 1 })]))
 }

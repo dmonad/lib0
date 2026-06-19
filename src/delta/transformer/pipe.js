@@ -4,7 +4,7 @@ import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * @template {{[K:string|number]:string|number}} Renames
- * @typedef {import('./rename.js').AttrRename<Renames>} AttrRenameTemplate
+ * @typedef {import('./rename-attrs.js').RenameAttrs<Renames>} RenameAttrsTemplate
  */
 
 /**
@@ -61,7 +61,7 @@ import { Transformer, Template, createTransformResult } from './core.js'
  */
 
 /**
- * Apply each Template to a NormalizedDeltaConf - must mirror the semantics of ApplyAttrRename /
+ * Apply each Template to a NormalizedDeltaConf - must mirror the semantics of ApplyRenameAttrs /
  * ApplyExpectType.
  *
  * This shape is tuned to stay below typescript's instantiation-depth limit (TS2589) for long
@@ -91,7 +91,7 @@ import { Transformer, Template, createTransformResult } from './core.js'
  * @typedef {TS extends [infer FirstT extends Template, ...infer RestT extends Template[]]
  *   ? (NC extends { name: infer Name, attrs: infer Attrs extends {[K:string|number]:any}, children: infer Children, text: infer Text, recursiveChildren: infer RecursiveChildren, recursiveAttrs: infer RecursiveAttrs }
  *     ? ApplyPipeNorm<RestT,
- *       FirstT extends AttrRenameTemplate<infer Renames> ? { name: Name, attrs: import('../../ts.js').PropsRename<Attrs extends NotSet ? {} : Attrs, Renames>, children: Children, text: Text, recursiveChildren: RecursiveChildren, recursiveAttrs: RecursiveAttrs } :
+ *       FirstT extends RenameAttrsTemplate<infer Renames> ? { name: Name, attrs: import('../../ts.js').PropsRename<Attrs extends NotSet ? {} : Attrs, Renames>, children: Children, text: Text, recursiveChildren: RecursiveChildren, recursiveAttrs: RecursiveAttrs } :
  *       FirstT extends FilterTemplate<infer DConf extends delta.DeltaConf> ? (NormalizeDeltaConf<DConf> extends { name: infer FilterName, attrs: infer FilterAttrs, children: infer FilterChildren, text: infer FilterText, recursiveChildren: infer FilterRecursiveChildren, recursiveAttrs: infer FilterRecursiveAttrs } ? {
  *         name: FilterConfProp<FilterName, Name>,
  *         attrs: FilterAttrs extends NotSet ? NotSet : Attrs extends NotSet ? NotSet : import('../../ts.js').PropsPickShared<FilterAttrs, Attrs>,

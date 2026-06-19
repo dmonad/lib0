@@ -17,10 +17,10 @@ import { domRDT, $domDelta } from './dom.js'
 // ---------------------------------------------------------------------------
 
 /**
- * `dt.rename({})` is the identity transformer: it maps every change verbatim in
+ * `dt.renameAttrs({})` is the identity transformer: it maps every change verbatim in
  * both directions, so a binding using it keeps both sides bit-for-bit equal.
  */
-const identity = () => dt.rename(/** @type {const} */ ({}))
+const identity = () => dt.renameAttrs(/** @type {const} */ ({}))
 
 export const testDomRDTRoundTrip = () => {
   t.skip(!env.isBrowser)

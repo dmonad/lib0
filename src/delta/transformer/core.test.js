@@ -27,8 +27,8 @@ export const testTransformerSchema = () => {
 }
 
 export const testEitherTemplateOrTransformer = () => {
-  // every value is either a template or a transformer, never both. `id` is an `AttrRename` template;
-  // its `init` yields a separate, pure transformer (`AttrRename` stores it and returns it)
+  // every value is either a template or a transformer, never both. `id` is a `RenameAttrs` template;
+  // its `init` yields a separate, pure transformer (`RenameAttrs` stores it and returns it)
   t.assert($template.check(id) && !$transformer.check(id))
   const it = id.init(delta.$deltaAny)
   t.assert($transformer.check(it) && !$template.check(it))

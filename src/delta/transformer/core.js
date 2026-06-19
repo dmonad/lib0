@@ -162,7 +162,7 @@ export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>
  * input schema; `stateless` reports whether the produced transformer carries no per-instance state
  * (so it can be shared / cached). Concrete templates `extend Template`; a class that would be both a
  * template and a transformer instead stores the transformer and returns it from `init` (see
- * {@link import('./rename.js').AttrRename}).
+ * {@link import('./rename-attrs.js').RenameAttrs}).
  */
 export class Template {
   /**

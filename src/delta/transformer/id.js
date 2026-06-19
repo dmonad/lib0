@@ -1,4 +1,4 @@
-import { rename } from './rename.js'
+import { renameAttrs } from './rename-attrs.js'
 
 /**
  * The identity {@link import('./core.js').Template Template}: it maps every change verbatim in both
@@ -7,4 +7,4 @@ import { rename } from './rename.js'
  *
  * @type {import('./core.js').Template}
  */
-export const id = /* @__PURE__ */ rename({})
+export const id = /* @__PURE__ */ renameAttrs({})

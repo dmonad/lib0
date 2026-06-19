@@ -2,16 +2,16 @@ import * as t from '../../testing.js'
 import * as delta from '../delta.js'
 import * as s from '../../schema.js'
 import { transformerWith, $tresult } from '../transformer.js'
-import { rename } from './rename.js'
+import { renameAttrs } from './rename-attrs.js'
 import { filter } from './filter.js'
 import { pipe } from './pipe.js'
 
 export const testPipeBasics = () => {
-  const r1 = rename(/** @type {const} */ ({ a: 'b' }))
-  const r2 = rename(/** @type {const} */ ({ b: 'a' }))
+  const r1 = renameAttrs(/** @type {const} */ ({ a: 'b' }))
+  const r2 = renameAttrs(/** @type {const} */ ({ b: 'a' }))
   const r3 = filter(delta.$delta({ attrs: { a: [s.$number, s.$string] } }))
   const $d3 = delta.$delta({ children: 42, attrs: { a: s.$string } })
-  // pipe(filter, rename): filter keeps attr `a`, rename maps `a` -> `b`
+  // pipe(filter, renameAttrs): filter keeps attr `a`, renameAttrs maps `a` -> `b`
   const r31 = pipe(r3, r1)
   const i31 = r31.init($d3)
   t.assert(transformerWith($d3, delta.$delta({ attrs: { b: s.$string } })).validate(i31))
@@ -34,8 +34,8 @@ export const testPipeBasics = () => {
  * @param {t.TestCase} _tc
  */
 export const testPipeTypeDepthCeiling = _tc => {
-  const r1 = rename(/** @type {const} */ ({ a: 'b' }))
-  const r2 = rename(/** @type {const} */ ({ b: 'a' }))
+  const r1 = renameAttrs(/** @type {const} */ ({ a: 'b' }))
+  const r2 = renameAttrs(/** @type {const} */ ({ b: 'a' }))
   const $da = delta.$delta(/** @type {const} */ ({ attrs: { a: s.$string } }))
   const $db = delta.$delta(/** @type {const} */ ({ attrs: { b: s.$string } }))
   // 85 templates = 42 rename round-trips + 1 - the measured depth ceiling
@@ -53,8 +53,8 @@ export const testPipeTypeDepthCeiling = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testPipeFilterRenameMix = _tc => {
-  const r1 = rename(/** @type {const} */ ({ a: 'b' }))
-  const r2 = rename(/** @type {const} */ ({ b: 'a' }))
+  const r1 = renameAttrs(/** @type {const} */ ({ a: 'b' }))
+  const r2 = renameAttrs(/** @type {const} */ ({ b: 'a' }))
   const fa = filter(delta.$delta({ attrs: { a: s.$string } }))
   const fb = filter(delta.$delta({ attrs: { b: s.$string } }))
   const $da = delta.$delta(/** @type {const} */ ({ attrs: { a: s.$string } }))

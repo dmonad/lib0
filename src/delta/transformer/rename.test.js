@@ -1,21 +1,49 @@
 import * as t from '../../testing.js'
 import * as delta from '../delta.js'
-import * as s from '../../schema.js'
-import { transformerWith } from '../transformer.js'
 import { rename } from './rename.js'
+import { project } from './project.js'
+import { attr } from './attr.js'
+import { children } from './children.js'
+import { pipe } from './pipe.js'
 
-export const testRenameBasics = () => {
-  const r1 = rename(/** @type {const} */ ({ a: 'b' }))
-  const i1 = r1.init(delta.$delta({ attrs: { a: s.$string, b: s.$string } }))
-  t.assert(transformerWith(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), delta.$delta({ attrs: { b: s.$string } })).validate(i1))
-  // forward: an a-side change renames attr `a` -> `b`
-  const res = i1.applyA(delta.create().setAttr('a', 'x'))
-  t.assert(res.a === null)
-  t.compare(res.b, delta.create().setAttr('b', 'x'))
-  // backward: a b-side change renames attr `b` -> `a`
-  const res2 = i1.applyB(delta.create().setAttr('b', 'y'))
-  t.assert(res2.b === null)
-  t.compare(res2.a, delta.create().setAttr('a', 'y'))
-  // a stateless template
-  t.assert(r1.stateless === true)
+// compare deltas through an `any` boundary (the transform result is `DeltaBuilder<any>`)
+const cmp = (/** @type {any} */ a, /** @type {any} */ b) => t.compare(a, b)
+
+export const testRenameNode = () => {
+  const it = rename('ul').init(delta.$deltaAny)
+  const res = it.applyA(delta.create('list').insert(['a']))
+  cmp(res.b, delta.create('ul').insert(['a']))
+  // reverse restores the source name
+  const back = it.applyB(delta.create('ul').insert(['b']))
+  cmp(back.a, delta.create('list').insert(['b']))
+}
+
+export const testRenderList = () => {
+  // render a collection of users as <ul><li>name</li>...</ul>; each row-project lifts its own value,
+  // so no downstream resolver is needed
+  const rowSpec = delta.create('li').insert([attr('name')])
+  const list = pipe(children(() => project(rowSpec)), rename('ul'))
+  const it = list.init(delta.$deltaAny)
+  const res = it.applyA(delta.create('users').insert([
+    delta.create('user').setAttr('name', 'Erika'),
+    delta.create('user').setAttr('name', 'Max')
+  ]))
+  cmp(res.b, delta.create('ul').insert([
+    delta.create('li').insert(['Erika']),
+    delta.create('li').insert(['Max'])
+  ]))
+}
+
+export const testRenderListReverse = () => {
+  // an editable binding uses an attribute hole (attrs round-trip); a view edit of a row's attribute
+  // routes back through children -> the row's project -> the bound data attribute
+  const rowSpec = delta.create('li').setAttr('label', attr('name'))
+  const list = pipe(children(() => project(rowSpec)), rename('ul'))
+  const it = list.init(delta.$deltaAny)
+  it.applyA(delta.create('users').insert([
+    delta.create('user').setAttr('name', 'Erika'),
+    delta.create('user').setAttr('name', 'Max')
+  ]))
+  const res = it.applyB(/** @type {any} */ (delta.create().modify(delta.create().setAttr('label', 'Eve'))))
+  cmp(res.a, delta.create('users').modify(delta.create().setAttr('name', 'Eve')))
 }

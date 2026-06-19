@@ -8,7 +8,7 @@
  * Each concrete transformer lives in `./transformer/` and is re-exported here so the whole set is
  * available from a single module (`lib0/delta/transformer`):
  * - {@link id} — identity (both sides stay equal)
- * - {@link rename} — rename node attributes
+ * - {@link renameAttrs} — rename node attributes
  * - {@link filter} — drop everything not matching a schema
  * - {@link pipe} — chain templates
  * - {@link attr} — project a single attribute into a `lib0:value` node
@@ -16,7 +16,7 @@
  * - {@link children} — descend into child nodes and apply a per-child sub-transformer
  * - {@link project} — project the data onto a fixed structure (spec) with embedded "holes"
  * - {@link unwrapValue} — composable resolver for `lib0:value` carrier children (scalar lift)
- * - {@link as} — relabel a node's name (e.g. mark a `children`-map as `lib0:inline`)
+ * - {@link rename} — rename a node's name (e.g. mark a `children`-map as `lib0:inline`)
  *
  * @module delta/transformer
  */
@@ -31,4 +31,4 @@ export * from './transformer/inline.js'
 export * from './transformer/children.js'
 export * from './transformer/project.js'
 export * from './transformer/value.js'
-export * from './transformer/node.js'
+export * from './transformer/rename-attrs.js'

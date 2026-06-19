@@ -17,11 +17,11 @@ import * as s from '../schema.js'
 // ---------------------------------------------------------------------------
 
 /**
- * `dt.rename({})` is the identity transformer: `applyA` maps a change verbatim
+ * `dt.renameAttrs({})` is the identity transformer: `applyA` maps a change verbatim
  * onto the B side and `applyB` maps it back onto A, so a binding using it keeps
  * both sides bit-for-bit equal.
  */
-const identity = () => dt.rename(/** @type {const} */ ({}))
+const identity = () => dt.renameAttrs(/** @type {const} */ ({}))
 
 export const testBindIdentity = () => {
   const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
@@ -65,7 +65,7 @@ export const testBindRename = () => {
   const a = deltaRDT($a)
   const b = deltaRDT($b)
   // a -> b renames attr `a` to `b`; the binding maps changes both ways
-  bind(a, b, dt.rename(/** @type {const} */ ({ a: 'b' })))
+  bind(a, b, dt.renameAttrs(/** @type {const} */ ({ a: 'b' })))
   a.applyDelta(delta.create().setAttr('a', 'x'))
   t.compare(a.state, delta.create().setAttr('a', 'x'))
   t.compare(b.state, delta.create().setAttr('b', 'x'), 'attr renamed a->b')
@@ -133,7 +133,7 @@ export const testBindInitialStateRename = () => {
   const b = deltaRDT($b)
   // `a` holds state before binding; the transformer renames attr `a` -> `b`
   a.applyDelta(delta.create().setAttr('a', 'x'))
-  bind(a, b, dt.rename(/** @type {const} */ ({ a: 'b' })))
+  bind(a, b, dt.renameAttrs(/** @type {const} */ ({ a: 'b' })))
   t.compare(a.state, delta.create().setAttr('a', 'x'), 'a unchanged')
   t.compare(b.state, delta.create().setAttr('b', 'x'), 'initial a-state projected & renamed onto b')
 }
