@@ -1,10 +1,6 @@
 import * as array from 'lib0/array'
 import * as delta from '../delta.js'
-import { Transformer, createTransformResult } from './core.js'
-
-/**
- * @typedef {import('./core.js').Template} Template
- */
+import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * @template {{[K:string|number]:string|number}} Renames
@@ -132,23 +128,25 @@ import { Transformer, createTransformResult } from './core.js'
  * Chain multiple Templates together.
  *
  * @template {Template[]} TS
- * @implements Template
  */
-export class Pipe {
+export class Pipe extends Template {
   /**
    * @param {TS} templates
    */
   constructor (templates) {
+    super()
     /**
      * @type {TS}
      */
     this.templates = templates
-    this.stateless = templates.every(t => t.stateless)
+    this._stateless = templates.every(t => t.stateless)
     /**
      * @type {PipeTransformer<any,any,this>?}
      */
     this.statelessTransformer = null
   }
+
+  get stateless () { return this._stateless }
 
   /**
    * @template {delta.DeltaConf} IN

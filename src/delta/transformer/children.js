@@ -1,10 +1,6 @@
 import * as delta from '../delta.js'
 import * as math from '../../math.js'
-import { Transformer, createTransformResult } from './core.js'
-
-/**
- * @typedef {import('./core.js').Template} Template
- */
+import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * Build an output delta that passes the node name and attribute ops of `src` through unchanged (only
@@ -168,14 +164,13 @@ export class ChildrenTransformer extends Transformer {
 
 /**
  * Template for {@link ChildrenTransformer}.
- *
- * @implements Template
  */
-export class Children {
+export class Children extends Template {
   /**
    * @param {(d: delta.DeltaAny) => Template | null} handler
    */
   constructor (handler) {
+    super()
     this.handler = handler
   }
 

@@ -1,9 +1,5 @@
 import * as delta from '../delta.js'
-import { Transformer, createTransformResult } from './core.js'
-
-/**
- * @typedef {import('./core.js').Template} Template
- */
+import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * @template {string} AttrName
@@ -21,9 +17,12 @@ const attrTransformHelper = (outDelta, from, to, inDelta) => {
   const attrOp = inDelta.attrs[from]
   if (attrOp != null) {
     const c = attrOp.clone()
+    // reason: retarget the cloned attr op to the dynamic key `to`; `key` is readonly and `attrs` is
+    // a mapped type over fixed conf keys, so neither write is expressible in the JSDoc types.
     // @ts-ignore
     c.key = to
-    outDelta.attrs.value = /** @type {any} */ (c)
+    const oattrs = /** @type {any} */ (outDelta.attrs)
+    oattrs[to] = c
   }
   return outDelta
 }
@@ -32,13 +31,13 @@ const attrTransformHelper = (outDelta, from, to, inDelta) => {
  * Projects a single node attribute into a `lib0:value` node's `value` attribute (and back).
  *
  * @template {string} AttrName
- * @implements Template
  */
-export class Attr {
+export class Attr extends Template {
   /**
    * @param {AttrName} attrName
    */
   constructor (attrName) {
+    super()
     this.attrName = attrName
   }
 

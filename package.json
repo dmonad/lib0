@@ -89,9 +89,17 @@
       "types": "./dist/delta/transformer/attr.d.ts",
       "default": "./src/delta/transformer/attr.js"
     },
-    "./delta/transformer/projection": {
-      "types": "./dist/delta/transformer/projection.d.ts",
-      "default": "./src/delta/transformer/projection.js"
+    "./delta/transformer/project": {
+      "types": "./dist/delta/transformer/project.d.ts",
+      "default": "./src/delta/transformer/project.js"
+    },
+    "./delta/transformer/value": {
+      "types": "./dist/delta/transformer/value.d.ts",
+      "default": "./src/delta/transformer/value.js"
+    },
+    "./delta/transformer/node": {
+      "types": "./dist/delta/transformer/node.d.ts",
+      "default": "./src/delta/transformer/node.js"
     },
     "./delta/rdt": {
       "types": "./dist/delta/rdt.d.ts",

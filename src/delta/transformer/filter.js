@@ -1,10 +1,6 @@
 import * as delta from '../delta.js'
 import * as s from '../../schema.js'
-import { Transformer, createTransformResult } from './core.js'
-
-/**
- * @typedef {import('./core.js').Template} Template
- */
+import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * @template {delta.DeltaConf} DConf
@@ -16,13 +12,13 @@ import { Transformer, createTransformResult } from './core.js'
  * Drops everything that does not match the configured schema (only attrs are filtered for now).
  *
  * @template {delta.DeltaConf} DConf
- * @implements Template
  */
-export class Filter {
+export class Filter extends Template {
   /**
    * @param {import('../../schema.js').Schema<delta.Delta<DConf>>} $d
    */
   constructor ($d) {
+    super()
     s.assert($d, delta.$$delta)
     this.$d = $d
     this.$dshape = $d.shape

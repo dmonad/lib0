@@ -96,189 +96,111 @@ and yields a `Transformer<A,B>`. `applyA(deltaA)` maps an A-change to a B-change
 `applyB(deltaB)` maps back, and `apply({a,b})` resolves concurrent changes on both
 sides via rebase (see `Transformer.apply` in `transformer.js`).
 
-# Projections — React-like templates (design)
+# Projections — rendering data onto a structure
 
-> **Status: design-stage.** `rename`, `filter`, `attr` and `pipe` exist in
-> `transformer.js`. The projection templates specified here — `dt.node`, `dt.map`,
-> `dt.queryText` and the `queryAttr` factory — are not implemented yet. This section
-> is the spec for them.
+A *projection* expands a data delta (the *projectionDelta*) into a nested, html-like
+delta, bidirectionally — a React-like "render data to markup", but expressed as a
+change-to-change mapping rather than a vdom diff.
 
-A projection expands a data delta into a nested html-equivalent delta. It is
-declared like a React component tree — `dt.node` instead of `createElement`/JSX,
-query-templates instead of `{expr}`:
+**`project(spec)`** is the whole thing. `spec` is an ordinary `delta.create()` tree whose
+attribute values and inserted children may be transformer *templates* ("holes"). Each hole
+receives the whole projectionDelta; its output is placed at that position. `project` resolves
+its own holes and **auto-nests**, so it needs no downstream resolver:
 
 ```javascript
 import * as delta from 'lib0/delta'
 import * as dt from 'lib0/delta/transformer'
-import * as s from 'lib0/schema'
 
-// the data: a list of users
-const $user = delta.$delta({ name: 'user', attrs: { name: s.$string, address: s.$string } })
-const $users = delta.$delta({ children: $user })
+const view = dt.project(
+  delta.create('p').insert('Name: ').insert([dt.attr('name')])
+).init(delta.$deltaAny)
 
-// React:  const UserView = ({user}) =>
-//   <li class='user'><h2>{user.name}</h2><p class='address'>{user.address}</p></li>
-const UserView = dt.node('li', { class: 'user' }, [
-  dt.node('h2', {}, [dt.queryAttr('name')]),
-  dt.node('p', { class: 'address' }, [dt.queryAttr('address')])
-])
+// initial render (applying a final delta)
+view.applyA(delta.create().setAttr('name', 'Erika')).b
+// ⇒ create('p').insert('Name: ').insert(['Erika'])
 
-// React:  const UserList = ({users}) => <ul>{users.map(u => <UserView user={u}/>)}</ul>
-const UserList = dt.node('ul', {}, [dt.map(UserView)])
-
-const t = UserList.init($users) // Transformer<users-conf, ul-conf>
+// incremental update
+view.applyA(delta.create().setAttr('name', 'Max')).b
+// ⇒ retain(6).delete(1).insert(['Max'])
 ```
 
-How this relates to React:
+Holes are detected with `$template` (any value exposing an `init` method, e.g. `attr(…)`,
+`pipe(…)`, a nested `project(…)`). Each hole is initialized once at `init`.
 
-| React                                | delta transformers                                          |
-|--------------------------------------|-------------------------------------------------------------|
-| `createElement(tag, props, children)` | `dt.node(name, attrs, children)`                            |
-| `{user.name}`                         | `dt.queryAttr('name')`                                      |
-| text content                          | `dt.queryText()`                                            |
-| `users.map(u => …)`                   | `dt.map(UserView)`                                          |
-| `key` prop for list identity          | not needed — identity is positional, carried by insert/delete/retain ops |
-| re-render + vdom diff                 | none — changes map directly to changes                      |
-| one-way data flow                     | bidirectional — `applyB` maps html edits back to the data   |
-
-## Combinators
-
-- **`dt.node(name, attrs, children)`** — projects onto a named node. `attrs` values
-  are either static values or templates (bound attrs). `children` entries are either
-  static strings or templates. Mixing is fine:
-  `dt.node('p', {}, ['Address: ', dt.queryAttr('address')])`.
-- **`dt.queryAttr(name)`** — binds the value of attr `name` of the input delta
-  (factory over the existing `Attr` template).
-- **`dt.queryText()`** — binds the text content of the input delta. Unlike attr
-  bindings (replacement semantics, see below), text↔text maps char-level:
-  retain/insert/delete pass through directly.
-- **`dt.map(itemTemplate)`** — only valid in children position. Renders every child
-  of the input delta through `itemTemplate`; one data item ↔ one html node.
-- Projections compose with the existing templates:
-  `dt.pipe(dt.filter(delta.$delta({ attrs: { name: s.$string, address: s.$string } })), UserView)`.
-
-**The `lib0:value` carrier convention.** Scalar bindings transport their value as a
-`lib0:value` node with the value in `attrs.value` (established by
-`AttrTransformer`). `dt.node` unwraps carriers at attr positions (set the attr)
-and at child positions (render as text); any other template output splices in as a
-subtree. This is the interop contract between all binding combinators.
-
-## Forward direction (`applyA`: data → html)
-
-Deltas represent both state and change: applying a final delta is the initial
-render, subsequent deltas map incrementally.
+- **Value holes** — a hole whose output is a `lib0:value` carrier (produced by `attr`) is
+  lifted to its bare scalar, both at an **attribute** position (keyed) and at a **child**
+  position (positional, one node ⇒ one scalar embed). A reverse edit of a projected
+  *attribute* routes back through the hole; a child value slot is display-only (see below).
+- **Node holes** — a hole whose output is a structural node (a nested `project`, or any
+  non-`lib0:value` carrier such as a `lib0:inline` fragment) is embedded verbatim, and its
+  incremental change is forwarded as a `modify`.
+- **Auto-nesting** — a nested subtree that *contains* a hole anywhere inside is automatically
+  wrapped into a nested `project` at `init` (recursion built once, bounded by spec depth). You
+  don't nest `project(...)` by hand. Plain static subtrees (no holes) are embedded verbatim.
+- **Static content** is constant, so the output layout is *fixed* (each hole occupies one
+  attribute or one child node). `applyA` routes data changes into the holes; `applyB` routes
+  view edits at node-hole positions back to the holes and **self-heals** edits to static
+  content and to value slots:
 
 ```javascript
-// initial render
-t.applyA(delta.create().insert([
-  delta.create('user', { name: 'Erika', address: 'Friedrichstr. 12' })
+// a view edit deletes the static 'Name: ' prefix
+view.applyB(delta.create().delete(6))
+// ⇒ { a: null, b: insert('Name: ') }   // static content restored, no data change
+```
+
+## The `lib0:*` carrier protocol
+
+A *carrier* is a reserved node name a transformer emits to signal "resolve me":
+
+- **`lib0:value`** — a scalar carrier holding the value in its `value` attribute (produced by
+  `attr`). `project` lifts it to the bare scalar (at attribute and child positions).
+- **`lib0:inline`** — a fragment whose children are spliced into the parent (handled by the
+  `inline` transformer configured with the `lib0:inline` name).
+
+`project` resolves carriers in its *own* structure. For a carrier emitted **outside** a
+`project` — e.g. a bare `children(() => attr('x'))` map, or a `children`-map you mark
+`as('lib0:inline')` — compose the matching flat resolver yourself, exactly as you would any
+other transformer:
+
+- `dt.unwrapValue` — lifts `lib0:value` children to their scalar (the composable counterpart
+  of `inline(['lib0:inline'])`).
+- `dt.inline(['lib0:inline'])` — splices `lib0:inline` fragments into their parent. This is
+  also how you let a single hole expand to **N sibling nodes** between static siblings: emit a
+  `lib0:inline` fragment and compose `inline(['lib0:inline'])` after `project`.
+
+## Lists and tables
+
+Map a collection's children with the `children` transformer and relabel the container with
+`as`. Each row is a `project`, so it lifts its own values — no resolver needed:
+
+```javascript
+const rowSpec = delta.create('li').insert([dt.attr('name')])
+const list = dt.pipe(dt.children(() => dt.project(rowSpec)), dt.as('ul'))
+
+list.init(delta.$deltaAny).applyA(delta.create('users').insert([
+  delta.create('user').setAttr('name', 'Erika'),
+  delta.create('user').setAttr('name', 'Max')
 ])).b
-// ⇒ insert([ create('li', { class: 'user' }, [
-//      create('h2', null, 'Erika'),
-//      create('p', { class: 'address' }, 'Friedrichstr. 12')
-//    ]) ])
-
-// incremental update: change the address of user 0
-t.applyA(delta.create().modify(
-  delta.create('user').setAttr('address', 'Hauptstr. 5')
-)).b
-// ⇒ modify(                                // into <li> #0
-//     retain(1).modify(                    // skip <h2>, into <p>
-//       delete(16).insert('Hauptstr. 5')   // replace bound text
-//     )
-//   )
+// ⇒ create('ul').insert([ create('li').insert(['Erika']), create('li').insert(['Max']) ])
 ```
 
-Per binding kind:
+`children` maps one data item to one row (incremental insert/delete/retain/modify, per-item
+transformer state preserved positionally); `as('ul')` relabels the mapped container. For an
+**editable** row binding use an *attribute* hole (`delta.create('li').setAttr('label',
+dt.attr('name'))`): a view edit of the attribute round-trips back to the data item.
 
-- **attr binding** — A `setAttr('name', v)` ⇒ B `setAttr('class', v)`;
-  `deleteAttr` ⇒ `deleteAttr`.
-- **scalar binding in children** — A `setAttr` ⇒ B `modify(…)` path down to the bound
-  segment, `delete(oldLen).insert(newValue)`. Replacement semantics — char-level sync
-  for attrs is possible by modeling the attr value itself as a text delta
-  (`recursiveAttrs`, see extensions).
-- **`dt.map` region** — A `insert([item,…])` ⇒ render each item through a fresh
-  per-item transformer instance, B `insert([rendered,…])`; `delete(n)` ⇒ `delete(n)`
-  (instances dropped); `retain(n)` ⇒ `retain(n)`; `modify(d)` ⇒
-  `modify(instanceᵢ.applyA(d).b)`.
+## Limitations & extensions (v1)
 
-**Position translation.** A host's children are a sequence of segments: static
-entries (constant length; a static string of length k occupies k positions),
-bound-text segments (current value length) and map regions (current item count).
-The node transformer tracks segment lengths and per-item instances to translate
-positions — it is stateful (`stateless = false`). This is the children-sync
-machinery that `ProjectionTransformer` currently lacks.
-
-## Backward direction (`applyB`: html → data)
-
-```javascript
-// contenteditable appends ' M.' to the <h2> of user 0
-t.applyB(delta.create().modify(
-  delta.create().modify(delta.create().retain(5).insert(' M.'))
-)).a
-// ⇒ modify(create('user').setAttr('name', 'Erika M.'))
-
-// a new, template-conforming <li> subtree is inserted ⇒ inverse render
-t.applyB(delta.create().retain(1).insert([
-  delta.create('li', { class: 'user' }, [
-    delta.create('h2', null, 'Max'),
-    delta.create('p', { class: 'address' }, 'Berliner Allee 1')
-  ])
-])).a
-// ⇒ retain(1).insert([ create('user', { name: 'Max', address: 'Berliner Allee 1' }) ])
-```
-
-- **bound attr edit** ⇒ A `setAttr` (reverse of the binding).
-- **edit inside a bound text segment** ⇒ the new value is reconstructed from segment
-  state + the edit ⇒ A `setAttr(name, newValue)`.
-- **inside a `dt.map` region** — `modify` at item i ⇒ `instanceᵢ.applyB` ⇒ A `modify`
-  at index i; `delete` ⇒ A `delete` of the corresponding items; **insert of a subtree
-  ⇒ inverse render**: the inserted tree is matched against `itemTemplate`, bound
-  values are extracted, and the corresponding data item is constructed.
-- **static regions: self-healing.** Edits touching static template content produce no
-  A-delta. Instead the transformer emits a correcting B-delta (in
-  `TransformResult.b`) restoring the static content — the html can never drift from
-  the template. Concurrent B-changes are rebased over the correction by the existing
-  `Transformer.apply` machinery. Inverse-render inputs whose static parts don't match
-  the template heal the same way: bound values are accepted, the rest is corrected.
-
-```javascript
-const NoteView = dt.node('p', {}, ['Address: ', dt.queryAttr('address')])
-// B-edit deletes the static 'Address: ' prefix (9 chars)
-nt.applyB(delta.create().delete(9))
-// ⇒ { a: null, b: insert('Address: ') }   // heal: restore static content
-```
-
-## Typing
-
-Like the existing templates, projections compute their output conf at the type
-level, so `t.applyA(…)` / schema checks are fully typed:
-
-- `dt.node` returns `NodeTpl<Name, AttrsSpec, ChildrenSpec>`; an
-  `ApplyNode<Name, AttrsSpec, ChildrenSpec, IN>` alias derives the output conf:
-  `name: Name`; per attr key the static value type or the unwrapped carrier value
-  (cf. `ApplyAttr`); children as the union of static text (`text: true`),
-  nested `delta.Delta<ApplyNode<…>>` confs, and — for `dt.map` —
-  `delta.Delta<ApplyNode<ItemTpl…, ChildConf<IN>>>` where `ChildConf` extracts the
-  input's `children` conf.
-- `ApplyPipeNorm` gets one new dispatch branch for `NodeTpl`. The produced conf must
-  be constructed as an object literal inside the branch — see the TS2589 notes on
-  `ApplyPipeNorm` in `transformer.js` (literal-carry, per-step destructure forcing,
-  TS-alone outer check).
-- Template-tree recursion depth equals markup nesting depth (shallow), orthogonal to
-  the pipe-length ceiling (~85, guarded by `testPipeTypeDepthCeiling`). The
-  implementation should add a nesting-depth probe alongside the existing ceiling
-  tests.
-
-## Extensions (out of scope for v1)
-
-- **Live DOM binding** — `rdt.js` sketches RDTs for both sides:
-  `bind(dataRDT, domRDT, UserList.init($users))` wires MutationObserver-derived
-  deltas through the transformer and back.
-- **Computed one-way bindings** (`dt.computed(f)`) — not invertible; write-backs
-  would heal like static content.
-- **Char-level attr sync** — model attr values as text deltas (`recursiveAttrs`)
-  so attr bindings stop being replacement-level.
-- **Keyed identity for `dt.map`** — only if positional OT identity proves
-  insufficient in practice.
-
+- **Child scalars resolve to a single embed, not text merged into a surrounding run.** A
+  value interpolated *inside* a text run (`Hello {name}!`) needs count-changing resolution;
+  deferred (it would reuse `inline` over a child-content carrier representation).
+- **Child value slots are display-only.** A scalar embed has no `modify` channel, so a view
+  edit of a child value is self-healed, not routed to data (the same v1 limitation
+  `unwrapValue` documents). Use an **attribute** hole for an editable binding — those
+  round-trip.
+- **Carriers emitted outside a `project`** are resolved only if you compose `unwrapValue` /
+  `inline(['lib0:inline'])`; deep non-`project` carrier trees are not auto-recursed.
+- **Live DOM binding** — wire a projection through `bind` (`rdt.js`):
+  `bind(dataRDT, domRDT, project(spec))`.
+- **Char-level attr sync** (model attr values as text deltas, `recursiveAttrs`),
+  **computed one-way bindings**, and **keyed `map` identity** — out of scope.

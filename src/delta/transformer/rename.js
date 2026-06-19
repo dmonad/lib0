@@ -1,9 +1,5 @@
 import * as delta from '../delta.js'
-import { Transformer, createTransformResult } from './core.js'
-
-/**
- * @typedef {import('./core.js').Template} Template
- */
+import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * @template {{[K:string|number]:string|number}} Renames
@@ -40,15 +36,14 @@ const renameAttrs = (d, renames, revRenames) => {
 }
 
 /**
- * Renames node attributes (`a` -> `b`) in both directions.
+ * Renames node attributes (`a` -> `b`) in both directions. Holds no per-application state, so
+ * {@link AttrRename} builds a single instance and shares it across every `init`.
  *
- * @template {{[K:string|number]:string|number}} Renames
- * @implements Template
  * @extends Transformer<any,any>
  */
-export class AttrRename extends Transformer {
+export class AttrRenameTransformer extends Transformer {
   /**
-   * @param {Renames} renames
+   * @param {{[K:string|number]:string|number}} renames
    */
   constructor (renames) {
     super()
@@ -60,17 +55,6 @@ export class AttrRename extends Transformer {
     for (const k in renames) {
       this.brenames[renames[k]] = k
     }
-  }
-
-  get stateless () { return true }
-
-  /**
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
-   * @return {Transformer<IN,ApplyAttrRename<Renames,IN>>}
-   */
-  init (_$d) {
-    return this
   }
 
   /**
@@ -87,6 +71,40 @@ export class AttrRename extends Transformer {
    */
   applyB (deltaB) {
     return renameAttrs(deltaB, this.brenames, this.arenames).reverse()
+  }
+}
+
+/**
+ * Template that renames node attributes (`a` -> `b`) in both directions. Stateless: it builds its
+ * {@link AttrRenameTransformer} once and returns that same instance from every `init`.
+ *
+ * @template {{[K:string|number]:string|number}} Renames
+ */
+export class AttrRename extends Template {
+  /**
+   * @param {Renames} renames
+   */
+  constructor (renames) {
+    super()
+    /**
+     * Retained (beyond the built transformer) so the `Renames` type parameter stays inferrable from
+     * an `AttrRename<Renames>` instance - `pipe`'s `ApplyPipe` dispatches on `infer Renames`.
+     *
+     * @type {Renames}
+     */
+    this.renames = renames
+    this.transformer = new AttrRenameTransformer(renames)
+  }
+
+  get stateless () { return true }
+
+  /**
+   * @template {delta.DeltaConf} IN
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
+   * @return {Transformer<IN,ApplyAttrRename<Renames,IN>>}
+   */
+  init (_$d) {
+    return /** @type {Transformer<IN,ApplyAttrRename<Renames,IN>>} */ (this.transformer)
   }
 }
 

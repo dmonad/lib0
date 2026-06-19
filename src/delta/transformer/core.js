@@ -1,4 +1,5 @@
 import * as s from '../../schema.js'
+import * as error from '../../error.js'
 
 /**
  * @template {import('../delta.js').DeltaConf} [A={}]
@@ -136,7 +137,16 @@ export class Transformer {
 }
 
 /**
- * This schema is only for typechecking, it does not actually check the transformer behavior!
+ * Recognize a {@link Transformer} by its `$type` tag. Every value is either a `Transformer` or a
+ * {@link Template}, never both, so the two roles can each own a single prototype `$type`.
+ *
+ * @type {s.Schema<Transformer<any,any>>}
+ */
+export const $transformer = /** @type {s.Schema<Transformer<any,any>>} */ (Transformer.prototype.$type = s.$type('d:transformer', Transformer))
+
+/**
+ * Like {@link $transformer}, but carries the side-A / side-B delta types for typechecking; the two
+ * schema params do not constrain the runtime check.
  *
  * @template {import('../delta.js').DeltaConf} A
  * @template {import('../delta.js').DeltaConf} B
@@ -144,15 +154,42 @@ export class Transformer {
  * @param {s.Schema<import('../delta.js').Delta<B>>|A} _b
  * @return {s.Schema<Transformer<A,B>>}
  */
-export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ (s.$instanceOf(Transformer))
-export const $transformer = /* @__PURE__ */ transformerWith(s.$any, s.$any)
+/* @__NO_SIDE_EFFECTS__ */
+export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ ($transformer)
 
 /**
  * A composable transformer factory. `init` instantiates a stateful {@link Transformer} for a given
  * input schema; `stateless` reports whether the produced transformer carries no per-instance state
- * (so it can be shared / cached).
- *
- * @typedef {object} Template
- * @property {boolean} Template.stateless
- * @property {($d:s.Schema<import('../delta.js').DeltaAny>)=>Transformer<any,any>} Template.init
+ * (so it can be shared / cached). Concrete templates `extend Template`; a class that would be both a
+ * template and a transformer instead stores the transformer and returns it from `init` (see
+ * {@link import('./rename.js').AttrRename}).
  */
+export class Template {
+  /**
+   * Whether {@link Template.init} yields a transformer with no per-instance state (so a single
+   * instance can be shared / cached). Overridden by every concrete template.
+   *
+   * @return {boolean}
+   */
+  /* c8 ignore next */
+  get stateless () { return false }
+
+  /**
+   * Instantiate a stateful {@link Transformer} for the given input schema.
+   *
+   * @param {s.Schema<import('../delta.js').DeltaAny>} _$d
+   * @return {Transformer<any,any>}
+   */
+  /* c8 ignore next 3 */
+  init (_$d) {
+    error.methodUnimplemented()
+  }
+}
+
+/**
+ * Recognize a {@link Template} by its `$type` tag. Used to detect transformer "holes" embedded in a
+ * `project` spec.
+ *
+ * @type {s.Schema<Template>}
+ */
+export const $template = /** @type {s.Schema<Template>} */ (Template.prototype.$type = s.$type('d:template', Template))

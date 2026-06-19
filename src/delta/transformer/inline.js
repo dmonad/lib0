@@ -1,10 +1,6 @@
 import * as delta from '../delta.js'
 import * as math from '../../math.js'
-import { Transformer, createTransformResult } from './core.js'
-
-/**
- * @typedef {import('./core.js').Template} Template
- */
+import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
  * One entry of the segment layout maintained by {@link InlineTransformer}. A segment is either a
@@ -634,14 +630,13 @@ export class InlineTransformer extends Transformer {
 
 /**
  * Template for {@link InlineTransformer}.
- *
- * @implements Template
  */
-export class Inline {
+export class Inline extends Template {
   /**
    * @param {Array<string|null>} names the node names to inline (`null` selects anonymous nodes)
    */
   constructor (names) {
+    super()
     this.names = names
   }
 
