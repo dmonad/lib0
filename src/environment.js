@@ -27,6 +27,13 @@ export const isBrowser = /* @__PURE__ */(() => typeof window !== 'undefined' && 
 export const isMac = /* @__PURE__ */(() => typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false)()
 
 /**
+ * True iff a DOM is available — either a real browser, or Node with a jsdom shim installed (see
+ * `src/test-setup.js`). Gate DOM-dependent tests on this so they run in the browser AND under jsdom.
+ */
+/* c8 ignore next */
+export const hasDom = /* @__PURE__ */(() => typeof document !== 'undefined' && typeof MutationObserver !== 'undefined')()
+
+/**
  * @type {Map<string,string>}
  */
 let params

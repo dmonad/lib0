@@ -1,3 +1,4 @@
+import './test-setup.js' // must run first: installs a jsdom DOM under Node (see module doc)
 import { runTests } from './testing.js'
 import * as array from './array.test.js'
 import * as broadcastchannel from './broadcastchannel.test.js'

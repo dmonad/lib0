@@ -4,12 +4,9 @@
  * # DOM delta RDT
  *
  * {@link domRDT} creates an RDT (see `../rdt.js`) backed by a live DOM subtree. DOM mutations are
- * observed with a `MutationObserver`, turned into deltas and emitted as `'delta'` events; incoming
- * deltas are applied back onto the DOM. This lets a DOM subtree be bound to any other RDT.
- *
- * The whole module is browser-only (it needs a real DOM + `MutationObserver`), so it is excluded from
- * line coverage; its behavior is exercised by the browser-only tests in `./dom.test.js`
- * (`npm run debug`).
+ * observed with a `MutationObserver`, turned into deltas (by diffing the new DOM state against the
+ * last-known one) and emitted as `'delta'` events; incoming deltas are applied back onto the DOM.
+ * This lets a DOM subtree be bound to any other RDT.
  *
  * @module delta/rdt/dom
  */
@@ -17,11 +14,8 @@
 import { ObservableV2 } from '../../observable.js'
 import * as delta from '../delta.js'
 import * as dom from '../../dom.js'
-import * as set from '../../set.js'
-import * as map from '../../map.js'
 import * as error from '../../error.js'
 import * as math from '../../math.js'
-import * as mux from '../../mutex.js'
 import * as s from '../../schema.js'
 
 /**
@@ -33,8 +27,6 @@ import * as s from '../../schema.js'
  * @template {delta.DeltaAny} D
  * @typedef {import('../rdt.js').RDT<D>} RDT
  */
-
-/* c8 ignore start */
 
 /**
  * Recursively convert a DOM node into a {@link DomDelta} (an "insert everything" delta describing the
@@ -55,6 +47,7 @@ const domToDelta = domNode => {
     })
     return /** @type {DomDelta} */ (d)
   }
+  /* c8 ignore next */ // defensive: only element nodes are ever rendered/observed
   error.unexpectedCase()
 }
 
@@ -81,11 +74,17 @@ const deltaToDom = d => {
     })
     return n
   }
+  /* c8 ignore next */ // defensive: deltaToDom is only ever called on delta nodes
   error.unexpectedCase()
 }
 
 /**
  * Apply a {@link DomDelta} as an incremental change onto an existing DOM element, mutating it in place.
+ *
+ * The element's children are addressed in *content* coordinates: each element child is one position,
+ * each character of a text node is one position. `childIndex` walks `el.childNodes`; `childOffset` is
+ * the offset within the current text node. `child` is re-read on every loop step because the previous
+ * step may have inserted, removed or split nodes.
  *
  * @param {Element} el
  * @param {DomDelta} d
@@ -101,14 +100,34 @@ const applyDeltaToDom = (el, d) => {
   let childIndex = 0
   let childOffset = 0
   d.children.forEach(change => {
-    let child = el.childNodes[childIndex] || null
-    if (delta.$deleteOp.check(change)) {
+    if (delta.$retainOp.check(change)) {
+      let len = change.retain
+      while (len > 0) {
+        const child = el.childNodes[childIndex]
+        /* c8 ignore next */ // defensive: a well-formed delta never advances past the children
+        if (child == null) break
+        if (dom.$text.check(child)) {
+          const remaining = child.length - childOffset
+          if (remaining <= len) {
+            len -= remaining
+            childOffset = 0
+            childIndex++
+          } else {
+            childOffset += len
+            len = 0
+          }
+        } else {
+          childIndex++
+          len--
+        }
+      }
+    } else if (delta.$deleteOp.check(change)) {
       let len = change.length
       while (len > 0) {
-        if (dom.$element.check(child)) {
-          child.remove()
-          len--
-        } else if (dom.$text.check(child)) {
+        const child = el.childNodes[childIndex]
+        /* c8 ignore next */ // defensive: a well-formed delta never deletes past the children
+        if (child == null) break
+        if (dom.$text.check(child)) {
           const childLen = child.length
           if (childOffset === 0 && childLen <= len) {
             child.remove()
@@ -116,32 +135,40 @@ const applyDeltaToDom = (el, d) => {
           } else {
             const spliceLen = math.min(len, childLen - childOffset)
             child.deleteData(childOffset, spliceLen)
+            len -= spliceLen
             if (child.length <= childOffset) {
               childOffset = 0
               childIndex++
             }
           }
+        } else {
+          child.remove()
+          len--
         }
       }
-    } else if (delta.$insertOp.check(change)) {
+    } else if (delta.$insertOp.check(change) || delta.$textOp.check(change)) {
       if (childOffset > 0) {
-        const tchild = dom.$text.cast(child)
-        child = tchild.splitText(childOffset)
+        dom.$text.cast(el.childNodes[childIndex]).splitText(childOffset)
         childIndex++
         childOffset = 0
       }
-      el.insertBefore(dom.fragment(change.insert.map(el => deltaToDom(/** @type {DomDelta} */ (el)))), child)
+      const ref = el.childNodes[childIndex] ?? null
+      if (delta.$textOp.check(change)) {
+        el.insertBefore(dom.text(change.insert), ref)
+        childIndex++
+      } else {
+        el.insertBefore(dom.fragment(change.insert.map(c => deltaToDom(/** @type {DomDelta} */ (c)))), ref)
+        childIndex += change.insert.length
+      }
     } else if (delta.$modifyOp.check(change)) {
-      applyDeltaToDom(dom.$element.cast(child), /** @type {DomDelta} */ (change.value))
-    } else if (delta.$textOp.check(change)) {
-      el.insertBefore(dom.text(change.insert), child)
+      applyDeltaToDom(dom.$element.cast(el.childNodes[childIndex]), /** @type {DomDelta} */ (change.value))
+      childIndex++
+    /* c8 ignore next 3 */ // unreachable: $domDelta children are only retain/delete/insert/text/modify
     } else {
       error.unexpectedCase()
     }
   })
 }
-
-/* c8 ignore stop */
 
 /**
  * Schema describing the deltas produced/consumed by a {@link DomRDT}: a recursive node with a string
@@ -153,98 +180,9 @@ export const $domDelta = /* @__PURE__ */ delta.$delta({ name: s.$string, attrs: 
  * @typedef {delta.Delta<{ name: string, attrs: { [key:string]: string }, text: true, recursiveChildren: true }>} DomDelta
  */
 
-/* c8 ignore start */
-
 /**
- * Compute the delta describing a batch of DOM `MutationRecord`s relative to `observedNode`.
- *
- * Builds the deltas without recursion: first every changed parent is registered (and its ancestors
- * marked as having a modified child), then each changed node's child operations are emitted in document
- * order.
- *
- * @param {Element} observedNode
- * @param {MutationRecord[]} mutations
- * @param {any} origin assign this origin to the generated delta
- * @return {DomDelta}
- */
-const _mutationsToDelta = (observedNode, mutations, origin) => {
-  /**
-   * @typedef {{ removedBefore: Map<Node?,number>, added: Set<Node>, modified: number, d: delta.DeltaBuilderAny }} ChangedNodeInfo
-   */
-  /**
-   * @type {Map<Node,ChangedNodeInfo>}
-   */
-  const changedNodes = map.create()
-  /**
-   * @param {Node} node
-   * @return {ChangedNodeInfo}
-   */
-  const getChangedNodeInfo = node => map.setIfUndefined(changedNodes, node, () => ({ removedBefore: map.create(), added: set.create(), modified: 0, d: delta.create(node.nodeName.toLowerCase()) }))
-  const observedNodeInfo = getChangedNodeInfo(observedNode)
-  mutations.forEach(mutation => {
-    const target = /** @type {HTMLElement} */ (mutation.target)
-    const parent = target.parentNode
-    const attrName = /** @type {string} */ (mutation.attributeName)
-    const newVal = target.getAttribute(attrName)
-    const info = getChangedNodeInfo(target)
-    const d = info.d
-    // go up the tree and mark that a child has been modified
-    for (let changedParent = parent; changedParent != null && getChangedNodeInfo(changedParent).modified++ > 1 && changedParent !== observedNode; changedParent = changedParent.parentNode) {
-      // nop
-    }
-    switch (mutation.type) {
-      case 'attributes': {
-        if (newVal == null) {
-          d.deleteAttr(attrName)
-        } else {
-          d.setAttr(attrName, newVal)
-        }
-        break
-      }
-      case 'characterData': {
-        error.methodUnimplemented()
-        break
-      }
-      case 'childList': {
-        const targetInfo = getChangedNodeInfo(target)
-        mutation.addedNodes.forEach(node => {
-          targetInfo.added.add(node)
-        })
-        const removed = mutation.removedNodes.length
-        if (removed > 0) {
-          // @todo this can't work because next can be null
-          targetInfo.removedBefore.set(mutation.nextSibling, removed)
-        }
-        break
-      }
-    }
-  })
-  changedNodes.forEach((info, node) => {
-    const numOfChildChanges = info.modified + info.removedBefore.size + info.added.size
-    const d = info.d
-    if (numOfChildChanges > 0) {
-      node.childNodes.forEach(nchild => {
-        if (info.removedBefore.has(nchild)) { // can happen separately
-          d.delete(/** @type {number} */ (info.removedBefore.get(nchild)))
-        }
-        if (info.added.has(nchild)) {
-          d.insert(dom.$text.check(nchild) ? (nchild.textContent ?? '') : [domToDelta(nchild)])
-        } else if (changedNodes.has(nchild)) {
-          d.modify(getChangedNodeInfo(nchild).d)
-        }
-      })
-      // remove items to the end, if necessary
-      d.delete(info.removedBefore.get(null) ?? 0)
-    }
-    d.done()
-  })
-  observedNodeInfo.d.origin = origin
-  return /** @type {DomDelta} */ (observedNodeInfo.d)
-}
-
-/**
- * An RDT backed by a live DOM subtree. DOM mutations observed via `MutationObserver` are emitted as
- * deltas; incoming deltas are applied back onto the DOM.
+ * An RDT backed by a live DOM subtree. DOM mutations observed via `MutationObserver` are diffed
+ * against the last-known state and emitted as deltas; incoming deltas are applied back onto the DOM.
  *
  * @template {DomDelta} [D=DomDelta]
  * @implements {RDT<D>}
@@ -261,7 +199,13 @@ class DomRDT extends ObservableV2 {
      */
     this.$delta = /** @type {any} */ ($domDelta)
     this.observedNode = observedNode
-    this._mux = mux.createMutex()
+    /**
+     * Last-known DOM state. The observe path diffs the live DOM against this to compute the change to
+     * emit, then advances it; `applyDelta` re-syncs it after mutating the DOM.
+     *
+     * @type {DomDelta}
+     */
+    this._state = domToDelta(observedNode)
     this.observer = new MutationObserver(this._mutationHandler)
     this.observer.observe(observedNode, {
       subtree: true,
@@ -272,31 +216,36 @@ class DomRDT extends ObservableV2 {
   }
 
   /**
+   * Turn a batch of observed mutations into a delta by diffing the new DOM state against `_state`.
+   *
    * @param {MutationRecord[]} mutations
    */
-  _mutationHandler = mutations =>
-    mutations.length > 0 && this._mux(() => {
-      const d = /** @type {D} */ (_mutationsToDelta(this.observedNode, mutations, this))
-      this.emit('delta', [d])
-    })
+  _mutationHandler = mutations => {
+    if (mutations.length === 0) return
+    const next = domToDelta(this.observedNode)
+    const change = /** @type {D} */ (delta.diff(this._state, next))
+    this._state = next
+    if (!change.isEmpty()) this.emit('delta', [change])
+  }
 
   /**
+   * Apply a foreign delta onto the DOM.
+   *
    * @param {D} d
-   * @return {D | null} the fix restoring this RDT's invariants — always `null`; the DOM RDT does not
-   * (yet) enforce invariants beyond what the incoming delta describes
+   * @return {null} the DOM RDT enforces no invariants of its own, so it never produces a fix
    */
   applyDelta (d) {
-    if (d.origin !== this) {
-      // @todo the retrieved changes must be transformed against the updated changes. need a proper
-      // transaction system
-      this._mutationHandler(this.observer.takeRecords())
-      this._mux(() => {
-        applyDeltaToDom(this.observedNode, d)
-        const mutations = this.observer.takeRecords()
-        const change = /** @type {D} */ (_mutationsToDelta(this.observedNode, mutations, d.origin))
-        this.emit('delta', [change])
-      })
-    }
+    // Propagate genuine external edits observed so far BEFORE applying `d` — otherwise the
+    // `takeRecords()` below discards them and the two bound sides diverge.
+    this._mutationHandler(this.observer.takeRecords())
+    applyDeltaToDom(this.observedNode, d)
+    this._state = /** @type {D} */ (domToDelta(this.observedNode))
+    // MutationObserver callbacks are async, so the Binding's (synchronous) mutex cannot suppress the
+    // echo of our own write — draining the self-caused records here is what prevents it.
+    this.observer.takeRecords()
+    // Forward the effective change so a chained binding on the other side picks it up; the binding
+    // that fed us `d` swallows this re-emit via its own mutex (see ../rdt.js).
+    this.emit('delta', [d])
     return null
   }
 
@@ -322,5 +271,3 @@ class DomRDT extends ObservableV2 {
  * @param {Element} dom
  */
 export const domRDT = dom => new DomRDT(dom)
-
-/* c8 ignore stop */
