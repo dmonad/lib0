@@ -216,37 +216,60 @@ class DomRDT extends ObservableV2 {
   }
 
   /**
-   * Turn a batch of observed mutations into a delta by diffing the new DOM state against `_state`.
+   * Pull the local DOM changes accumulated since the last sync as a delta (by diffing the live DOM
+   * against `_state`), advancing `_state` to the current DOM.
    *
+   * @return {DomDelta}
+   */
+  _pull () {
+    const next = domToDelta(this.observedNode)
+    const change = delta.diff(this._state, next)
+    this._state = next
+    return change
+  }
+
+  /**
    * @param {MutationRecord[]} mutations
    */
   _mutationHandler = mutations => {
     if (mutations.length === 0) return
-    const next = domToDelta(this.observedNode)
-    const change = /** @type {D} */ (delta.diff(this._state, next))
-    this._state = next
+    const change = /** @type {D} */ (this._pull())
     if (!change.isEmpty()) this.emit('delta', [change])
   }
 
   /**
    * Apply a foreign delta onto the DOM.
    *
+   * The DOM may have been edited locally (`b`) since the last sync, concurrently with the incoming
+   * change (`d`). We pull `b` first and rebase the two against each other (OT) so neither is lost:
+   * `d` rebased onto `b` is applied to the DOM, and `b` rebased onto `d` is returned as the fix so the
+   * binding pipes it back through the transformer to the other side.
+   *
    * @param {D} d
-   * @return {null} the DOM RDT enforces no invariants of its own, so it never produces a fix
+   * @return {D | null} the rebased local change (`b`), or `null` when there were no concurrent edits
    */
   applyDelta (d) {
-    // Propagate genuine external edits observed so far BEFORE applying `d` — otherwise the
-    // `takeRecords()` below discards them and the two bound sides diverge.
-    this._mutationHandler(this.observer.takeRecords())
-    applyDeltaToDom(this.observedNode, d)
-    this._state = /** @type {D} */ (domToDelta(this.observedNode))
+    const b = this._pull()
+    /** @type {DomDelta} */
+    let toApply = d
+    /** @type {DomDelta?} */
+    let fix = null
+    if (!b.isEmpty()) {
+      // clone both sides so neither original is mutated by the in-place `rebase`
+      toApply = delta.clone(d).rebase(b, true) // d on top of the local DOM (which has b)
+      const bOnD = delta.clone(b).rebase(d, false) // b on top of d, for the other side
+      fix = bOnD.isEmpty() ? null : bOnD
+    }
+    applyDeltaToDom(this.observedNode, toApply)
+    this._state = domToDelta(this.observedNode)
     // MutationObserver callbacks are async, so the Binding's (synchronous) mutex cannot suppress the
     // echo of our own write — draining the self-caused records here is what prevents it.
     this.observer.takeRecords()
     // Forward the effective change so a chained binding on the other side picks it up; the binding
     // that fed us `d` swallows this re-emit via its own mutex (see ../rdt.js).
-    this.emit('delta', [d])
-    return null
+    const effective = /** @type {D} */ (toApply)
+    this.emit('delta', [effective])
+    return /** @type {D?} */ (fix)
   }
 
   /**

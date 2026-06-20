@@ -139,6 +139,29 @@ export const testDomBindingBackAndForth = async () => {
   })
 }
 
+/**
+ * A local DOM edit that the observer hasn't delivered yet is concurrent with an incoming change from
+ * the bound side. `applyDelta` must pull the local edit, rebase it against the incoming change (and
+ * vice versa), apply the rebased incoming change to the DOM, and pipe the rebased local edit back to
+ * the data side — so neither edit is lost and both sides converge.
+ */
+export const testDomConcurrentRebase = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div')
+  const dr = domRDT(el)
+  const d = deltaRDT($domDelta)
+  bind(d, dr, identity())
+  d.applyDelta(delta.create('div', {}, [delta.create('p', {}, 'x')])) // initial: <div><p>x</p></div>
+  // a local DOM edit (add an attribute) whose MutationObserver callback has NOT fired yet ...
+  el.setAttribute('data-local', '1')
+  // ... and, synchronously (so the edit above is still pending), a remote change through the binding
+  d.applyDelta(delta.create('div').modify(delta.create().retain(1).insert('y'))) // edit the text "x" -> "xy"
+  await promise.resolve() // settle the observer (it finds nothing new — the edit was already pulled)
+  t.compare(el.outerHTML, '<div data-local="1"><p>xy</p></div>', 'DOM has both concurrent edits')
+  t.compare(d.state, delta.create('div', { 'data-local': '1' }, [delta.create('p', {}, 'xy')]),
+    'data side received the rebased local edit')
+}
+
 export const testDomRDTDestroy = () => {
   t.skip(!env.hasDom)
   const el = dom.element('div')
