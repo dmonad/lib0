@@ -319,7 +319,7 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^25.5.2",
+    "@types/node": "^26.0.0",
     "c8": "^11.0.0",
     "dpdm": "^4.0.1",
     "jsdom": "^29.1.1",
