@@ -138,6 +138,30 @@ export const testBindInitialStateRename = () => {
   t.compare(b.state, delta.create().setAttr('b', 'x'), 'initial a-state projected & renamed onto b')
 }
 
+export const testBindInitialSelfHealNullProjection = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string } })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  // A contract-honest transformer double. `TransformResult` (createTransformResult(a, b)) permits a
+  // non-null self-heal for side A together with a `null` projection for side B — isEmpty() is
+  // `a == null && b == null`, so the two are independent. No shipped transformer emits this shape from
+  // a one-sided `applyA` (it only arises in the two-sided `apply` path, exercised via `propagate`
+  // above), so we model it directly to exercise the initial sync's handling of a self-heal on `a`
+  // (`tres.a`) and an absent projection onto `b` (`tres.b == null`).
+  const template = /** @type {any} */ ({
+    init: () => ({
+      applyA: () => dt.createTransformResult(delta.create().setAttr('x', 'healed'), null),
+      applyB: (/** @type {any} */ bd) => dt.createTransformResult(null, bd),
+      apply: (/** @type {any} */ tr) => tr
+    })
+  })
+  bind(a, b, template)
+  // `tres.a` (the self-heal) was applied back onto `a` during initial sync ...
+  t.assert(a.state?.attrs.x?.value === 'healed', 'init-sync applied the self-heal onto a')
+  // ... and `tres.b` was null, so `b` was never diffed/touched
+  t.assert(b.state === null, 'no projection onto b when tres.b is null')
+}
+
 /**
  * @typedef {import('./rdt.js').RDT<delta.DeltaAny>} RDT
  */
