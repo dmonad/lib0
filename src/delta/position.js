@@ -27,6 +27,7 @@
  */
 
 import * as s from '../schema.js'
+import * as delta from './delta.js'
 
 /**
  * A single step of a {@link Pos} path: a `string` attribute key, or a `number` content index.
@@ -40,6 +41,14 @@ import * as s from '../schema.js'
  * gravity at a boundary: `-1` binds to the preceding content, `1` to the following content.
  *
  * @typedef {{ path: Array<PosStep>, assoc: -1|1 }} Pos
+ */
+
+/**
+ * A {@link Pos} tagged with the unique id (and any `customAttributes`) of a stored
+ * {@link import('./delta.js').Mark mark} — what {@link marksToPositions} returns. Add marks with
+ * {@link import('./delta.js').DeltaBuilder#addMark}.
+ *
+ * @typedef {{ id: string, customAttributes?: object|null } & Pos} MarkPos
  */
 
 /**
@@ -77,3 +86,62 @@ export const pos = (...path) => ({ path, assoc: 1 })
  * @return {boolean}
  */
 export const equals = (a, b) => a.assoc === b.assoc && a.path.length === b.path.length && a.path.every((step, i) => step === b.path[i])
+
+/**
+ * Schema for a {@link MarkPos}.
+ *
+ * @type {s.Schema<MarkPos>}
+ */
+export const $markPos = /* @__PURE__ */ s.$object({
+  id: s.$string,
+  path: s.$array(s.$union(s.$string, s.$number)),
+  assoc: s.$literal(-1, 1),
+  customAttributes: s.$any.optional
+})
+
+/**
+ * Reconstruct every {@link MarkPos} stored as a {@link import('./delta.js').Mark mark} inside `d` (a
+ * settled delta). Subtrees with no marks are pruned via each node's `markCount`; a mark's `path` is the
+ * content indices / attribute keys walked to reach it, plus the mark's own `key`. Add marks with
+ * {@link import('./delta.js').DeltaBuilder#addMark}.
+ *
+ * @param {delta.DeltaAny} d
+ * @return {Array<MarkPos>}
+ */
+export const marksToPositions = d => {
+  /** @type {Array<MarkPos>} */
+  const out = []
+  /**
+   * @param {delta.DeltaAny} node
+   * @param {Array<PosStep>} path
+   */
+  const walk = (node, path) => {
+    if (node.markCount === 0) return
+    if (node.marks !== null) {
+      for (const m of node.marks) {
+        out.push(m.customAttributes === null
+          ? { id: m.id, path: [...path, m.key], assoc: m.assoc }
+          : { id: m.id, path: [...path, m.key], assoc: m.assoc, customAttributes: m.customAttributes })
+      }
+    }
+    // a settled delta has only text/insert children; descend the delta-valued embeds
+    let i = 0
+    for (const op of node.children) {
+      if (delta.$insertOp.check(op)) {
+        for (const el of op.insert) {
+          if (delta.$deltaAny.check(el) && el.markCount > 0) walk(el, [...path, i])
+          i++
+        }
+      } else {
+        i += op.length
+      }
+    }
+    for (const op of node.attrs) {
+      if (delta.$setAttrOp.check(op) && delta.$deltaAny.check(op.value) && op.value.markCount > 0) {
+        walk(op.value, [...path, op.key])
+      }
+    }
+  }
+  walk(d, [])
+  return out
+}

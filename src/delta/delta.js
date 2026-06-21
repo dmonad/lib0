@@ -22,6 +22,7 @@ import * as encoding from '../encoding.js'
 import * as buffer from '../buffer.js'
 import * as patience from '../diff/patience.js'
 import * as prng from '../prng.js'
+import * as rand from '../random.js'
 
 /**
  * @typedef {{
@@ -51,16 +52,22 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  */
 
 /**
+ * @typedef {{ id: string, key: number|string, assoc: 1|-1, customAttributes?: object }} MarkJSON
+ */
+
+/**
  * @typedef {{
  *   type: 'delta',
  *   name?: string,
  *   attrs?: { [Key in string|number]: DeltaAttrOpJSON },
- *   children?: Array<DeltaListOpJSON>
+ *   children?: Array<DeltaListOpJSON>,
+ *   marks?: Array<MarkJSON>,
+ *   deleteMarks?: Array<string>
  * }} DeltaJSON
  */
 
 /**
- * @typedef {{ type: 'insert', insert: string|Array<any>, format?: { [key: string]: any }, attribution?: Attribution } | { delete: number } | { type: 'retain', retain: number, format?: { [key:string]: any }, attribution?: Attribution } | { type: 'modify', value: object }} DeltaListOpJSON
+ * @typedef {{ type: 'insert', insert: string|Array<any>, format?: { [key: string]: any }, attribution?: Attribution } | { delete: number } | { type: 'retain', retain: number, format?: { [key:string]: any }, attribution?: Attribution } | { type: 'modify', value: object, addMarks?: Array<MarkJSON>, deleteMarks?: Array<string> }} DeltaListOpJSON
  */
 
 /**
@@ -508,8 +515,10 @@ export class ModifyOp extends list.ListNode {
    * @param {DTypes} delta
    * @param {FormattingAttributes|null} format
    * @param {Attribution?} attribution
+   * @param {Array<Mark>?} [addMarks] marks to add to the target node
+   * @param {Array<string>?} [deleteMarks] mark ids to remove from the target node
    */
-  constructor (delta, format, attribution) {
+  constructor (delta, format, attribution, addMarks = null, deleteMarks = null) {
     super()
     /**
      * @readonly
@@ -526,6 +535,16 @@ export class ModifyOp extends list.ListNode {
      * @type {Attribution?}
      */
     this.attribution = attribution
+    /**
+     * @readonly
+     * @type {Array<Mark>?}
+     */
+    this.addMarks = addMarks
+    /**
+     * @readonly
+     * @type {Array<string>?}
+     */
+    this.deleteMarks = deleteMarks
     /**
      * @type {string|null}
      */
@@ -565,6 +584,8 @@ export class ModifyOp extends list.ListNode {
       encoding.writeVarUint(encoder, 4) // modifyOp type: 4
       encoding.writeVarString(encoder, this.value.fingerprint)
       encoding.writeAny(encoder, this.format)
+      writeSortedMarks(encoder, this.addMarks)
+      writeSortedIds(encoder, this.deleteMarks)
     })))
   }
 
@@ -586,8 +607,14 @@ export class ModifyOp extends list.ListNode {
    * @return {DeltaListOpJSON}
    */
   toJSON () {
-    const { value, attribution, format } = this
-    return object.assign({ type: /** @type {'modify'} */ ('modify'), value: value.toJSON() }, format ? { format } : {}, attribution != null ? { attribution } : {})
+    const { value, attribution, format, addMarks, deleteMarks } = this
+    return object.assign(
+      { type: /** @type {'modify'} */ ('modify'), value: value.toJSON() },
+      format ? { format } : {},
+      attribution != null ? { attribution } : {},
+      addMarks != null ? { addMarks: addMarks.slice().sort(compareMarksById).map(m => m.toJSON()) } : {},
+      deleteMarks != null ? { deleteMarks: deleteMarks.slice().sort() } : {}
+    )
   }
 
   /**
@@ -599,14 +626,16 @@ export class ModifyOp extends list.ListNode {
       (
         (object.isEmpty(this.format) && object.isEmpty(other.format)) || fun.equalityDeep(this.format, other.format)
       ) &&
-      fun.equalityDeep(this.attribution, other.attribution)
+      fun.equalityDeep(this.attribution, other.attribution) &&
+      fun.equalityDeep(this.addMarks, other.addMarks) &&
+      fun.equalityDeep(this.deleteMarks, other.deleteMarks)
   }
 
   /**
    * @return {ModifyOp<DTypes>}
    */
   clone () {
-    return new ModifyOp(/** @type {DTypes} */ (this.value.done()), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    return new ModifyOp(/** @type {DTypes} */ (this.value.done()), _cloneAttrs(this.format), _cloneAttrs(this.attribution), this.addMarks && this.addMarks.slice(), this.deleteMarks && this.deleteMarks.slice())
   }
 }
 
@@ -906,6 +935,91 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  */
 
 /**
+ * A cursor/selection anchor stored inside a delta tree (see {@link import('./position.js').marksToPositions}).
+ *
+ * - `key` — the *terminal* step of the position: a content offset (number) or an attribute key
+ *   (string) within the node that holds the mark.
+ * - `id` — a unique, user-defined identifier.
+ * - `assoc` — the gravity at a boundary (left `-1` / right `1`).
+ * - `customAttributes` — an optional, immutable object of user-supplied data carried with the mark.
+ *
+ * A `Mark` is **immutable** — never mutate one in place; to "move" a mark, replace it with a fresh
+ * `Mark` via {@link Mark#copy} (the {@link Marks} set keys by id, so re-adding the same id replaces
+ * it). Immutability lets a `Mark` be shared freely across a delta and its clones.
+ */
+export class Mark {
+  /**
+   * @param {number|string} key
+   * @param {string} [id] unique id; defaults to a fresh GUID
+   * @param {1|-1} [assoc] gravity at a boundary; defaults to right (`1`)
+   * @param {object?} [customAttributes] optional immutable user data
+   */
+  constructor (key, id = rand.uuidv4(), assoc = 1, customAttributes = null) {
+    /**
+     * @readonly
+     * @type {number|string}
+     */
+    this.key = key
+    /**
+     * @readonly
+     * @type {string}
+     */
+    this.id = id
+    /**
+     * @readonly
+     * @type {1|-1}
+     */
+    this.assoc = assoc
+    /**
+     * @readonly
+     * @type {object?}
+     */
+    this.customAttributes = customAttributes
+  }
+
+  /**
+   * A copy of this mark, optionally at a different `key` (used to "move" an otherwise-immutable mark).
+   *
+   * @param {number|string} [key]
+   * @return {Mark}
+   */
+  copy (key = this.key) {
+    return new Mark(key, this.id, this.assoc, this.customAttributes)
+  }
+
+  /**
+   * @return {MarkJSON}
+   */
+  toJSON () {
+    return this.customAttributes === null
+      ? { id: this.id, key: this.key, assoc: this.assoc }
+      : { id: this.id, key: this.key, assoc: this.assoc, customAttributes: this.customAttributes }
+  }
+
+  /**
+   * @param {Mark} other
+   */
+  [equalityTrait.EqualityTraitSymbol] (other) {
+    return $mark.check(other) && this.id === other.id && this.key === other.key && this.assoc === other.assoc && fun.equalityDeep(this.customAttributes, other.customAttributes)
+  }
+}
+
+export const $mark = /** @type {s.Schema<Mark>} */ (Mark.prototype.$type = s.$type('d:mark', Mark))
+
+/**
+ * Create a {@link Mark} (use this instead of `new Mark(...)`). `id` defaults to a fresh GUID, `assoc`
+ * to right gravity (`1`), `customAttributes` to `null`. A `Mark` is consumed directly by a
+ * {@link ModifyOp}'s `addMarks` and by {@link DeltaBuilder#addMark}.
+ *
+ * @param {number|string} key
+ * @param {string} [id]
+ * @param {1|-1} [assoc]
+ * @param {object?} [customAttributes]
+ * @return {Mark}
+ */
+export const createMark = (key, id, assoc, customAttributes) => new Mark(key, id, assoc, customAttributes)
+
+/**
  * @typedef {Delta<any>} DeltaAny
  */
 
@@ -1044,6 +1158,25 @@ class DeltaData {
      * Is the final document and does not contain delete, modify, or retain ops.
      */
     this.isFinal = false
+    /**
+     * Leaf {@link Mark marks} whose cursor sits in THIS node (in a settled delta), or the marks to
+     * ADD to the target node (in a change delta). `null` when there are none. See {@link Marks}.
+     *
+     * @type {Marks?}
+     */
+    this.marks = null
+    /**
+     * Mark ids to DELETE. Only present in a (non-settled) change delta — like a `DeleteAttrOp`, a
+     * deletion is dropped from a final delta. `null` when there are none.
+     *
+     * @type {Array<string>?}
+     */
+    this.deleteMarks = null
+    /**
+     * Number of live marks in this whole subtree (including this node's own {@link DeltaData#marks}).
+     * Lets {@link import('./position.js').marksToPositions} prune subtrees with no marks.
+     */
+    this.markCount = 0
   }
 }
 
@@ -1088,6 +1221,8 @@ export class Delta extends DeltaData {
       for (const child of this.children) {
         encoding.writeVarString(encoder, child.fingerprint)
       }
+      encoding.writeVarString(encoder, this.marks !== null ? this.marks.fingerprint : '')
+      writeSortedIds(encoder, this.deleteMarks)
       return buffer.toBase64(rabin.fingerprint(rabin.StandardIrreducible128, encoding.toUint8Array(encoder)))
     })))
   }
@@ -1097,7 +1232,7 @@ export class Delta extends DeltaData {
   }
 
   isEmpty () {
-    return object.isEmpty(this.attrs) && list.isEmpty(this.children)
+    return object.isEmpty(this.attrs) && list.isEmpty(this.children) && (this.marks === null || this.marks.size === 0) && (this.deleteMarks === null || this.deleteMarks.length === 0)
   }
 
   /**
@@ -1123,7 +1258,9 @@ export class Delta extends DeltaData {
       { type: /** @type {'delta'} */ ('delta') },
       (name != null ? { name } : {}),
       (object.isEmpty(attrs) ? {} : { attrs }),
-      (children.length > 0 ? { children } : {})
+      (children.length > 0 ? { children } : {}),
+      (this.marks !== null && this.marks.size > 0 ? { marks: [...this.marks].sort(compareMarksById).map(m => m.toJSON()) } : {}),
+      (this.deleteMarks !== null && this.deleteMarks.length > 0 ? { deleteMarks: this.deleteMarks.slice().sort() } : {})
     )
   }
 
@@ -1142,7 +1279,7 @@ export class Delta extends DeltaData {
   [equalityTrait.EqualityTraitSymbol] (other) {
     // @todo it is only necessary to compare finrerprints OR do a deep equality check (remove
     // childCnt as well)
-    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
+    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt && fun.equalityDeep(this.marks, other.marks) && fun.equalityDeep(this.deleteMarks, other.deleteMarks)
   }
 
   // toString () {
@@ -1191,6 +1328,7 @@ export class Delta extends DeltaData {
 export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.start) => {
   const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(d.name, d.$schema))
   cpy.origin = d.origin
+  const sliceStart = start // `start` is mutated by the walk below; keep the original for clamping marks
   // copy attrs
   for (const op of d.attrs) {
     // @ts-ignore
@@ -1225,6 +1363,25 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
     remainingLen -= math.min(currNode.length, remainingLen)
   }
   cpy.childCnt = slicedLen - remainingLen
+  // copy marks (only if the subtree has any): clamp this node's own number-keyed marks to the sliced
+  // range into a fresh Marks (string/attr marks ride with the copied attrs; child marks ride on the
+  // cloned children), then set markCount from the copied subtree. A change-only deleteMarks list is
+  // copied wholesale.
+  if (d.markCount > 0) {
+    if (d.marks !== null) {
+      const cpyMarks = new Marks()
+      for (const m of d.marks) {
+        if (typeof m.key === 'number') {
+          if (m.key >= sliceStart && m.key <= end) cpyMarks.add(m.copy(m.key - sliceStart))
+        } else {
+          cpyMarks.add(m)
+        }
+      }
+      if (cpyMarks.size > 0) cpy.marks = cpyMarks
+    }
+    cpy.markCount = (cpy.marks !== null ? cpy.marks.size : 0) + sumChildMarkCounts(cpy)
+  }
+  if (d.deleteMarks !== null) cpy.deleteMarks = d.deleteMarks.slice()
   // @ts-ignore
   return cpy
 }
@@ -1416,15 +1573,44 @@ export class DeltaBuilder extends Delta {
    * @param {NewContent} modify
    * @param {FormattingAttributes?} formatting
    * @param {Attribution?} attribution
+   * @param {Array<Mark>?} [addMarks] marks to add to the modified node (see {@link Mark})
+   * @param {Array<string>?} [deleteMarks] mark ids to remove from the modified node
    * @return {DeltaBuilder<DeltaConfOverwrite<Conf, {children: DeltaConfGetChildren<Conf>|NewContent}>, FixedConf>}
    */
-  modify (modify, formatting = null, attribution = null) {
+  modify (modify, formatting = null, attribution = null, addMarks = null, deleteMarks = null) {
     modDeltaCheck(this)
     const mergedAttributes = mergeFormats(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
-    list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution))
+    list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution, addMarks, deleteMarks))
     this.childCnt += 1
     return /** @type {any} */ (this)
+  }
+
+  /**
+   * Add a cursor/selection {@link Mark} at `pos` — a {@link import('./position.js').Pos}: a `path` of
+   * content-index / attribute-key steps plus an `assoc`. `id` defaults to a fresh GUID;
+   * `customAttributes` is optional immutable user data carried with the mark. Returns the mark's `id`.
+   *
+   * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
+   * @param {string} [id]
+   * @param {object?} [customAttributes]
+   * @return {string}
+   */
+  addMark (pos, id = rand.uuidv4(), customAttributes = null) {
+    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, customAttributes, false)), { final: true })
+    return id
+  }
+
+  /**
+   * Remove the mark with `id`, located via `pos` (the position it was added at).
+   *
+   * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
+   * @param {string} id
+   * @return {this}
+   */
+  removeMark (pos, id) {
+    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, null, true)), { final: true })
+    return this
   }
 
   /**
@@ -1558,7 +1744,10 @@ export class DeltaBuilder extends Delta {
       const c = /** @type {SetAttrOp<any,any>|DeleteAttrOp<any>|ModifyAttrOp<any,any>} */ (this.attrs[op.key])
       if ($modifyAttrOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
-          c._modValue.apply(op.value, { final })
+          const tgt = c._modValue
+          const before = tgt.markCount
+          tgt.apply(op.value, { final })
+          this.markCount += tgt.markCount - before // fold the attr subtree's mark-count change up
         } else {
           // then this is a simple modify
           // @ts-ignore
@@ -1627,6 +1816,8 @@ export class DeltaBuilder extends Delta {
       splitHere()
       list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
       this.childCnt += op.length
+      // inserting pre-marked content (e.g. a node that already carries a cursor) brings its marks along
+      if ($insertOp.check(op)) this.markCount += sumElemMarks(op.insert, 0, op.insert.length)
     }
     for (const op of other.children) {
       // defensive: the per-branch logic below resets opsI/offset whenever it
@@ -1711,6 +1902,8 @@ export class DeltaBuilder extends Delta {
             // case4: delete some part of center
             const delLen = math.min(opsI.length - offset, remainingLen)
             this.childCnt -= delLen
+            // deleting content drops any marks living in the removed embeds
+            if ($insertOp.check(opsI)) this.markCount -= sumElemMarks(opsI.insert, offset, offset + delLen)
             if (opsI.length === delLen) {
               // case 1
               list.remove(this.children, opsI)
@@ -1753,10 +1946,18 @@ export class DeltaBuilder extends Delta {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
         } else if ($modifyOp.check(opsI)) {
-          opsI._modValue.apply(/** @type {any} */ (op.value), { final })
+          const tgt = opsI._modValue
+          const before = tgt.markCount
+          tgt.apply(/** @type {any} */ (op.value), { final })
+          applyMarkOps(tgt, op.addMarks, op.deleteMarks)
+          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up
           opsI = opNextUndeleted(opsI)
         } else if ($insertOp.check(opsI)) {
-          opsI._modValue(offset).apply(op.value, { final })
+          const tgt = opsI._modValue(offset)
+          const before = tgt.markCount
+          tgt.apply(op.value, { final })
+          applyMarkOps(tgt, op.addMarks, op.deleteMarks)
+          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up
           if (opsI.length === ++offset) {
             opsI = opNextUndeleted(opsI)
             offset = 0
@@ -1798,6 +1999,10 @@ export class DeltaBuilder extends Delta {
         op.next && tryMergeWithPrev(this.children, op.next)
       }
     }
+    // marks: shift this node's own leaf marks by the change, then fold in root-level mark adds/deletes
+    // (child subtree counts were already folded into markCount incrementally above)
+    shiftMarksByChange(this, other)
+    applyMarkOps(this, other.marks, other.deleteMarks)
     return this
   }
 
@@ -2083,6 +2288,304 @@ const opNextUndeleted = op => {
     op = op.next
   }
   return op
+}
+
+/**
+ * Total order on marks by their (unique) id, used to sort a mark list before fingerprinting.
+ *
+ * @param {Mark} a
+ * @param {Mark} b
+ */
+const compareMarksById = (a, b) => a.id < b.id ? -1 : 1
+
+/**
+ * The set of leaf {@link Mark marks} on a single delta node, deduplicated by id (so adding the same id
+ * again replaces it). An internal data-shape class (never a public/`new`-from-outside class): every
+ * mutation goes through its methods, so a stored {@link Mark} is treated as immutable and is never
+ * manipulated in place — to "move" a mark you replace it with a fresh `Mark`. Marks are held in an
+ * array that is sorted in place by id when the (cached) {@link Marks#fingerprint} is computed (over id
+ * + key), so the fingerprint is order-independent and the array order stays deterministic; the cache
+ * invalidates on add/remove, like the delta ops. `size` drives the incrementally-maintained
+ * `markCount`, and {@link clone}/{@link slice} copy the set so a `done` delta's marks are never mutated
+ * through a shared reference.
+ */
+class Marks {
+  constructor () {
+    /**
+     * @type {Array<Mark>}
+     */
+    this._marks = []
+    /**
+     * @type {string?}
+     */
+    this._fingerprint = null
+  }
+
+  get size () { return this._marks.length }
+
+  /**
+   * Add or replace `mark` (by id). Returns the change in {@link size}: `1` if new, `0` if it replaced.
+   *
+   * @param {Mark} mark
+   * @return {number}
+   */
+  add (mark) {
+    this._fingerprint = null
+    const i = this._marks.findIndex(m => m.id === mark.id)
+    if (i < 0) {
+      this._marks.push(mark)
+      return 1
+    }
+    this._marks[i] = mark
+    return 0
+  }
+
+  /**
+   * Remove the mark with `id`. Returns the change in {@link size}: `1` if removed, `0` if absent.
+   *
+   * @param {string} id
+   * @return {number}
+   */
+  delete (id) {
+    const i = this._marks.findIndex(m => m.id === id)
+    if (i < 0) return 0
+    this._marks.splice(i, 1)
+    this._fingerprint = null
+    return 1
+  }
+
+  [Symbol.iterator] () { return this._marks[Symbol.iterator]() }
+
+  /**
+   * Cached fingerprint over the contained marks' id + key. `_marks` is sorted in place by id first, so
+   * the result is order-independent and the array stays in a deterministic order (its index is then
+   * stable, which helps testing). Cleared on every {@link add}/{@link delete}, like the delta ops.
+   *
+   * @return {string}
+   */
+  get fingerprint () {
+    return this._fingerprint ?? (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
+      this._marks.sort(compareMarksById)
+      encoding.writeVarUint(encoder, this._marks.length)
+      for (const m of this._marks) {
+        encoding.writeVarString(encoder, m.id)
+        encoding.writeAny(encoder, m.key)
+      }
+    })))
+  }
+
+  /**
+   * @param {Marks} other
+   */
+  [equalityTrait.EqualityTraitSymbol] (other) {
+    if (!(other instanceof Marks) || this._marks.length !== other._marks.length) return false
+    return this._marks.every(m => {
+      const o = other._marks.find(x => x.id === m.id)
+      return o !== undefined && m[equalityTrait.EqualityTraitSymbol](o)
+    })
+  }
+}
+
+/**
+ * Fold a plain array of {@link Mark}s (e.g. a `ModifyOp`'s `addMarks`) into `encoder` by id + key,
+ * sorted by id so the result is order-independent. A node's own marks instead use the cached
+ * {@link Marks#fingerprint}.
+ *
+ * @param {encoding.Encoder} encoder
+ * @param {Array<Mark>?} marks
+ */
+const writeSortedMarks = (encoder, marks) => {
+  const sorted = marks === null ? [] : marks.slice().sort(compareMarksById)
+  encoding.writeVarUint(encoder, sorted.length)
+  for (const m of sorted) {
+    encoding.writeVarString(encoder, m.id)
+    encoding.writeAny(encoder, m.key)
+  }
+}
+
+/**
+ * Fold a list of mark ids (a `deleteMarks` list) into `encoder`, sorted so the result is
+ * order-independent. Mark deletions affect the document, so they are part of its fingerprint.
+ *
+ * @param {encoding.Encoder} encoder
+ * @param {Array<string>?} ids
+ */
+const writeSortedIds = (encoder, ids) => {
+  const sorted = ids === null ? [] : ids.slice().sort()
+  encoding.writeVarUint(encoder, sorted.length)
+  for (const id of sorted) encoding.writeVarString(encoder, id)
+}
+
+/**
+ * Sum the subtree mark counts of the delta elements in `insert[from..to)`.
+ *
+ * @param {Array<any>} insert
+ * @param {number} from
+ * @param {number} to
+ * @return {number}
+ */
+const sumElemMarks = (insert, from, to) => {
+  let c = 0
+  for (let i = from; i < to; i++) {
+    const el = insert[i]
+    if ($deltaAny.check(el)) c += el.markCount
+  }
+  return c
+}
+
+/**
+ * Sum the subtree mark counts of a node's child deltas (content embeds, modify targets, delta-valued
+ * attributes). Used by {@link slice} to set a freshly-built copy's `markCount`; `apply`/`rebase`
+ * maintain `markCount` incrementally instead.
+ *
+ * @param {DeltaAny} node
+ * @return {number}
+ */
+const sumChildMarkCounts = node => {
+  let c = 0
+  for (const op of node.children) {
+    if ($insertOp.check(op)) c += sumElemMarks(op.insert, 0, op.insert.length)
+    else if ($modifyOp.check(op)) c += op.value.markCount
+  }
+  for (const op of node.attrs) {
+    if (($setAttrOp.check(op) || $modifyAttrOp.check(op)) && $deltaAny.check(op.value)) c += op.value.markCount
+  }
+  return c
+}
+
+/**
+ * Add (or replace) a {@link Mark} on `node`, maintaining `node.markCount` incrementally.
+ *
+ * @param {DeltaAny} node
+ * @param {Mark} mark
+ */
+const addMarkTo = (node, mark) => {
+  if (node.marks === null) node.marks = new Marks()
+  node.markCount += node.marks.add(mark)
+}
+
+/**
+ * Remove the mark `id` from `node`, maintaining `node.markCount` incrementally.
+ *
+ * @param {DeltaAny} node
+ * @param {string} id
+ */
+const removeMarkFrom = (node, id) => {
+  const marks = node.marks
+  if (marks !== null) {
+    node.markCount -= marks.delete(id)
+    if (marks.size === 0) node.marks = null
+  }
+}
+
+/**
+ * Apply mark add/delete ops to `target`, maintaining `target.markCount`. `addMarks` may be a
+ * {@link Marks} set or a plain array; `deleteMarks` is a list of ids.
+ *
+ * @param {DeltaAny} target
+ * @param {Iterable<Mark>?} addMarks
+ * @param {Array<string>?} deleteMarks
+ */
+const applyMarkOps = (target, addMarks, deleteMarks) => {
+  if (deleteMarks !== null) {
+    for (const id of deleteMarks) removeMarkFrom(target, id)
+  }
+  if (addMarks !== null) {
+    for (const m of addMarks) addMarkTo(target, m)
+  }
+}
+
+/**
+ * Map a number `key` (a content offset) of a leaf mark on a node through the content ops of `change`.
+ * An insert before the key pushes it right (tie-broken at the exact offset by `assoc`); a delete
+ * covering it drops the mark (returns `null`).
+ *
+ * @param {DeltaAny} change
+ * @param {number} key
+ * @param {1|-1} assoc
+ * @return {number?}
+ */
+const shiftMarkKey = (change, key, assoc) => {
+  let oldPos = 0
+  for (const op of change.children) {
+    if ($retainOp.check(op)) {
+      oldPos += op.retain
+    } else if ($insertOp.check(op) || $textOp.check(op)) {
+      if (oldPos < key || (oldPos === key && assoc === 1)) key += op.length
+    } else if ($deleteOp.check(op)) {
+      const len = op.delete
+      if (key >= oldPos + len) key -= len
+      else if (key > oldPos) return null
+      oldPos += len
+    } else if ($modifyOp.check(op)) {
+      oldPos += 1
+    }
+  }
+  return key
+}
+
+/**
+ * Shift `node`'s own number-keyed leaf marks by the content ops of `change`, dropping any covered by a
+ * delete. Attribute-key (string) marks are untouched.
+ *
+ * @param {DeltaAny} node
+ * @param {DeltaAny} change
+ */
+const shiftMarksByChange = (node, change) => {
+  const marks = node.marks
+  if (marks === null) return
+  /** @type {Array<Mark>} */
+  const shifted = []
+  /** @type {Array<string>} */
+  const dropped = []
+  for (const m of marks) {
+    if (typeof m.key === 'number') {
+      const nk = shiftMarkKey(change, m.key, m.assoc)
+      if (nk === null) dropped.push(m.id)
+      else if (nk !== m.key) shifted.push(m.copy(nk)) // a fresh Mark — never mutate in place
+    }
+  }
+  // replace shifted marks (same id ⇒ no count change) and remove dropped ones (maintaining markCount)
+  for (const m of shifted) marks.add(m)
+  for (const id of dropped) removeMarkFrom(node, id)
+}
+
+/**
+ * Build a change delta that adds (or, with `isDelete`, removes) the mark for `pos`. The descent is a
+ * `retain`/`modify`/`modifyAttr` chain re-derived from `pos.path`; the mark rides on the leaf — on the
+ * modify's `addMarks` when the leaf is a content child, or on the delta's own marks at the root or
+ * behind an attribute descent.
+ *
+ * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
+ * @param {string} id
+ * @param {object?} customAttributes
+ * @param {boolean} isDelete
+ * @return {DeltaBuilderAny}
+ */
+const markChange = (pos, id, customAttributes, isDelete) => {
+  const path = pos.path
+  const mark = isDelete ? null : createMark(path[path.length - 1], id, pos.assoc, customAttributes)
+  /**
+   * @param {number} i
+   * @return {DeltaBuilderAny}
+   */
+  const build = i => {
+    if (i === path.length - 1) {
+      // leaf reached at the root or behind an attribute descent: carry the mark on the delta itself
+      const d = /** @type {DeltaBuilderAny} */ (create())
+      if (mark === null) d.deleteMarks = [id]
+      else addMarkTo(d, mark)
+      return d
+    }
+    const step = path[i]
+    if (s.$string.check(step)) return /** @type {DeltaBuilderAny} */ (create()).modifyAttr(step, build(i + 1))
+    const d = /** @type {DeltaBuilderAny} */ (create()).retain(step)
+    return i === path.length - 2
+      // path[i] descends by content index into the leaf child: carry the mark on the modify op
+      ? d.modify(create(), null, null, mark === null ? null : [mark], mark === null ? [id] : null)
+      : d.modify(build(i + 1))
+  }
+  return build(0)
 }
 
 /**
