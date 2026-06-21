@@ -62,6 +62,10 @@
       "types": "./dist/delta/transformer.d.ts",
       "default": "./src/delta/transformer.js"
     },
+    "./delta/position": {
+      "types": "./dist/delta/position.d.ts",
+      "default": "./src/delta/position.js"
+    },
     "./delta/transformer/inline": {
       "types": "./dist/delta/transformer/inline.d.ts",
       "default": "./src/delta/transformer/inline.js"

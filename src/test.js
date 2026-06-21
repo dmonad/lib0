@@ -45,6 +45,7 @@ import * as schema from './schema.test.js'
 import * as delta from './delta/delta.test.js'
 import * as deltaPitch from './delta/delta-pitch.test.js'
 import * as deltaTransformer from './delta/delta-transformer.test.js'
+import * as deltaPosition from './delta/position.test.js'
 import * as deltaBinding from './delta/rdt.test.js'
 import * as rdtDelta from './delta/rdt/delta.test.js'
 import * as rdtDom from './delta/rdt/dom.test.js'
@@ -101,6 +102,7 @@ runTests({
   delta,
   deltaPitch,
   deltaTransformer,
+  deltaPosition,
   deltaBinding,
   rdtDelta,
   rdtDom,
