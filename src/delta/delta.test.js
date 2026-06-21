@@ -1,6 +1,7 @@
 import * as t from 'lib0/testing'
 import * as s from 'lib0/schema'
 import * as delta from './delta.js'
+import * as position from './position.js'
 import * as error from '../error.js'
 import * as prng from '../prng.js'
 
@@ -1430,6 +1431,110 @@ export const testRepeatRandomRichTextDeltaRebase = tc => {
  */
 export const testRepeatRandomRichXmlDeltaRebase = tc => {
   testDeltaRebase(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * Pick a uniformly-random valid cursor position in `node`: descend into random child nodes, then stop
+ * at a random content gap. (Attribute-leaf marks are covered by the deterministic position tests.)
+ *
+ * @param {prng.PRNG} gen
+ * @param {delta.DeltaAny} node
+ * @return {position.Pos}
+ */
+const randomMarkPos = (gen, node) => {
+  /** @type {Array<string|number>} */
+  const path = []
+  let cur = node
+  for (;;) {
+    /** @type {Array<[number, delta.DeltaAny]>} */
+    const slots = []
+    let i = 0
+    for (const op of cur.children) {
+      if (delta.$insertOp.check(op)) {
+        for (const el of op.insert) {
+          if (delta.$deltaAny.check(el)) slots.push([i, el])
+          i++
+        }
+      } else {
+        i += op.length
+      }
+    }
+    if (slots.length === 0 || prng.bool(gen)) {
+      path.push(prng.int32(gen, 0, cur.childCnt))
+      return position.createPos(path, prng.bool(gen) ? 1 : -1)
+    }
+    const [idx, child] = prng.oneOf(gen, slots)
+    path.push(idx)
+    cur = child
+  }
+}
+
+/**
+ * Build a random mark-change delta against `doc`: add or remove a mark, the id drawn from a small
+ * shared pool so concurrent changes collide on the same id (exercising the rebase conflict rules).
+ *
+ * @param {prng.PRNG} gen
+ * @param {delta.DeltaAny} doc
+ * @return {delta.DeltaBuilderAny}
+ */
+const randomMarkChange = (gen, doc) => {
+  const c = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  const id = prng.oneOf(gen, ['p', 'q', 'r'])
+  const p = randomMarkPos(gen, doc)
+  if (prng.bool(gen)) c.addMark(p, id); else c.removeMark(p, id)
+  return c
+}
+
+/**
+ * TP1 convergence for the document under rebase WITH marks present. The base is seeded with a few marks;
+ * each side then makes either a content change or a mark change (add/remove). Replaying the other side
+ * after rebase must agree on the document. Marks are local/ephemeral cursor state excluded from delta
+ * equality, so `t.compare` checks content convergence; cursor positions use collapse-to-cut and are NOT
+ * asserted to converge (a delete maps a range to a point — see shiftMarkKey).
+ *
+ * @template {delta.DeltaConf} Conf
+ * @param {t.TestCase} tc
+ * @param {s.Schema<delta.Delta<Conf>>} $d
+ * @param {{ minChildOps: number, maxChildOps: number }} opts
+ */
+const testMarkRebaseConvergence = (tc, $d, opts) => {
+  const gen = tc.prng
+  const raw = delta.random(gen, $d, opts).done()
+  const base = /** @type {delta.DeltaBuilderAny} */ (delta.clone(raw))
+  // seed the base with a few marks so concurrent content edits must shift them
+  for (let i = prng.int32(gen, 0, 3); i > 0; i--) {
+    base.addMark(randomMarkPos(gen, raw), prng.oneOf(gen, ['p', 'q', 'r']))
+  }
+  base.done()
+  const mkDiff = () => prng.bool(gen)
+    ? /** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $d, { source: base, ...opts }))
+    : randomMarkChange(gen, base)
+  const d1 = mkDiff()
+  const d2 = mkDiff()
+  const a = delta.clone(base).apply(delta.clone(d1), { final: true }).apply(delta.clone(d2).rebase(d1, false), { final: true })
+  const b = delta.clone(base).apply(delta.clone(d2), { final: true }).apply(delta.clone(d1).rebase(d2, true), { final: true })
+  t.compare(a, b, 'documents converge (content; marks excluded from equality)')
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatMarkRebaseConvergenceText = tc => {
+  testMarkRebaseConvergence(tc, $textDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatMarkRebaseConvergenceArray = tc => {
+  testMarkRebaseConvergence(tc, $arrayDelta, { minChildOps: 3, maxChildOps: 3 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatMarkRebaseConvergenceXml = tc => {
+  testMarkRebaseConvergence(tc, $xmlDelta, { minChildOps: 3, maxChildOps: 10 })
 }
 
 // ---------------------------------------------------------------------------

@@ -67,7 +67,7 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  */
 
 /**
- * @typedef {{ type: 'insert', insert: string|Array<any>, format?: { [key: string]: any }, attribution?: Attribution } | { delete: number } | { type: 'retain', retain: number, format?: { [key:string]: any }, attribution?: Attribution } | { type: 'modify', value: object, addMarks?: Array<MarkJSON>, deleteMarks?: Array<string> }} DeltaListOpJSON
+ * @typedef {{ type: 'insert', insert: string|Array<any>, format?: { [key: string]: any }, attribution?: Attribution } | { delete: number } | { type: 'retain', retain: number, format?: { [key:string]: any }, attribution?: Attribution } | { type: 'modify', value: object }} DeltaListOpJSON
  */
 
 /**
@@ -515,10 +515,8 @@ export class ModifyOp extends list.ListNode {
    * @param {DTypes} delta
    * @param {FormattingAttributes|null} format
    * @param {Attribution?} attribution
-   * @param {Array<Mark>?} [addMarks] marks to add to the target node
-   * @param {Array<string>?} [deleteMarks] mark ids to remove from the target node
    */
-  constructor (delta, format, attribution, addMarks = null, deleteMarks = null) {
+  constructor (delta, format, attribution) {
     super()
     /**
      * @readonly
@@ -535,16 +533,6 @@ export class ModifyOp extends list.ListNode {
      * @type {Attribution?}
      */
     this.attribution = attribution
-    /**
-     * @readonly
-     * @type {Array<Mark>?}
-     */
-    this.addMarks = addMarks
-    /**
-     * @readonly
-     * @type {Array<string>?}
-     */
-    this.deleteMarks = deleteMarks
     /**
      * @type {string|null}
      */
@@ -566,26 +554,14 @@ export class ModifyOp extends list.ListNode {
    * @type {DeltaBuilderAny}
    */
   get _modValue () {
-    /**
-     * @type {any}
-     */
-    const d = this.value
-    this._fingerprint = null
-    if (d.isDone) {
-      // @ts-ignore
-      return (this.value = clone(d))
-    }
-    return d
+    return modValue(this)
   }
 
   get fingerprint () {
-    // don't cache fingerprint because we don't know when delta changes
     return this._fingerprint || (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
       encoding.writeVarUint(encoder, 4) // modifyOp type: 4
       encoding.writeVarString(encoder, this.value.fingerprint)
       encoding.writeAny(encoder, this.format)
-      writeSortedMarks(encoder, this.addMarks)
-      writeSortedIds(encoder, this.deleteMarks)
     })))
   }
 
@@ -607,13 +583,11 @@ export class ModifyOp extends list.ListNode {
    * @return {DeltaListOpJSON}
    */
   toJSON () {
-    const { value, attribution, format, addMarks, deleteMarks } = this
+    const { value, attribution, format } = this
     return object.assign(
       { type: /** @type {'modify'} */ ('modify'), value: value.toJSON() },
       format ? { format } : {},
-      attribution != null ? { attribution } : {},
-      addMarks != null ? { addMarks: addMarks.slice().sort(compareMarksById).map(m => m.toJSON()) } : {},
-      deleteMarks != null ? { deleteMarks: deleteMarks.slice().sort() } : {}
+      attribution != null ? { attribution } : {}
     )
   }
 
@@ -626,16 +600,14 @@ export class ModifyOp extends list.ListNode {
       (
         (object.isEmpty(this.format) && object.isEmpty(other.format)) || fun.equalityDeep(this.format, other.format)
       ) &&
-      fun.equalityDeep(this.attribution, other.attribution) &&
-      fun.equalityDeep(this.addMarks, other.addMarks) &&
-      fun.equalityDeep(this.deleteMarks, other.deleteMarks)
+      fun.equalityDeep(this.attribution, other.attribution)
   }
 
   /**
    * @return {ModifyOp<DTypes>}
    */
   clone () {
-    return new ModifyOp(/** @type {DTypes} */ (this.value.done()), _cloneAttrs(this.format), _cloneAttrs(this.attribution), this.addMarks && this.addMarks.slice(), this.deleteMarks && this.deleteMarks.slice())
+    return new ModifyOp(/** @type {DTypes} */ (this.value.done()), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -686,16 +658,7 @@ export class SetAttrOp {
    * @type {DeltaBuilderAny}
    */
   get _modValue () {
-    /**
-     * @type {any}
-     */
-    const v = this.value
-    this._fingerprint = null
-    if ($deltaAny.check(v) && v.isDone) {
-      // @ts-ignore
-      return (this.value = clone(v))
-    }
-    return v
+    return modValue(this)
   }
 
   get fingerprint () {
@@ -847,13 +810,7 @@ export class ModifyAttrOp {
    * @return {DeltaBuilder}
    */
   get _modValue () {
-    this._fingerprint = null
-    if (this.value.isDone) {
-      // @ts-ignore
-      this.value = /** @type {any} */ (clone(this.value))
-    }
-    // @ts-ignore
-    return this.value
+    return modValue(this)
   }
 
   /**
@@ -1008,8 +965,8 @@ export const $mark = /** @type {s.Schema<Mark>} */ (Mark.prototype.$type = s.$ty
 
 /**
  * Create a {@link Mark} (use this instead of `new Mark(...)`). `id` defaults to a fresh GUID, `assoc`
- * to right gravity (`1`), `customAttributes` to `null`. A `Mark` is consumed directly by a
- * {@link ModifyOp}'s `addMarks` and by {@link DeltaBuilder#addMark}.
+ * to right gravity (`1`), `customAttributes` to `null`. A `Mark` is stored on a delta node's own
+ * {@link Marks} set (see {@link DeltaBuilder#addMark}).
  *
  * @param {number|string} key
  * @param {string} [id]
@@ -1159,8 +1116,9 @@ class DeltaData {
      */
     this.isFinal = false
     /**
-     * Leaf {@link Mark marks} whose cursor sits in THIS node (in a settled delta), or the marks to
-     * ADD to the target node (in a change delta). `null` when there are none. See {@link Marks}.
+     * Leaf {@link Mark marks} whose cursor sits in THIS node (in a settled delta), or the marks to ADD
+     * to the target node (in a change delta). Local/ephemeral cursor state — NOT part of the document
+     * fingerprint or equality. `null` when there are none. See {@link Marks}.
      *
      * @type {Marks?}
      */
@@ -1221,8 +1179,8 @@ export class Delta extends DeltaData {
       for (const child of this.children) {
         encoding.writeVarString(encoder, child.fingerprint)
       }
-      encoding.writeVarString(encoder, this.marks !== null ? this.marks.fingerprint : '')
-      writeSortedIds(encoder, this.deleteMarks)
+      // marks are local/ephemeral cursor state, deliberately excluded from the document fingerprint
+      // (and from equality below) — see shiftMarkKey for why their positions need not converge
       return buffer.toBase64(rabin.fingerprint(rabin.StandardIrreducible128, encoding.toUint8Array(encoder)))
     })))
   }
@@ -1279,7 +1237,8 @@ export class Delta extends DeltaData {
   [equalityTrait.EqualityTraitSymbol] (other) {
     // @todo it is only necessary to compare finrerprints OR do a deep equality check (remove
     // childCnt as well)
-    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt && fun.equalityDeep(this.marks, other.marks) && fun.equalityDeep(this.deleteMarks, other.deleteMarks)
+    // marks are local/ephemeral cursor state and intentionally NOT part of document identity
+    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
   }
 
   // toString () {
@@ -1363,18 +1322,21 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
     remainingLen -= math.min(currNode.length, remainingLen)
   }
   cpy.childCnt = slicedLen - remainingLen
-  // copy marks (only if the subtree has any): clamp this node's own number-keyed marks to the sliced
-  // range into a fresh Marks (string/attr marks ride with the copied attrs; child marks ride on the
-  // cloned children), then set markCount from the copied subtree. A change-only deleteMarks list is
-  // copied wholesale.
+  // copy marks (only if the subtree has any). A full clone (the `clone` path) copies this node's own
+  // marks verbatim — a change delta's number-keyed root marks point into the TARGET's coordinate and
+  // may sit beyond the change's own (often empty) content, so they must not be clamped. A genuine
+  // partial slice instead clamps number-keyed marks to the sliced range (rebasing `key -= start`).
+  // String/attr marks ride with the copied attrs; child marks ride on the cloned children. markCount
+  // is then recomputed from the copied subtree, and a change-only deleteMarks list is copied wholesale.
   if (d.markCount > 0) {
     if (d.marks !== null) {
+      const fullCopy = sliceStart === 0 && end >= d.childCnt
       const cpyMarks = new Marks()
       for (const m of d.marks) {
-        if (typeof m.key === 'number') {
-          if (m.key >= sliceStart && m.key <= end) cpyMarks.add(m.copy(m.key - sliceStart))
-        } else {
+        if (fullCopy || typeof m.key !== 'number') {
           cpyMarks.add(m)
+        } else if (m.key >= sliceStart && m.key <= end) {
+          cpyMarks.add(m.copy(m.key - sliceStart))
         }
       }
       if (cpyMarks.size > 0) cpy.marks = cpyMarks
@@ -1392,6 +1354,22 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
  * @return {D extends Delta<infer Conf> ? DeltaBuilder<Conf> : never}
  */
 export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
+
+/**
+ * Make an op's modify `value` mutable for in-place editing: clear the op's cached fingerprint and, when
+ * the value is a `done` delta, replace it with a mutable clone. Shared by the `_modValue` getters of
+ * {@link ModifyOp}, {@link ModifyAttrOp}, and {@link SetAttrOp}; the `$deltaAny` guard lets a scalar
+ * `SetAttrOp` value pass through untouched.
+ *
+ * @param {{ value: any, _fingerprint: string|null }} op
+ * @return {any}
+ */
+const modValue = op => {
+  op._fingerprint = null
+  const v = op.value
+  if ($deltaAny.check(v) && v.isDone) op.value = clone(v)
+  return op.value
+}
 
 /**
  * Try merging this op with the previous op
@@ -1573,15 +1551,13 @@ export class DeltaBuilder extends Delta {
    * @param {NewContent} modify
    * @param {FormattingAttributes?} formatting
    * @param {Attribution?} attribution
-   * @param {Array<Mark>?} [addMarks] marks to add to the modified node (see {@link Mark})
-   * @param {Array<string>?} [deleteMarks] mark ids to remove from the modified node
    * @return {DeltaBuilder<DeltaConfOverwrite<Conf, {children: DeltaConfGetChildren<Conf>|NewContent}>, FixedConf>}
    */
-  modify (modify, formatting = null, attribution = null, addMarks = null, deleteMarks = null) {
+  modify (modify, formatting = null, attribution = null) {
     modDeltaCheck(this)
     const mergedAttributes = mergeFormats(this.usedAttributes, formatting)
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
-    list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution, addMarks, deleteMarks))
+    list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution))
     this.childCnt += 1
     return /** @type {any} */ (this)
   }
@@ -1749,17 +1725,27 @@ export class DeltaBuilder extends Delta {
           tgt.apply(op.value, { final })
           this.markCount += tgt.markCount - before // fold the attr subtree's mark-count change up
         } else {
-          // then this is a simple modify
+          // then this is a simple modify (the attribute did not previously hold a delta)
           // @ts-ignore
           this.attrs[op.key] = op.clone()
+          this.markCount += op.value.markCount // fold any marks the new modify value carries
         }
       } else if ($setAttrOp.check(op)) {
+        const prev = c?.value
         // @ts-ignore
-        op.prevValue = c?.value
+        op.prevValue = prev
+        // a delta-valued attribute carries marks in its subtree: swap the replaced value's count for
+        // the new one's, keeping markCount in step with sumChildMarkCounts (which counts attr values)
+        if ($deltaAny.check(prev)) this.markCount -= prev.markCount
+        if ($deltaAny.check(op.value)) this.markCount += op.value.markCount
         // @ts-ignore
         this.attrs[op.key] = op.clone()
       } else if ($deleteAttrOp.check(op)) {
-        op.prevValue = c?.value
+        const prev = c?.value
+        op.prevValue = prev
+        // removing a delta-valued attribute drops its subtree's marks (final deletes the attr; a
+        // non-final delete keeps only a tombstone, whose prevValue is not counted by markCount)
+        if ($deltaAny.check(prev)) this.markCount -= prev.markCount
         if (final) {
           // @ts-ignore
           delete this.attrs[op.key]
@@ -1945,19 +1931,18 @@ export class DeltaBuilder extends Delta {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
+          this.markCount += /** @type {DeltaAny} */ (op.value).markCount // a freshly-inserted modify brings its value's root marks
         } else if ($modifyOp.check(opsI)) {
           const tgt = opsI._modValue
           const before = tgt.markCount
           tgt.apply(/** @type {any} */ (op.value), { final })
-          applyMarkOps(tgt, op.addMarks, op.deleteMarks)
-          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up
+          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up (incl. the value's own root marks)
           opsI = opNextUndeleted(opsI)
         } else if ($insertOp.check(opsI)) {
           const tgt = opsI._modValue(offset)
           const before = tgt.markCount
           tgt.apply(op.value, { final })
-          applyMarkOps(tgt, op.addMarks, op.deleteMarks)
-          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up
+          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up (incl. the value's own root marks)
           if (opsI.length === ++offset) {
             opsI = opNextUndeleted(opsI)
             offset = 0
@@ -1965,6 +1950,7 @@ export class DeltaBuilder extends Delta {
         } else if ($retainOp.check(opsI)) {
           splitHere()
           const insertModOp = scheduleForMerge(op.clone())
+          this.markCount += /** @type {DeltaAny} */ (op.value).markCount // the inserted modify brings its value's root marks
           opsI.format && updateOpFormat(insertModOp, opsI.format)
           list.insertBetween(this.children, opsI.prev, opsI, insertModOp) // insert skipped len
           if (opsI.length === 1) {
@@ -2112,7 +2098,8 @@ export class DeltaBuilder extends Delta {
           if ($modifyOp.check(otherChild)) {
             // _modValue (not .value) — ModifyOp.clone() marks its inner delta
             // as `done`, so a cloned ModifyOp can only be rebased after the
-            // _modValue getter lazy-clones it back to mutable.
+            // _modValue getter lazy-clones it back to mutable. This recursion also reconciles the
+            // value's own root marks (via rebaseRootMarks), so a nested mark needs no special handling.
             currChild._modValue.rebase(otherChild.value, priority)
           } else if ($deleteOp.check(otherChild)) {
             list.remove(this.children, currChild)
@@ -2210,6 +2197,17 @@ export class DeltaBuilder extends Delta {
         otherOffset = 0
       }
     }
+    // marks: reconcile this node's own root mark ops against the concurrent change (also shifting and,
+    // where an anchor was deleted, converting an add to a delete), then recompute markCount — a marked
+    // child may have been dropped, or a root mark reconciled away. markCount is not read mid-rebase
+    // (apply recomputes the target's), so an end recount — guarded so non-mark deltas skip it — keeps
+    // the invariant without scattered incremental hooks.
+    if (this.marks !== null || this.deleteMarks !== null) {
+      rebaseRootMarks(this, other, priority)
+    }
+    if (this.markCount > 0) {
+      this.markCount = (this.marks !== null ? this.marks.size : 0) + sumChildMarkCounts(this)
+    }
     return this
   }
 
@@ -2291,7 +2289,8 @@ const opNextUndeleted = op => {
 }
 
 /**
- * Total order on marks by their (unique) id, used to sort a mark list before fingerprinting.
+ * Total order on marks by their (unique) id, used to sort a mark list deterministically (e.g. in
+ * {@link Delta#toJSON}).
  *
  * @param {Mark} a
  * @param {Mark} b
@@ -2302,12 +2301,10 @@ const compareMarksById = (a, b) => a.id < b.id ? -1 : 1
  * The set of leaf {@link Mark marks} on a single delta node, deduplicated by id (so adding the same id
  * again replaces it). An internal data-shape class (never a public/`new`-from-outside class): every
  * mutation goes through its methods, so a stored {@link Mark} is treated as immutable and is never
- * manipulated in place — to "move" a mark you replace it with a fresh `Mark`. Marks are held in an
- * array that is sorted in place by id when the (cached) {@link Marks#fingerprint} is computed (over id
- * + key), so the fingerprint is order-independent and the array order stays deterministic; the cache
- * invalidates on add/remove, like the delta ops. `size` drives the incrementally-maintained
- * `markCount`, and {@link clone}/{@link slice} copy the set so a `done` delta's marks are never mutated
- * through a shared reference.
+ * manipulated in place — to "move" a mark you replace it with a fresh `Mark`. `size` drives the
+ * incrementally-maintained `markCount`, and {@link clone}/{@link slice} copy the set so a `done`
+ * delta's marks are never mutated through a shared reference. Marks are local/ephemeral cursor state
+ * and not part of a delta's identity, so this set has no fingerprint/equality of its own.
  */
 class Marks {
   constructor () {
@@ -2315,10 +2312,6 @@ class Marks {
      * @type {Array<Mark>}
      */
     this._marks = []
-    /**
-     * @type {string?}
-     */
-    this._fingerprint = null
   }
 
   get size () { return this._marks.length }
@@ -2330,7 +2323,6 @@ class Marks {
    * @return {number}
    */
   add (mark) {
-    this._fingerprint = null
     const i = this._marks.findIndex(m => m.id === mark.id)
     if (i < 0) {
       this._marks.push(mark)
@@ -2350,70 +2342,10 @@ class Marks {
     const i = this._marks.findIndex(m => m.id === id)
     if (i < 0) return 0
     this._marks.splice(i, 1)
-    this._fingerprint = null
     return 1
   }
 
   [Symbol.iterator] () { return this._marks[Symbol.iterator]() }
-
-  /**
-   * Cached fingerprint over the contained marks' id + key. `_marks` is sorted in place by id first, so
-   * the result is order-independent and the array stays in a deterministic order (its index is then
-   * stable, which helps testing). Cleared on every {@link add}/{@link delete}, like the delta ops.
-   *
-   * @return {string}
-   */
-  get fingerprint () {
-    return this._fingerprint ?? (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
-      this._marks.sort(compareMarksById)
-      encoding.writeVarUint(encoder, this._marks.length)
-      for (const m of this._marks) {
-        encoding.writeVarString(encoder, m.id)
-        encoding.writeAny(encoder, m.key)
-      }
-    })))
-  }
-
-  /**
-   * @param {Marks} other
-   */
-  [equalityTrait.EqualityTraitSymbol] (other) {
-    if (!(other instanceof Marks) || this._marks.length !== other._marks.length) return false
-    return this._marks.every(m => {
-      const o = other._marks.find(x => x.id === m.id)
-      return o !== undefined && m[equalityTrait.EqualityTraitSymbol](o)
-    })
-  }
-}
-
-/**
- * Fold a plain array of {@link Mark}s (e.g. a `ModifyOp`'s `addMarks`) into `encoder` by id + key,
- * sorted by id so the result is order-independent. A node's own marks instead use the cached
- * {@link Marks#fingerprint}.
- *
- * @param {encoding.Encoder} encoder
- * @param {Array<Mark>?} marks
- */
-const writeSortedMarks = (encoder, marks) => {
-  const sorted = marks === null ? [] : marks.slice().sort(compareMarksById)
-  encoding.writeVarUint(encoder, sorted.length)
-  for (const m of sorted) {
-    encoding.writeVarString(encoder, m.id)
-    encoding.writeAny(encoder, m.key)
-  }
-}
-
-/**
- * Fold a list of mark ids (a `deleteMarks` list) into `encoder`, sorted so the result is
- * order-independent. Mark deletions affect the document, so they are part of its fingerprint.
- *
- * @param {encoding.Encoder} encoder
- * @param {Array<string>?} ids
- */
-const writeSortedIds = (encoder, ids) => {
-  const sorted = ids === null ? [] : ids.slice().sort()
-  encoding.writeVarUint(encoder, sorted.length)
-  for (const id of sorted) encoding.writeVarString(encoder, id)
 }
 
 /**
@@ -2460,8 +2392,9 @@ const sumChildMarkCounts = node => {
  * @param {Mark} mark
  */
 const addMarkTo = (node, mark) => {
-  if (node.marks === null) node.marks = new Marks()
-  node.markCount += node.marks.add(mark)
+  const marks = node.marks ?? new Marks()
+  node.markCount += marks.add(mark)
+  node.marks = marks
 }
 
 /**
@@ -2474,7 +2407,7 @@ const removeMarkFrom = (node, id) => {
   const marks = node.marks
   if (marks !== null) {
     node.markCount -= marks.delete(id)
-    if (marks.size === 0) node.marks = null
+    node.marks = marks.size === 0 ? null : marks
   }
 }
 
@@ -2496,37 +2429,52 @@ const applyMarkOps = (target, addMarks, deleteMarks) => {
 }
 
 /**
- * Map a number `key` (a content offset) of a leaf mark on a node through the content ops of `change`.
- * An insert before the key pushes it right (tie-broken at the exact offset by `assoc`); a delete
- * covering it drops the mark (returns `null`).
+ * Map a number `key` (a content offset) of a leaf mark on a node through the content ops of `change`,
+ * returning its new offset. An insert before the key pushes it right (tie-broken at the exact offset by
+ * `assoc`). A delete covering the key applies *collapse-to-cut*: the mark slides to the cut point
+ * (`newPos`) — i.e. to *before* any replacement text inserted there — instead of being dropped, so a
+ * cursor whose content is deleted survives at the deletion site. `oldPos` walks the pre-change doc and
+ * `newPos` the post-change doc *independently* — `key` is never mutated, so an insert past the key is
+ * always compared against the mark's original offset even after earlier deletes shifted the content.
+ *
+ * NOTE: collapse-to-cut is intentionally NOT confluent under concurrent {@link DeltaBuilder#rebase} — a
+ * deletion maps a whole range to one point, losing where in the range the cursor was, so a concurrent
+ * insert there lands on different sides on the two replays. Marks are therefore treated as local /
+ * ephemeral cursor state, excluded from a delta's identity ({@link Delta#fingerprint} / equality); only
+ * the document *content* is guaranteed to converge.
  *
  * @param {DeltaAny} change
  * @param {number} key
  * @param {1|-1} assoc
- * @return {number?}
+ * @return {number}
  */
 const shiftMarkKey = (change, key, assoc) => {
   let oldPos = 0
+  let newPos = 0
   for (const op of change.children) {
-    if ($retainOp.check(op)) {
-      oldPos += op.retain
+    if ($retainOp.check(op) || $modifyOp.check(op)) {
+      const n = op.length
+      if (key < oldPos + n) return newPos + (key - oldPos) // mark falls inside this retained run
+      oldPos += n
+      newPos += n
     } else if ($insertOp.check(op) || $textOp.check(op)) {
-      if (oldPos < key || (oldPos === key && assoc === 1)) key += op.length
+      if (oldPos < key || (oldPos === key && assoc === 1)) newPos += op.length
     } else if ($deleteOp.check(op)) {
-      const len = op.delete
-      if (key >= oldPos + len) key -= len
-      else if (key > oldPos) return null
-      oldPos += len
-    } else if ($modifyOp.check(op)) {
-      oldPos += 1
+      const n = op.delete
+      // mark lies in [oldPos, oldPos+n) — its content is being deleted ⇒ collapse to the cut point
+      if (key < oldPos + n) return newPos
+      // right boundary with LEFT gravity anchors to the last deleted char ⇒ also collapses to the cut
+      // (n > 0 guards the degenerate delete(0) rebase can emit, which deletes nothing)
+      if (n > 0 && key === oldPos + n && assoc === -1) return newPos
+      oldPos += n
     }
   }
-  return key
+  return newPos + (key - oldPos)
 }
 
 /**
- * Shift `node`'s own number-keyed leaf marks by the content ops of `change`, dropping any covered by a
- * delete. Attribute-key (string) marks are untouched.
+ * Shift `node`'s own number-keyed leaf marks by the content ops of `change`, collapsing any covered by a
+ * delete to the cut point (see {@link shiftMarkKey}). Attribute-key (string) marks are untouched.
  *
  * @param {DeltaAny} node
  * @param {DeltaAny} change
@@ -2536,25 +2484,110 @@ const shiftMarksByChange = (node, change) => {
   if (marks === null) return
   /** @type {Array<Mark>} */
   const shifted = []
-  /** @type {Array<string>} */
-  const dropped = []
   for (const m of marks) {
     if (typeof m.key === 'number') {
       const nk = shiftMarkKey(change, m.key, m.assoc)
-      if (nk === null) dropped.push(m.id)
-      else if (nk !== m.key) shifted.push(m.copy(nk)) // a fresh Mark — never mutate in place
+      if (nk !== m.key) shifted.push(m.copy(nk)) // a fresh Mark — never mutate in place
     }
   }
-  // replace shifted marks (same id ⇒ no count change) and remove dropped ones (maintaining markCount)
+  // re-add shifted marks under their (unchanged) ids ⇒ replace in place, markCount untouched
   for (const m of shifted) marks.add(m)
-  for (const id of dropped) removeMarkFrom(node, id)
+}
+
+/**
+ * Collect the ids of a {@link Marks} set, a plain {@link Mark} array, or an id array (any may be
+ * `null`) into a `Set`, used for the by-id conflict checks during {@link DeltaBuilder#rebase}.
+ *
+ * @param {Iterable<Mark|string>?} marksOrIds
+ * @return {Set<string>}
+ */
+const markIdSet = marksOrIds => {
+  /** @type {Set<string>} */
+  const ids = new Set()
+  if (marksOrIds !== null) {
+    for (const x of marksOrIds) ids.add(typeof x === 'string' ? x : x.id)
+  }
+  return ids
+}
+
+/**
+ * Core mark reconciliation for one node level during {@link DeltaBuilder#rebase}. `adds` are this
+ * side's mark adds (with keys) and `deletes` its delete ids; `otherAddIds`/`otherDelIds` are the
+ * concurrent side's ids and `otherContent` the delta whose content ops shift surviving number keys.
+ *
+ * Rules (each by mark id): add-vs-add → `priority` decides; add-vs-delete → the add wins (a re-placed
+ * cursor is not killed by a stale removal); delete-vs-delete → the duplicate is dropped. A surviving
+ * number-keyed add is shifted by `otherContent`, collapsing to the cut point if its content was
+ * concurrently deleted (see {@link shiftMarkKey}). Cursor positions are best-effort, not guaranteed to
+ * converge (marks are excluded from the document's identity); only content convergence is guaranteed.
+ *
+ * @param {Iterable<Mark>} adds
+ * @param {Array<string>} deletes
+ * @param {Set<string>} otherAddIds
+ * @param {Set<string>} otherDelIds
+ * @param {DeltaAny} otherContent
+ * @param {boolean} priority
+ * @return {{ adds: Array<Mark>, deletes: Array<string> }}
+ */
+const rebaseMarkOps = (adds, deletes, otherAddIds, otherDelIds, otherContent, priority) => {
+  /** @type {Array<Mark>} */
+  const keptAdds = []
+  /** @type {Array<string>} */
+  const delIds = deletes.slice()
+  for (const m of adds) {
+    if (!priority && otherAddIds.has(m.id)) continue // lost an add-vs-add conflict
+    if (typeof m.key === 'number') {
+      const nk = shiftMarkKey(otherContent, m.key, m.assoc) // collapses to the cut if its content was deleted
+      keptAdds.push(nk === m.key ? m : m.copy(nk))
+    } else {
+      keptAdds.push(m)
+    }
+  }
+  // a delete survives only where the other side neither re-adds (add wins) nor already deletes (dedup)
+  /** @type {Set<string>} */
+  const seen = new Set()
+  /** @type {Array<string>} */
+  const keptDels = []
+  for (const id of delIds) {
+    if (!seen.has(id) && !otherAddIds.has(id) && !otherDelIds.has(id)) {
+      seen.add(id)
+      keptDels.push(id)
+    }
+  }
+  return { adds: keptAdds, deletes: keptDels }
+}
+
+/**
+ * Reconcile a node's own root mark add/delete ops against a concurrent change `other` during
+ * {@link DeltaBuilder#rebase}, rebuilding `node.marks`/`node.deleteMarks` from {@link rebaseMarkOps}.
+ * markCount is left to the end-of-`rebase` recount.
+ *
+ * @param {DeltaAny} node
+ * @param {DeltaAny} other
+ * @param {boolean} priority
+ */
+const rebaseRootMarks = (node, other, priority) => {
+  const { adds, deletes } = rebaseMarkOps(
+    node.marks !== null ? [...node.marks] : [],
+    node.deleteMarks !== null ? node.deleteMarks : [],
+    markIdSet(other.marks), markIdSet(other.deleteMarks), other, priority
+  )
+  if (adds.length === 0) {
+    node.marks = null
+  } else {
+    const m = new Marks()
+    for (const x of adds) m.add(x)
+    node.marks = m
+  }
+  node.deleteMarks = deletes.length === 0 ? null : deletes
 }
 
 /**
  * Build a change delta that adds (or, with `isDelete`, removes) the mark for `pos`. The descent is a
- * `retain`/`modify`/`modifyAttr` chain re-derived from `pos.path`; the mark rides on the leaf — on the
- * modify's `addMarks` when the leaf is a content child, or on the delta's own marks at the root or
- * behind an attribute descent.
+ * `retain`/`modify`/`modifyAttr` chain re-derived from `pos.path`; the mark always rides on the **leaf
+ * delta's own marks** (root marks). Each interior step just wraps the next level in a `modify`
+ * (content index) or `modifyAttr` (attribute key) — apply/rebase carry the wrapped value's root marks
+ * onto/through the target for free.
  *
  * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
  * @param {string} id
@@ -2571,19 +2604,16 @@ const markChange = (pos, id, customAttributes, isDelete) => {
    */
   const build = i => {
     if (i === path.length - 1) {
-      // leaf reached at the root or behind an attribute descent: carry the mark on the delta itself
+      // leaf reached: carry the mark on the delta's own marks
       const d = /** @type {DeltaBuilderAny} */ (create())
       if (mark === null) d.deleteMarks = [id]
       else addMarkTo(d, mark)
       return d
     }
     const step = path[i]
-    if (s.$string.check(step)) return /** @type {DeltaBuilderAny} */ (create()).modifyAttr(step, build(i + 1))
-    const d = /** @type {DeltaBuilderAny} */ (create()).retain(step)
-    return i === path.length - 2
-      // path[i] descends by content index into the leaf child: carry the mark on the modify op
-      ? d.modify(create(), null, null, mark === null ? null : [mark], mark === null ? [id] : null)
-      : d.modify(build(i + 1))
+    return s.$string.check(step)
+      ? /** @type {DeltaBuilderAny} */ (create()).modifyAttr(step, build(i + 1))
+      : /** @type {DeltaBuilderAny} */ (create()).retain(step).modify(build(i + 1))
   }
   return build(0)
 }
