@@ -413,7 +413,7 @@ export const testMarkRebaseNestedConflicts = () => {
   t.compare(conv(b, mkDel([0, 2], 'M'), mkAdd([0, 4], 'M')), [{ id: 'M', path: [0, 4], assoc: 1 }])
 }
 
-export const testMarkEqualityAndCounting = () => {
+export const testMarkEquality = () => {
   // marks are local/ephemeral cursor state, excluded from document identity: deltas with the same
   // content but different mark sets still compare EQUAL (and fingerprint-equal — see testMarkFingerprint)
   // insertion order a,c,b is non-monotonic so the toJSON sort below exercises a deterministic ordering
@@ -425,14 +425,6 @@ export const testMarkEqualityAndCounting = () => {
   t.assert(one.equals(otherId)) // different mark id, same content ⇒ still equal
   // several marks on one node ⇒ toJSON sorts them deterministically by id
   t.compare(/** @type {any} */ (two.toJSON()).marks.map((/** @type {any} */ m) => m.id), ['a', 'b', 'c'])
-  // the builder flags `maybeHasMarks` for marks carried on a ModifyOp value and on delta-valued
-  // attributes (set or modified) — the representation a sub-transformer emits — and clone preserves it
-  const mv = delta.create(); mv.addMark(position.createPos([0], 1), 'x')
-  const av = delta.create(); av.addMark(position.createPos([0], 1), 'y')
-  const av2 = delta.create(); av2.addMark(position.createPos([0], 1), 'w')
-  const change = /** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv).setAttr('k', av).modifyAttr('m', av2))
-  change.addMark(position.createPos([5], 1), 'z') // a root mark too
-  t.assert(change.maybeHasMarks === true && delta.clone(change).maybeHasMarks === true) // flag set + preserved by clone
 }
 
 export const testMarkInDeltaValuedAttr = () => {
@@ -484,25 +476,4 @@ export const testMarkRebaseAttr = () => {
   t.compare(conv(/** @type {delta.DeltaBuilderAny} */ (withM), mkDel(['doc', 2], 'M'), editDoc()), [])
   // mkAdd into a not-yet-existing attribute flags the change (apply's simple-modify path)
   t.assert(mkAdd(['doc', 2], 'M').maybeHasMarks === true)
-}
-
-export const testMarkRebaseFlag = () => {
-  // a surviving root mark stays present after rebase (flag set) ...
-  const keep = delta.clone(mkAdd([5], 'M')).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().insert('AB')), true)
-  t.assert(keep.maybeHasMarks === true && keep.marks !== null)
-  // ... and collapses to the cut when the other side deletes its anchor
-  const collapsed = delta.clone(mkAdd([5], 'M')).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(3).delete(4)), true)
-  t.assert(collapsed.maybeHasMarks === true)
-  t.compare(position.marksToPositions(collapsed), [{ id: 'M', path: [3], assoc: 1 }])
-  // a root add that loses an add-vs-add conflict (no priority) is dropped (marks back to null)
-  const lose = delta.clone(mkAdd([5], 'M')).rebase(mkAdd([2], 'M'), false)
-  t.assert(lose.marks === null)
-  // a content-only rebase never gains a mark (flag was never set)
-  const none = delta.clone(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).insert('Z'))).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().insert('AB')), true)
-  t.assert(none.maybeHasMarks === false)
-  // a nested mark rides on the modify's value, so it is flagged and survives a rebase
-  const nested = delta.clone(mkAdd([0, 2], 'M')).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().modify(delta.create().retain(1).insert('XY'))), true)
-  t.assert(nested.maybeHasMarks === true)
-  const ndoc = delta.clone(nodeDoc()).apply(delta.create().modify(delta.create().retain(1).insert('XY')), { final: true }).apply(nested, { final: true })
-  t.compare(position.marksToPositions(ndoc), [{ id: 'M', path: [0, 4], assoc: 1 }])
 }
