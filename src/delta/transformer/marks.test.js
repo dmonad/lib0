@@ -17,8 +17,9 @@ import { filter } from './filter.js'
 //
 // A mark is an anchor at a content offset / attribute key. Every transformer already maps content
 // positions A<->B, so a mark rides through that same map. These tests cover the mechanism (the shared
-// mark-carrying `delta.cloneShallow`) and the position-preserving / key-remapping transformers. The
-// restructuring transformers (`inline`, `project`) are a deferred follow-up.
+// mark-carrying `delta.cloneShallow`) and the position-preserving / key-remapping transformers; the
+// restructuring transformers (`inline`, `project`) carry marks too and are tested in their own files
+// (`inline.test.js`, `project.test.js`).
 //
 // NB: `addMark` returns the mark's id (not the builder), so it is always called as a statement. A
 // transform result side (`r.a` / `r.b`) is typed nullable, so the helpers below take `any`.
@@ -75,6 +76,29 @@ export const testMarkChildrenRootAndNested = () => {
     { id: 'C', path: [0, 'b'], assoc: 1 },
     { id: 'R', path: [0], assoc: 1 }
   ])
+}
+
+export const testMarkChildrenNestedOnly = () => {
+  // a mark living ONLY inside a child (no co-located root mark on any ancestor) survives `children`:
+  // `out.insert` folds the rebuilt child's markCount, so marksToPositions can still reach the cursor
+  const child = delta.create('p', { a: 1 })
+  child.addMark(position.pos('a'), 'C')
+  const doc = /** @type {any} */ (delta.create())
+  doc.apply(delta.create().insert([child]), { final: true })
+  const r = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny).applyA(doc)
+  t.assert(/** @type {any} */ (r.b).markCount === 1)
+  t.compare(mp(r.b), [{ id: 'C', path: [0, 'b'], assoc: 1 }])
+}
+
+export const testMarkValueNestedOnly = () => {
+  // same nested-only case through unwrapValue's pass-through (non-carrier) child branch
+  const child = delta.create('p', { k: 1 })
+  child.addMark(position.pos('k'), 'V')
+  const doc = /** @type {any} */ (delta.create())
+  doc.apply(delta.create().insert([child]), { final: true })
+  const r = unwrapValue.init(delta.$deltaAny).applyA(doc)
+  t.assert(/** @type {any} */ (r.b).markCount === 1)
+  t.compare(mp(r.b), [{ id: 'V', path: [0, 'k'], assoc: 1 }])
 }
 
 export const testMarkValueRootPreserved = () => {

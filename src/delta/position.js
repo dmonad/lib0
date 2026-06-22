@@ -20,8 +20,11 @@
  * []         the root node itself
  * ```
  *
- * Numbers are always child indices, so a *number-keyed attribute* is not addressable (an accepted
- * limitation — such keys are not used in practice).
+ * Numbers are always read as child indices. A *number-keyed attribute* therefore has no unambiguous
+ * position: {@link marksToPositions} still emits a mark inside one, but its numeric attribute step is
+ * indistinguishable from a content index, so such a {@link Pos} mis-resolves and must not be round-
+ * tripped through {@link import('./delta.js').DeltaBuilder#addMark}. Use string attribute keys for any
+ * node that may carry marks (numeric attribute keys are not used in practice).
  *
  * @module delta/position
  */
@@ -137,7 +140,10 @@ export const marksToPositions = d => {
       }
     }
     for (const op of node.attrs) {
-      if (delta.$setAttrOp.check(op) && delta.$deltaAny.check(op.value) && op.value.markCount > 0) {
+      // descend `setAttr` (a materialized value) AND `modifyAttr` (an incremental change into a not-yet-
+      // materialized sub-document attribute, which `apply` may leave on a settled node) - both hold a
+      // delta value, and both are counted by `sumChildMarkCounts`, so both must be reachable here.
+      if ((delta.$setAttrOp.check(op) || delta.$modifyAttrOp.check(op)) && delta.$deltaAny.check(op.value) && op.value.markCount > 0) {
         walk(op.value, [...path, op.key])
       }
     }

@@ -898,7 +898,9 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  *   (string) within the node that holds the mark.
  * - `id` — a unique, user-defined identifier.
  * - `assoc` — the gravity at a boundary (left `-1` / right `1`).
- * - `customAttributes` — an optional, immutable object of user-supplied data carried with the mark.
+ * - `customAttributes` — optional user-supplied data carried with the mark **by reference**: the same
+ *   object is shared across the mark, its `copy`/`clone`s, `toJSON`, and every `MarkPos` from
+ *   `marksToPositions`, so the caller must treat it as immutable (do not mutate it after attaching).
  *
  * A `Mark` is **immutable** — never mutate one in place; to "move" a mark, replace it with a fresh
  * `Mark` via {@link Mark#copy} (the {@link Marks} set keys by id, so re-adding the same id replaces
@@ -909,7 +911,7 @@ export class Mark {
    * @param {number|string} key
    * @param {string} [id] unique id; defaults to a fresh GUID
    * @param {1|-1} [assoc] gravity at a boundary; defaults to right (`1`)
-   * @param {object?} [customAttributes] optional immutable user data
+   * @param {object?} [customAttributes] optional user data, stored by reference; treat as immutable
    */
   constructor (key, id = rand.uuidv4(), assoc = 1, customAttributes = null) {
     /**
@@ -1572,6 +1574,8 @@ export class DeltaBuilder extends Delta {
         list.pushEnd(this.children, new InsertOp(insert.slice() /* ensures that we don't reuse an existing array */, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution))
       }
       this.childCnt += insert.length
+      // inserting pre-marked content brings its subtree marks along (as apply's insert path does)
+      this.markCount += sumElemMarks(insert, 0, insert.length)
     }
     return /** @type {any} */ (this)
   }
@@ -1589,6 +1593,8 @@ export class DeltaBuilder extends Delta {
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
     list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution))
     this.childCnt += 1
+    // the modify target carries marks in its subtree (own root marks + nested) - fold them in
+    this.markCount += modify.markCount
     return /** @type {any} */ (this)
   }
 
@@ -1608,7 +1614,10 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * Remove the mark with `id`, located via `pos` (the position it was added at).
+   * Remove the mark with `id`, located via `pos` (the position it was added at). On a settled document
+   * that holds the mark this removes it in place; on a fresh/markless builder it records a transmittable
+   * `deleteMarks` change (symmetric to {@link DeltaBuilder#addMark}), so
+   * `delta.create().removeMark(pos, id)` yields the delete-mark change to apply / rebase / transmit.
    *
    * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
    * @param {string} id
@@ -1669,9 +1678,14 @@ export class DeltaBuilder extends Delta {
    */
   setAttr (key, val, attribution = null, prevValue) {
     modDeltaCheck(this)
+    // a delta-valued attribute carries marks in its subtree: swap the replaced value's subtree
+    // mark-count for the new value's, keeping markCount incrementally correct (as apply does)
+    const prevVal = /** @type {any} */ (this.attrs[key])?.value
+    if ($deltaAny.check(prevVal)) this.markCount -= prevVal.markCount
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
       (new SetAttrOp(/** @type {any} */ (key), val, prevValue, mergeAttributions(this.usedAttribution, attribution)))
+    if ($deltaAny.check(val)) this.markCount += val.markCount
     return /** @type {any} */ (this)
   }
 
@@ -1704,6 +1718,9 @@ export class DeltaBuilder extends Delta {
    */
   deleteAttr (key, attribution = null, prevValue) {
     modDeltaCheck(this)
+    // dropping a delta-valued attribute drops its subtree's marks (the tombstone's prevValue is not counted)
+    const prevVal = /** @type {any} */ (this.attrs[key])?.value
+    if ($deltaAny.check(prevVal)) this.markCount -= prevVal.markCount
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
       (new DeleteAttrOp(/** @type {any} */ (key), prevValue, mergeAttributions(this.usedAttribution, attribution)))
@@ -1719,7 +1736,11 @@ export class DeltaBuilder extends Delta {
    */
   modifyAttr (key, modify) {
     modDeltaCheck(this)
+    // overwrites any prior attr op at `key`: swap its subtree mark-count for the modify value's
+    const prevVal = /** @type {any} */ (this.attrs[key])?.value
+    if ($deltaAny.check(prevVal)) this.markCount -= prevVal.markCount
     this.attrs[key] = /** @type {any} */ (new ModifyAttrOp(key, modify))
+    this.markCount += /** @type {DeltaAny} */ (modify).markCount
     return /** @type {any} */ (this)
   }
 
@@ -2428,17 +2449,20 @@ const addMarkTo = (node, mark) => {
 }
 
 /**
- * Remove the mark `id` from `node`, maintaining `node.markCount` incrementally.
+ * Remove the mark `id` from `node`, maintaining `node.markCount` incrementally. Returns `1` if a mark
+ * was actually present and removed, `0` if it was absent.
  *
  * @param {DeltaAny} node
  * @param {string} id
+ * @return {number}
  */
 const removeMarkFrom = (node, id) => {
   const marks = node.marks
-  if (marks !== null) {
-    node.markCount -= marks.delete(id)
-    node.marks = marks.size === 0 ? null : marks
-  }
+  if (marks === null) return 0
+  const removed = marks.delete(id)
+  node.markCount -= removed
+  node.marks = marks.size === 0 ? null : marks
+  return removed
 }
 
 /**
@@ -2451,7 +2475,17 @@ const removeMarkFrom = (node, id) => {
  */
 const applyMarkOps = (target, addMarks, deleteMarks) => {
   if (deleteMarks !== null) {
-    for (const id of deleteMarks) removeMarkFrom(target, id)
+    for (const id of deleteMarks) {
+      // If the mark is present here, this is an in-place removal (e.g. editing a settled doc with
+      // `removeMark`). If it is absent, the delete is a *pending* op that must be recorded on the target
+      // (so building a change with `create().removeMark(pos, id)` yields a real, transmittable
+      // `deleteMarks` change — symmetric to how an add is recorded on `target.marks`).
+      if (removeMarkFrom(target, id) === 0) {
+        const dm = target.deleteMarks ?? []
+        if (!dm.includes(id)) dm.push(id)
+        target.deleteMarks = dm
+      }
+    }
   }
   if (addMarks !== null) {
     for (const m of addMarks) addMarkTo(target, m)
@@ -2718,6 +2752,9 @@ const rebaseRootMarks = (node, other, priority) => {
  */
 const markChange = (pos, id, customAttributes, isDelete) => {
   const path = pos.path
+  // a mark anchors at the terminal step of its path (a content offset or attribute key); the root
+  // position `[]` has no terminal and cannot carry a mark - reject it instead of recursing forever
+  if (path.length === 0) throw error.create('cannot place a mark at the root position (empty path): a mark needs a terminal content-offset or attribute-key step')
   const mark = isDelete ? null : createMark(path[path.length - 1], id, pos.assoc, customAttributes)
   /**
    * @param {number} i
@@ -3178,6 +3215,11 @@ class _DiffStringWrapper {
  * replaced wholesale instead. `options` is forwarded to every child diff, so the chosen granularity
  * applies consistently all the way down the tree. `compare` is always called as
  * `compare(fromNode, toNode)` (the node from `d1` first).
+ *
+ * NOTE: `diff` compares **content only** — it short-circuits on the {@link Delta#fingerprint}, which
+ * excludes marks. Two states that differ *only* in their marks diff to an empty change, so cursor marks
+ * do NOT cross a `diff` (e.g. a `Binding`'s initial-state sync). Marks survive on the live
+ * `apply`/`rebase`/transform path; carrying them across a diff-based boundary needs a separate channel.
  *
  * @template {DeltaConf} Conf
  * @param {Delta<Conf>} d1

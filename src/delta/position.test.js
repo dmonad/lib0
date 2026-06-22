@@ -185,16 +185,40 @@ export const testMarkRemove = () => {
   d.addMark(position.createPos([1, 2], 1), 'nested')
   d.addMark(position.createPos([0], 1), 'root')
   t.assert(d.markCount === 2)
-  // removing a non-existent id from a node that still has other marks is a no-op
+  // removing a non-existent id does not change the live marks / markCount (it records a pending,
+  // transmittable delete intent instead - see removeMark / testMarkRemoveBuildsChange)
   d.removeMark(position.createPos([1, 2], 1), 'ghost')
   t.assert(d.markCount === 2)
   d.removeMark(position.createPos([1, 2], 1), 'nested')
   d.removeMark(position.createPos([0], 1), 'root')
   t.assert(d.markCount === 0)
   t.compare(position.marksToPositions(d), [])
-  // removing from an emptied node is also a no-op
+  // removing from an emptied node likewise leaves markCount at 0
   d.removeMark(position.createPos([1, 2], 1), 'ghost')
   t.assert(d.markCount === 0)
+}
+
+export const testMarkAddRootPositionThrows = () => {
+  // a mark needs a terminal step; the root position [] cannot anchor one (regression: used to overflow)
+  t.fails(() => { delta.create().insert('hi').addMark(position.createPos([], 1), 'x') })
+}
+
+export const testMarkRemoveBuildsChange = () => {
+  // `create().removeMark(...)` yields a transmittable delete-mark change (symmetric to `addMark`),
+  // at a root content offset, an attribute leaf, and a nested position
+  const root = /** @type {delta.DeltaBuilderAny} */ (delta.create()); root.removeMark(position.pos(2), 'cur')
+  t.compare(root.deleteMarks, ['cur'])
+  const attr = /** @type {delta.DeltaBuilderAny} */ (delta.create()); attr.removeMark(position.createPos(['a'], 1), 'k')
+  t.compare(attr.deleteMarks, ['k'])
+  const nested = /** @type {delta.DeltaBuilderAny} */ (delta.create()); nested.removeMark(position.createPos([0, 'a'], 1), 'C')
+  t.assert(nested.children.start != null) // a modify op carrying the nested deletion (not an empty no-op)
+  // A adds a mark, B concurrently deletes it: both replay orders converge (add wins, per the rebase policy)
+  const base = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('hello').done())
+  const add = /** @type {delta.DeltaBuilderAny} */ (delta.create()); add.addMark(position.pos(1), 'X')
+  const del = /** @type {delta.DeltaBuilderAny} */ (delta.create()); del.removeMark(position.pos(1), 'X')
+  const a = delta.clone(base).apply(delta.clone(add), { final: true }).apply(delta.clone(del).rebase(add, false), { final: true })
+  const b = delta.clone(base).apply(delta.clone(del), { final: true }).apply(delta.clone(add).rebase(del, true), { final: true })
+  t.compare(position.marksToPositions(a), position.marksToPositions(b))
 }
 
 export const testMarkUpsertReplaces = () => {
@@ -434,6 +458,19 @@ export const testMarkInDeltaValuedAttr = () => {
   const d2 = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('abc'))
   d2.apply(delta.create().setAttr('a', mk('M3', 3)), { final: true })
   t.assert(d2.markCount === delta.clone(d2).markCount)
+}
+
+export const testMarkInModifyAttrValue = () => {
+  // applying a `modifyAttr` onto an attribute the node does not yet hold leaves a modify op on the
+  // settled node; its mark is counted by markCount, so marksToPositions must also reach it (they agree)
+  const inner = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
+  inner.addMark(position.pos(0), 'I')
+  const change = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  change.modifyAttr('body', inner)
+  const d = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
+  d.apply(change, { final: true })
+  t.assert(d.markCount === 1)
+  t.compare(position.marksToPositions(d), [{ id: 'I', path: ['body', 0], assoc: 1 }])
 }
 
 export const testMarkRebaseAttr = () => {

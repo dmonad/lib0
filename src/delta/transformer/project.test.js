@@ -278,3 +278,40 @@ export const testProjectMarkDeleteRides = () => {
   const dc = delta.create(); dc.deleteMarks = ['M']
   t.compare(/** @type {any} */ (it.applyA(dc).b).deleteMarks, ['M'])
 }
+
+export const testProjectDeltaValuedAttrModify = () => {
+  // a projected attribute can be delta-valued (a sub-document). An incremental `modifyAttr` change must
+  // be forwarded through the modify channel, NOT written raw into the slot (regression: content
+  // corruption). A cursor inside the sub-document rides along and stays reachable.
+  const apply = (/** @type {any} */ base, /** @type {any} */ change) => { base.apply(change, { final: true }); return base }
+  // --- attr hole ---
+  const it = project(delta.create('view').setAttr('body', attr('body'))).init(delta.$deltaAny)
+  const base = psettle(it.applyA(delta.create('node').setAttr('body', delta.create('para').insert('hi'))).b)
+  cmp(/** @type {any} */ (base.attrs).body.value, delta.create('para').insert('hi'))
+  const c1 = delta.create(); c1.modifyAttr('body', delta.create().retain(2).insert('!'))
+  apply(base, it.applyA(c1).b)
+  cmp(/** @type {any} */ (base.attrs).body.value, delta.create('para').insert('hi!')) // content intact, not the raw change
+  // a mark inside the sub-document stays reachable through the projection
+  const c2 = delta.create(); c2.addMark(position.createPos(['body', 1], 1), 'I')
+  apply(base, it.applyA(c2).b)
+  t.compare(pmp(base), [{ id: 'I', path: ['body', 1], assoc: 1 }])
+  // --- value child hole ---
+  const it2 = project(delta.create('view').insert([attr('body')])).init(delta.$deltaAny)
+  const base2 = psettle(it2.applyA(delta.create('node').setAttr('body', delta.create('para').insert('hi'))).b)
+  const c3 = delta.create(); c3.modifyAttr('body', delta.create().retain(2).insert('!'))
+  apply(base2, it2.applyA(c3).b)
+  cmp(base2, delta.create('view').insert([delta.create('para').insert('hi!')]))
+}
+
+export const testProjectApplyBMarkRoundTrip = () => {
+  // applyB is mark-aware: a view-side cursor on a projected (editable) attribute hole routes back to
+  // the bound data attribute via the carrier (the round-tripping binding the readme advertises)
+  const it = project(delta.create('view').setAttr('title', attr('name'))).init(delta.$deltaAny)
+  it.applyA(delta.create('data', { name: 'Bob' })) // initial render
+  const viewChange = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  viewChange.addMark(position.pos('title'), 'cur')
+  const back = it.applyB(viewChange)
+  const dataDoc = /** @type {delta.DeltaBuilderAny} */ (delta.create('data'))
+  dataDoc.apply(/** @type {any} */ (back.a), { final: true })
+  t.compare(pmp(dataDoc), [{ id: 'cur', path: ['name'], assoc: 1 }])
+}

@@ -1,14 +1,31 @@
 import * as delta from '../delta.js'
 import * as math from '../../math.js'
-import * as object from '../../object.js'
 import { Transformer, Template, createTransformResult, $template } from './core.js'
 
 /**
- * The scalar carried by a `lib0:value` delta (its `value` attribute op's value), or `undefined`.
+ * The scalar (or full replacement value) a `lib0:value` carrier *sets*: its `value` attribute op's
+ * value, but **only when that op is a `SetAttrOp`** (a full value set). Returns `undefined` for a
+ * `ModifyAttrOp` carrier (an incremental change to a delta-valued attribute — see {@link modifyOf}) or
+ * a `DeleteAttrOp`/absent op, so an incremental change is never mistaken for a replacement value.
  *
  * @param {delta.DeltaAny?} carrier
  */
-const scalarOf = carrier => carrier == null ? undefined : /** @type {any} */ (carrier.attrs).value?.value
+const scalarOf = carrier => {
+  const op = carrier == null ? undefined : /** @type {any} */ (carrier.attrs).value
+  return delta.$setAttrOp.check(op) ? op.value : undefined
+}
+
+/**
+ * The inner change delta a `lib0:value` carrier *modifies* with: its `value` attribute op's value when
+ * that op is a `ModifyAttrOp` (an incremental change to a delta-valued projected attribute), else
+ * `undefined`. Routed through the slot's modify channel instead of replacing the slot value.
+ *
+ * @param {delta.DeltaAny?} carrier
+ */
+const modifyOf = carrier => {
+  const op = carrier == null ? undefined : /** @type {any} */ (carrier.attrs).value
+  return delta.$modifyAttrOp.check(op) ? /** @type {any} */ (op).value : undefined
+}
 
 /**
  * Whether `el` is a `lib0:value` carrier node (the convention produced by the
@@ -209,12 +226,16 @@ export class ProjectionTransformer extends Transformer {
     const res = createTransformResult(null, out)
     for (const h of this.attrHoles) {
       const r = h.t.applyA(d)
-      // a value change carries a `value` attr op; a mark-only data change carries none - emit the attr
-      // update only on a real value change (else a moved cursor would wrongly delete the attribute)
-      if (r.b != null && !object.isEmpty(/** @type {any} */ (r.b).attrs)) {
-        const sc = scalarOf(r.b)
-        if (sc !== undefined) out.setAttr(/** @type {any} */ (h.key), sc)
-        else out.deleteAttr(/** @type {any} */ (h.key))
+      // emit the attr update by the carrier's op KIND (a mark-only change carries no value op at all):
+      // SetAttr -> full set/replace; ModifyAttr -> incremental change to a delta-valued attr, forwarded
+      // through the modify channel (NOT written as the value); DeleteAttr -> remove the attr.
+      const carrierOp = r.b == null ? undefined : /** @type {any} */ (r.b.attrs).value
+      if (delta.$setAttrOp.check(carrierOp)) {
+        out.setAttr(/** @type {any} */ (h.key), scalarOf(r.b))
+      } else if (delta.$modifyAttrOp.check(carrierOp)) {
+        out.modifyAttr(/** @type {any} */ (h.key), modifyOf(r.b))
+      } else if (delta.$deleteAttrOp.check(carrierOp)) {
+        out.deleteAttr(/** @type {any} */ (h.key))
       }
       placeCarrierMark(out, r.b, h.key)
       res.applyA(r.a)
@@ -225,15 +246,21 @@ export class ProjectionTransformer extends Transformer {
       const item = seg.item
       const r = item.t.applyA(d)
       if (item.carrier === 'value') {
-        // replace the scalar only on a real value change (a `value` attr op); a mark-only change must
-        // not wipe the slot. The cursor anchors at the slot position either way.
-        if (r.b != null && !object.isEmpty(/** @type {any} */ (r.b).attrs)) {
+        // route by the carrier's op KIND (a mark-only change carries no value op, so the slot is left
+        // intact and only the cursor is anchored): SetAttr -> replace the scalar embed; ModifyAttr ->
+        // forward an incremental change to a delta-valued embed through the modify channel.
+        const carrierOp = r.b == null ? undefined : /** @type {any} */ (r.b.attrs).value
+        if (delta.$setAttrOp.check(carrierOp)) {
           if (seg.start > emitted) out.retain(seg.start - emitted)
           const sc = scalarOf(r.b)
           const v = sc === undefined ? null : sc
           item.lastScalar = v
           out.delete(1)
           out.insert([v])
+          emitted = seg.start + 1
+        } else if (delta.$modifyAttrOp.check(carrierOp)) {
+          if (seg.start > emitted) out.retain(seg.start - emitted)
+          out.modify(modifyOf(r.b)) // incremental change to the delta-valued embed
           emitted = seg.start + 1
         }
         placeCarrierMark(out, r.b, seg.start)
@@ -330,6 +357,22 @@ export class ProjectionTransformer extends Transformer {
           healed = true
         }
         pos += 1
+      }
+    }
+    // route view-side cursor marks on ATTRIBUTE holes back to their data attribute (the editable,
+    // round-tripping binding): a root mark keyed to an attr hole's output key rides on a `lib0:value`
+    // carrier so the attr sub-transformer maps it to the data attribute. Best-effort for the rest -
+    // node-hole nested marks already ride on the routed `modify` above; value child slots are
+    // display-only (no data channel); marks at static / non-hole positions and view-side mark
+    // *deletions* are not routed back (marks are ephemeral cursor state - see the readme).
+    if (d.marks !== null) {
+      for (const m of d.marks) {
+        const hole = this.attrHoles.find(h => h.key === m.key)
+        if (hole != null) {
+          const carrier = /** @type {delta.DeltaBuilderAny} */ (delta.create('lib0:value'))
+          delta.addRootMark(carrier, m.copy('value'))
+          res.applyA(hole.t.applyB(carrier).a)
+        }
       }
     }
     if (healed) {

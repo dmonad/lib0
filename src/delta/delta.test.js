@@ -1559,6 +1559,38 @@ export const testMarkDeleteAndUpdateApply = () => {
   t.assert(doc.deleteMarks === null)
 }
 
+/**
+ * The builder maintains `markCount` incrementally for delta-valued children/values (mirroring `apply`),
+ * so a directly-built delta has an accurate count and `marksToPositions` can reach a nested-only mark.
+ * Regression: replacing a marked delta-valued attribute must not drive the count negative.
+ */
+export const testMarkCountBuilderMaintained = () => {
+  // insert([markedChild]): the parent folds the child's subtree marks
+  const child = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('aa'))
+  child.addMark(position.createPos([1], 1), 'm1')
+  const d = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert([child]))
+  t.assert(d.markCount === 1)
+  t.compare(position.marksToPositions(d), [{ id: 'm1', path: [0, 1], assoc: 1 }])
+  // modify(markedValue): a change delta folds the modify value's count (not settled, so only count)
+  const mv = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
+  mv.addMark(position.pos(0), 'mod')
+  t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv)).markCount === 1)
+  // setAttr(markedDelta) folds; replacing it subtracts so the count never goes negative
+  const av = /** @type {delta.DeltaBuilderAny} */ (delta.create('doc').insert('x'))
+  av.addMark(position.pos(0), 'z')
+  const n = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
+  n.setAttr('body', av)
+  t.assert(n.markCount === 1)
+  n.apply(/** @type {any} */ (delta.create().setAttr('body', delta.create('doc').insert('y'))), { final: true })
+  t.assert(n.markCount === 0)
+  // modifyAttr(markedValue) folds
+  const ma = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('q'))
+  ma.addMark(position.pos(0), 'ma')
+  const dma = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  dma.modifyAttr('body', ma)
+  t.assert(dma.markCount === 1)
+}
+
 // ---------------------------------------------------------------------------
 // Targeted behavior tests (added to drive `delta.js` coverage from ~94 % to
 // 100 % while testing concrete behavior, not lines).

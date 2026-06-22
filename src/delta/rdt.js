@@ -129,6 +129,8 @@ export class Binding {
     // transformer (`applyA`) — which also yields any self-heal correction for `a` (`tres.a`) — then
     // diff the projection against `b`'s current state and apply the difference so `b` ends up
     // matching `a`'s projection. Any fixes the two sides report are reconciled via `propagate`.
+    // NOTE: `delta.diff` is content-only (it excludes marks), so cursor marks present on `a` at bind
+    // time are NOT transferred to `b` here; marks ride only on subsequent live `applyA`/`applyB`.
     // Wrapped in the mutex so these `applyDelta` calls don't echo back through the listeners above.
     this._mux(() => {
       const tres = this.t.applyA(this.a.toDelta())

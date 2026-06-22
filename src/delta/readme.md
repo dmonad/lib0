@@ -82,6 +82,46 @@ d.apply(delta.create().modify(
 ))
 ```
 
+# Cursors & selections (marks)
+
+A **mark** is a cursor/selection anchor stored on a delta node: a stable `id`, a terminal `key` (a
+content offset or an attribute key) and an `assoc` gravity (`-1` binds to the preceding content, `1`
+to the following). Add one at a `Pos` and read them back from a settled delta with `marksToPositions`:
+
+```javascript
+import * as position from 'lib0/delta/position'
+
+const d = delta.create().insert('hello')
+d.addMark(position.pos(1), 'cursorA')     // a cursor between 'h' and 'e'
+position.marksToPositions(d)              // ⇒ [{ id: 'cursorA', path: [1], assoc: 1 }]
+
+// removeMark removes a mark in place; on a fresh delta it instead builds a transmittable
+// delete-mark change (symmetric to addMark on a fresh delta building an add-mark change)
+delta.create().removeMark(position.pos(1), 'cursorA') // ⇒ { deleteMarks: ['cursorA'] }
+```
+
+Marks are **local, ephemeral cursor state**, deliberately **excluded from a delta's fingerprint and
+equality** — only document *content* is part of a delta's identity. Consequences:
+
+- **Best-effort under concurrency.** `apply`/`rebase` carry and shift marks (an insert before a cursor
+  pushes it right; a delete covering it collapses it to the cut point so it survives). Document content
+  is guaranteed to converge; cursor **positions are not** (a deletion maps a range to a single point, so
+  concurrent edits can land a cursor on different sides on the two rebase replays). Mark **existence**
+  does converge: concurrent add-vs-delete of the same id resolves to *add wins*, delete-vs-delete dedups.
+- **Best-effort through transformers.** A transformer remaps a mark through the same position mapping it
+  applies to content. A mark may be **dropped** when it has no image on the other side (e.g. an
+  attribute the transformer removes, or an attribute mark on an inlined node) or **duplicated** when one
+  piece of data is rendered in several places (e.g. the same value projected into multiple `project`
+  holes). Such drops are intentional and documented per transformer, never silent.
+- **Not carried by `diff`.** `delta.diff` compares content only (it keys off the mark-excluding
+  fingerprint), so two states differing *only* in marks diff to an empty change. Marks therefore survive
+  on the live `apply`/`rebase`/transform path but **not** across a `diff` — including a `Binding`'s
+  initial-state sync (`rdt.js`) and the DOM RDT, which model no marks. Carrying cursors to or from a
+  diff-based side needs an out-of-band channel (not provided here).
+
+A mark needs a terminal step, so the root position `[]` cannot anchor one. A node holds at most one mark
+per `id` (re-adding the same id replaces it — e.g. to update its `customAttributes`).
+
 # Transformers
 
 We often have two different data structures that we want to keep in sync — e.g. a
