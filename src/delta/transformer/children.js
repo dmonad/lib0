@@ -3,24 +3,6 @@ import * as math from '../../math.js'
 import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
- * Build an output delta that passes the node name and attribute ops of `src` through unchanged (only
- * the child nodes are transformed). Lifted from {@link import('./inline.js')}.
- *
- * @param {delta.DeltaAny} src
- * @return {any}
- */
-const passThrough = src => {
-  const d = delta.create(/** @type {any} */ (src.name))
-  for (const op of src.attrs) {
-    // reason: `attrs` is a mapped type over the conf's attr keys, so a dynamic-key write can't be
-    // checked (same limitation delta.slice / inline.passThrough suppress when copying attrs).
-    // @ts-ignore
-    d.attrs[op.key] = op.clone()
-  }
-  return d
-}
-
-/**
  * Stateful transformer that descends one level into a node's child *nodes* and applies a per-child
  * sub-transformer, chosen by `handler`. Attributes and text pass through untouched. Designed to be
  * applied recursively (see {@link children}).
@@ -62,7 +44,11 @@ export class ChildrenTransformer extends Transformer {
    * @return {import('./core.js').TransformResultAny}
    */
   transform (d, fwd) {
-    const out = passThrough(d)
+    // `cloneShallow` carries the node's name, attribute ops, and own (root) marks; only the child nodes
+    // are (re)built below, and nested children's marks ride on those rebuilt children. It is the shared
+    // mark-carrying primitive, so this node's marks cannot be silently dropped. `any` keeps `out` within
+    // the shared TS instantiation budget (see {@link import('./inline.js')}).
+    const out = /** @type {any} */ (delta.cloneShallow(d))
     // Walk the old sparse map with a forward cursor while rebuilding a fresh one. The cursor tracks an
     // old-side child position (list node + offset within it).
     const newTs = delta.create()

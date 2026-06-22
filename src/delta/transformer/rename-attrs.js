@@ -32,6 +32,14 @@ const renameDeltaAttrs = (d, renames, revRenames) => {
       delete forwardTransform.attrs[key]
     }
   }
+  // a mark on a renamed attribute follows the rename; a mark on a dropped (rename-target) attribute is
+  // dropped. Content-offset (number-key) marks are untouched. Marks rode in on `delta.clone` above.
+  delta.remapRootMarks(forwardTransform, key => {
+    const r = renames[key]
+    if (r != null) return r
+    if (revRenames[key] != null) return null
+    return key
+  })
   return createTransformResult(null, forwardTransform)
 }
 

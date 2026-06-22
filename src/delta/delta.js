@@ -1356,6 +1356,36 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
 export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
 
 /**
+ * A *shallow* clone of `d`: a fresh {@link DeltaBuilder} carrying `d`'s name, attribute ops, and own
+ * (root) marks — but **no children**. Content-transforming
+ * {@link import('./transformer/core.js').Transformer transformers} (e.g. `children`, `value`) rebuild
+ * the child list themselves yet must keep this node's own marks; the marks of nested children ride
+ * along on the children the caller rebuilds. `markCount` is seeded from the root marks plus any marks
+ * inside the copied attribute values (children are appended by the caller, which keeps the count
+ * current). Because mark-carrying lives here in the shared primitive, a transformer that builds its
+ * output via {@link cloneShallow} cannot silently drop the node's marks.
+ *
+ * @template {DeltaAny} D
+ * @param {D} d
+ * @return {D extends Delta<infer Conf> ? DeltaBuilder<Conf> : never}
+ */
+export const cloneShallow = d => {
+  const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(d.name, d.$schema))
+  cpy.origin = d.origin
+  for (const op of d.attrs) {
+    // @ts-ignore (dynamic attr key — the same limitation slice suppresses when copying attrs)
+    cpy.attrs[op.key] = /** @type {any} */ (op.clone())
+  }
+  // root marks / deleteMarks (a delete-mark-only change has markCount 0 but must still ride)
+  if (d.marks !== null || d.deleteMarks !== null) copyRootMarks(cpy, d)
+  // recount once children-of-the-copied-attrs marks are in place (markCount > 0 covers attr-value marks
+  // even when this node has no root marks of its own)
+  if (d.markCount > 0) recountMarks(cpy)
+  // @ts-ignore
+  return cpy
+}
+
+/**
  * Make an op's modify `value` mutable for in-place editing: clear the op's cached fingerprint and, when
  * the value is a `done` delta, replace it with a mutable clone. Shared by the `_modValue` getters of
  * {@link ModifyOp}, {@link ModifyAttrOp}, and {@link SetAttrOp}; the `$deltaAny` guard lets a scalar
@@ -2425,6 +2455,61 @@ const applyMarkOps = (target, addMarks, deleteMarks) => {
   }
   if (addMarks !== null) {
     for (const m of addMarks) addMarkTo(target, m)
+  }
+}
+
+/**
+ * Recompute `node.markCount` from scratch (own marks + the marks of every child and delta-valued
+ * attribute). Use after directly assigning marks/attrs/children to a node bypasses the incremental
+ * `markCount` maintenance of {@link addMarkTo} / the builder.
+ *
+ * @param {DeltaAny} node
+ */
+export const recountMarks = node => {
+  node.markCount = (node.marks !== null ? node.marks.size : 0) + sumChildMarkCounts(node)
+}
+
+/**
+ * Copy the *root* marks of `source` onto `target`, mapping each mark's `key` through `mapKey` — return
+ * `null` to drop that mark, or a new key to move it (re-keyed via {@link Mark#copy}). `source`'s
+ * `deleteMarks` are copied verbatim: a mark *delete* is keyed only by its (cross-side-stable) id, so it
+ * maps cleanly in either direction. `target.markCount` is maintained for the added marks; a caller that
+ * also copies delta-valued attributes or children must {@link recountMarks} afterwards (as
+ * {@link cloneShallow} does). This is how mark-carrying
+ * {@link import('./transformer/core.js').Transformer transformers} that build fresh output (e.g.
+ * `attr`) move a node's marks across the mapping they already apply to content.
+ *
+ * @param {DeltaAny} target
+ * @param {DeltaAny} source
+ * @param {(key: number|string) => number|string|null} [mapKey]
+ */
+export const copyRootMarks = (target, source, mapKey = k => k) => {
+  if (source.marks !== null) {
+    for (const m of source.marks) {
+      const k = mapKey(m.key)
+      if (k !== null) addMarkTo(target, k === m.key ? m : m.copy(k))
+    }
+  }
+  if (source.deleteMarks !== null) target.deleteMarks = source.deleteMarks.slice()
+}
+
+/**
+ * Re-key `node`'s *root* marks in place: each mark's `key` is mapped through `mapKey` (return `null` to
+ * drop it, an unchanged key to keep it, or a new key to move it). Used after a full {@link clone} by an
+ * attribute-renaming transformer so a mark on a renamed attribute follows the rename (and a mark on a
+ * dropped attribute is dropped). `node.markCount` is maintained (it only changes when a mark drops).
+ *
+ * @param {DeltaAny} node
+ * @param {(key: number|string) => number|string|null} mapKey
+ */
+export const remapRootMarks = (node, mapKey) => {
+  const marks = node.marks
+  if (marks === null) return
+  for (const m of [...marks]) {
+    const k = mapKey(m.key)
+    if (k === m.key) continue
+    removeMarkFrom(node, m.id)
+    if (k !== null) addMarkTo(node, m.copy(k))
   }
 }
 

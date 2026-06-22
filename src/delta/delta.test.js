@@ -1537,6 +1537,28 @@ export const testRepeatMarkRebaseConvergenceXml = tc => {
   testMarkRebaseConvergence(tc, $xmlDelta, { minChildOps: 3, maxChildOps: 10 })
 }
 
+/**
+ * Applying a change carrying `deleteMarks` removes those marks from the settled node's final set (it
+ * does not leave a lingering `deleteMarks` on the settled state). A re-add of an existing id replaces
+ * the mark in place (same id == same mark), so a mark can be "updated" with new `customAttributes`.
+ */
+export const testMarkDeleteAndUpdateApply = () => {
+  const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('hello'))
+  doc.addMark(position.pos(1), 'M', { color: 'red' })
+  t.assert(doc.markCount === 1)
+  // update: re-add the same id replaces in place (count unchanged, attributes updated)
+  doc.addMark(position.pos(1), 'M', { color: 'blue' })
+  t.assert(doc.markCount === 1)
+  t.compare([...(doc.marks ?? [])].map(m => m.customAttributes), [{ color: 'blue' }])
+  // delete via a deleteMarks change: the mark is gone from the final set, no lingering deleteMarks
+  const del = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  del.deleteMarks = ['M']
+  doc.apply(del, { final: true })
+  t.assert(doc.markCount === 0)
+  t.assert(doc.marks === null || doc.marks.size === 0)
+  t.assert(doc.deleteMarks === null)
+}
+
 // ---------------------------------------------------------------------------
 // Targeted behavior tests (added to drive `delta.js` coverage from ~94 % to
 // 100 % while testing concrete behavior, not lines).
