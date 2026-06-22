@@ -104,9 +104,13 @@ export const $markPos = /* @__PURE__ */ s.$object({
 
 /**
  * Reconstruct every {@link MarkPos} stored as a {@link import('./delta.js').Mark mark} inside `d` (a
- * settled delta). Subtrees with no marks are pruned via each node's `markCount`; a mark's `path` is the
- * content indices / attribute keys walked to reach it, plus the mark's own `key`. Add marks with
- * {@link import('./delta.js').DeltaBuilder#addMark}.
+ * settled delta). A mark's `path` is the content indices / attribute keys walked to reach it, plus the
+ * mark's own `key`. Add marks with {@link import('./delta.js').DeltaBuilder#addMark}.
+ *
+ * Subtrees are pruned via each node's conservative `maybeHasMarks` flag (`false` ⇒ guaranteed empty,
+ * skipped). This is also the **sole resetter** of that flag: a descended subtree that turns out to hold
+ * no marks has its (stale) `true` cleared to `false`, so later calls prune it. The flag is therefore a
+ * cheap hint that this read keeps eventually-accurate (a write during a read, like a lazy cache).
  *
  * @param {delta.DeltaAny} d
  * @return {Array<MarkPos>}
@@ -115,13 +119,18 @@ export const marksToPositions = d => {
   /** @type {Array<MarkPos>} */
   const out = []
   /**
+   * Emit the marks in `node`'s subtree and return whether any were found (used to self-correct the flag).
+   *
    * @param {delta.DeltaAny} node
    * @param {Array<PosStep>} path
+   * @return {boolean}
    */
   const walk = (node, path) => {
-    if (node.markCount === 0) return
+    if (!node.maybeHasMarks) return false // guaranteed no marks in this subtree
+    let found = false
     if (node.marks !== null) {
       for (const m of node.marks) {
+        found = true
         out.push(m.customAttributes === null
           ? { id: m.id, path: [...path, m.key], assoc: m.assoc }
           : { id: m.id, path: [...path, m.key], assoc: m.assoc, customAttributes: m.customAttributes })
@@ -132,7 +141,7 @@ export const marksToPositions = d => {
     for (const op of node.children) {
       if (delta.$insertOp.check(op)) {
         for (const el of op.insert) {
-          if (delta.$deltaAny.check(el) && el.markCount > 0) walk(el, [...path, i])
+          if (delta.$deltaAny.check(el) && el.maybeHasMarks && walk(el, [...path, i])) found = true
           i++
         }
       } else {
@@ -142,11 +151,13 @@ export const marksToPositions = d => {
     for (const op of node.attrs) {
       // descend `setAttr` (a materialized value) AND `modifyAttr` (an incremental change into a not-yet-
       // materialized sub-document attribute, which `apply` may leave on a settled node) - both hold a
-      // delta value, and both are counted by `sumChildMarkCounts`, so both must be reachable here.
-      if ((delta.$setAttrOp.check(op) || delta.$modifyAttrOp.check(op)) && delta.$deltaAny.check(op.value) && op.value.markCount > 0) {
-        walk(op.value, [...path, op.key])
+      // delta value reachable here.
+      if ((delta.$setAttrOp.check(op) || delta.$modifyAttrOp.check(op)) && delta.$deltaAny.check(op.value) && op.value.maybeHasMarks && walk(op.value, [...path, op.key])) {
+        found = true
       }
     }
+    node.maybeHasMarks = found // self-correct: clear a stale `true` so later reads prune this subtree
+    return found
   }
   walk(d, [])
   return out

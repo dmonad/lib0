@@ -27,9 +27,10 @@ const attrTransformHelper = (outDelta, from, to, inDelta) => {
   // Move a mark on the projected attribute (`from` -> `to`); drop root marks on any other attribute or
   // content (only this one attribute exists on the other side). A mark *inside* the attribute value
   // rides on the cloned attr op above, and a mark *delete* (id-keyed) rides verbatim via copyRootMarks.
-  // recountMarks restores markCount, which the direct attr assignment above does not maintain.
   delta.copyRootMarks(outDelta, inDelta, k => k === from ? to : null)
-  delta.recountMarks(outDelta)
+  // flag conservatively: the direct attr assignment above bypasses the builder, so a mark inside the
+  // cloned attribute value would otherwise not set the flag (marksToPositions self-corrects a false +ve)
+  outDelta.maybeHasMarks ||= inDelta.maybeHasMarks
   return outDelta
 }
 

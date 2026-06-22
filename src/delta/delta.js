@@ -1133,10 +1133,14 @@ class DeltaData {
      */
     this.deleteMarks = null
     /**
-     * Number of live marks in this whole subtree (including this node's own {@link DeltaData#marks}).
-     * Lets {@link import('./position.js').marksToPositions} prune subtrees with no marks.
+     * Conservative "this subtree might hold a {@link Mark}" flag (own {@link DeltaData#marks} or any
+     * descendant's). Set `true` when a mark is introduced and OR-propagated up to every ancestor; it is
+     * **never** decremented (removal leaves it conservatively `true`). {@link
+     * import('./position.js').marksToPositions} is the sole resetter: it prunes subtrees where this is
+     * `false` (a guaranteed-empty subtree) and lazily clears a stale `true` to `false` when a descended
+     * subtree turns out to hold none. `false` therefore *guarantees* no marks; `true` only *maybe*.
      */
-    this.markCount = 0
+    this.maybeHasMarks = false
   }
 }
 
@@ -1324,13 +1328,13 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
     remainingLen -= math.min(currNode.length, remainingLen)
   }
   cpy.childCnt = slicedLen - remainingLen
-  // copy marks (only if the subtree has any). A full clone (the `clone` path) copies this node's own
-  // marks verbatim — a change delta's number-keyed root marks point into the TARGET's coordinate and
-  // may sit beyond the change's own (often empty) content, so they must not be clamped. A genuine
+  // copy marks (only if the subtree maybe has any). A full clone (the `clone` path) copies this node's
+  // own marks verbatim — a change delta's number-keyed root marks point into the TARGET's coordinate
+  // and may sit beyond the change's own (often empty) content, so they must not be clamped. A genuine
   // partial slice instead clamps number-keyed marks to the sliced range (rebasing `key -= start`).
-  // String/attr marks ride with the copied attrs; child marks ride on the cloned children. markCount
-  // is then recomputed from the copied subtree, and a change-only deleteMarks list is copied wholesale.
-  if (d.markCount > 0) {
+  // String/attr marks ride with the copied attrs; child marks ride on the cloned children. The
+  // `maybeHasMarks` flag is copied (conservative); a change-only deleteMarks list is copied wholesale.
+  if (d.maybeHasMarks) {
     if (d.marks !== null) {
       const fullCopy = sliceStart === 0 && end >= d.childCnt
       const cpyMarks = new Marks()
@@ -1343,7 +1347,7 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
       }
       if (cpyMarks.size > 0) cpy.marks = cpyMarks
     }
-    cpy.markCount = (cpy.marks !== null ? cpy.marks.size : 0) + sumChildMarkCounts(cpy)
+    cpy.maybeHasMarks = true
   }
   if (d.deleteMarks !== null) cpy.deleteMarks = d.deleteMarks.slice()
   // @ts-ignore
@@ -1362,10 +1366,10 @@ export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
  * (root) marks — but **no children**. Content-transforming
  * {@link import('./transformer/core.js').Transformer transformers} (e.g. `children`, `value`) rebuild
  * the child list themselves yet must keep this node's own marks; the marks of nested children ride
- * along on the children the caller rebuilds. `markCount` is seeded from the root marks plus any marks
- * inside the copied attribute values (children are appended by the caller, which keeps the count
- * current). Because mark-carrying lives here in the shared primitive, a transformer that builds its
- * output via {@link cloneShallow} cannot silently drop the node's marks.
+ * along on the children the caller rebuilds. The `maybeHasMarks` flag is copied from `d` (conservative)
+ * and the builder OR-propagates the flag as the caller appends children. Because mark-carrying lives
+ * here in the shared primitive, a transformer that builds its output via {@link cloneShallow} cannot
+ * silently drop the node's marks.
  *
  * @template {DeltaAny} D
  * @param {D} d
@@ -1378,11 +1382,11 @@ export const cloneShallow = d => {
     // @ts-ignore (dynamic attr key — the same limitation slice suppresses when copying attrs)
     cpy.attrs[op.key] = /** @type {any} */ (op.clone())
   }
-  // root marks / deleteMarks (a delete-mark-only change has markCount 0 but must still ride)
+  // root marks / deleteMarks (a delete-mark-only change has no marks but must still ride)
   if (d.marks !== null || d.deleteMarks !== null) copyRootMarks(cpy, d)
-  // recount once children-of-the-copied-attrs marks are in place (markCount > 0 covers attr-value marks
-  // even when this node has no root marks of its own)
-  if (d.markCount > 0) recountMarks(cpy)
+  // carry the conservative flag (covers attr-value marks even when this node has no root marks of its
+  // own); the builder OR-propagates it further as the caller appends the rebuilt children
+  cpy.maybeHasMarks = d.maybeHasMarks
   // @ts-ignore
   return cpy
 }
@@ -1575,7 +1579,7 @@ export class DeltaBuilder extends Delta {
       }
       this.childCnt += insert.length
       // inserting pre-marked content brings its subtree marks along (as apply's insert path does)
-      this.markCount += sumElemMarks(insert, 0, insert.length)
+      this.maybeHasMarks ||= elemsMaybeHaveMarks(insert)
     }
     return /** @type {any} */ (this)
   }
@@ -1593,8 +1597,8 @@ export class DeltaBuilder extends Delta {
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
     list.pushEnd(this.children, new ModifyOp(modify, object.isEmpty(mergedAttributes) ? null : mergedAttributes, mergedAttribution))
     this.childCnt += 1
-    // the modify target carries marks in its subtree (own root marks + nested) - fold them in
-    this.markCount += modify.markCount
+    // the modify target carries marks in its subtree (own root marks + nested) - flag conservatively
+    this.maybeHasMarks ||= modify.maybeHasMarks
     return /** @type {any} */ (this)
   }
 
@@ -1678,14 +1682,11 @@ export class DeltaBuilder extends Delta {
    */
   setAttr (key, val, attribution = null, prevValue) {
     modDeltaCheck(this)
-    // a delta-valued attribute carries marks in its subtree: swap the replaced value's subtree
-    // mark-count for the new value's, keeping markCount incrementally correct (as apply does)
-    const prevVal = /** @type {any} */ (this.attrs[key])?.value
-    if ($deltaAny.check(prevVal)) this.markCount -= prevVal.markCount
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
       (new SetAttrOp(/** @type {any} */ (key), val, prevValue, mergeAttributions(this.usedAttribution, attribution)))
-    if ($deltaAny.check(val)) this.markCount += val.markCount
+    // a delta-valued attribute carries marks in its subtree - flag conservatively (never decremented)
+    if ($deltaAny.check(val)) this.maybeHasMarks ||= val.maybeHasMarks
     return /** @type {any} */ (this)
   }
 
@@ -1718,9 +1719,8 @@ export class DeltaBuilder extends Delta {
    */
   deleteAttr (key, attribution = null, prevValue) {
     modDeltaCheck(this)
-    // dropping a delta-valued attribute drops its subtree's marks (the tombstone's prevValue is not counted)
-    const prevVal = /** @type {any} */ (this.attrs[key])?.value
-    if ($deltaAny.check(prevVal)) this.markCount -= prevVal.markCount
+    // dropping a delta-valued attribute drops its subtree's marks; the conservative `maybeHasMarks` flag
+    // is left as-is (never decremented - marksToPositions self-corrects it)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
       (new DeleteAttrOp(/** @type {any} */ (key), prevValue, mergeAttributions(this.usedAttribution, attribution)))
@@ -1736,11 +1736,9 @@ export class DeltaBuilder extends Delta {
    */
   modifyAttr (key, modify) {
     modDeltaCheck(this)
-    // overwrites any prior attr op at `key`: swap its subtree mark-count for the modify value's
-    const prevVal = /** @type {any} */ (this.attrs[key])?.value
-    if ($deltaAny.check(prevVal)) this.markCount -= prevVal.markCount
     this.attrs[key] = /** @type {any} */ (new ModifyAttrOp(key, modify))
-    this.markCount += /** @type {DeltaAny} */ (modify).markCount
+    // the modify value carries marks in its subtree - flag conservatively (never decremented)
+    this.maybeHasMarks ||= /** @type {DeltaAny} */ (modify).maybeHasMarks
     return /** @type {any} */ (this)
   }
 
@@ -1772,31 +1770,27 @@ export class DeltaBuilder extends Delta {
       if ($modifyAttrOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
           const tgt = c._modValue
-          const before = tgt.markCount
           tgt.apply(op.value, { final })
-          this.markCount += tgt.markCount - before // fold the attr subtree's mark-count change up
+          this.maybeHasMarks ||= tgt.maybeHasMarks // flag the attr subtree's marks up
         } else {
           // then this is a simple modify (the attribute did not previously hold a delta)
           // @ts-ignore
           this.attrs[op.key] = op.clone()
-          this.markCount += op.value.markCount // fold any marks the new modify value carries
+          this.maybeHasMarks ||= op.value.maybeHasMarks // flag any marks the new modify value carries
         }
       } else if ($setAttrOp.check(op)) {
         const prev = c?.value
         // @ts-ignore
         op.prevValue = prev
-        // a delta-valued attribute carries marks in its subtree: swap the replaced value's count for
-        // the new one's, keeping markCount in step with sumChildMarkCounts (which counts attr values)
-        if ($deltaAny.check(prev)) this.markCount -= prev.markCount
-        if ($deltaAny.check(op.value)) this.markCount += op.value.markCount
+        // a delta-valued attribute carries marks in its subtree - flag conservatively (never decremented)
+        if ($deltaAny.check(op.value)) this.maybeHasMarks ||= op.value.maybeHasMarks
         // @ts-ignore
         this.attrs[op.key] = op.clone()
       } else if ($deleteAttrOp.check(op)) {
         const prev = c?.value
         op.prevValue = prev
-        // removing a delta-valued attribute drops its subtree's marks (final deletes the attr; a
-        // non-final delete keeps only a tombstone, whose prevValue is not counted by markCount)
-        if ($deltaAny.check(prev)) this.markCount -= prev.markCount
+        // removing a delta-valued attribute drops its subtree's marks; the conservative `maybeHasMarks`
+        // flag is left as-is (never decremented - marksToPositions self-corrects it)
         if (final) {
           // @ts-ignore
           delete this.attrs[op.key]
@@ -1854,7 +1848,7 @@ export class DeltaBuilder extends Delta {
       list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
       this.childCnt += op.length
       // inserting pre-marked content (e.g. a node that already carries a cursor) brings its marks along
-      if ($insertOp.check(op)) this.markCount += sumElemMarks(op.insert, 0, op.insert.length)
+      if ($insertOp.check(op)) this.maybeHasMarks ||= elemsMaybeHaveMarks(op.insert)
     }
     for (const op of other.children) {
       // defensive: the per-branch logic below resets opsI/offset whenever it
@@ -1939,8 +1933,8 @@ export class DeltaBuilder extends Delta {
             // case4: delete some part of center
             const delLen = math.min(opsI.length - offset, remainingLen)
             this.childCnt -= delLen
-            // deleting content drops any marks living in the removed embeds
-            if ($insertOp.check(opsI)) this.markCount -= sumElemMarks(opsI.insert, offset, offset + delLen)
+            // deleting content drops any marks in the removed embeds; the conservative `maybeHasMarks`
+            // flag is left as-is (never decremented - marksToPositions self-corrects it)
             if (opsI.length === delLen) {
               // case 1
               list.remove(this.children, opsI)
@@ -1982,18 +1976,16 @@ export class DeltaBuilder extends Delta {
         if (opsI == null) {
           list.pushEnd(this.children, op.clone())
           this.childCnt += 1
-          this.markCount += /** @type {DeltaAny} */ (op.value).markCount // a freshly-inserted modify brings its value's root marks
+          this.maybeHasMarks ||= /** @type {DeltaAny} */ (op.value).maybeHasMarks // a freshly-inserted modify brings its value's root marks
         } else if ($modifyOp.check(opsI)) {
           const tgt = opsI._modValue
-          const before = tgt.markCount
           tgt.apply(/** @type {any} */ (op.value), { final })
-          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up (incl. the value's own root marks)
+          this.maybeHasMarks ||= tgt.maybeHasMarks // flag the child subtree's marks up (incl. the value's own root marks)
           opsI = opNextUndeleted(opsI)
         } else if ($insertOp.check(opsI)) {
           const tgt = opsI._modValue(offset)
-          const before = tgt.markCount
           tgt.apply(op.value, { final })
-          this.markCount += tgt.markCount - before // fold the child subtree's mark-count change up (incl. the value's own root marks)
+          this.maybeHasMarks ||= tgt.maybeHasMarks // flag the child subtree's marks up (incl. the value's own root marks)
           if (opsI.length === ++offset) {
             opsI = opNextUndeleted(opsI)
             offset = 0
@@ -2001,7 +1993,7 @@ export class DeltaBuilder extends Delta {
         } else if ($retainOp.check(opsI)) {
           splitHere()
           const insertModOp = scheduleForMerge(op.clone())
-          this.markCount += /** @type {DeltaAny} */ (op.value).markCount // the inserted modify brings its value's root marks
+          this.maybeHasMarks ||= /** @type {DeltaAny} */ (op.value).maybeHasMarks // the inserted modify brings its value's root marks
           opsI.format && updateOpFormat(insertModOp, opsI.format)
           list.insertBetween(this.children, opsI.prev, opsI, insertModOp) // insert skipped len
           if (opsI.length === 1) {
@@ -2037,7 +2029,7 @@ export class DeltaBuilder extends Delta {
       }
     }
     // marks: shift this node's own leaf marks by the change, then fold in root-level mark adds/deletes
-    // (child subtree counts were already folded into markCount incrementally above)
+    // (child subtree marks already flagged `maybeHasMarks` incrementally above)
     shiftMarksByChange(this, other)
     applyMarkOps(this, other.marks, other.deleteMarks)
     return this
@@ -2249,15 +2241,11 @@ export class DeltaBuilder extends Delta {
       }
     }
     // marks: reconcile this node's own root mark ops against the concurrent change (also shifting and,
-    // where an anchor was deleted, converting an add to a delete), then recompute markCount — a marked
-    // child may have been dropped, or a root mark reconciled away. markCount is not read mid-rebase
-    // (apply recomputes the target's), so an end recount — guarded so non-mark deltas skip it — keeps
-    // the invariant without scattered incremental hooks.
+    // where an anchor was deleted, converting an add to a delete). No count to maintain: `maybeHasMarks`
+    // is conservative (rebase only drops/reconciles marks, never adds), so a stale `true` is harmless
+    // and marksToPositions self-corrects it.
     if (this.marks !== null || this.deleteMarks !== null) {
       rebaseRootMarks(this, other, priority)
-    }
-    if (this.markCount > 0) {
-      this.markCount = (this.marks !== null ? this.marks.size : 0) + sumChildMarkCounts(this)
     }
     return this
   }
@@ -2297,6 +2285,8 @@ export class DeltaBuilder extends Delta {
       list.pushEnd(children, child.clone())
     }
     this.childCnt += other.childCnt
+    // appended children may carry marks in their subtrees - flag conservatively
+    this.maybeHasMarks ||= other.maybeHasMarks
     prevLast?.next && tryMergeWithPrev(children, prevLast.next)
     // @ts-ignore
     return this
@@ -2352,9 +2342,9 @@ const compareMarksById = (a, b) => a.id < b.id ? -1 : 1
  * The set of leaf {@link Mark marks} on a single delta node, deduplicated by id (so adding the same id
  * again replaces it). An internal data-shape class (never a public/`new`-from-outside class): every
  * mutation goes through its methods, so a stored {@link Mark} is treated as immutable and is never
- * manipulated in place — to "move" a mark you replace it with a fresh `Mark`. `size` drives the
- * incrementally-maintained `markCount`, and {@link clone}/{@link slice} copy the set so a `done`
- * delta's marks are never mutated through a shared reference. Marks are local/ephemeral cursor state
+ * manipulated in place — to "move" a mark you replace it with a fresh `Mark`. {@link clone}/{@link
+ * slice} copy the set so a `done` delta's marks are never mutated through a shared reference. Marks are
+ * local/ephemeral cursor state
  * and not part of a delta's identity, so this set has no fingerprint/equality of its own.
  */
 class Marks {
@@ -2400,57 +2390,31 @@ class Marks {
 }
 
 /**
- * Sum the subtree mark counts of the delta elements in `insert[from..to)`.
+ * Whether any delta element in `insert` maybe carries a mark in its subtree (short-circuits). Used to
+ * OR-propagate the conservative {@link DeltaData#maybeHasMarks} flag when content is inserted.
  *
  * @param {Array<any>} insert
- * @param {number} from
- * @param {number} to
- * @return {number}
+ * @return {boolean}
  */
-const sumElemMarks = (insert, from, to) => {
-  let c = 0
-  for (let i = from; i < to; i++) {
-    const el = insert[i]
-    if ($deltaAny.check(el)) c += el.markCount
-  }
-  return c
-}
+const elemsMaybeHaveMarks = insert => insert.some(el => $deltaAny.check(el) && el.maybeHasMarks)
 
 /**
- * Sum the subtree mark counts of a node's child deltas (content embeds, modify targets, delta-valued
- * attributes). Used by {@link slice} to set a freshly-built copy's `markCount`; `apply`/`rebase`
- * maintain `markCount` incrementally instead.
- *
- * @param {DeltaAny} node
- * @return {number}
- */
-const sumChildMarkCounts = node => {
-  let c = 0
-  for (const op of node.children) {
-    if ($insertOp.check(op)) c += sumElemMarks(op.insert, 0, op.insert.length)
-    else if ($modifyOp.check(op)) c += op.value.markCount
-  }
-  for (const op of node.attrs) {
-    if (($setAttrOp.check(op) || $modifyAttrOp.check(op)) && $deltaAny.check(op.value)) c += op.value.markCount
-  }
-  return c
-}
-
-/**
- * Add (or replace) a {@link Mark} on `node`, maintaining `node.markCount` incrementally.
+ * Add (or replace) a {@link Mark} on `node`, flagging {@link DeltaData#maybeHasMarks}.
  *
  * @param {DeltaAny} node
  * @param {Mark} mark
  */
 const addMarkTo = (node, mark) => {
   const marks = node.marks ?? new Marks()
-  node.markCount += marks.add(mark)
+  marks.add(mark)
   node.marks = marks
+  node.maybeHasMarks = true
 }
 
 /**
- * Remove the mark `id` from `node`, maintaining `node.markCount` incrementally. Returns `1` if a mark
- * was actually present and removed, `0` if it was absent.
+ * Remove the mark `id` from `node`. Returns `1` if a mark was actually present and removed, `0` if it
+ * was absent. The `maybeHasMarks` flag is intentionally left as-is (never decremented -
+ * {@link import('./position.js').marksToPositions} self-corrects it).
  *
  * @param {DeltaAny} node
  * @param {string} id
@@ -2460,13 +2424,12 @@ const removeMarkFrom = (node, id) => {
   const marks = node.marks
   if (marks === null) return 0
   const removed = marks.delete(id)
-  node.markCount -= removed
   node.marks = marks.size === 0 ? null : marks
   return removed
 }
 
 /**
- * Apply mark add/delete ops to `target`, maintaining `target.markCount`. `addMarks` may be a
+ * Apply mark add/delete ops to `target` (flagging `target.maybeHasMarks` on add). `addMarks` may be a
  * {@link Marks} set or a plain array; `deleteMarks` is a list of ids.
  *
  * @param {DeltaAny} target
@@ -2493,23 +2456,12 @@ const applyMarkOps = (target, addMarks, deleteMarks) => {
 }
 
 /**
- * Recompute `node.markCount` from scratch (own marks + the marks of every child and delta-valued
- * attribute). Use after directly assigning marks/attrs/children to a node bypasses the incremental
- * `markCount` maintenance of {@link addMarkTo} / the builder.
- *
- * @param {DeltaAny} node
- */
-export const recountMarks = node => {
-  node.markCount = (node.marks !== null ? node.marks.size : 0) + sumChildMarkCounts(node)
-}
-
-/**
  * Copy the *root* marks of `source` onto `target`, mapping each mark's `key` through `mapKey` — return
  * `null` to drop that mark, or a new key to move it (re-keyed via {@link Mark#copy}). `source`'s
  * `deleteMarks` are copied verbatim: a mark *delete* is keyed only by its (cross-side-stable) id, so it
- * maps cleanly in either direction. `target.markCount` is maintained for the added marks; a caller that
- * also copies delta-valued attributes or children must {@link recountMarks} afterwards (as
- * {@link cloneShallow} does). This is how mark-carrying
+ * maps cleanly in either direction. `target.maybeHasMarks` is flagged for the added marks; marks inside
+ * copied delta-valued attributes/children are flagged when the caller appends them via the builder
+ * (and {@link cloneShallow} copies the flag wholesale). This is how mark-carrying
  * {@link import('./transformer/core.js').Transformer transformers} that build fresh output (e.g.
  * `attr`) move a node's marks across the mapping they already apply to content.
  *
@@ -2531,7 +2483,7 @@ export const copyRootMarks = (target, source, mapKey = k => k) => {
  * Re-key `node`'s *root* marks in place: each mark's `key` is mapped through `mapKey` (return `null` to
  * drop it, an unchanged key to keep it, or a new key to move it). Used after a full {@link clone} by an
  * attribute-renaming transformer so a mark on a renamed attribute follows the rename (and a mark on a
- * dropped attribute is dropped). `node.markCount` is maintained (it only changes when a mark drops).
+ * dropped attribute is dropped). `node.maybeHasMarks` is left set (conservative; never decremented).
  *
  * @param {DeltaAny} node
  * @param {(key: number|string) => number|string|null} mapKey
@@ -2548,7 +2500,7 @@ export const remapRootMarks = (node, mapKey) => {
 }
 
 /**
- * Add (or replace, by id) a single root {@link Mark} on `node`, maintaining `node.markCount`. The
+ * Add (or replace, by id) a single root {@link Mark} on `node`, flagging `node.maybeHasMarks`. The
  * public wrapper of the internal `addMarkTo`, used by the restructuring
  * {@link import('./transformer/core.js').Transformer transformers} (`inline`, `project`) to place a
  * mark at a position they compute themselves.
@@ -2563,7 +2515,7 @@ export const addRootMark = (node, mark) => addMarkTo(node, mark)
  * overwriting them, so it can be called repeatedly to accumulate marks from several sources onto one
  * target (e.g. {@link import('./transformer/inline.js') inline} lifting the marks of every spliced
  * inline node onto the flattened parent). Each surviving add mark is re-keyed through `mapKey` (return
- * `null` to drop it); `markCount` is maintained for the added marks.
+ * `null` to drop it); `target.maybeHasMarks` is flagged for the added marks.
  *
  * @param {DeltaAny} target
  * @param {DeltaAny} source
@@ -2645,7 +2597,7 @@ const shiftMarksByChange = (node, change) => {
       if (nk !== m.key) shifted.push(m.copy(nk)) // a fresh Mark — never mutate in place
     }
   }
-  // re-add shifted marks under their (unchanged) ids ⇒ replace in place, markCount untouched
+  // re-add shifted marks under their (unchanged) ids ⇒ replace in place (the flag stays set)
   for (const m of shifted) marks.add(m)
 }
 
@@ -2715,7 +2667,7 @@ const rebaseMarkOps = (adds, deletes, otherAddIds, otherDelIds, otherContent, pr
 /**
  * Reconcile a node's own root mark add/delete ops against a concurrent change `other` during
  * {@link DeltaBuilder#rebase}, rebuilding `node.marks`/`node.deleteMarks` from {@link rebaseMarkOps}.
- * markCount is left to the end-of-`rebase` recount.
+ * `maybeHasMarks` is left set (conservative; marksToPositions self-corrects a now-empty subtree).
  *
  * @param {DeltaAny} node
  * @param {DeltaAny} other

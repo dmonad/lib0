@@ -1545,50 +1545,51 @@ export const testRepeatMarkRebaseConvergenceXml = tc => {
 export const testMarkDeleteAndUpdateApply = () => {
   const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('hello'))
   doc.addMark(position.pos(1), 'M', { color: 'red' })
-  t.assert(doc.markCount === 1)
-  // update: re-add the same id replaces in place (count unchanged, attributes updated)
+  t.assert(doc.marks?.size === 1)
+  // update: re-add the same id replaces in place (one mark, attributes updated)
   doc.addMark(position.pos(1), 'M', { color: 'blue' })
-  t.assert(doc.markCount === 1)
+  t.assert(doc.marks?.size === 1)
   t.compare([...(doc.marks ?? [])].map(m => m.customAttributes), [{ color: 'blue' }])
   // delete via a deleteMarks change: the mark is gone from the final set, no lingering deleteMarks
   const del = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   del.deleteMarks = ['M']
   doc.apply(del, { final: true })
-  t.assert(doc.markCount === 0)
   t.assert(doc.marks === null || doc.marks.size === 0)
   t.assert(doc.deleteMarks === null)
+  t.compare(position.marksToPositions(doc), [])
 }
 
 /**
- * The builder maintains `markCount` incrementally for delta-valued children/values (mirroring `apply`),
- * so a directly-built delta has an accurate count and `marksToPositions` can reach a nested-only mark.
- * Regression: replacing a marked delta-valued attribute must not drive the count negative.
+ * The builder OR-propagates the conservative `maybeHasMarks` flag for delta-valued children/values, so a
+ * directly-built delta flags `true` and `marksToPositions` can reach a nested-only mark. Removal never
+ * clears the flag (it stays conservatively `true`); `marksToPositions` self-corrects an emptied subtree.
  */
-export const testMarkCountBuilderMaintained = () => {
-  // insert([markedChild]): the parent folds the child's subtree marks
+export const testMarkFlagBuilderMaintained = () => {
+  // insert([markedChild]): the parent flags the child's subtree marks
   const child = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('aa'))
   child.addMark(position.createPos([1], 1), 'm1')
   const d = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert([child]))
-  t.assert(d.markCount === 1)
+  t.assert(d.maybeHasMarks === true)
   t.compare(position.marksToPositions(d), [{ id: 'm1', path: [0, 1], assoc: 1 }])
-  // modify(markedValue): a change delta folds the modify value's count (not settled, so only count)
+  // modify(markedValue): a change delta flags the modify value's marks
   const mv = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
   mv.addMark(position.pos(0), 'mod')
-  t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv)).markCount === 1)
-  // setAttr(markedDelta) folds; replacing it subtracts so the count never goes negative
+  t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv)).maybeHasMarks === true)
+  // setAttr(markedDelta) flags; replacing it leaves no reachable mark (flag stays true, self-corrected)
   const av = /** @type {delta.DeltaBuilderAny} */ (delta.create('doc').insert('x'))
   av.addMark(position.pos(0), 'z')
   const n = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
   n.setAttr('body', av)
-  t.assert(n.markCount === 1)
+  t.assert(n.maybeHasMarks === true)
   n.apply(/** @type {any} */ (delta.create().setAttr('body', delta.create('doc').insert('y'))), { final: true })
-  t.assert(n.markCount === 0)
-  // modifyAttr(markedValue) folds
+  t.compare(position.marksToPositions(n), []) // the replaced attr's mark is gone (no negative-count fallout)
+  t.assert(n.maybeHasMarks === false) // marksToPositions self-corrected the now-empty subtree's flag
+  // modifyAttr(markedValue) flags
   const ma = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('q'))
   ma.addMark(position.pos(0), 'ma')
   const dma = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   dma.modifyAttr('body', ma)
-  t.assert(dma.markCount === 1)
+  t.assert(dma.maybeHasMarks === true)
 }
 
 // ---------------------------------------------------------------------------

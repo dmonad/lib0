@@ -287,6 +287,9 @@ const passThrough = src => {
     // @ts-ignore
     d.attrs[op.key] = op.clone()
   }
+  // carry the conservative mark flag (covers attr-value marks the direct assignment above bypasses);
+  // marks carried into the rebuilt children below flag it via the builder / addRootMark
+  d.maybeHasMarks = src.maybeHasMarks
   return d
 }
 
@@ -473,7 +476,6 @@ export class InlineTransformer extends Transformer {
     // carry the change's own (root) marks, re-anchoring number offsets through the post-change layout;
     // attr-key marks pass through unchanged. deleteMarks ride verbatim (merged with any lifted above).
     delta.mergeRootMarks(b, da, k => typeof k === 'number' ? structOffsetToInlineOffset(this.segs, k) : k)
-    delta.recountMarks(b)
     b.done(false)
     return createTransformResult(null, b)
   }
@@ -751,7 +753,6 @@ export class InlineTransformer extends Transformer {
       for (const id of db.deleteMarks) if (!dm.includes(id)) dm.push(id)
       a.deleteMarks = dm
     }
-    delta.recountMarks(a)
     applySegsChange(this.segs, a, this.names)
     a.done(false)
     return createTransformResult(a, null)

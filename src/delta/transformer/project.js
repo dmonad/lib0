@@ -210,7 +210,6 @@ export class ProjectionTransformer extends Transformer {
         res.applyA(r.a)
       }
     }
-    delta.recountMarks(out)
     return res
   }
 
@@ -272,7 +271,6 @@ export class ProjectionTransformer extends Transformer {
       }
       res.applyA(r.a)
     }
-    delta.recountMarks(out)
     return res
   }
 

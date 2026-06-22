@@ -105,7 +105,7 @@ export const testMarkAddAndReconstruct = () => {
   const d = markDoc()
   d.addMark(position.createPos([2], 1), 'root')
   d.addMark(position.createPos([1, 2], -1), 'nested')
-  t.assert(d.markCount === 2)
+  t.assert(d.maybeHasMarks === true)
   t.compare(byId(position.marksToPositions(d)), [
     { id: 'nested', path: [1, 2], assoc: -1 },
     { id: 'root', path: [2], assoc: 1 }
@@ -167,12 +167,12 @@ export const testMarkDeepAndAttrNested = () => {
   // a mark two levels deep
   const deep = delta.create().insert([delta.create().insert([delta.create().insert('abcde')])])
   deep.addMark(position.createPos([0, 0, 2], 1), 'x')
-  t.assert(deep.markCount === 1)
+  t.assert(deep.maybeHasMarks === true)
   t.compare(position.marksToPositions(deep), [{ id: 'x', path: [0, 0, 2], assoc: 1 }])
   // a mark inside a delta-valued attribute
   const rich = delta.create().setAttr('rich', delta.create().insert('hi'))
   rich.addMark(position.createPos(['rich', 1], 1), 'a')
-  t.assert(rich.markCount === 1)
+  t.assert(rich.maybeHasMarks === true)
   t.compare(position.marksToPositions(rich), [{ id: 'a', path: ['rich', 1], assoc: 1 }])
   // a mark pointing at a scalar attribute (attribute leaf)
   const div = delta.create('div').setAttr('title', 'hello')
@@ -184,18 +184,18 @@ export const testMarkRemove = () => {
   const d = markDoc()
   d.addMark(position.createPos([1, 2], 1), 'nested')
   d.addMark(position.createPos([0], 1), 'root')
-  t.assert(d.markCount === 2)
-  // removing a non-existent id does not change the live marks / markCount (it records a pending,
-  // transmittable delete intent instead - see removeMark / testMarkRemoveBuildsChange)
+  t.assert(d.maybeHasMarks === true)
+  t.assert(position.marksToPositions(d).length === 2)
+  // removing a non-existent id does not change the live marks (it records a pending, transmittable
+  // delete intent instead - see removeMark / testMarkRemoveBuildsChange)
   d.removeMark(position.createPos([1, 2], 1), 'ghost')
-  t.assert(d.markCount === 2)
+  t.assert(position.marksToPositions(d).length === 2)
   d.removeMark(position.createPos([1, 2], 1), 'nested')
   d.removeMark(position.createPos([0], 1), 'root')
-  t.assert(d.markCount === 0)
   t.compare(position.marksToPositions(d), [])
-  // removing from an emptied node likewise leaves markCount at 0
+  // removing from an emptied node likewise leaves no reachable marks
   d.removeMark(position.createPos([1, 2], 1), 'ghost')
-  t.assert(d.markCount === 0)
+  t.compare(position.marksToPositions(d), [])
 }
 
 export const testMarkAddRootPositionThrows = () => {
@@ -225,8 +225,8 @@ export const testMarkUpsertReplaces = () => {
   const d = markDoc()
   d.addMark(position.createPos([1, 2], 1), 'c')
   d.addMark(position.createPos([1, 4], 1), 'c') // same id replaces
-  t.assert(d.markCount === 1)
-  t.compare(position.marksToPositions(d), [{ id: 'c', path: [1, 4], assoc: 1 }])
+  t.assert(d.maybeHasMarks === true)
+  t.compare(position.marksToPositions(d), [{ id: 'c', path: [1, 4], assoc: 1 }]) // one mark, not two
 }
 
 export const testMarkShiftUnderEdits = () => {
@@ -243,10 +243,9 @@ export const testMarkShiftUnderEdits = () => {
   // a mark inside a node is dropped when that node is deleted
   const d2 = markDoc()
   d2.addMark(position.createPos([1, 2], 1), 'in')
-  t.assert(d2.markCount === 1)
+  t.assert(d2.maybeHasMarks === true)
   d2.apply(delta.create().retain(1).delete(1), { final: true }) // delete the node
-  t.assert(d2.markCount === 0)
-  t.compare(position.marksToPositions(d2), [])
+  t.compare(position.marksToPositions(d2), []) // the mark inside the deleted node is gone
 }
 
 export const testMarkAssocBoundary = () => {
@@ -273,7 +272,7 @@ export const testMarkEmptyPreservationAndClone = () => {
   const d = markDoc()
   d.addMark(position.createPos([1, 2], 1), 'c')
   const c = /** @type {delta.DeltaBuilderAny} */ (delta.clone(d))
-  t.assert(c.markCount === 1)
+  t.assert(c.maybeHasMarks === true)
   t.compare(position.marksToPositions(c), [{ id: 'c', path: [1, 2], assoc: 1 }])
   // marks are excluded from equality: a marked doc equals the same content without marks, and marks
   // differing only by customAttributes don't affect equality either
@@ -288,7 +287,7 @@ export const testMarkLeafCollapsedAndStringKept = () => {
   const d = delta.create().insert('abcde')
   d.addMark(position.createPos([2], 1), 'm') // between b and c (right gravity)
   d.apply(delta.create().retain(1).delete(2), { final: true }) // delete "bc" — covers the mark
-  t.assert(d.markCount === 1)
+  t.assert(d.maybeHasMarks === true)
   t.compare(position.marksToPositions(d), [{ id: 'm', path: [1], assoc: 1 }])
 
   // left gravity inside the deletion also collapses to the cut
@@ -351,7 +350,7 @@ export const testMarkChangeAccumulation = () => {
   c1.apply(delta.create().retain(1).modify(mv))
   const d = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('q').insert([delta.create().insert('abc')]))
   d.apply(c1, { final: true })
-  t.assert(d.markCount === 1)
+  t.assert(d.maybeHasMarks === true)
   const ps = position.marksToPositions(d)
   t.assert(ps.length === 1 && ps[0].id === 'm')
 }
@@ -426,50 +425,49 @@ export const testMarkEqualityAndCounting = () => {
   t.assert(one.equals(otherId)) // different mark id, same content ⇒ still equal
   // several marks on one node ⇒ toJSON sorts them deterministically by id
   t.compare(/** @type {any} */ (two.toJSON()).marks.map((/** @type {any} */ m) => m.id), ['a', 'b', 'c'])
-  // sumChildMarkCounts folds marks carried on a ModifyOp value and on delta-valued attributes (set or
-  // modified) — the representation a sub-transformer emits; clone recomputes markCount over them
+  // the builder flags `maybeHasMarks` for marks carried on a ModifyOp value and on delta-valued
+  // attributes (set or modified) — the representation a sub-transformer emits — and clone preserves it
   const mv = delta.create(); mv.addMark(position.createPos([0], 1), 'x')
   const av = delta.create(); av.addMark(position.createPos([0], 1), 'y')
   const av2 = delta.create(); av2.addMark(position.createPos([0], 1), 'w')
   const change = /** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv).setAttr('k', av).modifyAttr('m', av2))
-  change.addMark(position.createPos([5], 1), 'z') // a root mark so clone's `markCount > 0` guard recomputes
-  t.assert(delta.clone(change).markCount === 4) // z (root) + x (modify value) + y (setAttr value) + w (modifyAttr value)
+  change.addMark(position.createPos([5], 1), 'z') // a root mark too
+  t.assert(change.maybeHasMarks === true && delta.clone(change).maybeHasMarks === true) // flag set + preserved by clone
 }
 
 export const testMarkInDeltaValuedAttr = () => {
-  // marks inside a delta-valued attribute are counted through apply (setAttr add/replace, deleteAttr),
-  // keeping markCount in step with the sumChildMarkCounts definition that clone/slice use
+  // marks inside a delta-valued attribute ride through apply (setAttr add/replace, deleteAttr) and stay
+  // reachable via marksToPositions; the conservative `maybeHasMarks` flag is set and self-corrected
   /** @param {string} id @param {number} off */
   const mk = (id, off) => { const v = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('hello')); v.addMark(position.createPos([off], 1), id); return v }
   const d = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('abc'))
-  // set a marked delta-valued attribute ⇒ its mark is folded into markCount
+  // set a marked delta-valued attribute ⇒ its mark is reachable
   d.apply(delta.create().setAttr('a', mk('M1', 1)), { final: true })
-  t.assert(d.markCount === 1)
+  t.assert(d.maybeHasMarks === true)
   t.compare(position.marksToPositions(d), [{ id: 'M1', path: ['a', 1], assoc: 1 }])
-  // replace it with another marked delta value ⇒ old count out, new count in (net still 1)
+  // replace it with another marked delta value ⇒ only the new mark is reachable
   d.apply(delta.create().setAttr('a', mk('M2', 2)), { final: true })
-  t.assert(d.markCount === 1)
   t.compare(position.marksToPositions(d), [{ id: 'M2', path: ['a', 2], assoc: 1 }])
-  // deleting the attribute drops its subtree's marks
+  // deleting the attribute drops its subtree's marks (flag self-corrects to false)
   d.apply(delta.create().deleteAttr('a'), { final: true })
-  t.assert(d.markCount === 0)
   t.compare(position.marksToPositions(d), [])
-  // the apply-maintained markCount agrees with clone's independent recompute
+  t.assert(d.maybeHasMarks === false)
+  // a clone of a marked doc keeps the mark reachable
   const d2 = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('abc'))
   d2.apply(delta.create().setAttr('a', mk('M3', 3)), { final: true })
-  t.assert(d2.markCount === delta.clone(d2).markCount)
+  t.compare(position.marksToPositions(/** @type {any} */ (delta.clone(d2))), [{ id: 'M3', path: ['a', 3], assoc: 1 }])
 }
 
 export const testMarkInModifyAttrValue = () => {
   // applying a `modifyAttr` onto an attribute the node does not yet hold leaves a modify op on the
-  // settled node; its mark is counted by markCount, so marksToPositions must also reach it (they agree)
+  // settled node; marksToPositions descends modifyAttr values, so its mark stays reachable
   const inner = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
   inner.addMark(position.pos(0), 'I')
   const change = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   change.modifyAttr('body', inner)
   const d = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
   d.apply(change, { final: true })
-  t.assert(d.markCount === 1)
+  t.assert(d.maybeHasMarks === true)
   t.compare(position.marksToPositions(d), [{ id: 'I', path: ['body', 0], assoc: 1 }])
 }
 
@@ -484,27 +482,27 @@ export const testMarkRebaseAttr = () => {
   withM.addMark(position.createPos(['doc', 2], 1), 'M')
   withM.done()
   t.compare(conv(/** @type {delta.DeltaBuilderAny} */ (withM), mkDel(['doc', 2], 'M'), editDoc()), [])
-  // mkAdd into a not-yet-existing attribute folds its mark into markCount (apply's simple-modify path)
-  t.assert(mkAdd(['doc', 2], 'M').markCount === 1)
+  // mkAdd into a not-yet-existing attribute flags the change (apply's simple-modify path)
+  t.assert(mkAdd(['doc', 2], 'M').maybeHasMarks === true)
 }
 
-export const testMarkRebaseMarkCount = () => {
-  // a surviving root mark keeps markCount 1 after rebase (the end-of-rebase recount runs) ...
+export const testMarkRebaseFlag = () => {
+  // a surviving root mark stays present after rebase (flag set) ...
   const keep = delta.clone(mkAdd([5], 'M')).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().insert('AB')), true)
-  t.assert(keep.markCount === 1)
-  // ... and collapses to the cut (markCount stays 1) when the other side deletes its anchor
+  t.assert(keep.maybeHasMarks === true && keep.marks !== null)
+  // ... and collapses to the cut when the other side deletes its anchor
   const collapsed = delta.clone(mkAdd([5], 'M')).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(3).delete(4)), true)
-  t.assert(collapsed.markCount === 1)
+  t.assert(collapsed.maybeHasMarks === true)
   t.compare(position.marksToPositions(collapsed), [{ id: 'M', path: [3], assoc: 1 }])
-  // a root add that loses an add-vs-add conflict (no priority) drops to 0
+  // a root add that loses an add-vs-add conflict (no priority) is dropped (marks back to null)
   const lose = delta.clone(mkAdd([5], 'M')).rebase(mkAdd([2], 'M'), false)
-  t.assert(lose.markCount === 0 && lose.marks === null)
-  // a content-only rebase never spuriously gains a markCount
+  t.assert(lose.marks === null)
+  // a content-only rebase never gains a mark (flag was never set)
   const none = delta.clone(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).insert('Z'))).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().insert('AB')), true)
-  t.assert(none.markCount === 0)
-  // a nested mark rides on the modify's value, so it IS counted (value.markCount), and survives a rebase
+  t.assert(none.maybeHasMarks === false)
+  // a nested mark rides on the modify's value, so it is flagged and survives a rebase
   const nested = delta.clone(mkAdd([0, 2], 'M')).rebase(/** @type {delta.DeltaBuilderAny} */ (delta.create().modify(delta.create().retain(1).insert('XY'))), true)
-  t.assert(nested.markCount === 1)
+  t.assert(nested.maybeHasMarks === true)
   const ndoc = delta.clone(nodeDoc()).apply(delta.create().modify(delta.create().retain(1).insert('XY')), { final: true }).apply(nested, { final: true })
   t.compare(position.marksToPositions(ndoc), [{ id: 'M', path: [0, 4], assoc: 1 }])
 }

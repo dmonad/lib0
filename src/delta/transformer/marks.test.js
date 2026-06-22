@@ -80,13 +80,13 @@ export const testMarkChildrenRootAndNested = () => {
 
 export const testMarkChildrenNestedOnly = () => {
   // a mark living ONLY inside a child (no co-located root mark on any ancestor) survives `children`:
-  // `out.insert` folds the rebuilt child's markCount, so marksToPositions can still reach the cursor
+  // `out.insert` flags the rebuilt child's marks, so marksToPositions can still reach the cursor
   const child = delta.create('p', { a: 1 })
   child.addMark(position.pos('a'), 'C')
   const doc = /** @type {any} */ (delta.create())
   doc.apply(delta.create().insert([child]), { final: true })
   const r = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny).applyA(doc)
-  t.assert(/** @type {any} */ (r.b).markCount === 1)
+  t.assert(/** @type {any} */ (r.b).maybeHasMarks === true)
   t.compare(mp(r.b), [{ id: 'C', path: [0, 'b'], assoc: 1 }])
 }
 
@@ -97,7 +97,7 @@ export const testMarkValueNestedOnly = () => {
   const doc = /** @type {any} */ (delta.create())
   doc.apply(delta.create().insert([child]), { final: true })
   const r = unwrapValue.init(delta.$deltaAny).applyA(doc)
-  t.assert(/** @type {any} */ (r.b).markCount === 1)
+  t.assert(/** @type {any} */ (r.b).maybeHasMarks === true)
   t.compare(mp(r.b), [{ id: 'V', path: [0, 'k'], assoc: 1 }])
 }
 
@@ -137,10 +137,10 @@ export const testMarkAttrKeyRemap = () => {
   t.compare(mp(back.a), [{ id: 'M', path: ['title'], assoc: 1 }])
 }
 
-export const testMarkAttrNestedValueCounted = () => {
-  // a delta-valued attribute carries its own (deeper) marks via the cloned attr op; recountMarks keeps
-  // the carrier's markCount correct so marksToPositions descends into it (the direct attr assignment in
-  // attrTransformHelper does not maintain markCount)
+export const testMarkAttrNestedValueReachable = () => {
+  // a delta-valued attribute carries its own (deeper) marks via the cloned attr op; the carrier's
+  // `maybeHasMarks` flag is set conservatively (the direct attr assignment in attrTransformHelper
+  // bypasses the builder) so marksToPositions descends into it
   const it = attr('body').init(delta.$deltaAny)
   const d = delta.create('node').setAttr('body', delta.create('doc').insert('hello'))
   d.addMark(position.createPos(['body', 2], 1), 'I')
