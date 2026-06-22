@@ -1,5 +1,6 @@
 import * as t from '../../testing.js'
 import * as delta from '../delta.js'
+import * as position from '../position.js'
 import { project } from './project.js'
 import { attr } from './attr.js'
 
@@ -193,4 +194,87 @@ export const testProjectNestedReverse = () => {
   it.applyA(delta.create().setAttr('text', 'hi')) // <form>[<input value='hi'>]
   const res = it.applyB(delta.create().modify(delta.create().setAttr('value', 'typed')))
   cmp(res.a, delta.create().setAttr('text', 'typed'))
+}
+
+// ---------------------------------------------------------------------------
+// Cursor marks through `project` (Slice 3, part 2)
+//
+// Each hole receives the whole data delta, so a data mark a hole's sub-transformer carries reaches its
+// output. Node holes embed that output as a distinct subtree, so the same id can DUPLICATE across node
+// holes. Value/attr holes lift a bare scalar (no mark channel), so the cursor is placed once as an
+// output root mark at the slot - last-wins on a same-id collision (Marks is id-keyed per node). Marks
+// are read from settled state via `marksToPositions`.
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {any} d
+ * @return {Array<position.MarkPos>}
+ */
+const pmp = d => position.marksToPositions(d).sort((a, b) => a.path.join() < b.path.join() ? -1 : 1)
+
+/**
+ * @param {any} change
+ */
+const psettle = change => {
+  const s = delta.create(change.name)
+  s.apply(change, { final: true })
+  return s
+}
+
+export const testProjectMarkValueAndAttrHole = () => {
+  // a mark on data attr 'name' anchors at the output attr hole 'title'; a mark on data attr 'x' anchors
+  // at the value child hole's position
+  const spec = delta.create('view').setAttr('title', attr('name')).insert([attr('x')])
+  const it = project(spec).init(delta.$deltaAny)
+  const d = delta.create('data', { name: 'Bob', x: 5 })
+  d.addMark(position.pos('name'), 'N')
+  d.addMark(position.pos('x'), 'X')
+  const s = psettle(it.applyA(d).b)
+  t.compare(pmp(s), [{ id: 'X', path: [0], assoc: 1 }, { id: 'N', path: ['title'], assoc: 1 }])
+}
+
+export const testProjectMarkNodeHoleDuplicates = () => {
+  // the same data mark feeds two nested-project node holes -> it DUPLICATES, once nested under each
+  const spec = delta.create('view').insert([
+    delta.create('row').setAttr('t', attr('name')),
+    delta.create('row2').setAttr('t', attr('name'))
+  ])
+  const it = project(spec).init(delta.$deltaAny)
+  const d = delta.create('data', { name: 'Bob' })
+  d.addMark(position.pos('name'), 'D')
+  const s = psettle(it.applyA(d).b)
+  t.compare(pmp(s), [{ id: 'D', path: [0, 't'], assoc: 1 }, { id: 'D', path: [1, 't'], assoc: 1 }])
+}
+
+export const testProjectMarkValueHoleLastWins = () => {
+  // two value child holes bound to the same data attr/mark: the id can exist once per output node, so
+  // the last slot wins (true duplication is impossible for same-node positions)
+  const spec = delta.create('view').insert([attr('x')]).insert('-').insert([attr('x')])
+  const it = project(spec).init(delta.$deltaAny)
+  const d = delta.create('data', { x: 7 })
+  d.addMark(position.pos('x'), 'W')
+  const s = psettle(it.applyA(d).b)
+  t.compare(pmp(s), [{ id: 'W', path: [2], assoc: 1 }])
+}
+
+export const testProjectMarkOnlyUpdateKeepsScalar = () => {
+  // an incremental mark-only data change must move the cursor WITHOUT wiping the projected scalar/attr
+  const spec = delta.create('view').setAttr('title', attr('name')).insert([attr('x')])
+  const it = project(spec).init(delta.$deltaAny)
+  const base = psettle(it.applyA(delta.create('data', { name: 'Bob', x: 5 })).b)
+  const mc = delta.create(); mc.addMark(position.pos('x'), 'C')
+  base.apply(/** @type {any} */ (it.applyA(mc).b), { final: true })
+  cmp(base, delta.create('view').setAttr('title', 'Bob').insert([5])) // content unchanged (marks excluded from equality)
+  t.compare(pmp(base), [{ id: 'C', path: [0], assoc: 1 }])
+  // a real value update still works after
+  base.apply(/** @type {any} */ (it.applyA(delta.create().setAttr('x', 9)).b), { final: true })
+  cmp(base, delta.create('view').setAttr('title', 'Bob').insert([9]))
+}
+
+export const testProjectMarkDeleteRides = () => {
+  const spec = delta.create('view').setAttr('title', attr('name'))
+  const it = project(spec).init(delta.$deltaAny)
+  it.applyA(delta.create('data', { name: 'Bob' }))
+  const dc = delta.create(); dc.deleteMarks = ['M']
+  t.compare(/** @type {any} */ (it.applyA(dc).b).deleteMarks, ['M'])
 }

@@ -2,6 +2,7 @@ import * as t from 'lib0/testing'
 import * as prng from 'lib0/prng'
 import * as s from '../../schema.js'
 import * as delta from '../delta.js'
+import * as position from '../position.js'
 import { pipe, transformerWith } from '../transformer.js'
 import { inline } from './inline.js'
 
@@ -683,4 +684,134 @@ export const testRepeatInlineNamed = tc => {
       stepB(/** @type {delta.DeltaBuilderAny} */ (delta.random(gen, $inlinedNamed, { source: myB })))
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cursor marks through `inline` (Slice 3, part 2)
+//
+// `inline` restructures positions (1 structured position <-> N inlined positions), so a root mark is
+// re-anchored through the seg layout: A->B `structOffsetToInlineOffset`, B->A `inlineOffsetToStructLocation`. A mark inside an
+// inline node lifts onto the flattened parent (A->B) and, for a pure cursor move, routes back into the
+// node's modify value (B->A). Marks are read from settled state via `marksToPositions`.
+// ---------------------------------------------------------------------------
+
+/**
+ * `marksToPositions` of a settled delta, sorted by id.
+ *
+ * @param {any} d
+ * @return {Array<position.MarkPos>}
+ */
+const imp = d => position.marksToPositions(d).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
+/**
+ * Settle a change onto a fresh delta of its name.
+ *
+ * @param {any} change
+ */
+const isettle = change => {
+  const s = delta.create(change.name)
+  s.apply(change, { final: true })
+  return s
+}
+
+// the canonical structured doc: text "ab", an anonymous inline node holding "cd", text "ef".
+const istructDoc = () => delta.create('p').insert('ab').insert([delta.create().insert('cd')]).insert('ef')
+
+export const testInlineMarkRootRemap = () => {
+  // A->B: a root mark on 'e' (structured 3) re-anchors to inlined 4; a mark on the inline node's own
+  // position (structured 2) maps to its inlined start (2). Round-trips back through applyB.
+  const it = inline([null]).init(delta.$deltaAny)
+  const d = istructDoc()
+  d.addMark(position.pos(3), 'E')
+  d.addMark(position.pos(2), 'NODE')
+  const b = isettle(it.applyA(d).b)
+  t.compare(imp(b), [{ id: 'E', path: [4], assoc: 1 }, { id: 'NODE', path: [2], assoc: 1 }])
+}
+
+export const testInlineMarkNestedLiftA = () => {
+  // A->B: a mark *inside* the inline node (inner offset 1) lifts onto the flattened parent at
+  // childStart(2) + 1 = inlined 3.
+  const it = inline([null]).init(delta.$deltaAny)
+  const inner = delta.create().insert('cd')
+  inner.addMark(position.pos(1), 'I')
+  const d = delta.create('p').insert('ab').insert([inner]).insert('ef')
+  const b = isettle(it.applyA(d).b)
+  t.compare(imp(b), [{ id: 'I', path: [3], assoc: 1 }])
+}
+
+export const testInlineMarkPureMoveBothWays = () => {
+  // With the layout established, a pure cursor move round-trips exactly, including a cursor that lands
+  // inside an inline node (B->A routes it into the node's modify value).
+  const itB = inline([null]).init(delta.$deltaAny)
+  itB.applyA(istructDoc()) // establish segs
+  const mvB = delta.create('p')
+  mvB.addMark(position.pos(3), 'CUR') // inlined 3 -> inside the node, inner 1
+  const a = /** @type {any} */ (delta.create('p'))
+  a.apply(istructDoc(), { final: true })
+  a.apply(itB.applyB(mvB).a, { final: true })
+  t.compare(imp(a), [{ id: 'CUR', path: [2, 1], assoc: 1 }])
+
+  const itA = inline([null]).init(delta.$deltaAny)
+  itA.applyA(istructDoc())
+  const mvA = delta.create('p')
+  mvA.addMark(position.pos(3), 'CA') // structured 3 -> inlined 4
+  const b = /** @type {any} */ (delta.create('p'))
+  b.apply(delta.create('p').insert('abcdef'), { final: true })
+  b.apply(itA.applyA(mvA).b, { final: true })
+  t.compare(imp(b), [{ id: 'CA', path: [4], assoc: 1 }])
+}
+
+export const testInlineMarkDeleteRides = () => {
+  // a mark *delete* (id-keyed) rides verbatim in both directions
+  const itA = inline([null]).init(delta.$deltaAny)
+  itA.applyA(istructDoc())
+  const dA = delta.create('p'); dA.deleteMarks = ['M']
+  t.compare(/** @type {any} */ (itA.applyA(dA).b).deleteMarks, ['M'])
+  const itB = inline([null]).init(delta.$deltaAny)
+  itB.applyA(istructDoc())
+  const dB = delta.create('p'); dB.deleteMarks = ['M']
+  t.compare(/** @type {any} */ (itB.applyB(dB).a).deleteMarks, ['M'])
+}
+
+/**
+ * Fuzz: a root cursor mark on a random structured position survives `applyA` (re-anchored to its
+ * inlined offset) and a subsequent pure cursor move round-trips `applyB`-of-`applyA` to its origin.
+ *
+ * @param {t.TestCase} tc
+ */
+export const testRepeatInlineMarkFuzz = tc => {
+  const gen = tc.prng
+  const it = inline([null]).init(delta.$deltaAny)
+  // build a random structured doc of text runs and inline nodes
+  const d = /** @type {any} */ (delta.create('p'))
+  /** @type {Array<number>} */
+  const inlineLens = []
+  let structLen = 0
+  for (let i = prng.int32(gen, 1, 5); i > 0; i--) {
+    if (prng.bool(gen)) {
+      const txt = prng.word(gen, 1, 4)
+      d.insert(txt)
+      structLen += txt.length
+    } else {
+      const il = prng.int32(gen, 1, 3)
+      d.insert([delta.create().insert(prng.word(gen, il, il))])
+      inlineLens.push(il)
+      structLen += 1
+    }
+  }
+  if (structLen === 0) return // nothing to anchor onto
+  const r = it.applyA(d)
+  // total inlined length = text positions + sum of inline node inner lengths
+  const inlinedLen = (structLen - inlineLens.length) + inlineLens.reduce((a, b) => a + b, 0)
+  // a pure cursor move at a random inlined position round-trips back to the same structured location
+  const itRT = inline([null]).init(delta.$deltaAny)
+  itRT.applyA(/** @type {any} */ (delta.clone(d)))
+  const key = prng.int32(gen, 0, Math.max(0, inlinedLen - 1))
+  const mv = delta.create('p'); mv.addMark(position.pos(key), 'RT')
+  const back = itRT.applyB(mv)
+  const fwd = itRT.applyA(/** @type {any} */ (back.a))
+  const sMoved = /** @type {any} */ (delta.create('p')); sMoved.apply(isettle(r.b), { final: true })
+  sMoved.apply(fwd.b, { final: true })
+  const got = position.marksToPositions(sMoved).filter(m => m.id === 'RT')
+  t.assert(got.length === 1, 'the round-tripped cursor survives exactly once')
 }

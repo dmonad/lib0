@@ -1,5 +1,6 @@
 import * as delta from '../delta.js'
 import * as math from '../../math.js'
+import * as object from '../../object.js'
 import { Transformer, Template, createTransformResult, $template } from './core.js'
 
 /**
@@ -42,6 +43,31 @@ const containsTemplate = d => {
     }
   }
   return false
+}
+
+/**
+ * Place a carried cursor mark from a value/attr hole's output `rb` (a `lib0:value` carrier whose mark
+ * is keyed `'value'`) as a root mark on `out` at `slotKey` - the attribute key or child position the
+ * hole occupies. A scalar/attribute slot has no mark channel of its own, so this root mark is the
+ * cursor's only home; with several same-id value/attr slots the last placement wins (`Marks` is
+ * id-keyed per node, so an id cannot exist twice on one node - true duplication is impossible here).
+ * Node holes need none of this: their marks ride nested inside the embedded node. `deleteMarks` ride
+ * verbatim (id-keyed).
+ *
+ * @param {delta.DeltaBuilderAny} out
+ * @param {delta.DeltaBuilderAny?} rb
+ * @param {string|number} slotKey
+ */
+const placeCarrierMark = (out, rb, slotKey) => {
+  if (rb == null) return
+  if (rb.marks !== null) {
+    for (const m of rb.marks) if (m.key === 'value') delta.addRootMark(out, m.copy(slotKey))
+  }
+  if (rb.deleteMarks !== null) {
+    const dm = out.deleteMarks ?? []
+    for (const id of rb.deleteMarks) if (!dm.includes(id)) dm.push(id)
+    out.deleteMarks = dm
+  }
 }
 
 /**
@@ -146,19 +172,28 @@ export class ProjectionTransformer extends Transformer {
       const r = h.t.applyA(d)
       const sc = scalarOf(r.b)
       if (sc !== undefined) out.setAttr(/** @type {any} */ (h.key), sc)
+      placeCarrierMark(out, r.b, h.key) // a cursor on this data attr anchors at the output attr key
       res.applyA(r.a)
     }
+    let childPos = 0 // output child position, to anchor a value-hole's carried cursor mark
     for (const item of this.items) {
       if (item.kind === 'text') {
         out.insert(item.str, item.format, item.attribution)
+        childPos += item.str.length
       } else if (item.kind === 'static') {
         out.insert([item.el], item.format, item.attribution)
+        childPos += 1
       } else {
         const r = item.t.applyA(d)
         this._placeHole(out, item, r.b)
+        // value holes lift a bare scalar (no mark channel) - anchor the cursor at the slot position;
+        // node holes carry their marks nested inside the embedded node (no action needed)
+        if (item.carrier === 'value') placeCarrierMark(out, r.b, childPos)
+        childPos += 1
         res.applyA(r.a)
       }
     }
+    delta.recountMarks(out)
     return res
   }
 
@@ -174,11 +209,14 @@ export class ProjectionTransformer extends Transformer {
     const res = createTransformResult(null, out)
     for (const h of this.attrHoles) {
       const r = h.t.applyA(d)
-      if (r.b != null && !r.b.isEmpty()) {
+      // a value change carries a `value` attr op; a mark-only data change carries none - emit the attr
+      // update only on a real value change (else a moved cursor would wrongly delete the attribute)
+      if (r.b != null && !object.isEmpty(/** @type {any} */ (r.b).attrs)) {
         const sc = scalarOf(r.b)
         if (sc !== undefined) out.setAttr(/** @type {any} */ (h.key), sc)
         else out.deleteAttr(/** @type {any} */ (h.key))
       }
+      placeCarrierMark(out, r.b, h.key)
       res.applyA(r.a)
     }
     let emitted = 0 // output position already covered by `out`'s child ops
@@ -186,21 +224,28 @@ export class ProjectionTransformer extends Transformer {
       if (seg.item.kind !== 'hole') continue
       const item = seg.item
       const r = item.t.applyA(d)
-      if (r.b != null && !r.b.isEmpty()) {
-        if (seg.start > emitted) out.retain(seg.start - emitted)
-        if (item.carrier === 'value') {
+      if (item.carrier === 'value') {
+        // replace the scalar only on a real value change (a `value` attr op); a mark-only change must
+        // not wipe the slot. The cursor anchors at the slot position either way.
+        if (r.b != null && !object.isEmpty(/** @type {any} */ (r.b).attrs)) {
+          if (seg.start > emitted) out.retain(seg.start - emitted)
           const sc = scalarOf(r.b)
           const v = sc === undefined ? null : sc
           item.lastScalar = v
           out.delete(1)
           out.insert([v])
-        } else {
-          out.modify(r.b)
+          emitted = seg.start + 1
         }
+        placeCarrierMark(out, r.b, seg.start)
+      } else if (r.b != null && !r.b.isEmpty()) {
+        // node hole: forward the incremental change as a modify; its marks ride nested
+        if (seg.start > emitted) out.retain(seg.start - emitted)
+        out.modify(r.b)
         emitted = seg.start + 1
       }
       res.applyA(r.a)
     }
+    delta.recountMarks(out)
     return res
   }
 

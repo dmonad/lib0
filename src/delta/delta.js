@@ -2514,6 +2514,42 @@ export const remapRootMarks = (node, mapKey) => {
 }
 
 /**
+ * Add (or replace, by id) a single root {@link Mark} on `node`, maintaining `node.markCount`. The
+ * public wrapper of the internal `addMarkTo`, used by the restructuring
+ * {@link import('./transformer/core.js').Transformer transformers} (`inline`, `project`) to place a
+ * mark at a position they compute themselves.
+ *
+ * @param {DeltaAny} node
+ * @param {Mark} mark
+ */
+export const addRootMark = (node, mark) => addMarkTo(node, mark)
+
+/**
+ * Like {@link copyRootMarks}, but **merges** `source`'s `deleteMarks` into `target` instead of
+ * overwriting them, so it can be called repeatedly to accumulate marks from several sources onto one
+ * target (e.g. {@link import('./transformer/inline.js') inline} lifting the marks of every spliced
+ * inline node onto the flattened parent). Each surviving add mark is re-keyed through `mapKey` (return
+ * `null` to drop it); `markCount` is maintained for the added marks.
+ *
+ * @param {DeltaAny} target
+ * @param {DeltaAny} source
+ * @param {(key: number|string) => number|string|null} [mapKey]
+ */
+export const mergeRootMarks = (target, source, mapKey = k => k) => {
+  if (source.marks !== null) {
+    for (const m of source.marks) {
+      const k = mapKey(m.key)
+      if (k !== null) addMarkTo(target, k === m.key ? m : m.copy(k))
+    }
+  }
+  if (source.deleteMarks !== null) {
+    const dm = target.deleteMarks ?? []
+    for (const id of source.deleteMarks) if (!dm.includes(id)) dm.push(id)
+    target.deleteMarks = dm
+  }
+}
+
+/**
  * Map a number `key` (a content offset) of a leaf mark on a node through the content ops of `change`,
  * returning its new offset. An insert before the key pushes it right (tie-broken at the exact offset by
  * `assoc`). A delete covering the key applies *collapse-to-cut*: the mark slides to the cut point

@@ -223,6 +223,51 @@ const applySegsChange = (segs, change, names) => {
 }
 
 /**
+ * Map a structured root-mark offset to its inlined offset through the seg layout. A mark on a
+ * pass-through position keeps its in-run offset; a mark on an inline node's own structured position
+ * maps to that node's inlined start (its `childStart`). A key past the end clamps to the inlined end
+ * (a change-delta root mark may sit at the trailing implicit-retain boundary).
+ *
+ * @param {Array<Seg>} segs
+ * @param {number} key
+ * @return {number}
+ */
+const structOffsetToInlineOffset = (segs, key) => {
+  let s = 0
+  let inl = 0
+  for (const seg of segs) {
+    if (key < s + seg.structLen) return seg.isInline ? inl : inl + (key - s)
+    s += seg.structLen
+    inl += seg.inlineLen
+  }
+  return inl
+}
+
+/**
+ * Map an inlined root-mark offset to a structured location. `inner` is `null` for a pass-through
+ * position (the mark is a structured root mark at `struct`); otherwise the offset fell inside the
+ * inline node at structured position `struct` (seg index `si`), and `inner` is the offset within that
+ * node. A key past the end clamps to the structured end.
+ *
+ * @param {Array<Seg>} segs
+ * @param {number} key
+ * @return {{ struct: number, inner: number|null, si: number }}
+ */
+const inlineOffsetToStructLocation = (segs, key) => {
+  let s = 0
+  let inl = 0
+  for (let si = 0; si < segs.length; si++) {
+    const seg = segs[si]
+    if (key < inl + seg.inlineLen) {
+      return seg.isInline ? { struct: s, inner: key - inl, si } : { struct: s + (key - inl), inner: null, si }
+    }
+    s += seg.structLen
+    inl += seg.inlineLen
+  }
+  return { struct: s, inner: null, si: segs.length }
+}
+
+/**
  * Build an output delta that passes through the node name and attribute ops of `src` (only the
  * children are transformed by this transformer).
  *
@@ -303,12 +348,16 @@ export class InlineTransformer extends Transformer {
     let so = 0
     let srcInline = 0
     let emitted = 0
+    // position in the resulting inlined doc that `b` has built up to (retain + insert advance it,
+    // delete does not). Used to anchor marks lifted out of a spliced inline node (A.3).
+    let outPos = 0
     /**
      * @param {number} target
      */
     const alignB = target => {
       if (target > emitted) {
         b.retain(target - emitted)
+        outPos += target - emitted
         emitted = target
       }
     }
@@ -349,6 +398,7 @@ export class InlineTransformer extends Transformer {
             const inl = s.isInline ? s.inlineLen : take
             b.retain(inl, s.isInline ? null : op.format, s.isInline ? null : op.attribution)
             emitted += inl
+            outPos += inl
             srcInline += inl
             so += take
             rem -= take
@@ -358,14 +408,22 @@ export class InlineTransformer extends Transformer {
       } else if (delta.$textOp.check(op)) {
         alignB(srcInline)
         b.insert(op.insert, op.format, op.attribution)
+        outPos += op.insert.length
       } else if (delta.$insertOp.check(op)) {
         alignB(srcInline)
         for (const el of op.insert) {
           if (isInlineNode(el, this.names)) {
-            // splice the inline node's children verbatim (one level)
-            b.append(/** @type {delta.DeltaAny} */ (el))
+            // splice the inline node's children verbatim (one level), then lift the node's own root
+            // marks onto the flattened parent at `childStart + innerKey` (A.3). String-keyed (attr)
+            // marks on the inline node have no home in the flattened parent and are dropped.
+            const node = /** @type {delta.DeltaAny} */ (el)
+            const base = outPos
+            b.append(node)
+            outPos += node.childCnt
+            delta.mergeRootMarks(b, node, k => typeof k === 'number' ? base + k : null)
           } else {
             b.insert([el], op.format, op.attribution)
+            outPos += 1
           }
         }
       } else if (delta.$deleteOp.check(op)) {
@@ -380,31 +438,42 @@ export class InlineTransformer extends Transformer {
         if (s !== undefined && s.isInline) {
           // data side edited inside an inline node: its inner ops act on the node's children, which are
           // spliced into b at the same offset - replay them directly
+          const base = outPos
           for (const inner of op.value.children) {
             if (delta.$retainOp.check(inner)) {
               b.retain(inner.retain, inner.format, inner.attribution)
               emitted += inner.retain
+              outPos += inner.retain
             } else if (delta.$textOp.check(inner) || delta.$insertOp.check(inner)) {
               b.insert(inner.insert, inner.format, inner.attribution)
+              outPos += inner.insert.length
             } else if (delta.$deleteOp.check(inner)) {
               b.delete(inner.delete)
               emitted += inner.delete
             } else if (delta.$modifyOp.check(inner)) {
               b.modify(delta.clone(inner.value), inner.format, inner.attribution)
               emitted += 1
+              outPos += 1
             }
           }
+          // marks set inside the inline node by this change lift onto the flattened parent (A.3)
+          delta.mergeRootMarks(b, op.value, k => typeof k === 'number' ? base + k : null)
           srcInline += s.inlineLen
           advanceStruct(1)
         } else {
           // opaque (named) node: forward the modify verbatim
           b.modify(delta.clone(op.value), op.format, op.attribution)
           emitted += 1
+          outPos += 1
           srcInline += advanceStruct(1)
         }
       }
     }
     applySegsChange(this.segs, da, this.names)
+    // carry the change's own (root) marks, re-anchoring number offsets through the post-change layout;
+    // attr-key marks pass through unchanged. deleteMarks ride verbatim (merged with any lifted above).
+    delta.mergeRootMarks(b, da, k => typeof k === 'number' ? structOffsetToInlineOffset(this.segs, k) : k)
+    delta.recountMarks(b)
     b.done(false)
     return createTransformResult(null, b)
   }
@@ -424,6 +493,34 @@ export class InlineTransformer extends Transformer {
     }
     const segs = this.segs
     const a = passThrough(db)
+    // --- marks: bucket the change's own (root) marks against the (pre-change) layout. A pass-through
+    // offset (or an attr-key mark) becomes a structured root mark; an offset inside an inline node is
+    // routed into that node - seeded into its modify when the walk opens one (below), else emitted as a
+    // mark-only modify (pure cursor move) or collapsed to the node position (mixed change) after the
+    // walk. NB: a change that simultaneously restructures content and moves a cursor maps the cursor in
+    // the pre-change layout (best-effort - marks are local/ephemeral).
+    /** @type {Array<delta.Mark>} */
+    const passMarks = []
+    /** @type {Map<number, Array<{ innerKey: number, mark: delta.Mark }>>} */
+    const innerBySi = new Map()
+    if (db.marks !== null) {
+      for (const m of db.marks) {
+        if (typeof m.key !== 'number') { passMarks.push(m); continue }
+        const r = inlineOffsetToStructLocation(segs, m.key)
+        if (r.inner === null) {
+          passMarks.push(m.copy(r.struct))
+        } else {
+          const arr = innerBySi.get(r.si) ?? []
+          arr.push({ innerKey: r.inner, mark: m })
+          innerBySi.set(r.si, arr)
+        }
+      }
+    }
+    // structured start offset of each seg (pre-change), for placing inner marks after the walk
+    /** @type {Array<number>} */
+    const segStart = []
+    for (let i = 0, acc = 0; i < segs.length; i++) { segStart.push(acc); acc += segs[i].structLen }
+    let hadChildOps = false
     let si = 0
     let so = 0
     let structBefore = 0
@@ -469,6 +566,12 @@ export class InlineTransformer extends Transformer {
       openNodeStruct = structBefore
       openInnerEmitted = 0
       openSegIdx = idx
+      // seed any inner marks bound to this node so they ride on the modify's value (A.3, reverse)
+      const im = innerBySi.get(idx)
+      if (im !== undefined) {
+        for (const { innerKey, mark } of im) delta.addRootMark(openInner, mark.copy(innerKey))
+        innerBySi.delete(idx) // consumed - excluded from the post-walk fallback
+      }
     }
     // empty inline nodes (inlineLen 0) are zero-width in inlined coords - step over them. Only at a
     // seg boundary (so === 0); `so` does not change while skipping.
@@ -480,6 +583,7 @@ export class InlineTransformer extends Transformer {
       }
     }
     for (const op of db.children) {
+      hadChildOps = true
       if (delta.$retainOp.check(op)) {
         const fmt = op.format
         const attr = op.attribution
@@ -622,6 +726,32 @@ export class InlineTransformer extends Transformer {
       }
     }
     flushModify()
+    // place the change's root marks. Pass-through / attr-key marks are structured root marks. Inner
+    // marks not consumed by a modify above are emitted as exact mark-only modifies for a pure cursor
+    // move, else collapsed to the inline node's structured position (best-effort).
+    for (const m of passMarks) delta.addRootMark(a, m)
+    if (innerBySi.size > 0) {
+      if (!hadChildOps) {
+        let cursor = emittedStruct
+        for (const [segIdx, marks] of [...innerBySi.entries()].sort((x, y) => x[0] - y[0])) {
+          if (segStart[segIdx] > cursor) { a.retain(segStart[segIdx] - cursor); cursor = segStart[segIdx] }
+          const mod = /** @type {any} */ (delta.create())
+          for (const { innerKey, mark } of marks) delta.addRootMark(mod, mark.copy(innerKey))
+          a.modify(mod.done(false))
+          cursor += 1
+        }
+      } else {
+        for (const [segIdx, marks] of innerBySi) {
+          for (const { mark } of marks) delta.addRootMark(a, mark.copy(segStart[segIdx]))
+        }
+      }
+    }
+    if (db.deleteMarks !== null) {
+      const dm = a.deleteMarks ?? []
+      for (const id of db.deleteMarks) if (!dm.includes(id)) dm.push(id)
+      a.deleteMarks = dm
+    }
+    delta.recountMarks(a)
     applySegsChange(this.segs, a, this.names)
     a.done(false)
     return createTransformResult(a, null)
