@@ -85,19 +85,24 @@ d.apply(delta.create().modify(
 # Cursors & selections (marks)
 
 A **mark** is a cursor/selection anchor stored on a delta node: a stable `id`, a terminal `key` (a
-content offset or an attribute key) and an `assoc` gravity (`-1` binds to the preceding content, `1`
-to the following). Add one at a `Pos` and read them back from a settled delta with `marksToPositions`:
+content offset or an attribute key), an `assoc` gravity (`-1` binds to the preceding content, `1`
+to the following), and optional immutable `attrs` (user metadata, e.g. a client/user id). Build a
+`Pos` with `position.create(path, assoc?, attrs?)`, add a mark at it, and read them back from a
+settled delta with `marksToPositions`:
 
 ```javascript
 import * as position from 'lib0/delta/position'
 
 const d = delta.create().insert('hello')
-d.addMark(position.pos(1), 'cursorA')     // a cursor between 'h' and 'e'
-position.marksToPositions(d)              // ⇒ [{ id: 'cursorA', path: [1], assoc: 1 }]
+d.addMark(position.create([1]), 'cursorA')  // a cursor between 'h' and 'e' (right gravity)
+position.marksToPositions(d)                // ⇒ [{ id: 'cursorA', path: [1], assoc: 1 }]
+
+// attrs carried on the position ride with the mark and surface in the reconstructed MarkPos
+d.addMark(position.create([2], 1, { user: 'kevin' }), 'cursorB')
 
 // removeMark removes a mark in place; on a fresh delta it instead builds a transmittable
 // delete-mark change (symmetric to addMark on a fresh delta building an add-mark change)
-delta.create().removeMark(position.pos(1), 'cursorA') // ⇒ { deleteMarks: ['cursorA'] }
+delta.create().removeMark(position.create([1]), 'cursorA') // ⇒ { deleteMarks: ['cursorA'] }
 ```
 
 Marks are **local, ephemeral cursor state**, deliberately **excluded from a delta's fingerprint and
@@ -120,7 +125,7 @@ equality** — only document *content* is part of a delta's identity. Consequenc
   diff-based side needs an out-of-band channel (not provided here).
 
 A mark needs a terminal step, so the root position `[]` cannot anchor one. A node holds at most one mark
-per `id` (re-adding the same id replaces it — e.g. to update its `customAttributes`).
+per `id` (re-adding the same id replaces it — e.g. to update its `attrs`).
 
 # Transformers
 

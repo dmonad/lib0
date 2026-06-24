@@ -30,6 +30,7 @@
  */
 
 import * as s from '../schema.js'
+import * as fun from '../function.js'
 import * as delta from './delta.js'
 
 /**
@@ -41,17 +42,20 @@ import * as delta from './delta.js'
 /**
  * A location in a delta tree. `path` descends from the node the position is relative to and ends in
  * the terminal (a trailing-number cursor gap, or a trailing-string attribute leaf). `assoc` is the
- * gravity at a boundary: `-1` binds to the preceding content, `1` to the following content.
+ * gravity at a boundary: `-1` binds to the preceding content, `1` to the following content. `attrs` is
+ * optional immutable user data carried with the position (e.g. an RDT's clientID/user metadata); it is
+ * stored on the {@link import('./delta.js').createMark mark} when the position is written with
+ * {@link import('./delta.js').DeltaBuilder#addMark} and read back by {@link marksToPositions}.
  *
- * @typedef {{ path: Array<PosStep>, assoc: -1|1 }} Pos
+ * @typedef {{ path: Array<PosStep>, assoc: -1|1, attrs?: object|null }} Pos
  */
 
 /**
- * A {@link Pos} tagged with the unique id (and any `customAttributes`) of a stored
- * {@link import('./delta.js').Mark mark} — what {@link marksToPositions} returns. Add marks with
+ * A {@link Pos} tagged with the unique id of a stored {@link import('./delta.js').createMark mark} —
+ * what {@link marksToPositions} returns (its `attrs` is the mark's stored metadata). Add marks with
  * {@link import('./delta.js').DeltaBuilder#addMark}.
  *
- * @typedef {{ id: string, customAttributes?: object|null } & Pos} MarkPos
+ * @typedef {{ id: string } & Pos} MarkPos
  */
 
 /**
@@ -61,34 +65,31 @@ import * as delta from './delta.js'
  */
 export const $pos = /* @__PURE__ */ s.$object({
   path: s.$array(s.$union(s.$string, s.$number)),
-  assoc: s.$literal(-1, 1)
+  assoc: s.$literal(-1, 1),
+  attrs: s.$any.optional
 })
 
 /**
- * Create a {@link Pos} from a path and (optional) association.
+ * Create a {@link Pos} from a path, an (optional) association (gravity, default right `1`), and
+ * (optional) immutable `attrs` carried with the mark. `attrs` is omitted from the result when `null`,
+ * so a plain cursor position stays `{ path, assoc }`.
  *
  * @param {Array<PosStep>} path
  * @param {-1|1} [assoc]
+ * @param {object?} [attrs]
  * @return {Pos}
  */
-export const createPos = (path, assoc = 1) => ({ path, assoc })
+export const create = (path, assoc = 1, attrs = null) => attrs === null ? { path, assoc } : { path, assoc, attrs }
 
 /**
- * Ergonomic {@link Pos} constructor with right gravity, e.g. `pos('a', 1)`.
+ * Structural equality of two positions: same `assoc`, `id` (a plain {@link Pos} has none ⇒ both
+ * `undefined`), `attrs` (deep), and `path`.
  *
- * @param {...PosStep} path
- * @return {Pos}
- */
-export const pos = (...path) => ({ path, assoc: 1 })
-
-/**
- * Structural equality of two positions.
- *
- * @param {Pos} a
- * @param {Pos} b
+ * @param {Pos|MarkPos} a
+ * @param {Pos|MarkPos} b
  * @return {boolean}
  */
-export const equals = (a, b) => a.assoc === b.assoc && a.path.length === b.path.length && a.path.every((step, i) => step === b.path[i])
+export const equals = (a, b) => a.assoc === b.assoc && /** @type {any} */ (a).id === /** @type {any} */ (b).id && fun.equalityDeep(a.attrs ?? null, b.attrs ?? null) && a.path.length === b.path.length && a.path.every((step, i) => step === b.path[i])
 
 /**
  * Schema for a {@link MarkPos}.
@@ -99,7 +100,7 @@ export const $markPos = /* @__PURE__ */ s.$object({
   id: s.$string,
   path: s.$array(s.$union(s.$string, s.$number)),
   assoc: s.$literal(-1, 1),
-  customAttributes: s.$any.optional
+  attrs: s.$any.optional
 })
 
 /**
@@ -131,9 +132,9 @@ export const marksToPositions = d => {
     if (node.marks !== null) {
       for (const m of node.marks) {
         found = true
-        out.push(m.customAttributes === null
+        out.push(m.attrs === null
           ? { id: m.id, path: [...path, m.key], assoc: m.assoc }
-          : { id: m.id, path: [...path, m.key], assoc: m.assoc, customAttributes: m.customAttributes })
+          : { id: m.id, path: [...path, m.key], assoc: m.assoc, attrs: m.attrs })
       }
     }
     // a settled delta has only text/insert children; descend the delta-valued embeds

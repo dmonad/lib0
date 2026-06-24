@@ -52,7 +52,7 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  */
 
 /**
- * @typedef {{ id: string, key: number|string, assoc: 1|-1, customAttributes?: object }} MarkJSON
+ * @typedef {{ id: string, key: number|string, assoc: 1|-1, attrs?: object }} MarkJSON
  */
 
 /**
@@ -898,22 +898,23 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  *   (string) within the node that holds the mark.
  * - `id` — a unique, user-defined identifier.
  * - `assoc` — the gravity at a boundary (left `-1` / right `1`).
- * - `customAttributes` — optional user-supplied data carried with the mark **by reference**: the same
+ * - `attrs` — optional user-supplied data carried with the mark **by reference**: the same
  *   object is shared across the mark, its `copy`/`clone`s, `toJSON`, and every `MarkPos` from
  *   `marksToPositions`, so the caller must treat it as immutable (do not mutate it after attaching).
  *
  * A `Mark` is **immutable** — never mutate one in place; to "move" a mark, replace it with a fresh
  * `Mark` via {@link Mark#copy} (the {@link Marks} set keys by id, so re-adding the same id replaces
- * it). Immutability lets a `Mark` be shared freely across a delta and its clones.
+ * it). Immutability lets a `Mark` be shared freely across a delta and its clones. The class is not
+ * exported — construct via {@link createMark} and validate via {@link $mark}.
  */
-export class Mark {
+class Mark {
   /**
    * @param {number|string} key
    * @param {string} [id] unique id; defaults to a fresh GUID
    * @param {1|-1} [assoc] gravity at a boundary; defaults to right (`1`)
-   * @param {object?} [customAttributes] optional user data, stored by reference; treat as immutable
+   * @param {object?} [attrs] optional user data, stored by reference; treat as immutable
    */
-  constructor (key, id = rand.uuidv4(), assoc = 1, customAttributes = null) {
+  constructor (key, id = rand.uuidv4(), assoc = 1, attrs = null) {
     /**
      * @readonly
      * @type {number|string}
@@ -933,7 +934,7 @@ export class Mark {
      * @readonly
      * @type {object?}
      */
-    this.customAttributes = customAttributes
+    this.attrs = attrs
   }
 
   /**
@@ -943,23 +944,23 @@ export class Mark {
    * @return {Mark}
    */
   copy (key = this.key) {
-    return new Mark(key, this.id, this.assoc, this.customAttributes)
+    return new Mark(key, this.id, this.assoc, this.attrs)
   }
 
   /**
    * @return {MarkJSON}
    */
   toJSON () {
-    return this.customAttributes === null
+    return this.attrs === null
       ? { id: this.id, key: this.key, assoc: this.assoc }
-      : { id: this.id, key: this.key, assoc: this.assoc, customAttributes: this.customAttributes }
+      : { id: this.id, key: this.key, assoc: this.assoc, attrs: this.attrs }
   }
 
   /**
    * @param {Mark} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return $mark.check(other) && this.id === other.id && this.key === other.key && this.assoc === other.assoc && fun.equalityDeep(this.customAttributes, other.customAttributes)
+    return $mark.check(other) && this.id === other.id && this.key === other.key && this.assoc === other.assoc && fun.equalityDeep(this.attrs, other.attrs)
   }
 }
 
@@ -967,16 +968,16 @@ export const $mark = /** @type {s.Schema<Mark>} */ (Mark.prototype.$type = s.$ty
 
 /**
  * Create a {@link Mark} (use this instead of `new Mark(...)`). `id` defaults to a fresh GUID, `assoc`
- * to right gravity (`1`), `customAttributes` to `null`. A `Mark` is stored on a delta node's own
+ * to right gravity (`1`), `attrs` to `null`. A `Mark` is stored on a delta node's own
  * {@link Marks} set (see {@link DeltaBuilder#addMark}).
  *
  * @param {number|string} key
  * @param {string} [id]
  * @param {1|-1} [assoc]
- * @param {object?} [customAttributes]
+ * @param {object?} [attrs]
  * @return {Mark}
  */
-export const createMark = (key, id, assoc, customAttributes) => new Mark(key, id, assoc, customAttributes)
+export const createMark = (key, id, assoc, attrs) => new Mark(key, id, assoc, attrs)
 
 /**
  * @typedef {Delta<any>} DeltaAny
@@ -1127,9 +1128,11 @@ class DeltaData {
     this.marks = null
     /**
      * Mark ids to DELETE. Only present in a (non-settled) change delta — like a `DeleteAttrOp`, a
-     * deletion is dropped from a final delta. `null` when there are none.
+     * deletion is dropped from a final delta. `null` when there are none. Adding a mark with the same
+     * id (see {@link addMarkTo}) removes it from this set, so a node never holds both an add and a
+     * pending delete for one id.
      *
-     * @type {Array<string>?}
+     * @type {Set<string>?}
      */
     this.deleteMarks = null
     /**
@@ -1196,7 +1199,7 @@ export class Delta extends DeltaData {
   }
 
   isEmpty () {
-    return object.isEmpty(this.attrs) && list.isEmpty(this.children) && (this.marks === null || this.marks.size === 0) && (this.deleteMarks === null || this.deleteMarks.length === 0)
+    return object.isEmpty(this.attrs) && list.isEmpty(this.children) && (this.marks === null || this.marks.size === 0) && (this.deleteMarks === null || this.deleteMarks.size === 0)
   }
 
   /**
@@ -1224,7 +1227,7 @@ export class Delta extends DeltaData {
       (object.isEmpty(attrs) ? {} : { attrs }),
       (children.length > 0 ? { children } : {}),
       (this.marks !== null && this.marks.size > 0 ? { marks: [...this.marks].sort(compareMarksById).map(m => m.toJSON()) } : {}),
-      (this.deleteMarks !== null && this.deleteMarks.length > 0 ? { deleteMarks: this.deleteMarks.slice().sort() } : {})
+      (this.deleteMarks !== null && this.deleteMarks.size > 0 ? { deleteMarks: [...this.deleteMarks].sort() } : {})
     )
   }
 
@@ -1349,7 +1352,7 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
     }
     cpy.maybeHasMarks = true
   }
-  if (d.deleteMarks !== null) cpy.deleteMarks = d.deleteMarks.slice()
+  if (d.deleteMarks !== null) cpy.deleteMarks = new Set(d.deleteMarks)
   // @ts-ignore
   return cpy
 }
@@ -1604,16 +1607,17 @@ export class DeltaBuilder extends Delta {
 
   /**
    * Add a cursor/selection {@link Mark} at `pos` — a {@link import('./position.js').Pos}: a `path` of
-   * content-index / attribute-key steps plus an `assoc`. `id` defaults to a fresh GUID;
-   * `customAttributes` is optional immutable user data carried with the mark. Returns the mark's `id`.
+   * content-index / attribute-key steps plus an `assoc` and optional immutable `attrs` (user data
+   * carried with the mark). `id` defaults to a fresh GUID. Returns the mark's `id`.
    *
-   * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
+   * @param {import('./position.js').Pos} pos
    * @param {string} [id]
-   * @param {object?} [customAttributes]
    * @return {string}
    */
-  addMark (pos, id = rand.uuidv4(), customAttributes = null) {
-    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, customAttributes, false)), { final: true })
+  addMark (pos, id = rand.uuidv4()) {
+    // apply with the default `final = this.isFinal` (do NOT force `{ final: true }`): a fresh change
+    // builder is non-final so a sibling `removeMark` stays transmittable; a final doc collects nothing
+    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, false)))
     return id
   }
 
@@ -1623,12 +1627,14 @@ export class DeltaBuilder extends Delta {
    * `deleteMarks` change (symmetric to {@link DeltaBuilder#addMark}), so
    * `delta.create().removeMark(pos, id)` yields the delete-mark change to apply / rebase / transmit.
    *
-   * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
+   * @param {import('./position.js').Pos} pos
    * @param {string} id
    * @return {this}
    */
   removeMark (pos, id) {
-    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, null, true)), { final: true })
+    // apply with the default `final = this.isFinal` (do NOT force `{ final: true }`): on a non-final
+    // change builder this records a transmittable `deleteMarks`; on a final doc it only removes in place
+    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, true)))
     return this
   }
 
@@ -2031,7 +2037,9 @@ export class DeltaBuilder extends Delta {
     // marks: shift this node's own leaf marks by the change, then fold in root-level mark adds/deletes
     // (child subtree marks already flagged `maybeHasMarks` incrementally above)
     shiftMarksByChange(this, other)
-    applyMarkOps(this, other.marks, other.deleteMarks)
+    // pass `final` so a materializing apply (e.g. a deltaRDT's final state) applies deletes in place
+    // but collects no pending `deleteMarks`; a non-final change delta still records them (transmittable)
+    applyMarkOps(this, other.marks, other.deleteMarks, final)
     return this
   }
 
@@ -2358,32 +2366,33 @@ class Marks {
   get size () { return this._marks.length }
 
   /**
-   * Add or replace `mark` (by id). Returns the change in {@link size}: `1` if new, `0` if it replaced.
+   * Add or replace `mark` (by id). Returns `true` if it was added as a new mark, `false` if it
+   * replaced an existing one with the same id.
    *
    * @param {Mark} mark
-   * @return {number}
+   * @return {boolean}
    */
   add (mark) {
     const i = this._marks.findIndex(m => m.id === mark.id)
     if (i < 0) {
       this._marks.push(mark)
-      return 1
+      return true
     }
     this._marks[i] = mark
-    return 0
+    return false
   }
 
   /**
-   * Remove the mark with `id`. Returns the change in {@link size}: `1` if removed, `0` if absent.
+   * Remove the mark with `id`. Returns `true` if a mark was present and removed, `false` if absent.
    *
    * @param {string} id
-   * @return {number}
+   * @return {boolean}
    */
   delete (id) {
     const i = this._marks.findIndex(m => m.id === id)
-    if (i < 0) return 0
+    if (i < 0) return false
     this._marks.splice(i, 1)
-    return 1
+    return true
   }
 
   [Symbol.iterator] () { return this._marks[Symbol.iterator]() }
@@ -2399,7 +2408,9 @@ class Marks {
 const elemsMaybeHaveMarks = insert => insert.some(el => $deltaAny.check(el) && el.maybeHasMarks)
 
 /**
- * Add (or replace) a {@link Mark} on `node`, flagging {@link DeltaData#maybeHasMarks}.
+ * Add (or replace) a {@link Mark} on `node`, flagging {@link DeltaData#maybeHasMarks}. Adding a mark
+ * cancels any pending delete of the same id on `node` (so a node never holds both an add and a delete
+ * for one id — the add wins), keeping the apply path consistent with rebase's add-vs-delete rule.
  *
  * @param {DeltaAny} node
  * @param {Mark} mark
@@ -2409,20 +2420,24 @@ const addMarkTo = (node, mark) => {
   marks.add(mark)
   node.marks = marks
   node.maybeHasMarks = true
+  if (node.deleteMarks !== null) {
+    node.deleteMarks.delete(mark.id)
+    if (node.deleteMarks.size === 0) node.deleteMarks = null
+  }
 }
 
 /**
- * Remove the mark `id` from `node`. Returns `1` if a mark was actually present and removed, `0` if it
- * was absent. The `maybeHasMarks` flag is intentionally left as-is (never decremented -
+ * Remove the mark `id` from `node`. Returns `true` if a mark was actually present and removed, `false`
+ * if it was absent. The `maybeHasMarks` flag is intentionally left as-is (never decremented -
  * {@link import('./position.js').marksToPositions} self-corrects it).
  *
  * @param {DeltaAny} node
  * @param {string} id
- * @return {number}
+ * @return {boolean}
  */
 const removeMarkFrom = (node, id) => {
   const marks = node.marks
-  if (marks === null) return 0
+  if (marks === null) return false
   const removed = marks.delete(id)
   node.marks = marks.size === 0 ? null : marks
   return removed
@@ -2430,23 +2445,26 @@ const removeMarkFrom = (node, id) => {
 
 /**
  * Apply mark add/delete ops to `target` (flagging `target.maybeHasMarks` on add). `addMarks` may be a
- * {@link Marks} set or a plain array; `deleteMarks` is a list of ids.
+ * {@link Marks} set or a plain array; `deleteMarks` is a set of ids. Deletes are processed before adds
+ * so that a change carrying both for one id resolves to *add wins* (see {@link addMarkTo}). `final`
+ * marks a document-materializing apply (propagated from {@link DeltaBuilder#apply}, defaulting to
+ * `this.isFinal`): a present mark is still removed in place, but an absent delete is NOT recorded — a
+ * settled document only applies deletes, it never collects pending ones.
  *
  * @param {DeltaAny} target
  * @param {Iterable<Mark>?} addMarks
- * @param {Array<string>?} deleteMarks
+ * @param {Set<string>?} deleteMarks
+ * @param {boolean} final whether this is a final (document-materializing) apply
  */
-const applyMarkOps = (target, addMarks, deleteMarks) => {
+const applyMarkOps = (target, addMarks, deleteMarks, final) => {
   if (deleteMarks !== null) {
     for (const id of deleteMarks) {
-      // If the mark is present here, this is an in-place removal (e.g. editing a settled doc with
-      // `removeMark`). If it is absent, the delete is a *pending* op that must be recorded on the target
-      // (so building a change with `create().removeMark(pos, id)` yields a real, transmittable
-      // `deleteMarks` change — symmetric to how an add is recorded on `target.marks`).
-      if (removeMarkFrom(target, id) === 0) {
-        const dm = target.deleteMarks ?? []
-        if (!dm.includes(id)) dm.push(id)
-        target.deleteMarks = dm
+      // Remove a present mark in place (e.g. editing a settled doc with `removeMark`). If the mark is
+      // absent AND this is a non-final change delta, record the delete as a *pending* op so building a
+      // change with `create().removeMark(pos, id)` yields a real, transmittable `deleteMarks` change
+      // (symmetric to how an add is recorded on `target.marks`). A final document collects nothing.
+      if (!removeMarkFrom(target, id) && !final) {
+        (target.deleteMarks ?? (target.deleteMarks = new Set())).add(id)
       }
     }
   }
@@ -2476,7 +2494,7 @@ export const copyRootMarks = (target, source, mapKey = k => k) => {
       if (k !== null) addMarkTo(target, k === m.key ? m : m.copy(k))
     }
   }
-  if (source.deleteMarks !== null) target.deleteMarks = source.deleteMarks.slice()
+  if (source.deleteMarks !== null) target.deleteMarks = new Set(source.deleteMarks)
 }
 
 /**
@@ -2529,8 +2547,8 @@ export const mergeRootMarks = (target, source, mapKey = k => k) => {
     }
   }
   if (source.deleteMarks !== null) {
-    const dm = target.deleteMarks ?? []
-    for (const id of source.deleteMarks) if (!dm.includes(id)) dm.push(id)
+    const dm = target.deleteMarks ?? new Set()
+    for (const id of source.deleteMarks) dm.add(id)
     target.deleteMarks = dm
   }
 }
@@ -2676,7 +2694,7 @@ const rebaseMarkOps = (adds, deletes, otherAddIds, otherDelIds, otherContent, pr
 const rebaseRootMarks = (node, other, priority) => {
   const { adds, deletes } = rebaseMarkOps(
     node.marks !== null ? [...node.marks] : [],
-    node.deleteMarks !== null ? node.deleteMarks : [],
+    node.deleteMarks !== null ? [...node.deleteMarks] : [],
     markIdSet(other.marks), markIdSet(other.deleteMarks), other, priority
   )
   if (adds.length === 0) {
@@ -2686,7 +2704,7 @@ const rebaseRootMarks = (node, other, priority) => {
     for (const x of adds) m.add(x)
     node.marks = m
   }
-  node.deleteMarks = deletes.length === 0 ? null : deletes
+  node.deleteMarks = deletes.length === 0 ? null : new Set(deletes)
 }
 
 /**
@@ -2696,18 +2714,17 @@ const rebaseRootMarks = (node, other, priority) => {
  * (content index) or `modifyAttr` (attribute key) — apply/rebase carry the wrapped value's root marks
  * onto/through the target for free.
  *
- * @param {{ path: Array<number|string>, assoc: 1|-1 }} pos
+ * @param {import('./position.js').Pos} pos
  * @param {string} id
- * @param {object?} customAttributes
  * @param {boolean} isDelete
  * @return {DeltaBuilderAny}
  */
-const markChange = (pos, id, customAttributes, isDelete) => {
+const markChange = (pos, id, isDelete) => {
   const path = pos.path
   // a mark anchors at the terminal step of its path (a content offset or attribute key); the root
   // position `[]` has no terminal and cannot carry a mark - reject it instead of recursing forever
   if (path.length === 0) throw error.create('cannot place a mark at the root position (empty path): a mark needs a terminal content-offset or attribute-key step')
-  const mark = isDelete ? null : createMark(path[path.length - 1], id, pos.assoc, customAttributes)
+  const mark = isDelete ? null : createMark(path[path.length - 1], id, pos.assoc, pos.attrs ?? null)
   /**
    * @param {number} i
    * @return {DeltaBuilderAny}
@@ -2716,7 +2733,7 @@ const markChange = (pos, id, customAttributes, isDelete) => {
     if (i === path.length - 1) {
       // leaf reached: carry the mark on the delta's own marks
       const d = /** @type {DeltaBuilderAny} */ (create())
-      if (mark === null) d.deleteMarks = [id]
+      if (mark === null) d.deleteMarks = new Set([id])
       else addMarkTo(d, mark)
       return d
     }

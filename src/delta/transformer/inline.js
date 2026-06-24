@@ -3,6 +3,13 @@ import * as math from '../../math.js'
 import { Transformer, Template, createTransformResult } from './core.js'
 
 /**
+ * The (unexported) delta {@link import('../delta.js').createMark Mark} type, referenced here for the
+ * local mark-bucketing annotations.
+ *
+ * @typedef {ReturnType<typeof delta.createMark>} Mark
+ */
+
+/**
  * One entry of the segment layout maintained by {@link InlineTransformer}. A segment is either a
  * coalesced run of pass-through positions (root text + opaque non-inlined nodes - same length in both
  * coordinate spaces) or a single inline node (1 structured position that expands to `inlineLen`
@@ -501,9 +508,9 @@ export class InlineTransformer extends Transformer {
     // mark-only modify (pure cursor move) or collapsed to the node position (mixed change) after the
     // walk. NB: a change that simultaneously restructures content and moves a cursor maps the cursor in
     // the pre-change layout (best-effort - marks are local/ephemeral).
-    /** @type {Array<delta.Mark>} */
+    /** @type {Array<Mark>} */
     const passMarks = []
-    /** @type {Map<number, Array<{ innerKey: number, mark: delta.Mark }>>} */
+    /** @type {Map<number, Array<{ innerKey: number, mark: Mark }>>} */
     const innerBySi = new Map()
     if (db.marks !== null) {
       for (const m of db.marks) {
@@ -749,8 +756,8 @@ export class InlineTransformer extends Transformer {
       }
     }
     if (db.deleteMarks !== null) {
-      const dm = a.deleteMarks ?? []
-      for (const id of db.deleteMarks) if (!dm.includes(id)) dm.push(id)
+      const dm = a.deleteMarks ?? new Set()
+      for (const id of db.deleteMarks) dm.add(id)
       a.deleteMarks = dm
     }
     applySegsChange(this.segs, a, this.names)

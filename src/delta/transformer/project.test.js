@@ -227,8 +227,8 @@ export const testProjectMarkValueAndAttrHole = () => {
   const spec = delta.create('view').setAttr('title', attr('name')).insert([attr('x')])
   const it = project(spec).init(delta.$deltaAny)
   const d = delta.create('data', { name: 'Bob', x: 5 })
-  d.addMark(position.pos('name'), 'N')
-  d.addMark(position.pos('x'), 'X')
+  d.addMark(position.create(['name']), 'N')
+  d.addMark(position.create(['x']), 'X')
   const s = psettle(it.applyA(d).b)
   t.compare(pmp(s), [{ id: 'X', path: [0], assoc: 1 }, { id: 'N', path: ['title'], assoc: 1 }])
 }
@@ -241,7 +241,7 @@ export const testProjectMarkNodeHoleDuplicates = () => {
   ])
   const it = project(spec).init(delta.$deltaAny)
   const d = delta.create('data', { name: 'Bob' })
-  d.addMark(position.pos('name'), 'D')
+  d.addMark(position.create(['name']), 'D')
   const s = psettle(it.applyA(d).b)
   t.compare(pmp(s), [{ id: 'D', path: [0, 't'], assoc: 1 }, { id: 'D', path: [1, 't'], assoc: 1 }])
 }
@@ -252,7 +252,7 @@ export const testProjectMarkValueHoleLastWins = () => {
   const spec = delta.create('view').insert([attr('x')]).insert('-').insert([attr('x')])
   const it = project(spec).init(delta.$deltaAny)
   const d = delta.create('data', { x: 7 })
-  d.addMark(position.pos('x'), 'W')
+  d.addMark(position.create(['x']), 'W')
   const s = psettle(it.applyA(d).b)
   t.compare(pmp(s), [{ id: 'W', path: [2], assoc: 1 }])
 }
@@ -262,7 +262,7 @@ export const testProjectMarkOnlyUpdateKeepsScalar = () => {
   const spec = delta.create('view').setAttr('title', attr('name')).insert([attr('x')])
   const it = project(spec).init(delta.$deltaAny)
   const base = psettle(it.applyA(delta.create('data', { name: 'Bob', x: 5 })).b)
-  const mc = delta.create(); mc.addMark(position.pos('x'), 'C')
+  const mc = delta.create(); mc.addMark(position.create(['x']), 'C')
   base.apply(/** @type {any} */ (it.applyA(mc).b), { final: true })
   cmp(base, delta.create('view').setAttr('title', 'Bob').insert([5])) // content unchanged (marks excluded from equality)
   t.compare(pmp(base), [{ id: 'C', path: [0], assoc: 1 }])
@@ -275,8 +275,8 @@ export const testProjectMarkDeleteRides = () => {
   const spec = delta.create('view').setAttr('title', attr('name'))
   const it = project(spec).init(delta.$deltaAny)
   it.applyA(delta.create('data', { name: 'Bob' }))
-  const dc = delta.create(); dc.deleteMarks = ['M']
-  t.compare(/** @type {any} */ (it.applyA(dc).b).deleteMarks, ['M'])
+  const dc = delta.create(); dc.deleteMarks = new Set(['M'])
+  t.compare(/** @type {any} */ (it.applyA(dc).b).deleteMarks, new Set(['M']))
 }
 
 export const testProjectDeltaValuedAttrModify = () => {
@@ -292,7 +292,7 @@ export const testProjectDeltaValuedAttrModify = () => {
   apply(base, it.applyA(c1).b)
   cmp(/** @type {any} */ (base.attrs).body.value, delta.create('para').insert('hi!')) // content intact, not the raw change
   // a mark inside the sub-document stays reachable through the projection
-  const c2 = delta.create(); c2.addMark(position.createPos(['body', 1], 1), 'I')
+  const c2 = delta.create(); c2.addMark(position.create(['body', 1], 1), 'I')
   apply(base, it.applyA(c2).b)
   t.compare(pmp(base), [{ id: 'I', path: ['body', 1], assoc: 1 }])
   // --- value child hole ---
@@ -309,7 +309,7 @@ export const testProjectApplyBMarkRoundTrip = () => {
   const it = project(delta.create('view').setAttr('title', attr('name'))).init(delta.$deltaAny)
   it.applyA(delta.create('data', { name: 'Bob' })) // initial render
   const viewChange = /** @type {delta.DeltaBuilderAny} */ (delta.create())
-  viewChange.addMark(position.pos('title'), 'cur')
+  viewChange.addMark(position.create(['title']), 'cur')
   const back = it.applyB(viewChange)
   const dataDoc = /** @type {delta.DeltaBuilderAny} */ (delta.create('data'))
   dataDoc.apply(/** @type {any} */ (back.a), { final: true })

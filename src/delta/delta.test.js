@@ -1461,7 +1461,7 @@ const randomMarkPos = (gen, node) => {
     }
     if (slots.length === 0 || prng.bool(gen)) {
       path.push(prng.int32(gen, 0, cur.childCnt))
-      return position.createPos(path, prng.bool(gen) ? 1 : -1)
+      return position.create(path, prng.bool(gen) ? 1 : -1)
     }
     const [idx, child] = prng.oneOf(gen, slots)
     path.push(idx)
@@ -1540,19 +1540,19 @@ export const testRepeatMarkRebaseConvergenceXml = tc => {
 /**
  * Applying a change carrying `deleteMarks` removes those marks from the settled node's final set (it
  * does not leave a lingering `deleteMarks` on the settled state). A re-add of an existing id replaces
- * the mark in place (same id == same mark), so a mark can be "updated" with new `customAttributes`.
+ * the mark in place (same id == same mark), so a mark can be "updated" with new `attrs`.
  */
 export const testMarkDeleteAndUpdateApply = () => {
   const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('hello'))
-  doc.addMark(position.pos(1), 'M', { color: 'red' })
+  doc.addMark(position.create([1], 1, { color: 'red' }), 'M')
   t.assert(doc.marks?.size === 1)
   // update: re-add the same id replaces in place (one mark, attributes updated)
-  doc.addMark(position.pos(1), 'M', { color: 'blue' })
+  doc.addMark(position.create([1], 1, { color: 'blue' }), 'M')
   t.assert(doc.marks?.size === 1)
-  t.compare([...(doc.marks ?? [])].map(m => m.customAttributes), [{ color: 'blue' }])
+  t.compare([...(doc.marks ?? [])].map(m => m.attrs), [{ color: 'blue' }])
   // delete via a deleteMarks change: the mark is gone from the final set, no lingering deleteMarks
   const del = /** @type {delta.DeltaBuilderAny} */ (delta.create())
-  del.deleteMarks = ['M']
+  del.deleteMarks = new Set(['M'])
   doc.apply(del, { final: true })
   t.assert(doc.marks === null || doc.marks.size === 0)
   t.assert(doc.deleteMarks === null)
@@ -1567,17 +1567,17 @@ export const testMarkDeleteAndUpdateApply = () => {
 export const testMarkFlagBuilderMaintained = () => {
   // insert([markedChild]): the parent flags the child's subtree marks
   const child = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('aa'))
-  child.addMark(position.createPos([1], 1), 'm1')
+  child.addMark(position.create([1], 1), 'm1')
   const d = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert([child]))
   t.assert(d.maybeHasMarks === true)
   t.compare(position.marksToPositions(d), [{ id: 'm1', path: [0, 1], assoc: 1 }])
   // modify(markedValue): a change delta flags the modify value's marks
   const mv = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
-  mv.addMark(position.pos(0), 'mod')
+  mv.addMark(position.create([0]), 'mod')
   t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv)).maybeHasMarks === true)
   // setAttr(markedDelta) flags; replacing it leaves no reachable mark (flag stays true, self-corrected)
   const av = /** @type {delta.DeltaBuilderAny} */ (delta.create('doc').insert('x'))
-  av.addMark(position.pos(0), 'z')
+  av.addMark(position.create([0]), 'z')
   const n = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
   n.setAttr('body', av)
   t.assert(n.maybeHasMarks === true)
@@ -1586,7 +1586,7 @@ export const testMarkFlagBuilderMaintained = () => {
   t.assert(n.maybeHasMarks === false) // marksToPositions self-corrected the now-empty subtree's flag
   // modifyAttr(markedValue) flags
   const ma = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('q'))
-  ma.addMark(position.pos(0), 'ma')
+  ma.addMark(position.create([0]), 'ma')
   const dma = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   dma.modifyAttr('body', ma)
   t.assert(dma.maybeHasMarks === true)

@@ -722,8 +722,8 @@ export const testInlineMarkRootRemap = () => {
   // position (structured 2) maps to its inlined start (2). Round-trips back through applyB.
   const it = inline([null]).init(delta.$deltaAny)
   const d = istructDoc()
-  d.addMark(position.pos(3), 'E')
-  d.addMark(position.pos(2), 'NODE')
+  d.addMark(position.create([3]), 'E')
+  d.addMark(position.create([2]), 'NODE')
   const b = isettle(it.applyA(d).b)
   t.compare(imp(b), [{ id: 'E', path: [4], assoc: 1 }, { id: 'NODE', path: [2], assoc: 1 }])
 }
@@ -733,7 +733,7 @@ export const testInlineMarkNestedLiftA = () => {
   // childStart(2) + 1 = inlined 3.
   const it = inline([null]).init(delta.$deltaAny)
   const inner = delta.create().insert('cd')
-  inner.addMark(position.pos(1), 'I')
+  inner.addMark(position.create([1]), 'I')
   const d = delta.create('p').insert('ab').insert([inner]).insert('ef')
   const b = isettle(it.applyA(d).b)
   t.compare(imp(b), [{ id: 'I', path: [3], assoc: 1 }])
@@ -745,7 +745,7 @@ export const testInlineMarkPureMoveBothWays = () => {
   const itB = inline([null]).init(delta.$deltaAny)
   itB.applyA(istructDoc()) // establish segs
   const mvB = delta.create('p')
-  mvB.addMark(position.pos(3), 'CUR') // inlined 3 -> inside the node, inner 1
+  mvB.addMark(position.create([3]), 'CUR') // inlined 3 -> inside the node, inner 1
   const a = /** @type {any} */ (delta.create('p'))
   a.apply(istructDoc(), { final: true })
   a.apply(itB.applyB(mvB).a, { final: true })
@@ -754,7 +754,7 @@ export const testInlineMarkPureMoveBothWays = () => {
   const itA = inline([null]).init(delta.$deltaAny)
   itA.applyA(istructDoc())
   const mvA = delta.create('p')
-  mvA.addMark(position.pos(3), 'CA') // structured 3 -> inlined 4
+  mvA.addMark(position.create([3]), 'CA') // structured 3 -> inlined 4
   const b = /** @type {any} */ (delta.create('p'))
   b.apply(delta.create('p').insert('abcdef'), { final: true })
   b.apply(itA.applyA(mvA).b, { final: true })
@@ -765,12 +765,12 @@ export const testInlineMarkDeleteRides = () => {
   // a mark *delete* (id-keyed) rides verbatim in both directions
   const itA = inline([null]).init(delta.$deltaAny)
   itA.applyA(istructDoc())
-  const dA = delta.create('p'); dA.deleteMarks = ['M']
-  t.compare(/** @type {any} */ (itA.applyA(dA).b).deleteMarks, ['M'])
+  const dA = delta.create('p'); dA.deleteMarks = new Set(['M'])
+  t.compare(/** @type {any} */ (itA.applyA(dA).b).deleteMarks, new Set(['M']))
   const itB = inline([null]).init(delta.$deltaAny)
   itB.applyA(istructDoc())
-  const dB = delta.create('p'); dB.deleteMarks = ['M']
-  t.compare(/** @type {any} */ (itB.applyB(dB).a).deleteMarks, ['M'])
+  const dB = delta.create('p'); dB.deleteMarks = new Set(['M'])
+  t.compare(/** @type {any} */ (itB.applyB(dB).a).deleteMarks, new Set(['M']))
 }
 
 /**
@@ -807,7 +807,7 @@ export const testRepeatInlineMarkFuzz = tc => {
   const itRT = inline([null]).init(delta.$deltaAny)
   itRT.applyA(/** @type {any} */ (delta.clone(d)))
   const key = prng.int32(gen, 0, Math.max(0, inlinedLen - 1))
-  const mv = delta.create('p'); mv.addMark(position.pos(key), 'RT')
+  const mv = delta.create('p'); mv.addMark(position.create([key]), 'RT')
   const back = itRT.applyB(mv)
   const fwd = itRT.applyA(/** @type {any} */ (back.a))
   const sMoved = /** @type {any} */ (delta.create('p')); sMoved.apply(isettle(r.b), { final: true })
