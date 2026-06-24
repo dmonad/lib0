@@ -81,9 +81,7 @@ const placeCarrierMark = (out, rb, slotKey) => {
     for (const m of rb.marks) if (m.key === 'value') delta.addRootMark(out, m.copy(slotKey))
   }
   if (rb.deleteMarks !== null) {
-    const dm = out.deleteMarks ?? new Set()
-    for (const id of rb.deleteMarks) dm.add(id)
-    out.deleteMarks = dm
+    for (const id of rb.deleteMarks) delta.deleteRootMark(out, id)
   }
 }
 

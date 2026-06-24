@@ -1592,6 +1592,32 @@ export const testMarkFlagBuilderMaintained = () => {
   t.assert(dma.maybeHasMarks === true)
 }
 
+/**
+ * `mergeRootMarks` (the unified copy/merge helper, routed through the `deleteMarkTo`/`addMarkTo`
+ * primitives) keeps last-writer-wins: a source `deleteMarks` strips a conflicting add on the target
+ * (never both), and a source add strips a target's pending delete of the same id.
+ */
+export const testMarkLwwMergeAndCopy = () => {
+  // delete-cancels-add: source deleteMarks strip a present add on target. Two ids exercise both the
+  // first (`?? new Set()`) and the reuse path inside deleteMarkTo.
+  const target = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  delta.addRootMark(target, delta.createMark(0, 'c', 1, null))
+  const source = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  source.deleteMarks = new Set(['c', 'e'])
+  delta.mergeRootMarks(target, source)
+  t.assert(target.marks === null || target.marks.size === 0) // the 'c' add was stripped
+  t.compare(target.deleteMarks, new Set(['c', 'e']))
+
+  // add-cancels-delete (the mirror): a source add strips the target's pending delete of the same id
+  const target2 = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  target2.deleteMarks = new Set(['d'])
+  const source2 = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  delta.addRootMark(source2, delta.createMark(0, 'd', 1, null))
+  delta.mergeRootMarks(target2, source2)
+  t.assert(target2.marks?.size === 1)
+  t.assert(target2.deleteMarks === null)
+}
+
 // ---------------------------------------------------------------------------
 // Targeted behavior tests (added to drive `delta.js` coverage from ~94 % to
 // 100 % while testing concrete behavior, not lines).

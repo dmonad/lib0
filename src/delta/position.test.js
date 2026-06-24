@@ -257,6 +257,22 @@ export const testMarkAddCancelsPendingDelete = () => {
   t.compare(position.marksToPositions(change), [{ id: 'c', path: [1], assoc: 1 }])
 }
 
+export const testMarkDeleteCancelsPendingAdd = () => {
+  // mirror of testMarkAddCancelsPendingDelete (last-writer-wins, the other direction): on a (non-final)
+  // change builder, removing a mark strips a pending add of the same id AND records a transmittable
+  // tombstone — the delete is the newest absolute write, so a peer holding the mark removes it. The
+  // change never holds both an add and a delete for one id.
+  const change = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  change.addMark(position.create([1]), 'c') // pending add
+  t.assert(change.marks?.size === 1)
+  change.removeMark(position.create([1]), 'c') // delete is newest: strips the add, records the tombstone
+  t.assert(change.marks === null || change.marks.size === 0)
+  t.compare(change.deleteMarks, new Set(['c']))
+  change.removeMark(position.create([1]), 'd') // a second id accumulates into the existing set
+  t.compare(change.deleteMarks, new Set(['c', 'd']))
+  t.compare(position.marksToPositions(change), []) // no live mark remains
+}
+
 export const testMarkUpsertReplaces = () => {
   const d = markDoc()
   d.addMark(position.create([1, 2], 1), 'c')

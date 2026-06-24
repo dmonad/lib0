@@ -1127,10 +1127,13 @@ class DeltaData {
      */
     this.marks = null
     /**
-     * Mark ids to DELETE. Only present in a (non-settled) change delta — like a `DeleteAttrOp`, a
-     * deletion is dropped from a final delta. `null` when there are none. Adding a mark with the same
-     * id (see {@link addMarkTo}) removes it from this set, so a node never holds both an add and a
-     * pending delete for one id.
+     * Mark ids to DELETE (tombstones). Only present in a (non-settled) change delta — like a
+     * `DeleteAttrOp`, a deletion is dropped from a final delta (a materialized document carries none, at
+     * any depth). `null` when there are none. Marks follow *last-writer-wins*, treating each op as an
+     * absolute per-id assignment (present vs absent): adding a mark cancels a pending delete of the same
+     * id ({@link addMarkTo}) and a delete cancels a present add ({@link deleteMarkTo}), so a node never
+     * holds both an add and a delete for one id. {@link deleteMarkTo} is the sole writer of this set
+     * (and `addMarkTo`'s mirror); see {@link applyMarkOps}.
      *
      * @type {Set<string>?}
      */
@@ -1352,6 +1355,9 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
     }
     cpy.maybeHasMarks = true
   }
+  // a bulk copy of an already-disjoint source onto a fresh `cpy` (not a conflict-resolving write, so it
+  // bypasses the deleteMarkTo/addMarkTo primitives): `d`'s marks/deleteMarks are disjoint by id, and
+  // clamping only ever drops marks, so `cpy` stays disjoint
   if (d.deleteMarks !== null) cpy.deleteMarks = new Set(d.deleteMarks)
   // @ts-ignore
   return cpy
@@ -1385,8 +1391,9 @@ export const cloneShallow = d => {
     // @ts-ignore (dynamic attr key — the same limitation slice suppresses when copying attrs)
     cpy.attrs[op.key] = /** @type {any} */ (op.clone())
   }
-  // root marks / deleteMarks (a delete-mark-only change has no marks but must still ride)
-  if (d.marks !== null || d.deleteMarks !== null) copyRootMarks(cpy, d)
+  // root marks / deleteMarks (a delete-mark-only change has no marks but must still ride); `cpy` is
+  // fresh, so merging onto it is a plain copy
+  if (d.marks !== null || d.deleteMarks !== null) mergeRootMarks(cpy, d)
   // carry the conservative flag (covers attr-value marks even when this node has no root marks of its
   // own); the builder OR-propagates it further as the caller appends the rebuilt children
   cpy.maybeHasMarks = d.maybeHasMarks
@@ -2427,29 +2434,41 @@ const addMarkTo = (node, mark) => {
 }
 
 /**
- * Remove the mark `id` from `node`. Returns `true` if a mark was actually present and removed, `false`
- * if it was absent. The `maybeHasMarks` flag is intentionally left as-is (never decremented -
- * {@link import('./position.js').marksToPositions} self-corrects it).
+ * Mirror of {@link addMarkTo}: assert mark `id` is *absent* on `node` (last-writer-wins). Strips a
+ * present add of `id` (a delete cancels a pending add — newest wins), then, only for a CHANGE delta
+ * (`record`, i.e. a non-final apply), records the transmittable tombstone in `deleteMarks`. A
+ * final/materializing apply passes `record === false`: the mark is removed in place but no tombstone is
+ * collected (a final delta carries none — see {@link DeltaData#deleteMarks}). The `maybeHasMarks` flag is
+ * intentionally left as-is (never decremented - {@link import('./position.js').marksToPositions}
+ * self-corrects it). Together with `addMarkTo` these are the only two writers of `marks`/`deleteMarks`,
+ * so a node can never hold both an add and a delete for one id.
  *
  * @param {DeltaAny} node
  * @param {string} id
- * @return {boolean}
+ * @param {boolean} record whether to keep a transmittable `deleteMarks` tombstone (`= !final`)
  */
-const removeMarkFrom = (node, id) => {
-  const marks = node.marks
-  if (marks === null) return false
-  const removed = marks.delete(id)
-  node.marks = marks.size === 0 ? null : marks
-  return removed
+const deleteMarkTo = (node, id, record) => {
+  if (node.marks !== null) {
+    node.marks.delete(id)
+    if (node.marks.size === 0) node.marks = null
+  }
+  if (record) {
+    const dm = node.deleteMarks ?? new Set()
+    dm.add(id)
+    node.deleteMarks = dm
+  }
 }
 
 /**
  * Apply mark add/delete ops to `target` (flagging `target.maybeHasMarks` on add). `addMarks` may be a
- * {@link Marks} set or a plain array; `deleteMarks` is a set of ids. Deletes are processed before adds
- * so that a change carrying both for one id resolves to *add wins* (see {@link addMarkTo}). `final`
- * marks a document-materializing apply (propagated from {@link DeltaBuilder#apply}, defaulting to
- * `this.isFinal`): a present mark is still removed in place, but an absent delete is NOT recorded — a
- * settled document only applies deletes, it never collects pending ones.
+ * {@link Marks} set or a plain array; `deleteMarks` is a set of ids. The two id-keyed primitives
+ * {@link deleteMarkTo}/{@link addMarkTo} are the only writers of `marks`/`deleteMarks`, so a node can
+ * never end holding both for one id. Deletes are processed before adds so that a single change carrying
+ * both for one id resolves to *add wins* (the add re-runs last and strips the just-recorded tombstone),
+ * matching the rebase policy. `final` marks a document-materializing apply (propagated from
+ * {@link DeltaBuilder#apply}, defaulting to `this.isFinal`): a settled document removes a present mark in
+ * place but records no tombstone, while a non-final change delta records the delete (passed as
+ * `record = !final`) so `create().removeMark(pos, id)` stays transmittable.
  *
  * @param {DeltaAny} target
  * @param {Iterable<Mark>?} addMarks
@@ -2458,43 +2477,11 @@ const removeMarkFrom = (node, id) => {
  */
 const applyMarkOps = (target, addMarks, deleteMarks, final) => {
   if (deleteMarks !== null) {
-    for (const id of deleteMarks) {
-      // Remove a present mark in place (e.g. editing a settled doc with `removeMark`). If the mark is
-      // absent AND this is a non-final change delta, record the delete as a *pending* op so building a
-      // change with `create().removeMark(pos, id)` yields a real, transmittable `deleteMarks` change
-      // (symmetric to how an add is recorded on `target.marks`). A final document collects nothing.
-      if (!removeMarkFrom(target, id) && !final) {
-        (target.deleteMarks ?? (target.deleteMarks = new Set())).add(id)
-      }
-    }
+    for (const id of deleteMarks) deleteMarkTo(target, id, !final)
   }
   if (addMarks !== null) {
     for (const m of addMarks) addMarkTo(target, m)
   }
-}
-
-/**
- * Copy the *root* marks of `source` onto `target`, mapping each mark's `key` through `mapKey` — return
- * `null` to drop that mark, or a new key to move it (re-keyed via {@link Mark#copy}). `source`'s
- * `deleteMarks` are copied verbatim: a mark *delete* is keyed only by its (cross-side-stable) id, so it
- * maps cleanly in either direction. `target.maybeHasMarks` is flagged for the added marks; marks inside
- * copied delta-valued attributes/children are flagged when the caller appends them via the builder
- * (and {@link cloneShallow} copies the flag wholesale). This is how mark-carrying
- * {@link import('./transformer/core.js').Transformer transformers} that build fresh output (e.g.
- * `attr`) move a node's marks across the mapping they already apply to content.
- *
- * @param {DeltaAny} target
- * @param {DeltaAny} source
- * @param {(key: number|string) => number|string|null} [mapKey]
- */
-export const copyRootMarks = (target, source, mapKey = k => k) => {
-  if (source.marks !== null) {
-    for (const m of source.marks) {
-      const k = mapKey(m.key)
-      if (k !== null) addMarkTo(target, k === m.key ? m : m.copy(k))
-    }
-  }
-  if (source.deleteMarks !== null) target.deleteMarks = new Set(source.deleteMarks)
 }
 
 /**
@@ -2512,7 +2499,7 @@ export const remapRootMarks = (node, mapKey) => {
   for (const m of [...marks]) {
     const k = mapKey(m.key)
     if (k === m.key) continue
-    removeMarkFrom(node, m.id)
+    deleteMarkTo(node, m.id, false) // relocate a present mark: strip it, but synthesize no tombstone
     if (k !== null) addMarkTo(node, m.copy(k))
   }
 }
@@ -2529,11 +2516,28 @@ export const remapRootMarks = (node, mapKey) => {
 export const addRootMark = (node, mark) => addMarkTo(node, mark)
 
 /**
- * Like {@link copyRootMarks}, but **merges** `source`'s `deleteMarks` into `target` instead of
- * overwriting them, so it can be called repeatedly to accumulate marks from several sources onto one
- * target (e.g. {@link import('./transformer/inline.js') inline} lifting the marks of every spliced
- * inline node onto the flattened parent). Each surviving add mark is re-keyed through `mapKey` (return
- * `null` to drop it); `target.maybeHasMarks` is flagged for the added marks.
+ * Mark id `id` as deleted on `node` (the mirror of {@link addRootMark}): the public wrapper of the
+ * internal {@link deleteMarkTo} with `record === true`, used by the restructuring
+ * {@link import('./transformer/core.js').Transformer transformers} (`inline`, `project`) to carry a mark
+ * *delete* (which is id-keyed, so it needs no position) onto the node they build. Strips a present add of
+ * the same id (last-writer-wins) so the node never holds both.
+ *
+ * @param {DeltaAny} node
+ * @param {string} id
+ */
+export const deleteRootMark = (node, id) => deleteMarkTo(node, id, true)
+
+/**
+ * Merge `source`'s *root* marks onto `target`, mapping each add mark's `key` through `mapKey` (return
+ * `null` to drop it, a new key to move it via {@link Mark#copy}). `source`'s `deleteMarks` are merged
+ * verbatim through {@link deleteMarkTo} — a delete is keyed only by its (cross-side-stable) id, so it
+ * maps in either direction and strips a conflicting add on `target` (last-writer-wins, never both). Safe
+ * to call repeatedly to accumulate marks from several sources onto one target (e.g.
+ * {@link import('./transformer/inline.js') inline} lifting the marks of every spliced node onto the
+ * flattened parent), and — onto a fresh target — to copy a node's marks across a key remapping (e.g.
+ * {@link cloneShallow}, and the `attr` transformer following an attribute rename). `target.maybeHasMarks`
+ * is flagged for the added marks; marks inside copied delta-valued attributes/children are flagged when
+ * the caller appends them via the builder (and {@link cloneShallow} copies the flag wholesale).
  *
  * @param {DeltaAny} target
  * @param {DeltaAny} source
@@ -2547,9 +2551,7 @@ export const mergeRootMarks = (target, source, mapKey = k => k) => {
     }
   }
   if (source.deleteMarks !== null) {
-    const dm = target.deleteMarks ?? new Set()
-    for (const id of source.deleteMarks) dm.add(id)
-    target.deleteMarks = dm
+    for (const id of source.deleteMarks) deleteMarkTo(target, id, true)
   }
 }
 
@@ -2697,6 +2699,8 @@ const rebaseRootMarks = (node, other, priority) => {
     node.deleteMarks !== null ? [...node.deleteMarks] : [],
     markIdSet(other.marks), markIdSet(other.deleteMarks), other, priority
   )
+  // rebuild both fields wholesale from rebaseMarkOps's provably-disjoint output (concurrent reconciliation
+  // keeps its deliberate add-wins rule, NOT the apply path's last-writer-wins; not a primitive write)
   if (adds.length === 0) {
     node.marks = null
   } else {
@@ -2733,7 +2737,7 @@ const markChange = (pos, id, isDelete) => {
     if (i === path.length - 1) {
       // leaf reached: carry the mark on the delta's own marks
       const d = /** @type {DeltaBuilderAny} */ (create())
-      if (mark === null) d.deleteMarks = new Set([id])
+      if (mark === null) deleteMarkTo(d, id, true) // a change delta records the transmittable delete
       else addMarkTo(d, mark)
       return d
     }

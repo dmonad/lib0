@@ -756,9 +756,7 @@ export class InlineTransformer extends Transformer {
       }
     }
     if (db.deleteMarks !== null) {
-      const dm = a.deleteMarks ?? new Set()
-      for (const id of db.deleteMarks) dm.add(id)
-      a.deleteMarks = dm
+      for (const id of db.deleteMarks) delta.deleteRootMark(a, id)
     }
     applySegsChange(this.segs, a, this.names)
     a.done(false)
