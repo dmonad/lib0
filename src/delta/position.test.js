@@ -126,10 +126,12 @@ export const testMarkAddAndReconstruct = () => {
 
 export const testMarkAutoIdAndAttrs = () => {
   const d = markDoc()
-  // addMark returns the id; without one it generates a fresh GUID
-  const id = d.addMark(position.create([1, 2], 1))
-  t.assert(typeof id === 'string' && id.length > 0)
-  t.compare(position.marksToPositions(d), [{ id, path: [1, 2], assoc: 1 }])
+  // addMark returns the builder (chainable, like every other builder method); without an explicit id it
+  // anchors the mark under a fresh GUID, recoverable via marksToPositions
+  t.assert(d.addMark(position.create([1, 2], 1)) === d)
+  const ps0 = position.marksToPositions(d)
+  t.assert(ps0.length === 1 && typeof ps0[0].id === 'string' && ps0[0].id.length > 0)
+  t.compare(ps0, [{ id: ps0[0].id, path: [1, 2], assoc: 1 }])
   // attrs (carried on the position) ride with the mark and surface in the reconstructed position
   const d2 = markDoc()
   d2.addMark(position.create([2], 1, { color: 'red' }), 'c')

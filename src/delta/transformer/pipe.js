@@ -237,6 +237,12 @@ export class PipeTransformer extends Transformer {
 /**
  * Chain multiple {@link Template}s into a single template. Nested pipes are flattened.
  *
+ * Order is directional: an `applyA` change flows through the templates **left→right** (the leftmost
+ * maps the A-side first), an `applyB` change flows **right→left**. So list templates in A→B order —
+ * e.g. `pipe(children(...), rename('ul'))` maps an A-side change with `children` then `rename`, and a
+ * B-side change with `rename` then `children`. Reversing the order silently produces wrong results
+ * (there is no init-time check), so the sequence must read as the A→B mapping.
+ *
  * @template {Array<Template>} Ts
  * @param {Ts} ts
  * @return {Pipe<FlattenTemplates<Ts>>}

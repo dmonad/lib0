@@ -44,6 +44,12 @@ import * as dt from './transformer.js'
 import * as delta from './delta.js'
 import * as mux from '../mutex.js'
 
+// Re-export the two reference RDTs this module's doc references, so `bind`, `deltaRDT` and `domRDT` are
+// reachable from one import. The leaf modules (`lib0/delta/rdt/delta`, `lib0/delta/rdt/dom`) stay
+// independently importable, so a consumer who wants only one keeps it tree-shakeable.
+export { deltaRDT } from './rdt/delta.js'
+export { $domDelta, domRDT } from './rdt/dom.js'
+
 /**
  * @template T
  * @typedef {import('../schema.js').Schema<T>} Schema
@@ -141,6 +147,11 @@ export class Binding {
     })
   }
 
+  /**
+   * Tear the binding down: unsubscribe both sides' `'delta'` and `'destroy'` listeners so changes are no
+   * longer propagated. Call this when you no longer need the two RDTs kept in sync. It is also invoked
+   * automatically when either bound RDT emits `'destroy'`. The RDTs themselves are NOT destroyed.
+   */
   destroy = () => {
     this.a.off('destroy', this.destroy)
     this.b.off('destroy', this.destroy)
@@ -151,11 +162,14 @@ export class Binding {
 
 /**
  * Connect two RDTs through a transformer template. Changes on `a` are mapped onto `b` and vice versa.
- * Without a `template` the {@link dt.id identity} transformer is used, keeping both sides equal.
+ * Without a `template` the {@link dt.id identity} transformer is used, keeping both sides equal. Call
+ * {@link Binding#destroy} on the returned binding to stop syncing (it also self-destroys when either RDT
+ * emits `'destroy'`).
  *
  * @template {import('./delta.js').DeltaAny} DeltaA
  * @param {RDT<DeltaA>} a
  * @param {RDT<import('./delta.js').DeltaAny>} b
  * @param {dt.Template} [template]
+ * @return {Binding<DeltaA>}
  */
 export const bind = (a, b, template) => new Binding(a, b, template)

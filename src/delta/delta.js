@@ -1,6 +1,21 @@
 /**
  * @beta this API is about to change
  *
+ * ## Consumer API
+ *
+ * This module exports a large surface, but a consumer only needs a handful of it:
+ * - **build / apply / inspect:** {@link create} (the constructor) and the {@link DeltaBuilder} methods
+ *   it returns (`insert`/`delete`/`retain`/`modify`/`setAttr`/`addMark`/…, `apply`, `rebase`, `done`);
+ *   {@link clone}, {@link slice}, {@link diff}, and `toJSON`/`equals`/`isEmpty` on the result.
+ * - **schemas:** {@link $delta} (define a typed delta schema) and {@link $deltaAny} (the catch-all).
+ * - **types:** `Delta`, `DeltaBuilder`, `DeltaAny`, `DeltaConf` for annotations.
+ *
+ * Everything else is `@internal` plumbing: the `*Op` classes and `$*Op` schema sentinels exist for the
+ * transformer layer's V8-stable dispatch (do not construct them); the `*RootMark*` helpers,
+ * {@link cloneShallow}, {@link random}, the merge helpers, and the remaining `$*` schemas are for
+ * cross-module / custom-transformer use, not application code. The other `DeltaConf*` typedefs are the
+ * inference machinery behind the fluent builder's typed chain — never named directly.
+ *
  * ## Mutability
  *
  * Deltas are mutable by default. But references are often shared, by marking a Delta as "done". You
@@ -123,6 +138,8 @@ const _markMaybeDeltaAsDone = maybeDelta => $deltaAny.check(maybeDelta) ? /** @t
  *   fingerprint read (and any `diff` / equality check that relies on it) is
  *   wrong. Fields covered: insert, delete, retain, format, attribution,
  *   value, key.
+ *
+ * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class TextOp extends list.ListNode {
   /**
@@ -221,6 +238,7 @@ export class TextOp extends list.ListNode {
 
 /**
  * @template {any} ArrayContent
+ * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class InsertOp extends list.ListNode {
   /**
@@ -346,6 +364,7 @@ export class InsertOp extends list.ListNode {
 
 /**
  * @template {DeltaConf} [Conf={}]
+ * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class DeleteOp extends list.ListNode {
   /**
@@ -419,6 +438,9 @@ export class DeleteOp extends list.ListNode {
   }
 }
 
+/**
+ * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
+ */
 export class RetainOp extends list.ListNode {
   /**
    * @param {number} retain
@@ -509,6 +531,7 @@ export class RetainOp extends list.ListNode {
  * Delta that can be applied on a YType Embed
  *
  * @template {Delta} [DTypes=DeltaAny]
+ * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class ModifyOp extends list.ListNode {
   /**
@@ -614,6 +637,7 @@ export class ModifyOp extends list.ListNode {
 /**
  * @template {any} [V=any]
  * @template {string|number} [K=any]
+ * @internal not part of the consumer API — an attribute op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class SetAttrOp {
   /**
@@ -705,6 +729,7 @@ export class SetAttrOp {
 /**
  * @template [V=any]
  * @template {string|number} [K=string|number]
+ * @internal not part of the consumer API — an attribute op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class DeleteAttrOp {
   /**
@@ -770,6 +795,7 @@ export class DeleteAttrOp {
 /**
  * @template {DeltaAny} [Modifier=DeltaAny]
  * @template {string|number} [K=string]
+ * @internal not part of the consumer API — an attribute op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class ModifyAttrOp {
   /**
@@ -1383,6 +1409,7 @@ export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
  * @template {DeltaAny} D
  * @param {D} d
  * @return {D extends Delta<infer Conf> ? DeltaBuilder<Conf> : never}
+ * @internal transformer plumbing — drops children; consumers use {@link clone}.
  */
 export const cloneShallow = d => {
   const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(d.name, d.$schema))
@@ -1615,17 +1642,20 @@ export class DeltaBuilder extends Delta {
   /**
    * Add a cursor/selection {@link Mark} at `pos` — a {@link import('./position.js').Pos}: a `path` of
    * content-index / attribute-key steps plus an `assoc` and optional immutable `attrs` (user data
-   * carried with the mark). `id` defaults to a fresh GUID. Returns the mark's `id`.
+   * carried with the mark). Returns `this` for chaining (like every other builder method). Pass an
+   * explicit `id` to reference the mark later — re-adding the same `id` replaces it (e.g. to move a
+   * cursor or update its `attrs`) and {@link DeltaBuilder#removeMark} deletes it; an anonymous one-shot
+   * mark gets a fresh GUID otherwise.
    *
    * @param {import('./position.js').Pos} pos
    * @param {string} [id]
-   * @return {string}
+   * @return {this}
    */
   addMark (pos, id = rand.uuidv4()) {
     // apply with the default `final = this.isFinal` (do NOT force `{ final: true }`): a fresh change
     // builder is non-final so a sibling `removeMark` stays transmittable; a final doc collects nothing
     this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, false)))
-    return id
+    return this
   }
 
   /**
@@ -2492,6 +2522,7 @@ const applyMarkOps = (target, addMarks, deleteMarks, final) => {
  *
  * @param {DeltaAny} node
  * @param {(key: number|string) => number|string|null} mapKey
+ * @internal transformer plumbing (used by mark-carrying transformers), not consumer API.
  */
 export const remapRootMarks = (node, mapKey) => {
   const marks = node.marks
@@ -2512,6 +2543,7 @@ export const remapRootMarks = (node, mapKey) => {
  *
  * @param {DeltaAny} node
  * @param {Mark} mark
+ * @internal transformer plumbing (used by `inline`/`project`), not consumer API.
  */
 export const addRootMark = (node, mark) => addMarkTo(node, mark)
 
@@ -2524,6 +2556,7 @@ export const addRootMark = (node, mark) => addMarkTo(node, mark)
  *
  * @param {DeltaAny} node
  * @param {string} id
+ * @internal transformer plumbing (used by `inline`/`project`), not consumer API.
  */
 export const deleteRootMark = (node, id) => deleteMarkTo(node, id, true)
 
@@ -2542,6 +2575,7 @@ export const deleteRootMark = (node, id) => deleteMarkTo(node, id, true)
  * @param {DeltaAny} target
  * @param {DeltaAny} source
  * @param {(key: number|string) => number|string|null} [mapKey]
+ * @internal transformer plumbing (used by `inline`/`attr`/`cloneShallow`), not consumer API.
  */
 export const mergeRootMarks = (target, source, mapKey = k => k) => {
   if (source.marks !== null) {
@@ -2752,6 +2786,7 @@ const markChange = (pos, id, isDelete) => {
 /**
  * @template {DeltaConf} Conf
  * @extends {s.Schema<Delta<Conf>>}
+ * @internal use the {@link $delta} factory; this class is exported only for the `$$delta` predicate.
  */
 export class $Delta extends s.Schema {
   /**

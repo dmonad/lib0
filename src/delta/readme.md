@@ -9,16 +9,16 @@
 
 ```javascript
 // define schema
-const $d = delta.$delta(s.$any, { attr1: s.$string, attr2: s.$number })
+const $d = delta.$delta({ attrs: { attr1: s.$string, attr2: s.$number } })
 const d = delta.create($d)
 
 
 // create an update
-const update = delta.create().set('attr1', 'val1').set('attr2', 42)
+const update = delta.create().setAttr('attr1', 'val1').setAttr('attr2', 42)
 d.apply(update)
 
 // In case  of an invalid update
-const update2 = delta.create().set('attr1', 42)
+const update2 = delta.create().setAttr('attr1', 42)
 // it is possible to check an update beforehand
 $d.check(update2) // => false
 // and you also get type errors
@@ -31,7 +31,7 @@ Text-like deltas work similarly to [Quill Deltas]{https://quilljs.com/docs/delta
 
 ```javascript
 // define schema
-const $d = delta.$delta(s.$any, null, s.$string)
+const $d = delta.$delta({ text: true })
 const d = delta.create($d).insert('hello world')
 
 // create an update
@@ -50,8 +50,8 @@ d.apply(update2) // type error: unexpected attribute 'attr1'
 
 ```javascript
 // define schema
-const $d = delta.$delta(s.$any, null, s.$array(s.object({ some: s.$string }, s.$string)))
-const d = delta.create($d).insert(['hello world'])
+const $d = delta.$delta({ children: s.$array(s.$object({ some: s.$string })) })
+const d = delta.create($d).insert([{ some: 'hello world' }])
 
 // create an update
 const update = delta.create().retain(1).insert({ some: 'object' })
@@ -69,7 +69,7 @@ d.apply(update2) // type error: { unknown: 'prop' } is not assignable to { some:
 
 ```javascript
 // define schema for a 'p'|'h1' node that may contain text or other instances of itself
-const $d = delta.$delta(s.$literal('div', 'p', 'h1'), { style: s.$string }, s.$string, true))
+const $d = delta.$delta({ name: s.$literal('div', 'p', 'h1'), attrs: { style: s.$string }, text: true, recursiveChildren: true })
 const d = delta.create('div', $d)
 
 // create an update - insert paragraph into the <div>
