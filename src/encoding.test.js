@@ -192,22 +192,15 @@ export const testDecodingPerformanceNativeVsPolyfill = () => {
   const buf = encoding.toUint8Array(encoder)
   const bufLarge = encoding.toUint8Array(encoderLarge)
 
-  const nativeTimeSmall = t.measureTime('small dataset: native encoding', () => {
-    const decoder = decoding.createDecoder(buf)
-    while (decoding.hasContent(decoder)) {
-      decoding._readVarStringNative(decoder)
-    }
-  })
-
   const polyfillTimeSmall = t.measureTime('small dataset: polyfill encoding', () => {
     const decoder = decoding.createDecoder(buf)
     while (decoding.hasContent(decoder)) {
-      decoding.readVarString(decoder)
+      decoding._readVarStringPolyfill(decoder)
     }
   })
 
-  const nativeTimeLarge = t.measureTime('large dataset: native encoding', () => {
-    const decoder = decoding.createDecoder(bufLarge)
+  const nativeTimeSmall = t.measureTime('small dataset: native encoding', () => {
+    const decoder = decoding.createDecoder(buf)
     while (decoding.hasContent(decoder)) {
       decoding._readVarStringNative(decoder)
     }
@@ -220,10 +213,16 @@ export const testDecodingPerformanceNativeVsPolyfill = () => {
     }
   })
 
-  // @todo We should switch to native decoding!
+  const nativeTimeLarge = t.measureTime('large dataset: native encoding', () => {
+    const decoder = decoding.createDecoder(bufLarge)
+    while (decoding.hasContent(decoder)) {
+      decoding._readVarStringNative(decoder)
+    }
+  })
+
   console.log({ nativeTimeSmall, polyfillTimeSmall })
-  t.assert(nativeTimeSmall < polyfillTimeSmall * 2.0, 'Small dataset: We expect native decoding to be not much worse than')
-  t.assert(nativeTimeLarge < polyfillTimeLarge * 1.5, 'Large dataset: We expect native decoding to be much better than polyfill decoding')
+  t.assert(nativeTimeSmall < polyfillTimeSmall * 2, 'Small dataset: We expect native decoding to be not much worse than')
+  t.assert(nativeTimeLarge < polyfillTimeLarge, 'Large dataset: We expect native decoding to be much better than polyfill decoding')
 }
 
 export const testStringDecodingPerformance = () => {
