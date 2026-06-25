@@ -35,7 +35,7 @@ const mp = d => position.marksToPositions(d).sort((a, b) => a.id < b.id ? -1 : a
 
 export const testMarkRenamePreserves = () => {
   // rename clones the node, so a mark rides unchanged (only the name changes)
-  const it = rename('B').init(delta.$deltaAny)
+  const it = rename(delta.$deltaAny, 'B').init()
   const d = delta.create('A').insert('hi')
   d.addMark(position.create([1]), 'M')
   const r = it.applyA(d)
@@ -51,7 +51,7 @@ export const testMarkRenamePreserves = () => {
 
 export const testMarkIdPreserves = () => {
   // the identity transformer carries marks verbatim
-  const it = id.init(delta.$deltaAny)
+  const it = id(delta.$deltaAny).init()
   const d = delta.create('p', { a: 1 })
   d.addMark(position.create(['a']), 'M')
   d.addMark(position.create([0]), 'R')
@@ -66,7 +66,7 @@ export const testMarkChildrenRootAndNested = () => {
   // children is 1:1 over positions: a root mark rides via cloneShallow (content offset unchanged); a
   // mark inside a transformed child rides via the modify/insert recursion (here re-keyed a->b by the
   // per-child renameAttrs)
-  const it = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
+  const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
   const child = delta.create('p', { a: 1 })
   child.addMark(position.create(['a']), 'C')
   const d = delta.create().insert([child])
@@ -85,7 +85,7 @@ export const testMarkChildrenNestedOnly = () => {
   child.addMark(position.create(['a']), 'C')
   const doc = /** @type {any} */ (delta.create())
   doc.apply(delta.create().insert([child]), { final: true })
-  const r = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny).applyA(doc)
+  const r = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init().applyA(doc)
   t.assert(/** @type {any} */ (r.b).maybeHasMarks === true)
   t.compare(mp(r.b), [{ id: 'C', path: [0, 'b'], assoc: 1 }])
 }
@@ -96,14 +96,14 @@ export const testMarkValueNestedOnly = () => {
   child.addMark(position.create(['k']), 'V')
   const doc = /** @type {any} */ (delta.create())
   doc.apply(delta.create().insert([child]), { final: true })
-  const r = unwrapValue.init(delta.$deltaAny).applyA(doc)
+  const r = unwrapValue(delta.$deltaAny).init().applyA(doc)
   t.assert(/** @type {any} */ (r.b).maybeHasMarks === true)
   t.compare(mp(r.b), [{ id: 'V', path: [0, 'k'], assoc: 1 }])
 }
 
 export const testMarkValueRootPreserved = () => {
   // unwrapValue is count-preserving (carrier -> scalar is 1 position): a root mark rides unchanged
-  const it = unwrapValue.init(delta.$deltaAny)
+  const it = unwrapValue(delta.$deltaAny).init()
   const d = delta.create().insert('x').insert([delta.create('lib0:value').setAttr('value', 42)])
   d.addMark(position.create([0]), 'M')
   const r = it.applyA(d)
@@ -115,7 +115,7 @@ export const testMarkValueRootPreserved = () => {
 export const testMarkValueCarrierInnerDropped = () => {
   // a mark *inside* a carrier that is lifted to a bare scalar has nowhere to go (a scalar holds no
   // marks) - documented drop
-  const it = unwrapValue.init(delta.$deltaAny)
+  const it = unwrapValue(delta.$deltaAny).init()
   const carrier = delta.create('lib0:value').setAttr('value', 7)
   carrier.addMark(position.create(['value']), 'INNER')
   const r = it.applyA(delta.create().insert([carrier]))
@@ -126,7 +126,7 @@ export const testMarkValueCarrierInnerDropped = () => {
 export const testMarkAttrKeyRemap = () => {
   // attr moves a mark on the projected attribute (attrName <-> 'value') and drops marks on any other
   // attribute (only the one attribute exists on the other side)
-  const it = attr('title').init(delta.$deltaAny)
+  const it = attr(delta.$deltaAny, 'title').init()
   const d = delta.create('node', { title: 'hi', other: 'x' })
   d.addMark(position.create(['title']), 'M')
   d.addMark(position.create(['other']), 'N')
@@ -141,7 +141,7 @@ export const testMarkAttrNestedValueReachable = () => {
   // a delta-valued attribute carries its own (deeper) marks via the cloned attr op; the carrier's
   // `maybeHasMarks` flag is set conservatively (the direct attr assignment in attrTransformHelper
   // bypasses the builder) so marksToPositions descends into it
-  const it = attr('body').init(delta.$deltaAny)
+  const it = attr(delta.$deltaAny, 'body').init()
   const d = delta.create('node').setAttr('body', delta.create('doc').insert('hello'))
   d.addMark(position.create(['body', 2], 1), 'I')
   const r = it.applyA(d)
@@ -149,7 +149,7 @@ export const testMarkAttrNestedValueReachable = () => {
 }
 
 export const testMarkRenameAttrsRemapAndDrop = () => {
-  const it = renameAttrs({ a: 'b' }).init(delta.$deltaAny)
+  const it = renameAttrs(delta.$deltaAny, { a: 'b' }).init()
   // 'a' follows the rename to 'b'; 'c' is untouched
   const d = delta.create('p', { a: 1, c: 2 })
   d.addMark(position.create(['a']), 'M')
@@ -160,7 +160,7 @@ export const testMarkRenameAttrsRemapAndDrop = () => {
     { id: 'M', path: ['b'], assoc: 1 }
   ])
   // a mark on a rename *target* attribute is dropped (that attribute is removed on this side)
-  const it2 = renameAttrs({ a: 'b' }).init(delta.$deltaAny)
+  const it2 = renameAttrs(delta.$deltaAny, { a: 'b' }).init()
   const d2 = delta.create('p', { b: 9 })
   d2.addMark(position.create(['b']), 'Z')
   const r2 = it2.applyA(d2)
@@ -169,7 +169,7 @@ export const testMarkRenameAttrsRemapAndDrop = () => {
 
 export const testMarkFilterPreserves = () => {
   // filter returns the input unchanged, so a mark on a kept attribute survives
-  const it = filter(delta.$delta({ attrs: { a: s.$string } })).init(delta.$delta({ attrs: { a: s.$string, b: s.$string } }))
+  const it = filter(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), delta.$delta({ attrs: { a: s.$string } })).init()
   const d = delta.create().setAttr('a', 'x')
   d.addMark(position.create(['a']), 'M')
   const r = it.applyA(d)
@@ -178,7 +178,7 @@ export const testMarkFilterPreserves = () => {
 
 export const testMarkPipeComposition = () => {
   // a mark rides end-to-end through a composed pipe (children re-keys a->b, then rename relabels root)
-  const it = /** @type {any} */ (pipe(children(_d => renameAttrs({ a: 'b' })), rename('ROOT')).init(delta.$deltaAny))
+  const it = /** @type {any} */ (pipe(delta.$deltaAny, $d1 => children($d1, (_c, $c) => renameAttrs($c, { a: 'b' })), $d2 => rename($d2, 'ROOT')).init())
   const child = delta.create('p', { a: 1 })
   child.addMark(position.create(['a']), 'C')
   const d = delta.create('orig').insert([child])
@@ -195,12 +195,12 @@ export const testMarkDeleteRidesCrossSide = () => {
   // a mark *delete* is keyed only by (cross-side-stable) id, so it maps cleanly in either direction. A
   // delete-mark *change* carries `deleteMarks` directly (removeMark would resolve the delete away under
   // its final:true apply), so we build it like position.test.js's mkDel helper.
-  const itc = children(_d => renameAttrs({ a: 'b' })).init(delta.$deltaAny)
+  const itc = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
   const dc = delta.create()
   dc.deleteMarks = new Set(['M'])
   const rc = itc.applyA(dc)
   t.compare(/** @type {any} */ (rc.b).deleteMarks, new Set(['M']))
-  const ita = attr('title').init(delta.$deltaAny)
+  const ita = attr(delta.$deltaAny, 'title').init()
   const da = delta.create('node')
   da.deleteMarks = new Set(['M'])
   const ra = ita.applyA(da)
@@ -210,7 +210,7 @@ export const testMarkDeleteRidesCrossSide = () => {
 export const testMarkAttrsRoundTrip = () => {
   // a mark's attrs (the "additional information" an RDT attaches) ride through a transformer
   // and back, keyed through the same attr remap as the mark itself
-  const it = renameAttrs({ a: 'b' }).init(delta.$deltaAny)
+  const it = renameAttrs(delta.$deltaAny, { a: 'b' }).init()
   const d = delta.create('p', { a: 1 })
   d.addMark(position.create(['a'], 1, { note: 'hi' }), 'U')
   const r = it.applyA(d)
@@ -247,7 +247,7 @@ export const testRepeatMarkRenameAttrsFuzz = tc => {
       }
     }
   }
-  const it = renameAttrs(renames).init(delta.$deltaAny)
+  const it = renameAttrs(delta.$deltaAny, renames).init()
   const r = it.applyA(node)
   t.compare(mp(r.b), fwd.sort((a, b) => a.id < b.id ? -1 : 1), 'marks follow the attr renames')
   const back = it.applyB(/** @type {any} */ (r.b))

@@ -1,6 +1,6 @@
 import * as delta from '../delta.js'
 import * as s from '../../schema.js'
-import { Transformer, Template, createTransformResult } from './core.js'
+import { Transformer, Template, createTransformResult, withAttrs, attrsShapeOf } from './core.js'
 
 /**
  * @template {delta.DeltaConf} DConf
@@ -9,31 +9,50 @@ import { Transformer, Template, createTransformResult } from './core.js'
  */
 
 /**
- * Drops everything that does not match the configured schema (only attrs are filtered for now).
+ * Drops everything that does not match the `$allowed` schema (only attrs are filtered for now).
  *
  * @template {delta.DeltaConf} DConf
+ * @template {delta.DeltaConf} [IN=any]
+ * @extends {Template<IN, ApplyExpectType<DConf, IN>>}
  */
 export class Filter extends Template {
   /**
-   * @param {import('../../schema.js').Schema<delta.Delta<DConf>>} $d
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d input delta schema
+   * @param {import('../../schema.js').Schema<delta.Delta<DConf>>} $allowed the allowed shape
    */
-  constructor ($d) {
-    super()
-    s.assert($d, delta.$$delta)
-    this.$d = $d
-    this.$dshape = $d.shape
+  constructor ($d, $allowed) {
+    s.assert($allowed, delta.$$delta)
+    super($d, /** @type {any} */ (filterOut($d, $allowed)))
+    this.$allowed = $allowed
   }
 
-  get stateless () { return false }
+  get fpName () { return 'lib0:filter' }
 
   /**
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
-   * @return {Transformer<IN,ApplyExpectType<DConf, IN>>}
+   * @return {Transformer<IN, ApplyExpectType<DConf, IN>>}
    */
-  init (_$d) {
-    return /** @type {Transformer<IN,any>} */ (new FilterTransformer(this.$d))
+  init () {
+    return /** @type {any} */ (new FilterTransformer(this.$allowed))
   }
+}
+
+/**
+ * Compute the output schema of a filter: keep only the attr keys present in BOTH the input schema and
+ * the allowed schema (mirrors {@link ApplyExpectType} / the runtime drop loop). Falls back to
+ * `$deltaAny` when either side is loose.
+ *
+ * @param {import('../../schema.js').Schema<delta.DeltaAny>} $in
+ * @param {import('../../schema.js').Schema<delta.DeltaAny>} $allowed
+ * @return {import('../../schema.js').Schema<delta.DeltaAny>}
+ */
+const filterOut = ($in, $allowed) => {
+  const mi = attrsShapeOf($in)
+  const ma = attrsShapeOf($allowed)
+  if (mi == null || ma == null) return delta.$deltaAny
+  /** @type {{[K:string|number]:s.Schema<any>}} */
+  const m2 = {}
+  for (const k in mi) if (k in ma) m2[k] = mi[k]
+  return withAttrs($in, m2)
 }
 
 /**
@@ -92,9 +111,13 @@ export class FilterTransformer extends Transformer {
 }
 
 /**
- * Create a {@link Filter} template from a schema describing the allowed shape.
+ * Drop everything not matching the `$allowed` schema (only attrs are filtered for now). Returns a
+ * reusable {@link Filter} template (a `project` hole, or `.init()` for a standalone transformer).
  *
+ * @template {delta.DeltaConf} IN
  * @template {delta.DeltaConf} DConf
- * @param {import('../../schema.js').Schema<delta.Delta<DConf>>} $d
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+ * @param {import('../../schema.js').Schema<delta.Delta<DConf>>} $allowed
+ * @return {Filter<DConf, IN>}
  */
-export const filter = $d => new Filter($d)
+export const filter = ($d, $allowed) => new Filter($d, $allowed)

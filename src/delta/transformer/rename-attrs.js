@@ -1,5 +1,5 @@
 import * as delta from '../delta.js'
-import { Transformer, Template, createTransformResult } from './core.js'
+import { Transformer, Template, createTransformResult, withAttrs, attrsShapeOf } from './core.js'
 
 /**
  * @template {{[K:string|number]:string|number}} Renames
@@ -83,43 +83,68 @@ export class RenameAttrsTransformer extends Transformer {
 }
 
 /**
- * Template that renames node attributes (`a` -> `b`) in both directions. Stateless: it builds its
- * {@link RenameAttrsTransformer} once and returns that same instance from every `init`.
+ * Compute the output schema of an attribute rename: rename matching attr keys, drop keys that are
+ * rename targets, keep the rest (mirrors {@link renameDeltaAttrs} / {@link ApplyRenameAttrs}). Falls
+ * back to `$deltaAny` when the input schema is loose.
+ *
+ * @param {import('../../schema.js').Schema<delta.DeltaAny>} $d
+ * @param {{[K:string|number]:string|number}} renames
+ * @return {import('../../schema.js').Schema<delta.DeltaAny>}
+ */
+const renamedAttrsOut = ($d, renames) => {
+  const m = attrsShapeOf($d)
+  if (m == null) return delta.$deltaAny
+  /** @type {{[K:string|number]:string|number}} */
+  const rev = {}
+  for (const k in renames) rev[renames[k]] = k
+  /** @type {{[K:string|number]:import('../../schema.js').Schema<any>}} */
+  const m2 = {}
+  for (const k in m) {
+    if (renames[k] != null) m2[renames[k]] = m[k]
+    else if (rev[k] == null) m2[k] = m[k]
+  }
+  return withAttrs($d, m2)
+}
+
+/**
+ * Template that renames node attributes (`a` -> `b`) in both directions.
  *
  * @template {{[K:string|number]:string|number}} Renames
+ * @template {delta.DeltaConf} [IN=any]
+ * @extends {Template<IN, ApplyRenameAttrs<Renames, IN>>}
  */
 export class RenameAttrs extends Template {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
    * @param {Renames} renames
    */
-  constructor (renames) {
-    super()
+  constructor ($d, renames) {
+    super($d, /** @type {any} */ (renamedAttrsOut($d, renames)))
     /**
-     * Retained (beyond the built transformer) so the `Renames` type parameter stays inferrable from
-     * a `RenameAttrs<Renames>` instance - `pipe`'s `ApplyPipe` dispatches on `infer Renames`.
-     *
      * @type {Renames}
      */
     this.renames = renames
-    this.transformer = new RenameAttrsTransformer(renames)
   }
 
-  get stateless () { return true }
+  get fpName () { return 'lib0:renameAttrs:' + JSON.stringify(this.renames) }
 
   /**
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN,ApplyRenameAttrs<Renames,IN>>}
    */
-  init (_$d) {
-    return /** @type {Transformer<IN,ApplyRenameAttrs<Renames,IN>>} */ (this.transformer)
+  init () {
+    return /** @type {any} */ (new RenameAttrsTransformer(this.renames))
   }
 }
 
 /**
- * Create a {@link RenameAttrs} template that renames the given node attributes in both directions.
+ * Rename node attributes (`a` -> `b`) in both directions. Returns a reusable {@link RenameAttrs}
+ * template (a `project` hole, or `.init()` for a standalone transformer). The `const Renames` param
+ * keeps the `{a:'b'}` literal so the output type is precise without a manual const-assertion.
  *
- * @template {{[K:string|number]:string|number}} Renames
+ * @template {delta.DeltaConf} IN
+ * @template {{[K:string|number]:string|number}} const Renames
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
  * @param {Renames} renames
+ * @return {RenameAttrs<Renames, IN>}
  */
-export const renameAttrs = renames => new RenameAttrs(renames)
+export const renameAttrs = ($d, renames) => new RenameAttrs($d, renames)

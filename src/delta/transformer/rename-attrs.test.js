@@ -5,9 +5,10 @@ import { transformerWith } from '../transformer.js'
 import { renameAttrs } from './rename-attrs.js'
 
 export const testRenameAttrsBasics = () => {
-  const r1 = renameAttrs(/** @type {const} */ ({ a: 'b' }))
-  const i1 = r1.init(delta.$delta({ attrs: { a: s.$string, b: s.$string } }))
-  t.assert(transformerWith(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), delta.$delta({ attrs: { b: s.$string } })).validate(i1))
+  const $d = delta.$delta({ attrs: { a: s.$string, b: s.$string } })
+  // schema-first form: builds the transformer directly, output type is concrete
+  const i1 = renameAttrs($d, { a: 'b' }).init()
+  t.assert(transformerWith($d, delta.$delta({ attrs: { b: s.$string } })).validate(i1))
   // forward: an a-side change renames attr `a` -> `b`
   const res = i1.applyA(delta.create().setAttr('a', 'x'))
   t.assert(res.a === null)
@@ -16,6 +17,7 @@ export const testRenameAttrsBasics = () => {
   const res2 = i1.applyB(delta.create().setAttr('b', 'y'))
   t.assert(res2.b === null)
   t.compare(res2.a, delta.create().setAttr('a', 'y'))
-  // a stateless template
-  t.assert(r1.stateless === true)
+  // config-only (template) form: `.init($d)` builds an equivalent transformer
+  const i2 = renameAttrs($d, { a: 'b' }).init()
+  t.compare(i2.applyA(delta.create().setAttr('a', 'z')).b, delta.create().setAttr('b', 'z'))
 }

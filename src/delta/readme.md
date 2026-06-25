@@ -136,10 +136,33 @@ transformer describes the mapping once and translates *changes* in both directio
 - data updates ⇒ incremental updates on the html structure
 - html edits (e.g. from a `contenteditable` editor) ⇒ updates on the data
 
-A `Template` (`rename`, `filter`, `pipe`, …) is initialized against an input schema
-and yields a `Transformer<A,B>`. `applyA(deltaA)` maps an A-change to a B-change,
-`applyB(deltaB)` maps back, and `apply({a,b})` resolves concurrent changes on both
-sides via rebase (see `Transformer.apply` in `transformer.js`).
+A transformer is built by a **schema-first factory** — `renameAttrs($d, {a:'b'})`,
+`filter($d, $allowed)`, `attr($d, 'name')`, `rename($d, 'ul')`, `project($d, spec)` — that takes the
+input delta schema `$d` and returns a reusable **`Template<In, Out>`** holding the input/output
+schemas. Call **`.init()`** (no arguments) to materialize a stateful `Transformer<In, Out>`:
+`applyA(deltaA)` maps an A-change to a B-change, `applyB(deltaB)` maps back, and `apply({a,b})`
+resolves concurrent changes on both sides via rebase (see `Transformer.apply` in `transformer.js`).
+
+You almost always *compose* templates — pipe them or nest them as `project` holes — and only call
+`.init()` at the end, which keeps the templates reusable. The identity factory is `dt.id`; pass a
+`$d => Template` factory to `bind` (`rdt.js`).
+
+**`pipe`** chains transformers, threading the schema left→right so each stage is typed against the
+previous stage's output — the end-to-end output type is inferred automatically, with no per-template
+type-level machinery:
+
+```javascript
+const view = dt.pipe(
+  delta.$delta({ attrs: { a: s.$number } }),
+  $d => dt.renameAttrs($d, { a: 'b' }),   // $d : Schema<Delta<{ attrs: { a: number } }>>
+  $d => dt.renameAttrs($d, { b: 'c' })    // $d : Schema<Delta<{ attrs: { b: number } }>>
+).init()
+// view : Transformer<{ attrs: { a: number } }, { attrs: { c: number } }>
+```
+
+Each stage is a `($schema) => Template` factory. `pipe($d, …fns)` returns a reusable `Pipe` template
+(`.init()` materializes it). The overloads cover up to a fixed stage count; longer typed pipes nest
+(`pipe($d, …, $dk => pipe($dk, …))`).
 
 # Projections — rendering data onto a structure
 
@@ -147,18 +170,18 @@ A *projection* expands a data delta (the *projectionDelta*) into a nested, html-
 delta, bidirectionally — a React-like "render data to markup", but expressed as a
 change-to-change mapping rather than a vdom diff.
 
-**`project(spec)`** is the whole thing. `spec` is an ordinary `delta.create()` tree whose
-attribute values and inserted children may be transformer *templates* ("holes"). Each hole
-receives the whole projectionDelta; its output is placed at that position. `project` resolves
-its own holes and **auto-nests**, so it needs no downstream resolver:
+**`project($d, spec)`** is the whole thing. `spec` is an ordinary `delta.create()` tree whose
+attribute values and inserted children may be transformer *templates* ("holes"). Each hole receives
+the whole projectionDelta; its output is placed at that position. `project` resolves its own holes
+and **auto-nests**, so it needs no downstream resolver:
 
 ```javascript
 import * as delta from 'lib0/delta'
 import * as dt from 'lib0/delta/transformer'
 
-const view = dt.project(
-  delta.create('p').insert('Name: ').insert([dt.attr('name')])
-).init(delta.$deltaAny)
+const $d = delta.$delta({ attrs: { name: s.$string } })
+const view = dt.project($d, delta.create('p').insert('Name: ').insert([dt.attr($d, 'name')])).init()
+// view : Transformer<{ attrs: { name: string } }, { name: 'p', children: string }>
 
 // initial render (applying a final delta)
 view.applyA(delta.create().setAttr('name', 'Erika')).b
@@ -169,8 +192,13 @@ view.applyA(delta.create().setAttr('name', 'Max')).b
 // ⇒ retain(6).delete(1).insert(['Max'])
 ```
 
-Holes are detected with `$template` (any value exposing an `init` method, e.g. `attr(…)`,
-`pipe(…)`, a nested `project(…)`). Each hole is initialized once at `init`.
+The output **type** is concrete: holes (built with the same `$d`) are `Fingerprintable` values, so the
+`delta.create()` spec carries each hole's type, and `project` computes the rendered output conf (value
+holes lift to their scalar, nested specs/node holes recurse). `project($d, spec)` returns a reusable
+template; `.init()` builds the transformer.
+
+Holes are detected with `$template` (a transformer template value: `attr(…)`, `pipe(…)`, a nested
+`project(…)`). Each hole is initialized once at `init`, against the concrete projectionDelta schema.
 
 - **Value holes** — a hole whose output is a `lib0:value` carrier (produced by `attr`) is
   lifted to its bare scalar, both at an **attribute** position (keyed) and at a **child**
@@ -203,15 +231,15 @@ A *carrier* is a reserved node name a transformer emits to signal "resolve me":
   `inline` transformer configured with the `lib0:inline` name).
 
 `project` resolves carriers in its *own* structure. For a carrier emitted **outside** a
-`project` — e.g. a bare `children(() => attr('x'))` map, or a `children`-map you
-`rename('lib0:inline')` — compose the matching flat resolver yourself, exactly as you would any
+`project` — e.g. a bare `children($d, (_c, $c) => attr($c, 'x'))` map, or a `children`-map you
+`rename($d, 'lib0:inline')` — compose the matching flat resolver yourself, exactly as you would any
 other transformer:
 
-- `dt.unwrapValue` — lifts `lib0:value` children to their scalar (the composable counterpart
-  of `inline(['lib0:inline'])`).
-- `dt.inline(['lib0:inline'])` — splices `lib0:inline` fragments into their parent. This is
+- `dt.unwrapValue($d)` — lifts `lib0:value` children to their scalar (the composable counterpart
+  of `inline($d, ['lib0:inline'])`).
+- `dt.inline($d, ['lib0:inline'])` — splices `lib0:inline` fragments into their parent. This is
   also how you let a single hole expand to **N sibling nodes** between static siblings: emit a
-  `lib0:inline` fragment and compose `inline(['lib0:inline'])` after `project`.
+  `lib0:inline` fragment and compose `inline($d, ['lib0:inline'])` after `project`.
 
 ## Lists and tables
 
@@ -219,10 +247,13 @@ Map a collection's children with the `children` transformer and relabel the cont
 `rename`. Each row is a `project`, so it lifts its own values — no resolver needed:
 
 ```javascript
-const rowSpec = delta.create('li').insert([dt.attr('name')])
-const list = dt.pipe(dt.children(() => dt.project(rowSpec)), dt.rename('ul'))
+const list = dt.pipe(delta.$deltaAny,
+  // the handler receives the per-child schema `$c`; build the row spec (with its bound hole) from it
+  $d => dt.children($d, (_c, $c) => dt.project($c, delta.create('li').insert([dt.attr($c, 'name')]))),
+  $d => dt.rename($d, 'ul')
+).init()
 
-list.init(delta.$deltaAny).applyA(delta.create('users').insert([
+list.applyA(delta.create('users').insert([
   delta.create('user').setAttr('name', 'Erika'),
   delta.create('user').setAttr('name', 'Max')
 ])).b
@@ -230,9 +261,9 @@ list.init(delta.$deltaAny).applyA(delta.create('users').insert([
 ```
 
 `children` maps one data item to one row (incremental insert/delete/retain/modify, per-item
-transformer state preserved positionally); `rename('ul')` relabels the mapped container. For an
+transformer state preserved positionally); `rename($d, 'ul')` relabels the mapped container. For an
 **editable** row binding use an *attribute* hole (`delta.create('li').setAttr('label',
-dt.attr('name'))`): a view edit of the attribute round-trips back to the data item.
+dt.attr($c, 'name'))`): a view edit of the attribute round-trips back to the data item.
 
 ## Limitations & extensions (v1)
 
@@ -245,7 +276,7 @@ dt.attr('name'))`): a view edit of the attribute round-trips back to the data it
   round-trip.
 - **Carriers emitted outside a `project`** are resolved only if you compose `unwrapValue` /
   `inline(['lib0:inline'])`; deep non-`project` carrier trees are not auto-recursed.
-- **Live DOM binding** — wire a projection through `bind` (`rdt.js`):
-  `bind(dataRDT, domRDT, project(spec))`.
+- **Live DOM binding** — wire a projection through `bind` (`rdt.js`) with a `$d => Template` factory:
+  `bind(dataRDT, domRDT, $d => project($d, spec))`.
 - **Char-level attr sync** (model attr values as text deltas, `recursiveAttrs`),
   **computed one-way bindings**, and **keyed `map` identity** — out of scope.

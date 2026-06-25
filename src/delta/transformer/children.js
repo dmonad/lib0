@@ -22,10 +22,13 @@ import { Transformer, Template, createTransformResult } from './core.js'
  */
 export class ChildrenTransformer extends Transformer {
   /**
-   * @param {(d: delta.DeltaAny) => Template | null} handler picks the template for a child node, or
-   * `null` to leave that child untransformed. Evaluated once, when the child is inserted.
+   * @param {(child: delta.DeltaAny, $child: import('../../schema.js').Schema<delta.DeltaAny>) => Template | null} handler
+   * picks the (schema-bound) template for a child node, or `null` to leave it untransformed. Evaluated
+   * once, when the child is inserted, with the derived per-child schema.
+   * @param {import('../../schema.js').Schema<delta.DeltaAny>} childSchema per-child-node schema each
+   * sub-template is built against (derived from the parent's input schema; `$deltaAny` when not derivable).
    */
-  constructor (handler) {
+  constructor (handler, childSchema) {
     super()
     this.handler = handler
     /**
@@ -35,6 +38,7 @@ export class ChildrenTransformer extends Transformer {
      * @type {delta.DeltaBuilderAny}
      */
     this.childTs = delta.create()
+    this.childSchema = childSchema
   }
 
   /**
@@ -99,9 +103,9 @@ export class ChildrenTransformer extends Transformer {
         newTs.retain(op.insert.length) // text is a gap - no sub-transformer
       } else if (delta.$insertOp.check(op)) {
         for (const el of op.insert) {
-          const tmpl = delta.$deltaAny.check(el) ? this.handler(el) : null
+          const tmpl = delta.$deltaAny.check(el) ? this.handler(el, this.childSchema) : null
           if (tmpl != null) {
-            const t = tmpl.init(delta.$deltaAny)
+            const t = tmpl.init()
             const r = fwd ? t.applyA(el) : t.applyB(el)
             out.insert([fwd ? r.b : r.a], op.format, op.attribution)
             newTs.insert([t])
@@ -149,40 +153,65 @@ export class ChildrenTransformer extends Transformer {
 }
 
 /**
+ * Derive the per-child-node schema from the parent's input schema, so each child's sub-transformer is
+ * built against a concrete schema instead of `$deltaAny`. Falls back to `$deltaAny`.
+ *
+ * @param {import('../../schema.js').Schema<delta.DeltaAny>} $in
+ * @return {import('../../schema.js').Schema<delta.DeltaAny>}
+ */
+const childSchemaOf = ($in) => {
+  if (!delta.$$delta.check($in)) return delta.$deltaAny
+  if ($in.shape.recursiveChildren) return $in
+  const $ch = $in.shape.$children
+  return delta.$$delta.check($ch) ? $ch : delta.$deltaAny
+}
+
+/**
  * Template for {@link ChildrenTransformer}.
+ *
+ * @template {delta.DeltaConf} [IN=any]
+ * @extends {Template<IN, any>}
  */
 export class Children extends Template {
   /**
-   * @param {(d: delta.DeltaAny) => Template | null} handler
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+   * @param {(child: delta.DeltaAny, $child: import('../../schema.js').Schema<delta.DeltaAny>) => Template | null} handler
    */
-  constructor (handler) {
-    super()
+  constructor ($d, handler) {
+    super($d, /** @type {any} */ (delta.$deltaAny))
     this.handler = handler
+    /**
+     * @type {import('../../schema.js').Schema<delta.DeltaAny>}
+     */
+    this.childSchema = childSchemaOf($d)
   }
 
-  get stateless () { return false }
+  get fpName () { return 'lib0:children' }
 
   /**
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN, any>}
    */
-  init (_$d) {
-    return new ChildrenTransformer(this.handler)
+  init () {
+    return new ChildrenTransformer(this.handler, this.childSchema)
   }
 }
 
 /**
  * Descend one level into a node's child *nodes* and apply a sub-transformer to each, chosen by
- * `handler(childNode)`: return a {@link Template} to transform that child, or `null` to leave it
- * untransformed. Attributes and text pass through. The handler is evaluated once, when the child is
- * inserted, fixing that child's transformer (returning `null` opts the child out permanently).
+ * `handler(childNode, $child)`: return a {@link Template} to transform that child, or `null` to leave
+ * it untransformed. The handler receives the derived per-child schema `$child` so it can build
+ * schema-bound sub-templates. Attributes and text pass through. The handler is evaluated once, when
+ * the child is inserted (returning `null` opts the child out permanently). Returns a reusable
+ * {@link Children} template (a `project` hole, or `.init()` for a standalone transformer).
  *
  * Composes recursively - e.g. inline every anonymous node at every depth:
  * ```js
- * const inlineAll = children(d => pipe(inline([null]), inlineAll))
+ * const inlineAll = $d => children($d, (_c, $c) => pipe($c, $c1 => inline($c1, [null]), inlineAll))
  * ```
  *
- * @param {(d: delta.DeltaAny) => Template | null} handler
+ * @template {delta.DeltaConf} IN
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+ * @param {(child: delta.DeltaAny, $child: import('../../schema.js').Schema<delta.DeltaAny>) => Template | null} handler
+ * @return {Children<IN>}
  */
-export const children = handler => new Children(handler)
+export const children = ($d, handler) => new Children($d, handler)

@@ -1,5 +1,7 @@
 import * as s from '../../schema.js'
 import * as error from '../../error.js'
+import * as delta from '../delta.js'
+import * as fingerprintTrait from '../../trait/fingerprint.js'
 
 /**
  * @template {import('../delta.js').DeltaConf} [A={}]
@@ -158,33 +160,129 @@ export const $transformer = /** @type {s.Schema<Transformer<any,any>>} */ (Trans
 export const transformerWith = (_a, _b) => /** @type {s.Schema<Transformer<A,B>>} */ ($transformer)
 
 /**
- * A composable transformer factory. `init` instantiates a stateful {@link Transformer} for a given
- * input schema; `stateless` reports whether the produced transformer carries no per-instance state
- * (so it can be shared / cached). Concrete templates `extend Template`; a class that would be both a
- * template and a transformer instead stores the transformer and returns it from `init` (see
- * {@link import('./rename-attrs.js').RenameAttrs}).
+ * A function from an input delta schema to a {@link Template} — the schema-deferred form of a
+ * transformer factory. Used for `pipe` stages, recursive composition, and `bind`.
+ *
+ * @template {import('../delta.js').DeltaConf} In
+ * @template {import('../delta.js').DeltaConf} Out
+ * @typedef {($in: s.Schema<import('../delta.js').Delta<In>>) => Template<In, Out>} TemplateFactory
+ */
+
+/**
+ * Force a factory's computed output conf to display fully-resolved (flatten `Omit<…> & {…}` / bare
+ * alias artifacts) while staying a valid `DeltaConf` for use as a `Transformer`/`Delta` type
+ * argument — conf-aware and depth-limited (nested `Delta<…>` stay intact). Implemented as an
+ * overwrite-with-nothing, reusing {@link import('../delta.js').DeltaConfOverwrite}'s
+ * prettify+coerce recipe. Apply to every factory's `OUT` typedef whose result is not already
+ * produced by `DeltaConfOverwrite`.
+ *
+ * @template {import('../delta.js').DeltaConf} Conf
+ * @typedef {import('../delta.js').DeltaConfOverwrite<Conf, {}>} ResolveOut
+ */
+
+/**
+ * The reusable, schema-bound form of a transformer: built by a factory (`attr($d, …)`), it holds the
+ * input/output delta schemas (`$in`/`$out`) and materializes a fresh stateful {@link Transformer} via
+ * the parameterless `init()`. Concrete templates `extend Template`.
+ *
+ * Templates are {@link fingerprintTrait.Fingerprintable}: this is what lets them be embedded as values
+ * (holes) in a `delta.create(...)` projection spec without collapsing the spec's type.
+ *
+ * @template {import('../delta.js').DeltaConf} [IN=any]
+ * @template {import('../delta.js').DeltaConf} [OUT=any]
  */
 export class Template {
   /**
-   * Whether {@link Template.init} yields a transformer with no per-instance state (so a single
-   * instance can be shared / cached). Overridden by every concrete template.
-   *
-   * @return {boolean}
+   * @param {s.Schema<import('../delta.js').Delta<IN>>} $in input delta schema
+   * @param {s.Schema<import('../delta.js').Delta<OUT>>} $out output delta schema (computed by the factory)
    */
-  /* c8 ignore next */
-  get stateless () { return false }
+  constructor ($in, $out) {
+    /**
+     * @type {s.Schema<import('../delta.js').Delta<IN>>}
+     */
+    this.$in = $in
+    /**
+     * @type {s.Schema<import('../delta.js').Delta<OUT>>}
+     */
+    this.$out = $out
+  }
 
   /**
-   * Instantiate a stateful {@link Transformer} for the given input schema.
+   * Stable, mangle-safe identifier folded into this template's fingerprint. Subclasses with
+   * configuration override it so that e.g. `attr('a')` and `attr('b')` fingerprint differently
+   * (do NOT use `constructor.name` — class names do not survive mangling).
    *
-   * @param {s.Schema<import('../delta.js').DeltaAny>} _$d
-   * @return {Transformer<any,any>}
+   * @return {string}
+   */
+  get fpName () { return 'lib0:template' }
+
+  /**
+   * @return {string}
+   */
+  [fingerprintTrait.FingerprintTraitSymbol] () { return this.fpName }
+
+  /**
+   * Instantiate a fresh stateful {@link Transformer} bound to this template's schema.
+   *
+   * @return {Transformer<IN, OUT>}
    */
   /* c8 ignore next 3 */
-  init (_$d) {
-    error.methodUnimplemented()
+  init () {
+    return error.methodUnimplemented()
   }
 }
+
+/**
+ * Bind an input schema into the `$d => Template` lambda pattern (the shape used by {@link pipe}
+ * stages, {@link import('./children.js').children} handlers, and `bind`) at the top level: calls
+ * `fn` with `$d` and returns its {@link Template}. Lets you write `transform($d, $d => pipe($d, …))`
+ * — keeping every template construction in the same lambda style — without a separate `const $d`
+ * statement. The lambda's `$d` parameter is typed as the input delta schema, and the concrete
+ * template subtype `fn` returns is preserved in the result.
+ *
+ * @template {import('../delta.js').DeltaConf} IN
+ * @template {Template<IN, any>} T
+ * @param {s.Schema<import('../delta.js').Delta<IN>>} $d
+ * @param {($d: s.Schema<import('../delta.js').Delta<IN>>) => T} fn
+ * @return {T}
+ */
+export const transform = ($d, fn) => fn($d)
+
+/**
+ * Rebuild `$in`'s delta schema with a replaced attrs-shape map (keeping name/children/text). Used by
+ * the attr-renaming/filtering factories to compute a concrete output schema (`$out`). Falls back to
+ * `$deltaAny` when `$in` is loose (not a concrete `$delta(...)`).
+ *
+ * @param {s.Schema<import('../delta.js').DeltaAny>} $in
+ * @param {{[k:string|number]: s.Schema<any>}} newAttrsShape
+ * @return {s.Schema<import('../delta.js').DeltaAny>}
+ */
+export const withAttrs = ($in, newAttrsShape) => delta.$$delta.check($in)
+  ? new delta.$Delta($in.shape.$name, s.$object(newAttrsShape), $in.shape.$children, $in.shape.hasText, false, $in.shape.$formats)
+  : delta.$deltaAny
+
+/**
+ * Rebuild `$in`'s delta schema with a replaced node `name` (keeping attrs/children/text). Falls back
+ * to `$deltaAny` when `$in` is loose.
+ *
+ * @param {s.Schema<import('../delta.js').DeltaAny>} $in
+ * @param {string} name
+ * @return {s.Schema<import('../delta.js').DeltaAny>}
+ */
+export const withName = ($in, name) => delta.$$delta.check($in)
+  ? new delta.$Delta(s.$(name), $in.shape.$attrs, $in.shape.$children, $in.shape.hasText, false, $in.shape.$formats)
+  : delta.$deltaAny
+
+/**
+ * The `{ attrKey: Schema }` map of `$in`'s attrs, or `null` when `$in` is loose / has no object attrs
+ * schema. Lets attr-renaming/filtering factories compute a concrete `$out`.
+ *
+ * @param {s.Schema<import('../delta.js').DeltaAny>} $in
+ * @return {{[k:string|number]: s.Schema<any>}?}
+ */
+export const attrsShapeOf = ($in) => delta.$$delta.check($in) && s.$$object.check($in.shape.$attrs)
+  ? /** @type {{[k:string|number]: s.Schema<any>}} */ ($in.shape.$attrs.shape)
+  : null
 
 /**
  * Recognize a {@link Template} by its `$type` tag. Used to detect transformer "holes" embedded in a

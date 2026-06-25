@@ -107,13 +107,14 @@ export class Binding {
   /**
    * @param {RDT<DeltaA>} a
    * @param {RDT<import('./delta.js').DeltaAny>} b
-   * @param {dt.Template} [template] defaults to the {@link dt.id identity} transformer
+   * @param {dt.TemplateFactory<any,any>} [template] a `$d => Template` factory; defaults to the
+   * {@link dt.id identity} transformer. `bind` injects `a`'s schema, then materializes via `.init()`.
    */
   constructor (a, b, template = dt.id) {
     /**
      * @type {dt.Transformer<any,any>}
      */
-    this.t = template.init(a.$delta)
+    this.t = template(a.$delta).init()
     // reason: the `'delta'` channel carries `Delta` values while the transformer is typed for the
     // mutable `DeltaBuilder` it consumes/produces, and the binding is generic over both sides; typing
     // the internal handles as `RDT<any>` lets changes pass through the transformer without unsound
@@ -169,7 +170,8 @@ export class Binding {
  * @template {import('./delta.js').DeltaAny} DeltaA
  * @param {RDT<DeltaA>} a
  * @param {RDT<import('./delta.js').DeltaAny>} b
- * @param {dt.Template} [template]
+ * @param {dt.TemplateFactory<any,any>} [template] a `$d => Template` factory (e.g. `dt.id` or
+ * `$d => dt.renameAttrs($d, {a:'b'})`)
  * @return {Binding<DeltaA>}
  */
 export const bind = (a, b, template) => new Binding(a, b, template)

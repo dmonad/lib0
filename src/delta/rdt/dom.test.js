@@ -18,10 +18,11 @@ import { domRDT, $domDelta } from './dom.js'
 // ---------------------------------------------------------------------------
 
 /**
- * `dt.renameAttrs({})` is the identity transformer: it maps every change verbatim in both directions,
- * so a binding using it keeps both sides bit-for-bit equal.
+ * `dt.renameAttrs($d, {})` is the identity transformer: it maps every change verbatim in both
+ * directions, so a binding using it keeps both sides bit-for-bit equal. Returns a `TemplateFactory`
+ * (a `$d => Template`) as expected by {@link bind}.
  */
-const identity = () => dt.renameAttrs(/** @type {const} */ ({}))
+const identity = () => (/** @type {import('../../schema.js').Schema<import('../delta.js').DeltaAny>} */ $d) => dt.renameAttrs($d, /** @type {const} */ ({}))
 
 export const testDomRDTRoundTrip = () => {
   t.skip(!env.hasDom)

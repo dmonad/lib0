@@ -3,6 +3,45 @@ import * as math from '../../math.js'
 import { Transformer, Template, createTransformResult, $template } from './core.js'
 
 /**
+ * Resolve a hole template's output conf `OUT` to its projected placement type: a `lib0:value` carrier
+ * lifts to its bare scalar; any other node is embedded as a `Delta<OUT>`.
+ *
+ * @template {delta.DeltaConf} OUT
+ * @typedef {OUT extends { name: 'lib0:value', attrs: { value: infer V } } ? V : delta.Delta<OUT>} ResolveHoleOut
+ */
+
+/**
+ * Resolve one spec child element to its projected output type, distributing over a children union: a
+ * hole ({@link Template}, whose output conf the spec carries) resolves via its `OUT`, a nested spec
+ * delta recurses, and anything else (text, a static scalar/node) is kept verbatim.
+ *
+ * @template C
+ * @typedef {C extends Template<any, infer OUT extends delta.DeltaConf> ? ResolveHoleOut<OUT>
+ *   : C extends delta.Delta<infer NC extends delta.DeltaConf> ? delta.Delta<ProjectOutput<NC>>
+ *   : C} ResolveChild
+ */
+
+/**
+ * Resolve a spec's attrs map: a hole attribute value resolves via its output conf; a static value is kept.
+ *
+ * @template A
+ * @typedef {{ [K in keyof A]: A[K] extends Template<any, infer OUT extends delta.DeltaConf> ? ResolveHoleOut<OUT> : A[K] }} ResolveAttrs
+ */
+
+/**
+ * The concrete output conf of a `project($d, spec)` whose spec has conf `SpecConf`: static structure
+ * is kept, value holes lift to their scalar, nested specs / node holes recurse. Holes are schema-bound
+ * {@link Template}s, so their output conf is already concrete in `SpecConf` (no input param needed).
+ *
+ * @template {delta.DeltaConf} SpecConf
+ * @typedef {import('./core.js').ResolveOut<delta.AsDeltaConf<
+ *   Omit<SpecConf, 'attrs'|'children'>
+ *   & (SpecConf extends { attrs: infer A } ? { attrs: ResolveAttrs<A> } : {})
+ *   & (SpecConf extends { children: infer Ch } ? { children: ResolveChild<Ch> } : {})
+ * >>} ProjectOutput
+ */
+
+/**
  * The scalar (or full replacement value) a `lib0:value` carrier *sets*: its `value` attribute op's
  * value, but **only when that op is a `SetAttrOp`** (a full value set). Returns `undefined` for a
  * `ModifyAttrOp` carrier (an incremental change to a delta-valued attribute — see {@link modifyOf}) or
@@ -390,24 +429,29 @@ export class ProjectionTransformer extends Transformer {
  * lifted to a bare scalar; a nested subtree that contains a hole is **auto-wrapped** into a nested
  * `project` at `init`, so deep structure composes through nested templates with the recursion built
  * once (bounded by spec depth). Plain static subtrees are embedded verbatim.
+ *
+ * @template {delta.DeltaConf} [IN=any]
+ * @template {delta.DeltaConf} [SpecConf=any]
+ * @extends {Template<IN, ProjectOutput<SpecConf>>}
  */
 export class ProjectionTemplate extends Template {
   /**
-   * @param {delta.DeltaAny} spec
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+   * @param {delta.Delta<SpecConf>} spec
    */
-  constructor (spec) {
-    super()
+  constructor ($d, spec) {
+    super($d, /** @type {any} */ (delta.$deltaAny))
     this.spec = spec
   }
 
-  get stateless () { return false }
+  get fpName () { return 'lib0:project' }
 
   /**
-   * @param {import('../../schema.js').Schema<delta.DeltaAny>} $d
-   * @return {Transformer<any,any>}
+   * @return {Transformer<IN, ProjectOutput<SpecConf>>}
    */
-  init ($d) {
+  init () {
     const spec = this.spec
+    const $d = this.$in
     /**
      * @type {Array<{ key: string|number, value: any, attribution?: any }>}
      */
@@ -419,7 +463,7 @@ export class ProjectionTemplate extends Template {
     for (const op of spec.attrs) {
       if (delta.$setAttrOp.check(op)) {
         if ($template.check(op.value)) {
-          attrHoles.push({ key: op.key, t: /** @type {Template} */ (op.value).init($d) })
+          attrHoles.push({ key: op.key, t: /** @type {Template} */ (op.value).init() })
         } else {
           staticAttrs.push({ key: op.key, value: op.value, attribution: op.attribution })
         }
@@ -435,12 +479,12 @@ export class ProjectionTemplate extends Template {
       } else if (delta.$insertOp.check(op)) {
         for (const el of op.insert) {
           if ($template.check(el)) {
-            items.push({ kind: 'hole', t: /** @type {Template} */ (el).init($d), el, format: op.format, attribution: op.attribution })
+            items.push({ kind: 'hole', t: /** @type {Template} */ (el).init(), el, format: op.format, attribution: op.attribution })
           } else if (delta.$deltaAny.check(el) && containsTemplate(el)) {
             // a static subtree with a hole inside it - auto-wrap as a nested project (a node hole).
             // `el` is an immutable inserted `Delta`, which is exactly what `project` accepts (it only
             // reads attrs/children/name through `ProjectionTemplate.init`).
-            const nested = project(el).init($d)
+            const nested = project($d, el).init()
             items.push({ kind: 'hole', t: nested, el, carrier: 'node', format: op.format, attribution: op.attribution })
           } else {
             items.push({ kind: 'static', el, format: op.format, attribution: op.attribution })
@@ -448,16 +492,24 @@ export class ProjectionTemplate extends Template {
         }
       }
     }
-    return new ProjectionTransformer(/** @type {any} */ (spec.name), staticAttrs, attrHoles, items)
+    return /** @type {any} */ (new ProjectionTransformer(/** @type {any} */ (spec.name), staticAttrs, attrHoles, items))
   }
 }
 
 /**
- * Create a {@link ProjectionTemplate} from a spec delta. Embed transformer templates as attribute
- * values or inserted children to mark "holes" that are filled from the projectionDelta. A child hole
- * whose output is a `lib0:value` carrier is lifted to its scalar; a nested subtree containing a hole
- * is auto-wrapped into a nested `project`.
+ * Project the *projectionDelta* onto a fixed structure described by `spec` — an ordinary
+ * {@link import('../delta.js').create delta} whose attribute values and inserted children may be
+ * transformer {@link Template templates} ("holes", built with the same `$d`). A child hole whose
+ * output is a `lib0:value` carrier is lifted to its scalar; a nested subtree containing a hole is
+ * auto-wrapped into a nested `project`. Returns a reusable {@link ProjectionTemplate} whose output
+ * type is computed by {@link ProjectOutput} (holes are
+ * {@link import('../../trait/fingerprint.js').Fingerprintable}, so the spec carries their types);
+ * `.init()` builds the transformer.
  *
- * @param {delta.DeltaAny} spec
+ * @template {delta.DeltaConf} IN
+ * @template {delta.DeltaConf} SpecConf
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+ * @param {delta.Delta<SpecConf>} spec
+ * @return {ProjectionTemplate<IN, SpecConf>}
  */
-export const project = spec => new ProjectionTemplate(spec)
+export const project = ($d, spec) => new ProjectionTemplate($d, spec)

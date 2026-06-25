@@ -3,34 +3,36 @@ import * as delta from '../delta.js'
 import * as position from '../position.js'
 import { project } from './project.js'
 import { attr } from './attr.js'
+import * as s from '../../schema.js'
 
 // compare deltas: the transform result is `DeltaBuilder<any>`, so compare against a precisely-typed
 // expected delta through an `any` boundary to avoid spurious conf-variance type errors.
 const cmp = (/** @type {any} */ a, /** @type {any} */ b) => t.compare(a, b)
 
 export const testProjectStatic = () => {
-  const it = project(delta.create('h1').setAttr('class', 'title').insert('Hello')).init(delta.$deltaAny)
+  const it = project(delta.$deltaAny, delta.create('h1').setAttr('class', 'title').insert('Hello')).init()
   const res = it.applyA(delta.create())
   t.assert(res.a === null)
   cmp(res.b, delta.create('h1').setAttr('class', 'title').insert('Hello'))
 }
 
 export const testProjectAttrHole = () => {
-  const it = project(delta.create('h1').setAttr('class', attr('cls'))).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('h1').setAttr('class', attr(delta.$deltaAny, 'cls'))).init())
   // attr hole is unwrapped here (attrs are keyed): output attr is the scalar value
   const res = it.applyA(delta.create().setAttr('cls', 'big'))
   cmp(res.b, delta.create('h1').setAttr('class', 'big'))
 }
 
 export const testProjectChildHole = () => {
-  const it = project(delta.create('p').insert([attr('text')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert([attr(delta.$deltaAny, 'text')])).init())
   // a child value hole is lifted to its bare scalar (1->1), no carrier node survives
   const res = it.applyA(delta.create().setAttr('text', 'hi'))
   cmp(res.b, delta.create('p').insert(['hi']))
 }
 
 export const testProjectUpdate = () => {
-  const it = project(delta.create('p').insert([attr('text')])).init(delta.$deltaAny)
+  const $d = delta.$delta({ attrs: { text: s.$string } })
+  const it = project($d, delta.create('p').insert([attr($d, 'text')])).init()
   it.applyA(delta.create().setAttr('text', 'hi')) // initial render
   // a value change replaces the scalar embed in place (a scalar has no modify channel)
   const res = it.applyA(delta.create().setAttr('text', 'bye'))
@@ -38,7 +40,7 @@ export const testProjectUpdate = () => {
 }
 
 export const testProjectValueSlotHeal = () => {
-  const it = project(delta.create('p').insert([attr('text')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert([attr(delta.$deltaAny, 'text')])).init())
   it.applyA(delta.create().setAttr('text', 'hi'))
   // a view edit of a value slot does not round-trip to data: the last scalar is self-healed back
   const res = it.applyB(delta.create().delete(1))
@@ -48,20 +50,20 @@ export const testProjectValueSlotHeal = () => {
 
 export const testProjectE2ERender = () => {
   // project self-resolves: a static text prefix and a bound child value, no downstream resolver
-  const it = project(delta.create('p').insert('Name: ').insert([attr('name')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert('Name: ').insert([attr(delta.$deltaAny, 'name')])).init())
   const res = it.applyA(delta.create().setAttr('name', 'Erika'))
   cmp(res.b, delta.create('p').insert('Name: ').insert(['Erika']))
 }
 
 export const testProjectE2EUpdate = () => {
-  const it = project(delta.create('p').insert('Name: ').insert([attr('name')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert('Name: ').insert([attr(delta.$deltaAny, 'name')])).init())
   it.applyA(delta.create().setAttr('name', 'Erika')) // initial render
   const res = it.applyA(delta.create().setAttr('name', 'Max')) // data update
   cmp(res.b, delta.create().retain(6).delete(1).insert(['Max']))
 }
 
 export const testProjectE2ESelfHeal = () => {
-  const it = project(delta.create('p').insert('Name: ').insert([attr('name')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert('Name: ').insert([attr(delta.$deltaAny, 'name')])).init())
   it.applyA(delta.create().setAttr('name', 'Erika'))
   // view deletes the static prefix -> heals back to the view, no data change
   const res = it.applyB(/** @type {any} */ (delta.create().delete(6)))
@@ -70,7 +72,7 @@ export const testProjectE2ESelfHeal = () => {
 }
 
 export const testProjectSelfHeal = () => {
-  const it = project(delta.create('p').insert('Hello')).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert('Hello')).init())
   it.applyA(delta.create()) // render <p>Hello</p>
   // a view edit deletes static content -> self-heal restores it, no data change
   const res = it.applyB(delta.create().delete(5))
@@ -79,7 +81,7 @@ export const testProjectSelfHeal = () => {
 }
 
 export const testProjectSelfHealInsert = () => {
-  const it = project(delta.create('p').insert('Hi')).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert('Hi')).init())
   it.applyA(delta.create())
   // a view inserts text into static content -> drift is reverted (deleted)
   const res = it.applyB(delta.create().retain(2).insert('X'))
@@ -88,7 +90,9 @@ export const testProjectSelfHealInsert = () => {
 }
 
 export const testProjectSelfHealStaticNode = () => {
-  const it = project(delta.create('div').insert([delta.create('span')])).init(delta.$deltaAny)
+  // cast to any: project now has a concrete output type, so applyB is stricter than the arbitrary
+  // view-change this self-heal test feeds it
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('div').insert([delta.create('span')])).init())
   it.applyA(delta.create()) // <div>[<span>]
   // a view modifies a static node -> the original node is restored
   const res = it.applyB(delta.create().modify(delta.create().insert('x')))
@@ -97,7 +101,7 @@ export const testProjectSelfHealStaticNode = () => {
 }
 
 export const testProjectReverseAttr = () => {
-  const it = project(delta.create('input').setAttr('value', attr('text'))).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('input').setAttr('value', attr(delta.$deltaAny, 'text'))).init())
   it.applyA(delta.create().setAttr('text', 'hi')) // <input value='hi'>
   // a view edit of the projected attribute routes back to the bound data attribute
   const res = it.applyB(delta.create().setAttr('value', 'typed'))
@@ -105,7 +109,7 @@ export const testProjectReverseAttr = () => {
 }
 
 export const testProjectStaticAttrHeal = () => {
-  const it = project(delta.create('h1').setAttr('class', 'title')).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('h1').setAttr('class', 'title')).init())
   it.applyA(delta.create()) // <h1 class='title'>
   // a view edit of a static attribute is self-healed back to the template value
   const res = it.applyB(delta.create().setAttr('class', 'hacked'))
@@ -114,7 +118,7 @@ export const testProjectStaticAttrHeal = () => {
 }
 
 export const testProjectReverseNodeInsert = () => {
-  const it = project(delta.create('ul').insert([attr('x')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('ul').insert([attr(delta.$deltaAny, 'x')])).init())
   it.applyA(delta.create().setAttr('x', 'v'))
   // a view inserts a node into the fixed structure -> drift is reverted
   const res = it.applyB(delta.create().retain(1).insert([delta.create('li')]))
@@ -124,7 +128,7 @@ export const testProjectReverseNodeInsert = () => {
 
 export const testProjectIncrementalConsistency = () => {
   // an accumulated sequence of incremental updates must equal a fresh render of the final data
-  const make = () => project(delta.create('p').insert('Name: ').insert([attr('name')])).init(delta.$deltaAny)
+  const make = () => /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert('Name: ').insert([attr(delta.$deltaAny, 'name')])).init())
   const names = ['Erika', 'Max', 'A', 'Wolfgang', '', 'Zoé']
   const inc = make()
   const view = inc.applyA(delta.create().setAttr('name', names[0])).b
@@ -136,7 +140,7 @@ export const testProjectIncrementalConsistency = () => {
 }
 
 export const testProjectAttrDelete = () => {
-  const it = project(delta.create('h1').setAttr('class', attr('cls'))).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('h1').setAttr('class', attr(delta.$deltaAny, 'cls'))).init())
   it.applyA(delta.create().setAttr('cls', 'big')) // render with class='big'
   // the data attribute is deleted -> the projected attribute is deleted too
   const res = it.applyA(delta.create().deleteAttr('cls'))
@@ -145,7 +149,7 @@ export const testProjectAttrDelete = () => {
 
 export const testProjectNestedAutoWrap = () => {
   // a nested child delta containing a hole is auto-wrapped into a nested project (a node hole)
-  const it = project(delta.create('div').insert([delta.create('p').insert([attr('text')])])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('div').insert([delta.create('p').insert([attr(delta.$deltaAny, 'text')])])).init())
   const res = it.applyA(delta.create().setAttr('text', 'hi'))
   cmp(res.b, delta.create('div').insert([delta.create('p').insert(['hi'])]))
   // an update routes through the nested project as a modify of the nested node
@@ -155,21 +159,21 @@ export const testProjectNestedAutoWrap = () => {
 
 export const testProjectNestedAttrHole = () => {
   // the recursive contains-template scan must also detect a hole that is a nested node's attribute
-  const it = project(delta.create('div').insert([delta.create('span').setAttr('class', attr('cls'))])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('div').insert([delta.create('span').setAttr('class', attr(delta.$deltaAny, 'cls'))])).init())
   const res = it.applyA(delta.create().setAttr('cls', 'big'))
   cmp(res.b, delta.create('div').insert([delta.create('span').setAttr('class', 'big')]))
 }
 
 export const testProjectNestedDeep = () => {
   // recursion is built once at init, bounded by spec depth (>= 2 levels here)
-  const it = project(delta.create('a').insert([delta.create('b').insert([delta.create('c').insert([attr('x')])])])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('a').insert([delta.create('b').insert([delta.create('c').insert([attr(delta.$deltaAny, 'x')])])])).init())
   const res = it.applyA(delta.create().setAttr('x', 'v'))
   cmp(res.b, delta.create('a').insert([delta.create('b').insert([delta.create('c').insert(['v'])])]))
 }
 
 export const testProjectStaticSubtree = () => {
   // a nested subtree with NO hole stays a verbatim static embed (contains-template is false)
-  const it = project(delta.create('div').insert([delta.create('span').insert('hi')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('div').insert([delta.create('span').insert('hi')])).init())
   const res = it.applyA(delta.create())
   cmp(res.b, delta.create('div').insert([delta.create('span').insert('hi')]))
   // a view modify of the static subtree self-heals (it was not wrapped into a routing nested project)
@@ -180,7 +184,7 @@ export const testProjectStaticSubtree = () => {
 
 export const testProjectValueUndefined = () => {
   // an absent bound child value renders as a `null` placeholder (never insert([undefined]))
-  const it = project(delta.create('p').insert([attr('name')])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('p').insert([attr(delta.$deltaAny, 'name')])).init())
   const res = it.applyA(delta.create())
   cmp(res.b, delta.create('p').insert([null]))
   // updating to a value replaces the placeholder
@@ -190,7 +194,7 @@ export const testProjectValueUndefined = () => {
 
 export const testProjectNestedReverse = () => {
   // a view edit of an attribute inside an auto-wrapped nested node routes back to the bound data
-  const it = project(delta.create('form').insert([delta.create('input').setAttr('value', attr('text'))])).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('form').insert([delta.create('input').setAttr('value', attr(delta.$deltaAny, 'text'))])).init())
   it.applyA(delta.create().setAttr('text', 'hi')) // <form>[<input value='hi'>]
   const res = it.applyB(delta.create().modify(delta.create().setAttr('value', 'typed')))
   cmp(res.a, delta.create().setAttr('text', 'typed'))
@@ -224,8 +228,8 @@ const psettle = change => {
 export const testProjectMarkValueAndAttrHole = () => {
   // a mark on data attr 'name' anchors at the output attr hole 'title'; a mark on data attr 'x' anchors
   // at the value child hole's position
-  const spec = delta.create('view').setAttr('title', attr('name')).insert([attr('x')])
-  const it = project(spec).init(delta.$deltaAny)
+  const spec = delta.create('view').setAttr('title', attr(delta.$deltaAny, 'name')).insert([attr(delta.$deltaAny, 'x')])
+  const it = /** @type {any} */ (project(delta.$deltaAny, spec).init())
   const d = delta.create('data', { name: 'Bob', x: 5 })
   d.addMark(position.create(['name']), 'N')
   d.addMark(position.create(['x']), 'X')
@@ -236,10 +240,10 @@ export const testProjectMarkValueAndAttrHole = () => {
 export const testProjectMarkNodeHoleDuplicates = () => {
   // the same data mark feeds two nested-project node holes -> it DUPLICATES, once nested under each
   const spec = delta.create('view').insert([
-    delta.create('row').setAttr('t', attr('name')),
-    delta.create('row2').setAttr('t', attr('name'))
+    delta.create('row').setAttr('t', attr(delta.$deltaAny, 'name')),
+    delta.create('row2').setAttr('t', attr(delta.$deltaAny, 'name'))
   ])
-  const it = project(spec).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, spec).init())
   const d = delta.create('data', { name: 'Bob' })
   d.addMark(position.create(['name']), 'D')
   const s = psettle(it.applyA(d).b)
@@ -249,8 +253,8 @@ export const testProjectMarkNodeHoleDuplicates = () => {
 export const testProjectMarkValueHoleLastWins = () => {
   // two value child holes bound to the same data attr/mark: the id can exist once per output node, so
   // the last slot wins (true duplication is impossible for same-node positions)
-  const spec = delta.create('view').insert([attr('x')]).insert('-').insert([attr('x')])
-  const it = project(spec).init(delta.$deltaAny)
+  const spec = delta.create('view').insert([attr(delta.$deltaAny, 'x')]).insert('-').insert([attr(delta.$deltaAny, 'x')])
+  const it = /** @type {any} */ (project(delta.$deltaAny, spec).init())
   const d = delta.create('data', { x: 7 })
   d.addMark(position.create(['x']), 'W')
   const s = psettle(it.applyA(d).b)
@@ -259,8 +263,8 @@ export const testProjectMarkValueHoleLastWins = () => {
 
 export const testProjectMarkOnlyUpdateKeepsScalar = () => {
   // an incremental mark-only data change must move the cursor WITHOUT wiping the projected scalar/attr
-  const spec = delta.create('view').setAttr('title', attr('name')).insert([attr('x')])
-  const it = project(spec).init(delta.$deltaAny)
+  const spec = delta.create('view').setAttr('title', attr(delta.$deltaAny, 'name')).insert([attr(delta.$deltaAny, 'x')])
+  const it = /** @type {any} */ (project(delta.$deltaAny, spec).init())
   const base = psettle(it.applyA(delta.create('data', { name: 'Bob', x: 5 })).b)
   const mc = delta.create(); mc.addMark(position.create(['x']), 'C')
   base.apply(/** @type {any} */ (it.applyA(mc).b), { final: true })
@@ -272,8 +276,8 @@ export const testProjectMarkOnlyUpdateKeepsScalar = () => {
 }
 
 export const testProjectMarkDeleteRides = () => {
-  const spec = delta.create('view').setAttr('title', attr('name'))
-  const it = project(spec).init(delta.$deltaAny)
+  const spec = delta.create('view').setAttr('title', attr(delta.$deltaAny, 'name'))
+  const it = /** @type {any} */ (project(delta.$deltaAny, spec).init())
   it.applyA(delta.create('data', { name: 'Bob' }))
   const dc = delta.create(); dc.deleteMarks = new Set(['M'])
   t.compare(/** @type {any} */ (it.applyA(dc).b).deleteMarks, new Set(['M']))
@@ -285,7 +289,7 @@ export const testProjectDeltaValuedAttrModify = () => {
   // corruption). A cursor inside the sub-document rides along and stays reachable.
   const apply = (/** @type {any} */ base, /** @type {any} */ change) => { base.apply(change, { final: true }); return base }
   // --- attr hole ---
-  const it = project(delta.create('view').setAttr('body', attr('body'))).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('view').setAttr('body', attr(delta.$deltaAny, 'body'))).init())
   const base = psettle(it.applyA(delta.create('node').setAttr('body', delta.create('para').insert('hi'))).b)
   cmp(/** @type {any} */ (base.attrs).body.value, delta.create('para').insert('hi'))
   const c1 = delta.create(); c1.modifyAttr('body', delta.create().retain(2).insert('!'))
@@ -296,7 +300,7 @@ export const testProjectDeltaValuedAttrModify = () => {
   apply(base, it.applyA(c2).b)
   t.compare(pmp(base), [{ id: 'I', path: ['body', 1], assoc: 1 }])
   // --- value child hole ---
-  const it2 = project(delta.create('view').insert([attr('body')])).init(delta.$deltaAny)
+  const it2 = /** @type {any} */ (project(delta.$deltaAny, delta.create('view').insert([attr(delta.$deltaAny, 'body')])).init())
   const base2 = psettle(it2.applyA(delta.create('node').setAttr('body', delta.create('para').insert('hi'))).b)
   const c3 = delta.create(); c3.modifyAttr('body', delta.create().retain(2).insert('!'))
   apply(base2, it2.applyA(c3).b)
@@ -306,7 +310,7 @@ export const testProjectDeltaValuedAttrModify = () => {
 export const testProjectApplyBMarkRoundTrip = () => {
   // applyB is mark-aware: a view-side cursor on a projected (editable) attribute hole routes back to
   // the bound data attribute via the carrier (the round-tripping binding the readme advertises)
-  const it = project(delta.create('view').setAttr('title', attr('name'))).init(delta.$deltaAny)
+  const it = /** @type {any} */ (project(delta.$deltaAny, delta.create('view').setAttr('title', attr(delta.$deltaAny, 'name'))).init())
   it.applyA(delta.create('data', { name: 'Bob' })) // initial render
   const viewChange = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   viewChange.addMark(position.create(['title']), 'cur')

@@ -158,15 +158,24 @@ export class UnwrapValueTransformer extends Transformer {
 
 /**
  * Template for {@link UnwrapValueTransformer}.
+ *
+ * @template {delta.DeltaConf} [IN=any]
+ * @extends {Template<IN, any>}
  */
 export class UnwrapValue extends Template {
-  get stateless () { return false }
+  /**
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+   */
+  constructor ($d) {
+    super($d, /** @type {any} */ (delta.$deltaAny))
+  }
+
+  get fpName () { return 'lib0:unwrapValue' }
 
   /**
-   * @param {import('../../schema.js').Schema<delta.DeltaAny>} _$d
-   * @return {Transformer<any,any>}
+   * @return {Transformer<IN, any>}
    */
-  init (_$d) {
+  init () {
     return new UnwrapValueTransformer()
   }
 }
@@ -175,6 +184,11 @@ export class UnwrapValue extends Template {
  * Resolve `lib0:value` carrier *children* to embeds of their scalar value (and back). One level
  * only; compose with {@link import('./children.js').children} to descend. A flat, composable resolver
  * for carriers emitted *outside* a `project` (which lifts its own); symmetric with
- * {@link import('./inline.js').inline}`(['lib0:inline'])`.
+ * {@link import('./inline.js').inline}`(['lib0:inline'])`. Returns a reusable {@link UnwrapValue}
+ * template (`.init()` for a standalone transformer).
+ *
+ * @template {delta.DeltaConf} IN
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+ * @return {UnwrapValue<IN>}
  */
-export const unwrapValue = /* @__PURE__ */ new UnwrapValue()
+export const unwrapValue = $d => new UnwrapValue($d)

@@ -765,28 +765,28 @@ export class InlineTransformer extends Transformer {
 }
 
 /**
- * Template for {@link InlineTransformer}.
+ * Template for {@link InlineTransformer}. Typed loosely: the inlined output shape depends on the
+ * runtime `names` and document content, so the OUT side is `any`.
+ *
+ * @template {delta.DeltaConf} [IN=any]
+ * @extends {Template<IN, any>}
  */
 export class Inline extends Template {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
    * @param {Array<string|null>} names the node names to inline (`null` selects anonymous nodes)
    */
-  constructor (names) {
-    super()
+  constructor ($d, names) {
+    super($d, /** @type {any} */ (delta.$deltaAny))
     this.names = names
   }
 
-  get stateless () { return false }
+  get fpName () { return 'lib0:inline:' + this.names.join(',') }
 
   /**
-   * Typed loosely: the inlined output shape is not computed at compile time (it depends on the
-   * runtime `names`), so the B side is `any`.
-   *
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN, any>}
    */
-  init (_$d) {
+  init () {
     return new InlineTransformer(this.names)
   }
 }
@@ -794,15 +794,23 @@ export class Inline extends Template {
 /**
  * Inline child nodes whose name is in `names` by splicing each one's children into its parent (one
  * level; e.g. with `[null]`: `<p>some<>text</></p>` <-> `<p>sometext</p>`). Use `null` for
- * anonymous/typeless nodes, or a node name like `'b'`. Stateful: the returned template's `init()`
- * yields a fresh {@link InlineTransformer}.
+ * anonymous/typeless nodes, or a node name like `'b'`. Returns a reusable {@link Inline} template
+ * (a `project` hole, or `.init()` for a standalone transformer).
  *
+ * @template {delta.DeltaConf} IN
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
  * @param {Array<string|null>} names
+ * @return {Inline<IN>}
  */
-export const inline = names => new Inline(names)
+export const inline = ($d, names) => new Inline($d, names)
 
 /**
- * Convenience {@link Inline} template that inlines anonymous ("null") child nodes
- * (`<p>some<>text</></p>` <-> `<p>sometext</p>`) - i.e. `inline([null])`.
+ * Convenience {@link Inline} factory that inlines anonymous ("null") child nodes
+ * (`<p>some<>text</></p>` <-> `<p>sometext</p>`) - i.e. `inline($d, [null])`.
+ *
+ * @template {delta.DeltaConf} IN
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
+ * @return {Inline<IN>}
  */
-export const inlineNullNodes = /* @__PURE__ */ inline([null])
+/* @__NO_SIDE_EFFECTS__ */
+export const inlineNullNodes = ($d) => inline($d, [null])

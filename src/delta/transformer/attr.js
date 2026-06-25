@@ -1,10 +1,11 @@
 import * as delta from '../delta.js'
-import { Transformer, Template, createTransformResult } from './core.js'
+import * as s from '../../schema.js'
+import { Transformer, Template, createTransformResult, attrsShapeOf } from './core.js'
 
 /**
  * @template {string} AttrName
  * @template {delta.DeltaConf} IN
- * @typedef {{ name: 'lib0:value', attrs: { value: IN extends { attrs: { [K in AttrName]: infer V } } ? V : never }}} ApplyAttr
+ * @typedef {import('./core.js').ResolveOut<{ name: 'lib0:value', attrs: { value: IN extends { attrs: { [K in AttrName]: infer V } } ? V : never }}>} ApplyAttr
  */
 
 /**
@@ -38,25 +39,28 @@ const attrTransformHelper = (outDelta, from, to, inDelta) => {
  * Projects a single node attribute into a `lib0:value` node's `value` attribute (and back).
  *
  * @template {string} AttrName
+ * @template {delta.DeltaConf} [IN=any]
+ * @extends {Template<IN, ApplyAttr<AttrName, IN>>}
  */
 export class Attr extends Template {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
    * @param {AttrName} attrName
    */
-  constructor (attrName) {
-    super()
+  constructor ($d, attrName) {
+    const m = attrsShapeOf($d)
+    const $val = (m && m[attrName]) || s.$any
+    super($d, /** @type {any} */ (delta.$delta({ name: 'lib0:value', attrs: { value: $val } })))
     this.attrName = attrName
   }
 
-  get stateless () { return true }
+  get fpName () { return 'lib0:attr:' + this.attrName }
 
   /**
-   * @template {delta.DeltaConf} IN
-   * @param {import('../../schema.js').Schema<delta.Delta<IN>>} _$d
    * @return {Transformer<IN, ApplyAttr<AttrName, IN>>}
    */
-  init (_$d) {
-    return new AttrTransformer(this.attrName)
+  init () {
+    return /** @type {any} */ (new AttrTransformer(this.attrName))
   }
 }
 
@@ -108,9 +112,13 @@ export class AttrTransformer extends Transformer {
 }
 
 /**
- * Create a {@link Attr} template that projects the attribute `attrName`.
+ * Project a single node attribute `attrName` into a `lib0:value` carrier (and back). Returns a
+ * reusable {@link Attr} template (a `project` hole, or `.init()` for a standalone transformer).
  *
  * @template {string} AttrName
+ * @template {delta.DeltaConf} IN
+ * @param {import('../../schema.js').Schema<delta.Delta<IN>>} $d
  * @param {AttrName} attrName
+ * @return {Attr<AttrName, IN>}
  */
-export const attr = attrName => new Attr(attrName)
+export const attr = ($d, attrName) => new Attr($d, attrName)
