@@ -72,7 +72,7 @@ const containsTemplate = d => {
  * verbatim (id-keyed).
  *
  * @param {delta.DeltaBuilderAny} out
- * @param {delta.DeltaBuilderAny?} rb
+ * @param {delta.DeltaAny?} rb
  * @param {string|number} slotKey
  */
 const placeCarrierMark = (out, rb, slotKey) => {
@@ -159,7 +159,7 @@ export class ProjectionTransformer extends Transformer {
    *
    * @param {delta.DeltaBuilderAny} out
    * @param {ChildItem & { kind: 'hole' }} item
-   * @param {delta.DeltaBuilderAny?} rb the sub-transformer's B output
+   * @param {delta.DeltaAny?} rb the sub-transformer's B output
    */
   _placeHole (out, item, rb) {
     if (item.carrier == null) item.carrier = isValueNode(rb) ? 'value' : 'node'
@@ -393,7 +393,7 @@ export class ProjectionTransformer extends Transformer {
  */
 export class ProjectionTemplate extends Template {
   /**
-   * @param {delta.DeltaBuilderAny} spec
+   * @param {delta.DeltaAny} spec
    */
   constructor (spec) {
     super()
@@ -438,10 +438,9 @@ export class ProjectionTemplate extends Template {
             items.push({ kind: 'hole', t: /** @type {Template} */ (el).init($d), el, format: op.format, attribution: op.attribution })
           } else if (delta.$deltaAny.check(el) && containsTemplate(el)) {
             // a static subtree with a hole inside it - auto-wrap as a nested project (a node hole).
-            // reason: `el` is an immutable inserted `Delta`; `project` is typed for the `DeltaBuilder`
-            // authoring API, but `ProjectionTemplate.init` only reads attrs/children/name, which both
-            // expose, so passing the read-only view through is sound.
-            const nested = project(/** @type {any} */ (el)).init($d)
+            // `el` is an immutable inserted `Delta`, which is exactly what `project` accepts (it only
+            // reads attrs/children/name through `ProjectionTemplate.init`).
+            const nested = project(el).init($d)
             items.push({ kind: 'hole', t: nested, el, carrier: 'node', format: op.format, attribution: op.attribution })
           } else {
             items.push({ kind: 'static', el, format: op.format, attribution: op.attribution })
@@ -459,6 +458,6 @@ export class ProjectionTemplate extends Template {
  * whose output is a `lib0:value` carrier is lifted to its scalar; a nested subtree containing a hole
  * is auto-wrapped into a nested `project`.
  *
- * @param {delta.DeltaBuilderAny} spec
+ * @param {delta.DeltaAny} spec
  */
 export const project = spec => new ProjectionTemplate(spec)

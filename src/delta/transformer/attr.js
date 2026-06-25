@@ -11,7 +11,7 @@ import { Transformer, Template, createTransformResult } from './core.js'
  * @param {delta.DeltaBuilderAny} outDelta
  * @param {string|number} from
  * @param {string|number} to
- * @param {delta.DeltaBuilderAny} inDelta
+ * @param {delta.DeltaAny} inDelta
  */
 const attrTransformHelper = (outDelta, from, to, inDelta) => {
   const attrOp = inDelta.attrs[from]
