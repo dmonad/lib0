@@ -280,9 +280,8 @@ export const testInlineNullNodesBackwardFormatRetainIntoNull = () => {
  * intentionally dropped when inlining became configurable via `names`.)
  */
 export const testInlineNullNodesTyping = () => {
-  const $in = delta.$delta({
-    name: 'p',
-    children: [delta.$delta({ name: 'span' }), delta.$delta({ text: true, children: delta.$delta({ name: 'b' }) })]
+  const $in = delta.$delta('p', {
+    children: [delta.$delta('span'), delta.$delta({ text: true, children: delta.$delta('b') })]
   })
   const it = inline($in, [null]).init()
   t.assert(transformerWith($in, delta.$deltaAny).validate(it))
@@ -571,8 +570,8 @@ export const testRepeatInlineNullNodesFullTransform = tc => {
 // optional format keys so `delta.random` drops each ~50% of the time, varying the format sets it
 // puts on text, inserts and retains - exercising the transformer's format passthrough.
 const $fmt = { bold: s.$boolean.optional, em: s.$boolean.optional }
-const $bNode = delta.$delta({ name: 'b', text: true, formats: $fmt })
-const $spanNode = delta.$delta({ name: 'span', text: true, formats: $fmt })
+const $bNode = delta.$delta('b', { text: true, formats: $fmt })
+const $spanNode = delta.$delta('span', { text: true, formats: $fmt })
 const $nullNode = delta.$delta({ text: true, children: $bNode, formats: $fmt })
 const $structuredDoc = delta.$delta({ text: true, children: s.$union($nullNode, $spanNode), formats: $fmt })
 const $inlinedDoc = delta.$delta({ text: true, children: s.$union($bNode, $spanNode), formats: $fmt })
@@ -628,9 +627,9 @@ export const testRepeatInlineNullNodesRandom = tc => {
 // `<b>` (a raw `<b>` in a B-side change would be flattened and not round-trip). This exercises the
 // name-membership branch with a non-null name.
 const $fmtNamed = { bold: s.$boolean.optional }
-const $iLeaf = delta.$delta({ name: 'i', text: true, formats: $fmtNamed })
-const $spanLeaf = delta.$delta({ name: 'span', text: true, formats: $fmtNamed })
-const $bInline = delta.$delta({ name: 'b', text: true, children: $iLeaf, formats: $fmtNamed })
+const $iLeaf = delta.$delta('i', { text: true, formats: $fmtNamed })
+const $spanLeaf = delta.$delta('span', { text: true, formats: $fmtNamed })
+const $bInline = delta.$delta('b', { text: true, children: $iLeaf, formats: $fmtNamed })
 const $structuredNamed = delta.$delta({ text: true, children: s.$union($bInline, $spanLeaf), formats: $fmtNamed })
 const $inlinedNamed = delta.$delta({ text: true, children: s.$union($iLeaf, $spanLeaf), formats: $fmtNamed })
 

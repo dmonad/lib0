@@ -10,7 +10,7 @@ import { unwrapValue } from './value.js'
 const valueNode = v => delta.create('lib0:value').setAttr('value', v)
 
 export const testUnwrapValueForward = () => {
-  const it = unwrapValue(delta.$delta({ name: 'p', children: delta.$delta({ name: s.$literal('lib0:value'), attrs: { value: s.$string } }) })).init()
+  const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$string } }) })).init()
   // a lib0:value child becomes a one-position embed of its scalar
   const res = it.applyA(delta.create('p').insert([valueNode('hi')]))
   t.assert(res.a === null)
@@ -18,14 +18,14 @@ export const testUnwrapValueForward = () => {
 }
 
 export const testUnwrapValueMixed = () => {
-  const it = unwrapValue(delta.$delta({ name: 'p', text: true, children: [delta.$delta({ name: s.$literal('lib0:value'), attrs: { value: s.$number } }), delta.$delta({ name: s.$literal('b') })] })).init()
+  const it = unwrapValue(delta.$delta('p', { text: true, children: [delta.$delta('lib0:value', { attrs: { value: s.$number } }), delta.$delta('b')] })).init()
   // static text + a carrier + a pass-through node: only the carrier is unwrapped
   const res = it.applyA(delta.create('p').insert('a').insert([valueNode(42)]).insert([delta.create('b')]))
   t.compare(res.b, delta.create('p').insert('a').insert([42]).insert([delta.create('b')]))
 }
 
 export const testUnwrapValueUpdate = () => {
-  const it = unwrapValue(delta.$delta({ name: 'p', children: delta.$delta({ name: s.$literal('lib0:value'), attrs: { value: s.$string } }) })).init()
+  const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$string } }) })).init()
   it.applyA(delta.create('p').insert([valueNode('hi')])) // builds the carrier map
   // a data update arrives as a modify on the carrier setting its `value` attr
   const res = it.applyA(delta.create().modify(delta.create().setAttr('value', 'bye')))
@@ -34,14 +34,14 @@ export const testUnwrapValueUpdate = () => {
 }
 
 export const testUnwrapValueAttrs = () => {
-  const it = unwrapValue(delta.$delta({ name: 'p', attrs: { id: s.$string }, children: delta.$delta({ name: s.$literal('lib0:value'), attrs: { value: s.$string } }) })).init()
+  const it = unwrapValue(delta.$delta('p', { attrs: { id: s.$string }, children: delta.$delta('lib0:value', { attrs: { value: s.$string } }) })).init()
   // node attributes pass through untouched; only the lib0:value child is unwrapped
   const res = it.applyA(delta.create('p').setAttr('id', 'x').insert([valueNode('hi')]))
   t.compare(res.b, delta.create('p').setAttr('id', 'x').insert(['hi']))
 }
 
 export const testUnwrapValueReverseInsert = () => {
-  const it = unwrapValue(delta.$delta({ name: 'p', children: delta.$delta({ name: s.$literal('lib0:value'), attrs: { value: s.$union(s.$string, s.$number) } }) })).init()
+  const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$union(s.$string, s.$number) } }) })).init()
   it.applyA(delta.create('p').insert([valueNode('hi')])) // carrier at position 0
   // reverse: a view inserts a literal embed after the carrier - passes through untouched
   const res = it.applyB(delta.create().retain(1).insert([42]))
@@ -54,7 +54,7 @@ export const testUnwrapValueReverseInsert = () => {
 }
 
 export const testUnwrapValueReverse = () => {
-  const it = unwrapValue(delta.$delta({ name: 'p', children: delta.$delta({ name: s.$literal('lib0:value'), attrs: { value: s.$string } }) })).init()
+  const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$string } }) })).init()
   it.applyA(delta.create('p').insert([valueNode('hi')])) // carrier at position 0
   // reverse: deleting the embed maps structurally to deleting the carrier node
   const res = it.applyB(delta.create().delete(1))

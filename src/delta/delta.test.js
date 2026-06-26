@@ -118,7 +118,7 @@ export const testBasicDeltaAssignability = () => {
 }
 
 export const testDeltaBasicCases = () => {
-  const $ds = delta.$delta({ name: s.$string, attrs: { k: s.$number, d: delta.$delta({ name: 'sub', text: true }) }, children: s.$number, text: true })
+  const $ds = delta.$delta({ name: s.$string, attrs: { k: s.$number, d: delta.$delta('sub', { text: true }) }, children: s.$number, text: true })
   const ds = delta.create('root', $ds)
   ds.insert('dtrn')
   ds.modifyAttr('d', delta.create('sub', null, 'hi').done())
@@ -228,7 +228,7 @@ export const testAssignability = () => {
     a = b
   })
   t.group('children - is a subset of the other - with modify', () => {
-    const $child = delta.$delta({ name: s.$literal('string'), attrs: s.$object({ a: s.$number }) })
+    const $child = delta.$delta('string', { attrs: s.$object({ a: s.$number }) })
     /**
      * @type {delta.Delta<{ children: number }>}
      */
@@ -242,8 +242,8 @@ export const testAssignability = () => {
     a = b
   })
   t.group('children - is a subset of the other - with different modify', () => {
-    const $child = delta.$delta({ name: s.$literal('string'), attrs: s.$object({ a: s.$string }), text: false })
-    const $child2 = delta.$delta({ name: s.$literal('number'), attrs: s.$object({ a: s.$number }), text: false })
+    const $child = delta.$delta('string', { attrs: s.$object({ a: s.$string }), text: false })
+    const $child2 = delta.$delta('number', { attrs: s.$object({ a: s.$number }), text: false })
     /**
      * @type {delta.Delta<{ children: s.Unwrap<$child> }>}
      */
@@ -268,7 +268,7 @@ export const testAssignability = () => {
     return [a, b, c, d]
   })
   t.group('text+array builder - text and array builder support', () => {
-    const $d = delta.$delta({ name: s.$literal('string'), children: s.$number, text: true })
+    const $d = delta.$delta('string', { children: s.$number, text: true })
     /**
      * @type {delta.Delta<{ name: 'string', children: number, text: true }>}
      */
@@ -678,7 +678,7 @@ export const testNodeDelta = _tc => {
 }
 
 export const testRecursiveNode = () => {
-  const $d = delta.$delta({ name: 'hi', attrs: { q: s.$number }, text: true, recursiveChildren: true })
+  const $d = delta.$delta('hi', { attrs: { q: s.$number }, text: true, recursiveChildren: true })
   const rd = delta.create($d)
   // should allow inserting deltas
   const recC = delta.create('hi', { q: 342 })
@@ -699,13 +699,13 @@ export const testRecursiveNode = () => {
 }
 
 export const testSimplifiedDeltaSchemaDefinition = () => {
-  const $d = delta.$delta({ name: 'div', attrs: { a: s.$number, b: s.$string.optional, unknown: s.$string }, children: [s.$number], text: true })
+  const $d = delta.$delta('div', { attrs: { a: s.$number, b: s.$string.optional, unknown: s.$string }, children: [s.$number], text: true })
   t.assert($d.check(delta.create('div', { a: 42 }).insert([42]).insert('str')))
   t.assert(!$d.check(delta.create('dove', { a: 42 }).insert([42]).insert('str')))
 }
 
 export const testDiffing = () => {
-  const $d = delta.$delta({ name: 'div', attrs: { key: s.$number, b: s.$string, unknown: s.$string }, children: [s.$number], text: true })
+  const $d = delta.$delta('div', { attrs: { key: s.$number, b: s.$string, unknown: s.$string }, children: [s.$number], text: true })
   const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).setAttr('key', 42).setAttr('unknown', 'unknown').done()
   const d2 = delta.create($d).insert('hello').setAttr('key', 1).done()
   const d = delta.diff(d1, d2)
@@ -713,7 +713,7 @@ export const testDiffing = () => {
 }
 
 export const testDiffingCommonPreSuffix = () => {
-  const $d = delta.$delta({ name: 'div', children: [s.$number], text: true })
+  const $d = delta.$delta('div', { children: [s.$number], text: true })
   const d1 = delta.create($d).insert([1, 2]).insert('aa').insert([3, 4])
   const d2 = delta.create($d).insert([1, 2]).insert('a').insert([3, 4])
   const d = delta.diff(d1, d2).done()
@@ -743,7 +743,7 @@ export const testRepeatRandomListDiff = tc => {
  * @param {t.TestCase} tc
  */
 export const testRepeatRandomMapDiff = tc => {
-  const $d = delta.$delta({ name: 'list', attrs: { a: s.$string, b: s.$number } })
+  const $d = delta.$delta('list', { attrs: { a: s.$string, b: s.$number } })
   const d1 = delta.random(tc.prng, $d)
   const d2 = delta.random(tc.prng, $d)
   d1.isFinal = true

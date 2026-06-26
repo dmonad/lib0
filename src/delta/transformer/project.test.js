@@ -343,7 +343,7 @@ export const testProjectDeltaValuedAttrModify = () => {
    */
   const apply = (base, c) => { base.apply(c, { final: true }); return base }
   // --- attr hole ---
-  const it = transform(delta.$delta({ attrs: { body: delta.$delta({ name: 'para', text: true }) } }), $d =>
+  const it = transform(delta.$delta({ attrs: { body: delta.$delta('para', { text: true }) } }), $d =>
     project($d, delta.create('view').setAttr('body', attr($d, 'body')))
   ).init()
   const base = psettle(it.applyA(delta.create().setAttr('body', delta.create('para').insert('hi'))).b)
@@ -354,7 +354,7 @@ export const testProjectDeltaValuedAttrModify = () => {
   apply(base, it.applyA(delta.create().addMark(position.create(['body', 1], 1), 'I')).b)
   t.compare(position.marksToPositions(base), [{ id: 'I', path: ['body', 1], assoc: 1 }])
   // --- value child hole ---
-  const it2 = transform(delta.$delta({ attrs: { body: delta.$delta({ name: 'para', text: true }) } }), $d =>
+  const it2 = transform(delta.$delta({ attrs: { body: delta.$delta('para', { text: true }) } }), $d =>
     project($d, delta.create('view').insert([attr($d, 'body')]))
   ).init()
   const base2 = psettle(it2.applyA(delta.create().setAttr('body', delta.create('para').insert('hi'))).b)

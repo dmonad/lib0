@@ -2902,18 +2902,40 @@ export class $Delta extends s.Schema {
  */
 
 /**
- * @template {ReadableDeltaConf} [DeltaConf={}]
- * @param {DeltaConf} opts
- * @return {s.Schema<Delta<ReadDeltaConf<DeltaConf>>>}
+ * Name-first form: a string-literal `name` as the first argument is preserved as a literal type
+ * (generic argument inference), so callers don't need `s.$literal('x')` / `@type {const}` to keep the
+ * node name literal. The remaining options follow in `opts`.
+ *
+ * @template {string} Name
+ * @template {Omit<ReadableDeltaConf, 'name'>} [Opts={}]
+ * @overload
+ * @param {Name} name
+ * @param {Opts} [opts]
+ * @return {s.Schema<Delta<ReadDeltaConf<Opts & { name: Name }>>>}
  */
-export const $delta = ({ name, attrs, children, text, formats, recursiveChildren: recursive }) => /** @type {any} */ (new $Delta(
-  /** @type {any} */ (name == null ? s.$any : s.$(name)),
-  /** @type {any} */ (attrs == null ? s.$object({}) : s.$(attrs)),
-  /** @type {any} */ (children == null ? s.$never : s.$(children)),
-  text ?? false,
-  recursive ?? false,
-  formats == null ? s.$any : s.$(formats)
-))
+/**
+ * @template {ReadableDeltaConf} [Conf={}]
+ * @overload
+ * @param {Conf} opts
+ * @return {s.Schema<Delta<ReadDeltaConf<Conf>>>}
+ */
+/**
+ * @param {ReadableDeltaConf|string} optsOrName
+ * @param {Omit<ReadableDeltaConf, 'name'>} [opts]
+ * @return {any}
+ */
+export const $delta = (optsOrName, opts) => {
+  const { name, attrs, children, text, formats, recursiveChildren: recursive } =
+    s.$string.check(optsOrName) ? { ...opts, name: optsOrName } : optsOrName
+  return /** @type {any} */ (new $Delta(
+    /** @type {any} */ (name == null ? s.$any : s.$(name)),
+    /** @type {any} */ (attrs == null ? s.$object({}) : s.$(attrs)),
+    /** @type {any} */ (children == null ? s.$never : s.$(children)),
+    text ?? false,
+    recursive ?? false,
+    formats == null ? s.$any : s.$(formats)
+  ))
+}
 
 export const $$delta = /* @__PURE__ */s.$constructedBy($Delta)
 

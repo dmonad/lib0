@@ -11,7 +11,7 @@ import { deltaRDT } from './delta.js'
 // ---------------------------------------------------------------------------
 
 export const testDeltaRDTBasics = () => {
-  const $d = delta.$delta({ name: 'test', attrs: { x: s.$string }, text: true })
+  const $d = delta.$delta('test', { attrs: { x: s.$string }, text: true })
   const rdt = deltaRDT($d)
   /** @type {Array<delta.DeltaAny>} */
   const changes = []

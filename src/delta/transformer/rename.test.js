@@ -14,7 +14,7 @@ import { pipe } from './pipe.js'
 const cmp = (/** @type {any} */ a, /** @type {any} */ b) => t.compare(a, b)
 
 export const testRenameNode = () => {
-  const it = rename(delta.$delta({ name: 'list', children: s.$string }), 'ul').init()
+  const it = rename(delta.$delta('list', { children: s.$string }), 'ul').init()
   const res = it.applyA(delta.create('list').insert(['a']))
   t.compare(res.b, delta.create('ul').insert(['a']))
   // reverse restores the source name
@@ -26,7 +26,7 @@ export const testRenderList = () => {
   // render a collection of users as <ul><li>name</li>...</ul>; each row-project lifts its own value,
   // so no downstream resolver is needed
   const it = pipe(
-    delta.$delta({ name: 'users', children: delta.$delta({ name: 'user', attrs: { name: s.$string } }) }),
+    delta.$delta('users', { children: delta.$delta('user', { attrs: { name: s.$string } }) }),
     $d => children($d, (_c, $c) => project($c, delta.create('li').insert([attr($c, 'name')]))),
     $d => rename($d, 'ul')
   ).init()
@@ -44,7 +44,7 @@ export const testRenderListReverse = () => {
   // an editable binding uses an attribute hole (attrs round-trip); a view edit of a row's attribute
   // routes back through children -> the row's project -> the bound data attribute
   const it = pipe(
-    delta.$delta({ name: 'users', children: delta.$delta({ name: 'user', attrs: { name: s.$string } }) }),
+    delta.$delta('users', { children: delta.$delta('user', { attrs: { name: s.$string } }) }),
     $d => children($d, (_c, $c) => project($c, delta.create('li').setAttr('label', attr($c, 'name')))),
     $d => rename($d, 'ul')
   ).init()

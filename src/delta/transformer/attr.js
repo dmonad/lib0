@@ -50,7 +50,7 @@ export class Attr extends Template {
   constructor ($d, attrName) {
     const m = attrsShapeOf($d)
     const $val = (m && m[attrName]) || s.$any
-    super($d, /** @type {any} */ (delta.$delta({ name: 'lib0:value', attrs: { value: $val } })))
+    super($d, /** @type {any} */ (delta.$delta('lib0:value', { attrs: { value: $val } })))
     this.attrName = attrName
   }
 
