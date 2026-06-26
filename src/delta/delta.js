@@ -1190,7 +1190,7 @@ export class Delta extends DeltaData {
    * @type {string}
    */
   get fingerprint () {
-    return this._fingerprint || (this._fingerprint = buffer.toBase64(encoding.encode(encoder => {
+    return this._fingerprint || (this._fingerprint = buffer.toBase64(rabin.fingerprint(rabin.StandardIrreducible32, encoding.encode(encoder => {
       encoding.writeUint32(encoder, 0xf2ae5680) // "magic number" that ensures that different types of content don't yield the same fingerprint
       encoding.writeAny(encoder, this.name)
       /**
@@ -1217,10 +1217,7 @@ export class Delta extends DeltaData {
       for (const child of this.children) {
         encoding.writeVarString(encoder, child.fingerprint)
       }
-      // marks are local/ephemeral cursor state, deliberately excluded from the document fingerprint
-      // (and from equality below) — see shiftMarkKey for why their positions need not converge
-      return buffer.toBase64(rabin.fingerprint(rabin.StandardIrreducible128, encoding.toUint8Array(encoder)))
-    })))
+    }))))
   }
 
   [fingerprintTrait.FingerprintTraitSymbol] () {
@@ -1487,7 +1484,7 @@ const tryMergeWithPrev = (parent, op) => {
 /**
  * Ensures that the delta can be edited. clears _fingerprint cache.
  *
- * @param {any} d
+ * @param {DeltaBuilderAny} d
  */
 const modDeltaCheck = d => {
   if (d.isDone) {
@@ -1681,13 +1678,14 @@ export class DeltaBuilder extends Delta {
    * @param {Attribution?} [attribution]
    */
   retain (len, format = null, attribution = null) {
-    modDeltaCheck(this)
+    modDeltaCheck(this) // this clears _fingerprint
     const mergedFormats = mergeFormats(this.usedAttributes, format)
     const mergedAttribution = mergeAttributions(this.usedAttribution, attribution)
     const lastOp = /** @type {RetainOp|InsertOp<any>} */ (this.children.end)
     if ($retainOp.check(lastOp) && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
       // @ts-ignore
       lastOp.retain += len
+      lastOp._fingerprint = null
     } else if (len > 0) {
       list.pushEnd(this.children, new RetainOp(len, object.isEmpty(mergedFormats) ? null : mergedFormats, mergedAttribution))
     }
@@ -1704,6 +1702,7 @@ export class DeltaBuilder extends Delta {
     const lastOp = /** @type {DeleteOp<any>|InsertOp<any>} */ (this.children.end)
     if ($deleteOp.check(lastOp) && typeof lastOp.prevValue === typeof prevValue) {
       lastOp.delete += len
+      lastOp._fingerprint = null
       if (prevValue != null) {
         /** @type {DeltaBuilder<any>} */ (lastOp.prevValue).append(prevValue)
       }

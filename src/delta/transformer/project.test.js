@@ -239,6 +239,23 @@ export const testProjectValueUndefined = () => {
   cmp(upd.b, delta.create().delete(1).insert(['x']))
 }
 
+export const testProjectValueSlotDelete = () => {
+  // deleting the data attr bound to a CHILD value slot resets it to the `null` placeholder, matching a
+  // fresh render (the slot is display-only - the deletion has no data channel, only a view update)
+  const make = () => transform(delta.$delta({ attrs: { name: s.$string } }), $d =>
+    project($d, delta.create('p').insert('Name: ').insert([attr($d, 'name')]))
+  ).init()
+  const it = make()
+  const view = it.applyA(delta.create().setAttr('name', 'Erika')).b // accumulated render with the value
+  const res = it.applyA(delta.create().deleteAttr('name'))
+  t.assert(res.a === null)
+  // 'Name: ' is 6 static chars, then the value slot at offset 6 is reset to null
+  cmp(res.b, delta.create().retain(6).delete(1).insert([null]))
+  // the accumulated incremental view must equal a fresh render of the final (attr-absent) data
+  res.b != null && view?.apply(res.b)
+  cmp(view, make().applyA(delta.create()).b)
+}
+
 export const testProjectNestedReverse = () => {
   // a view edit of an attribute inside an auto-wrapped nested node routes back to the bound data
   const it = transform(delta.$delta({ attrs: { text: s.$string } }), $d =>

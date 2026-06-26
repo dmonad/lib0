@@ -286,7 +286,8 @@ export class ProjectionTransformer extends Transformer {
       if (item.carrier === 'value') {
         // route by the carrier's op KIND (a mark-only change carries no value op, so the slot is left
         // intact and only the cursor is anchored): SetAttr -> replace the scalar embed; ModifyAttr ->
-        // forward an incremental change to a delta-valued embed through the modify channel.
+        // forward an incremental change to a delta-valued embed through the modify channel; DeleteAttr ->
+        // reset the slot to its `null` placeholder (matching a fresh render of the now-absent attr).
         const carrierOp = r.b == null ? undefined : /** @type {any} */ (r.b.attrs).value
         if (delta.$setAttrOp.check(carrierOp)) {
           if (seg.start > emitted) out.retain(seg.start - emitted)
@@ -299,6 +300,14 @@ export class ProjectionTransformer extends Transformer {
         } else if (delta.$modifyAttrOp.check(carrierOp)) {
           if (seg.start > emitted) out.retain(seg.start - emitted)
           out.modify(modifyOf(r.b)) // incremental change to the delta-valued embed
+          emitted = seg.start + 1
+        } else if (delta.$deleteAttrOp.check(carrierOp)) {
+          // the bound data attr was removed: a child value slot has no data channel, so deletion only
+          // updates the view - reset the scalar embed to the `null` placeholder a fresh render shows.
+          if (seg.start > emitted) out.retain(seg.start - emitted)
+          item.lastScalar = null
+          out.delete(1)
+          out.insert([null])
           emitted = seg.start + 1
         }
         placeCarrierMark(out, r.b, seg.start)
