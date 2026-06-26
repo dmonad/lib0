@@ -39,8 +39,12 @@ const valueOf = el => /** @type {any} */ (el.attrs).value?.value
  * @extends {Transformer<any,any>}
  */
 export class UnwrapValueTransformer extends Transformer {
-  constructor () {
-    super()
+  /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
+   */
+  constructor ($in, $out) {
+    super($in, $out)
     /**
      * Sparse positional map of carriers: `insert([1])` at each `lib0:value` child, `retain(n)` over
      * gaps (text and pass-through nodes).
@@ -176,7 +180,7 @@ export class UnwrapValue extends Template {
    * @return {Transformer<IN, any>}
    */
   init () {
-    return new UnwrapValueTransformer()
+    return new UnwrapValueTransformer(this.$in, this.$out)
   }
 }
 

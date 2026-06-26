@@ -94,6 +94,21 @@ export const createTransformResult = (a, b) => new TransformResult(a, b)
  */
 export class Transformer {
   /**
+   * @param {s.Schema<import('../delta.js').Delta<A>>} $in input delta schema
+   * @param {s.Schema<import('../delta.js').Delta<B>>} $out output delta schema (computed by the factory)
+   */
+  constructor ($in, $out) {
+    /**
+     * @type {s.Schema<import('../delta.js').Delta<A>>}
+     */
+    this.$in = $in
+    /**
+     * @type {s.Schema<import('../delta.js').Delta<B>>}
+     */
+    this.$out = $out
+  }
+
+  /**
    * @param {TransformResult<A, B>} tin
    * @return {TransformResult<A,B>}
    */

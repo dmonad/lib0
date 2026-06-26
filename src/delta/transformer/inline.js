@@ -315,10 +315,12 @@ const passThrough = src => {
  */
 export class InlineTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {Array<string|null>} names the node names to inline (`null` selects anonymous nodes)
    */
-  constructor (names) {
-    super()
+  constructor ($in, $out, names) {
+    super($in, $out)
     /**
      * @type {Array<string|null>}
      */
@@ -787,7 +789,7 @@ export class Inline extends Template {
    * @return {Transformer<IN, any>}
    */
   init () {
-    return new InlineTransformer(this.names)
+    return new InlineTransformer(this.$in, this.$out, this.names)
   }
 }
 

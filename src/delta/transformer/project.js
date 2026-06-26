@@ -158,13 +158,15 @@ const placeCarrierMark = (out, rb, slotKey) => {
  */
 export class ProjectionTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {string} name
    * @param {Array<{ key: string|number, value: any, attribution?: any }>} staticAttrs
    * @param {Array<{ key: string|number, t: Transformer<any,any> }>} attrHoles
    * @param {Array<ChildItem>} items child slots in output order
    */
-  constructor (name, staticAttrs, attrHoles, items) {
-    super()
+  constructor ($in, $out, name, staticAttrs, attrHoles, items) {
+    super($in, $out)
     this.name = name
     this.staticAttrs = staticAttrs
     this.attrHoles = attrHoles
@@ -492,7 +494,7 @@ export class ProjectionTemplate extends Template {
         }
       }
     }
-    return /** @type {any} */ (new ProjectionTransformer(/** @type {any} */ (spec.name), staticAttrs, attrHoles, items))
+    return /** @type {any} */ (new ProjectionTransformer(this.$in, this.$out, /** @type {any} */ (spec.name), staticAttrs, attrHoles, items))
   }
 }
 

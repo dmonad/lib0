@@ -22,14 +22,16 @@ import { Transformer, Template, createTransformResult } from './core.js'
  */
 export class ChildrenTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {(child: delta.DeltaAny, $child: import('../../schema.js').Schema<delta.DeltaAny>) => Template | null} handler
    * picks the (schema-bound) template for a child node, or `null` to leave it untransformed. Evaluated
    * once, when the child is inserted, with the derived per-child schema.
    * @param {import('../../schema.js').Schema<delta.DeltaAny>} childSchema per-child-node schema each
    * sub-template is built against (derived from the parent's input schema; `$deltaAny` when not derivable).
    */
-  constructor (handler, childSchema) {
-    super()
+  constructor ($in, $out, handler, childSchema) {
+    super($in, $out)
     this.handler = handler
     /**
      * Sparse positional map of sub-transformers: `insert([t])` at each transformed child, `retain(n)`
@@ -192,7 +194,7 @@ export class Children extends Template {
    * @return {Transformer<IN, any>}
    */
   init () {
-    return new ChildrenTransformer(this.handler, this.childSchema)
+    return new ChildrenTransformer(this.$in, this.$out, this.handler, this.childSchema)
   }
 }
 

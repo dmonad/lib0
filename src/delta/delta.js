@@ -2384,6 +2384,36 @@ const opNextUndeleted = op => {
 const compareMarksById = (a, b) => a.id < b.id ? -1 : 1
 
 /**
+ * Position-step order for a mark's `key`, mirroring the fingerprint key sort (see {@link Delta#fingerprint}):
+ * numbers (child indices) first, ascending; then string (attribute) keys, lexicographically.
+ *
+ * @param {number|string} a
+ * @param {number|string} b
+ */
+const cmpKey = (a, b) =>
+  s.$number.check(a) ? (s.$number.check(b) ? a - b : -1) : s.$number.check(b) ? 1 : (a < b ? -1 : a > b ? 1 : 0)
+
+/**
+ * Total order over the marks of one node: by position-step {@link cmpKey}, tie-broken by the (unique)
+ * id so the order is fully deterministic even when two cursors share a key. Used by {@link sortMarks}.
+ *
+ * @param {Mark} a
+ * @param {Mark} b
+ */
+const cmpMarkKey = (a, b) => cmpKey(a.key, b.key) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
+/**
+ * Sort a {@link Marks} set in place into its canonical {@link cmpMarkKey} order and return it. Called
+ * lazily whenever the set is iterated, so every reader (e.g.
+ * {@link import('./position.js').marksToPositions}) sees one deterministic, position-ordered sequence
+ * regardless of the order marks were added in. Order is not part of a delta's identity, so reordering
+ * is safe even on a `done` delta.
+ *
+ * @param {Marks} marks
+ */
+const sortMarks = marks => { marks._marks.sort(cmpMarkKey); return marks }
+
+/**
  * The set of leaf {@link Mark marks} on a single delta node, deduplicated by id (so adding the same id
  * again replaces it). An internal data-shape class (never a public/`new`-from-outside class): every
  * mutation goes through its methods, so a stored {@link Mark} is treated as immutable and is never
@@ -2432,7 +2462,7 @@ class Marks {
     return true
   }
 
-  [Symbol.iterator] () { return this._marks[Symbol.iterator]() }
+  [Symbol.iterator] () { sortMarks(this); return this._marks[Symbol.iterator]() }
 }
 
 /**

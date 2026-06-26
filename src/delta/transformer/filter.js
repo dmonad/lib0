@@ -32,7 +32,7 @@ export class Filter extends Template {
    * @return {Transformer<IN, ApplyExpectType<DConf, IN>>}
    */
   init () {
-    return /** @type {any} */ (new FilterTransformer(this.$allowed))
+    return /** @type {any} */ (new FilterTransformer(this.$in, this.$out, this.$allowed))
   }
 }
 
@@ -63,10 +63,12 @@ const filterOut = ($in, $allowed) => {
  */
 export class FilterTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {delta.$Delta<DConf>} $d
    */
-  constructor ($d) {
-    super()
+  constructor ($in, $out, $d) {
+    super($in, $out)
     this.$dshape = $d.shape
     this.filter = delta.create(delta.$delta({ children: s.$any }))
     /**

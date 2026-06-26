@@ -54,7 +54,7 @@ export class Pipe extends Template {
    * @return {Transformer<IN, OUT>}
    */
   init () {
-    return /** @type {any} */ (new PipeTransformer(this.stages.map(t => t.init())))
+    return /** @type {any} */ (new PipeTransformer(this.$in, this.$out, this.stages.map(t => t.init())))
   }
 }
 
@@ -63,10 +63,12 @@ export class Pipe extends Template {
  */
 export class PipeTransformer extends Transformer {
   /**
+   * @param {DSchema<any>} $in
+   * @param {DSchema<any>} $out
    * @param {Transformer<any,any>[]} ts the per-stage transformers (materialized, A→B order)
    */
-  constructor (ts) {
-    super()
+  constructor ($in, $out, ts) {
+    super($in, $out)
     /**
      * @type {Transformer<any,any>[]}
      */

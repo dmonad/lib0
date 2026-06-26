@@ -51,10 +51,12 @@ const renameDeltaAttrs = (d, renames, revRenames) => {
  */
 export class RenameAttrsTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {{[K:string|number]:string|number}} renames
    */
-  constructor (renames) {
-    super()
+  constructor ($in, $out, renames) {
+    super($in, $out)
     this.arenames = renames
     /**
      * @type {{[K:string|number]:string|number}}
@@ -132,7 +134,7 @@ export class RenameAttrs extends Template {
    * @return {Transformer<IN,ApplyRenameAttrs<Renames,IN>>}
    */
   init () {
-    return /** @type {any} */ (new RenameAttrsTransformer(this.renames))
+    return /** @type {any} */ (new RenameAttrsTransformer(this.$in, this.$out, this.renames))
   }
 }
 

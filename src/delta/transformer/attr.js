@@ -60,7 +60,7 @@ export class Attr extends Template {
    * @return {Transformer<IN, ApplyAttr<AttrName, IN>>}
    */
   init () {
-    return /** @type {any} */ (new AttrTransformer(this.attrName))
+    return /** @type {any} */ (new AttrTransformer(this.$in, this.$out, this.attrName))
   }
 }
 
@@ -71,10 +71,12 @@ export class Attr extends Template {
  */
 export class AttrTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {string} attrName
    */
-  constructor (attrName) {
-    super()
+  constructor ($in, $out, attrName) {
+    super($in, $out)
     this.attrName = /** @type {keyof delta.DeltaConfGetAttrs<A> & (string|number)} */ (attrName)
   }
 

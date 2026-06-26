@@ -11,10 +11,12 @@ import { Transformer, Template, createTransformResult, withName } from './core.j
  */
 export class RenameTransformer extends Transformer {
   /**
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $in
+   * @param {import('../../schema.js').Schema<delta.Delta<any>>} $out
    * @param {string} name
    */
-  constructor (name) {
-    super()
+  constructor ($in, $out, name) {
+    super($in, $out)
     this.target = name
     /** @type {string|undefined} */
     this.srcName = undefined
@@ -65,7 +67,7 @@ export class Rename extends Template {
    * @return {Transformer<IN, delta.DeltaConfOverwrite<IN, { name: Name }>>}
    */
   init () {
-    return /** @type {any} */ (new RenameTransformer(this.target))
+    return /** @type {any} */ (new RenameTransformer(this.$in, this.$out, this.target))
   }
 }
 
