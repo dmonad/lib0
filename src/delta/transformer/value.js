@@ -161,10 +161,26 @@ export class UnwrapValueTransformer extends Transformer {
 }
 
 /**
+ * A `lib0:value` carrier child lifts to its scalar `value` type; any other child passes through.
+ * Naked-param conditional, so it distributes over a children union.
+ *
+ * @template C
+ * @typedef {C extends delta.Delta<{ name: 'lib0:value', attrs: { value: infer V extends import('../../trait/fingerprint.js').Fingerprintable } }> ? V : C} UnwrapValueChild
+ */
+
+/**
+ * `unwrapValue`'s output conf: `IN` with every `lib0:value` carrier child replaced by its lifted
+ * scalar (see {@link UnwrapValueChild}); name/attrs/text unchanged.
+ *
+ * @template {delta.DeltaConf} IN
+ * @typedef {import('./core.js').ResolveOut<delta.DeltaConfOverwrite<IN, { children: UnwrapValueChild<delta.DeltaConfGetChildren<IN>> }>>} UnwrapValueOut
+ */
+
+/**
  * Template for {@link UnwrapValueTransformer}.
  *
  * @template {delta.DeltaConf} [IN=any]
- * @extends {Template<IN, any>}
+ * @extends {Template<IN, UnwrapValueOut<IN>>}
  */
 export class UnwrapValue extends Template {
   /**
@@ -177,10 +193,10 @@ export class UnwrapValue extends Template {
   get fpName () { return 'lib0:unwrapValue' }
 
   /**
-   * @return {Transformer<IN, any>}
+   * @return {Transformer<IN, UnwrapValueOut<IN>>}
    */
   init () {
-    return new UnwrapValueTransformer(this.$in, this.$out)
+    return /** @type {any} */ (new UnwrapValueTransformer(this.$in, this.$out))
   }
 }
 

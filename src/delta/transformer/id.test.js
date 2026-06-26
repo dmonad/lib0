@@ -1,11 +1,12 @@
 import * as t from '../../testing.js'
 import * as delta from '../delta.js'
+import * as s from '../../schema.js'
 import { id } from './id.js'
 
 // NOTE: LLM-generated, needs review.
 
 export const testIdBasics = () => {
-  const it = id(delta.$deltaAny).init()
+  const it = id(delta.$delta({ attrs: { x: s.$string }, text: true })).init()
   // identity maps an a-side change verbatim onto the b side
   const resA = it.applyA(delta.create().setAttr('x', 'v').insert('hi'))
   t.assert(resA.a === null)

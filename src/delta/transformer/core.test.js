@@ -9,8 +9,8 @@ import { id } from './id.js'
 
 export const testTemplateSchema = () => {
   // templates are recognized by their `isTemplate` symbol
-  t.assert($template.check(attr(delta.$deltaAny, 'name')))
-  t.assert($template.check(pipe(delta.$deltaAny, $d1 => /** @type {any} */ (attr($d1, 'a')), $d2 => /** @type {any} */ (attr($d2, 'b')))))
+  t.assert($template.check(attr(delta.$delta({ attrs: { name: s.$string } }), 'name')))
+  t.assert($template.check(pipe(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), $d1 => attr($d1, 'a'), $d2 => attr($d2, 'b'))))
   // non-templates are rejected (no false-positive on arbitrary objects with an `init`, unlike the
   // old duck-typed check)
   t.assert(!$template.check({ init: () => {} }))
@@ -21,10 +21,10 @@ export const testTemplateSchema = () => {
 
 export const testTransformerSchema = () => {
   // a transformer instance is recognized by its `isTransformer` symbol
-  t.assert($transformer.check(attr(delta.$deltaAny, 'name').init()))
+  t.assert($transformer.check(attr(delta.$delta({ attrs: { name: s.$string } }), 'name').init()))
   // a template is not itself a transformer, and vice versa - the two roles are independent
-  t.assert(!$transformer.check(attr(delta.$deltaAny, 'name')))
-  t.assert(!$template.check(attr(delta.$deltaAny, 'name').init()))
+  t.assert(!$transformer.check(attr(delta.$delta({ attrs: { name: s.$string } }), 'name')))
+  t.assert(!$template.check(attr(delta.$delta({ attrs: { name: s.$string } }), 'name').init()))
   t.assert(!$transformer.check(null))
 }
 
@@ -43,7 +43,7 @@ export const testTransformHelper = () => {
 export const testEitherTemplateOrTransformer = () => {
   // every value is either a template or a transformer, never both. `id($d)` is a `RenameAttrs`
   // template; its `init` yields a separate, pure transformer (`RenameAttrs` stores it and returns it)
-  const idTemplate = id(delta.$deltaAny)
+  const idTemplate = id(delta.$delta({}))
   t.assert($template.check(idTemplate) && !$transformer.check(idTemplate))
   const it = idTemplate.init()
   t.assert($transformer.check(it) && !$template.check(it))
