@@ -3,18 +3,18 @@ import * as delta from '../delta.js'
 import * as s from '../../schema.js'
 import { transformerWith, $tresult } from '../transformer.js'
 import { renameAttrs } from './rename-attrs.js'
-import { filter } from './filter.js'
+import { conform } from './conform.js'
 import { pipe } from './pipe.js'
 
 export const testPipeBasics = () => {
   const $d3 = delta.$delta({ children: 42, attrs: { a: s.$string } })
-  // pipe(filter, renameAttrs): filter keeps attr `a`, renameAttrs maps `a` -> `b`. Each stage is a
+  // pipe(conform, renameAttrs): conform keeps attr `a`, renameAttrs maps `a` -> `b`. Each stage is a
   // factory receiving the previous stage's output schema; the end-to-end output type is inferred.
   const i31 = pipe($d3,
-    $d => filter($d, delta.$delta({ attrs: { a: [s.$number, s.$string] } })),
+    $d => conform($d, delta.$delta({ attrs: { a: [s.$number, s.$string] } })),
     $d => renameAttrs($d, { a: 'b' })
   ).init()
-  t.assert(transformerWith($d3, delta.$delta({ attrs: { b: s.$string } })).validate(i31))
+  t.assert(transformerWith($d3, delta.$delta({ attrs: { b: [s.$number, s.$string] } })).validate(i31))
   // a rename round-trip pipe drives PipeTransformer.apply back and forth (a->b->a->b->a->b => a->b)
   const $da = delta.$delta({ attrs: { a: s.$string } })
   const $db = delta.$delta({ attrs: { b: s.$string } })

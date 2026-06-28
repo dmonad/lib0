@@ -9,7 +9,7 @@
  * available from a single module (`lib0/delta/transformer`):
  * - {@link id} — identity (both sides stay equal)
  * - {@link renameAttrs} — rename node attributes
- * - {@link filter} — drop everything not matching a schema
+ * - {@link conform} — drop everything the target schema does not recognize
  * - {@link pipe} — chain templates
  * - {@link attr} — project a single attribute into a `lib0:value` node
  * - {@link inline} — inline child nodes whose name is in a configured set
@@ -24,7 +24,7 @@
 export * from './transformer/core.js'
 export * from './transformer/id.js'
 export * from './transformer/rename.js'
-export * from './transformer/filter.js'
+export * from './transformer/conform.js'
 export * from './transformer/pipe.js'
 export * from './transformer/attr.js'
 export * from './transformer/inline.js'

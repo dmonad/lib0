@@ -10,7 +10,7 @@ import { id } from './id.js'
 import { children } from './children.js'
 import { unwrapValue } from './value.js'
 import { attr } from './attr.js'
-import { filter } from './filter.js'
+import { conform } from './conform.js'
 
 // ---------------------------------------------------------------------------
 // Cross-side cursor marks (Slice 3, part 1)
@@ -167,9 +167,9 @@ export const testMarkRenameAttrsRemapAndDrop = () => {
   t.compare(mp(r2.b), [])
 }
 
-export const testMarkFilterPreserves = () => {
-  // filter returns the input unchanged, so a mark on a kept attribute survives
-  const it = filter(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), delta.$delta({ attrs: { a: s.$string } })).init()
+export const testMarkConformPreserves = () => {
+  // a mark on a kept attribute rides through conform (it keys the surviving attr `a`)
+  const it = conform(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), delta.$delta({ attrs: { a: s.$string } })).init()
   const d = delta.create().setAttr('a', 'x')
   d.addMark(position.create(['a']), 'M')
   const r = it.applyA(d)

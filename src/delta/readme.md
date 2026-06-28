@@ -82,6 +82,23 @@ d.apply(delta.create().modify(
 ))
 ```
 
+# Consuming a change: `apply(change, { move: true })`
+
+`apply` defaults to **copying** the applied `change` into the target — the change's nested content is
+frozen (`done`) so it can be safely shared, and a later edit of the merged content re-clones it to a
+private mutable copy. When you have **just built `change` and will not read it again**, pass
+`{ move: true }` to *donate* it: its content is **consumed (moved)** into the target instead of
+frozen-cloned, so a subsequent edit mutates it in place — no freeze, no re-clone.
+
+```javascript
+const next = doc.apply(change)                  // safe default — `change` may still be read afterwards
+const next = doc.apply(change, { move: true })  // faster — `change` is consumed; DO NOT read it again
+```
+
+This is a performance option. **Only pass `{ move: true }` when you own `change` and discard it right
+after** — reading or re-applying a moved change is undefined (its content now lives in the target). The
+transformer layer uses it internally for its disposable intermediate results (see `transformer/core.js`).
+
 # Cursors & selections (marks)
 
 A **mark** is a cursor/selection anchor stored on a delta node: a stable `id`, a terminal `key` (a
@@ -137,7 +154,7 @@ transformer describes the mapping once and translates *changes* in both directio
 - html edits (e.g. from a `contenteditable` editor) ⇒ updates on the data
 
 A transformer is built by a **schema-first factory** — `renameAttrs($d, {a:'b'})`,
-`filter($d, $allowed)`, `attr($d, 'name')`, `rename($d, 'ul')`, `project($d, spec)` — that takes the
+`conform($d, $schema)`, `attr($d, 'name')`, `rename($d, 'ul')`, `project($d, spec)` — that takes the
 input delta schema `$d` and returns a reusable **`Template<In, Out>`** holding the input/output
 schemas. Call **`.init()`** (no arguments) to materialize a stateful `Transformer<In, Out>`:
 `applyA(deltaA)` maps an A-change to a B-change, `applyB(deltaB)` maps back, and `apply({a,b})`

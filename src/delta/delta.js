@@ -229,9 +229,13 @@ export class TextOp extends list.ListNode {
   }
 
   /**
+   * @param {number} [start]
+   * @param {number} [end]
+   * @param {boolean} [_markAsDone] accepted for a uniform children-op `clone` signature; ignored (text
+   * holds no nested deltas to freeze).
    * @return {TextOp}
    */
-  clone (start = 0, end = this.length) {
+  clone (start = 0, end = this.length, _markAsDone = true) {
     return new TextOp(this.insert.slice(start, end), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
@@ -355,10 +359,17 @@ export class InsertOp extends list.ListNode {
   }
 
   /**
+   * @param {number} [start]
+   * @param {number} [end]
+   * @param {boolean} [markAsDone] freeze the cloned child deltas (the default — a shared clone must be
+   * immutable). Pass `false` only when the caller is the SOLE owner of the cloned range (a *move*, e.g.
+   * `splitHere` which `_splice`s the range out of the source), so the content can stay mutable and is
+   * not re-cloned on the next modify (see {@link modValue}).
    * @return {InsertOp<ArrayContent>}
    */
-  clone (start = 0, end = this.length) {
-    return new InsertOp(this.insert.slice(start, end).map(_markMaybeDeltaAsDone), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+  clone (start = 0, end = this.length, markAsDone = true) {
+    const insert = this.insert.slice(start, end)
+    return new InsertOp(markAsDone ? insert.map(_markMaybeDeltaAsDone) : insert, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -429,11 +440,13 @@ export class DeleteOp extends list.ListNode {
   }
 
   /**
-   * @param {number} start
-   * @param {number} end
+   * @param {number} [start]
+   * @param {number} [end]
+   * @param {boolean} [_markAsDone] accepted for a uniform children-op `clone` signature; ignored (a
+   * cloned delete carries no prevValue).
    * @return {DeleteOp}
    */
-  clone (start = 0, end = this.delete) {
+  clone (start = 0, end = this.delete, _markAsDone = true) {
     return new DeleteOp(end - start, null)
   }
 }
@@ -522,7 +535,14 @@ export class RetainOp extends list.ListNode {
       fun.equalityDeep(this.attribution, other.attribution)
   }
 
-  clone (start = 0, end = this.retain) {
+  /**
+   * @param {number} [start]
+   * @param {number} [end]
+   * @param {boolean} [_markAsDone] accepted for a uniform children-op `clone` signature; ignored (retain
+   * holds no nested deltas).
+   * @return {RetainOp}
+   */
+  clone (start = 0, end = this.retain, _markAsDone = true) {
     return new RetainOp(end - start, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
@@ -627,10 +647,14 @@ export class ModifyOp extends list.ListNode {
   }
 
   /**
+   * @param {number} [_start] ignored (a modify is atomic); accepted for a uniform children-op signature.
+   * @param {number} [_end] ignored.
+   * @param {boolean} [markAsDone] freeze the cloned value (default); `false` shares it mutable — see
+   * {@link InsertOp#clone}. The op itself is still a fresh node; only its `value` is consumed.
    * @return {ModifyOp<DTypes>}
    */
-  clone () {
-    return new ModifyOp(/** @type {DTypes} */ (this.value.done()), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+  clone (_start = 0, _end = 1, markAsDone = true) {
+    return new ModifyOp(/** @type {DTypes} */ (markAsDone ? this.value.done() : this.value), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
 
@@ -719,6 +743,9 @@ export class SetAttrOp {
   }
 
   /**
+   * Full (frozen) clone. A `move` apply reuses the source op instead of cloning, so there is no
+   * shared-mutable variant — see {@link DeltaBuilder#apply}.
+   *
    * @return {SetAttrOp<V,K>}
    */
   clone () {
@@ -787,6 +814,11 @@ export class DeleteAttrOp {
     return $deleteAttrOp.check(other) && this.key === other.key && fun.equalityDeep(this.attribution, other.attribution)
   }
 
+  /**
+   * Full (frozen) clone; a `move` apply reuses the source op instead — see {@link DeltaBuilder#apply}.
+   *
+   * @return {DeleteAttrOp<V,K>}
+   */
   clone () {
     return new DeleteAttrOp(this.key, _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
   }
@@ -857,6 +889,8 @@ export class ModifyAttrOp {
   }
 
   /**
+   * Full (frozen) clone; a `move` apply reuses the source op instead — see {@link DeltaBuilder#apply}.
+   *
    * @return {ModifyAttrOp<Modifier,K>}
    */
   clone () {
@@ -1441,12 +1475,31 @@ const modValue = op => {
   return op.value
 }
 
-/**
- * Try merging this op with the previous op
- * @param {list.List<any>} parent
- * @param {InsertOp<any>|RetainOp|DeleteOp<any>|TextOp|ModifyOp<any>} op
+/*
+ * --- @internal low-level mutation API for a delta's children list ---
+ *
+ * These are the ONLY sanctioned way to structurally edit `d.children` in place. Each keeps the cached
+ * invariant `d.childCnt === Σ op.length` correct and resets the op's `_fingerprint`. Never mutate
+ * `op.retain` / `op.delete` / `op.insert`, call `list.*`, or touch `d.childCnt` directly from outside
+ * delta.js — go through these so the count (which `EqualityTraitSymbol` compares) never drifts.
+ *
+ * Cursor pattern (used by {@link DeltaBuilder#apply}, {@link DeltaBuilder#rebase}, and
+ * `transformer/conform.js`): walk the target with `(op, offset)`; {@link _splitChildAt} before inserting
+ * in the middle of an op so the cursor sits on a boundary; {@link _mergeChildWithPrev} after edits to
+ * coalesce adjacent same-kind runs. `_growRun` / `_spliceInsert` extend an existing run *without* a split,
+ * which keeps same-kind insertion (e.g. typing into a pass-through run) non-fragmenting.
  */
-const tryMergeWithPrev = (parent, op) => {
+
+/**
+ * Coalesce `op` into its previous sibling when they are the same kind with equal format/attribution,
+ * removing `op`. `d.childCnt` is unchanged (the length moves to the previous op). Returns `true` when it
+ * merged — so a caller holding a cursor on `op` can move it onto the surviving previous op.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {InsertOp<any>|RetainOp|DeleteOp<any>|TextOp|ModifyOp<any>} op
+ * @return {boolean}
+ */
+export const _mergeChildWithPrev = (d, op) => {
   const prevOp = op.prev
   if (
     prevOp?.constructor !== op.constructor ||
@@ -1459,7 +1512,7 @@ const tryMergeWithPrev = (parent, op) => {
     )
   ) {
     // constructor mismatch or format/attribution mismatch
-    return
+    return false
   }
   // can be merged
   if ($insertOp.check(op)) {
@@ -1478,7 +1531,98 @@ const tryMergeWithPrev = (parent, op) => {
     error.unexpectedCase()
   }
   /* c8 ignore stop */
-  list.remove(parent, op)
+  list.remove(d.children, op)
+  return true
+}
+
+/**
+ * Split `op` at `offset`, leaving `op` = `[0, offset)` and a fresh right node `[offset, op.length)`
+ * inserted immediately after it; returns the right node. `d.childCnt` is unchanged (net-zero). The clone
+ * uses `markAsDone=false` because the right node is `_splice`d out of `op` here, so it is the sole owner.
+ * Caller guarantees `0 < offset < op.length`.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {ChildrenOpAny} op
+ * @param {number} offset
+ * @return {ChildrenOpAny}
+ */
+export const _splitChildAt = (d, op, offset) => {
+  const right = /** @type {ChildrenOpAny} */ (op.clone(offset, op.length, false))
+  op._splice(offset, op.length - offset)
+  list.insertBetween(d.children, op, op.next || null, right)
+  return right
+}
+
+/**
+ * Insert `op` into `d.children` immediately before `ref` (or push at the end when `ref == null`);
+ * `d.childCnt += op.length`. Does not coalesce — call {@link _mergeChildWithPrev} afterwards if needed.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {ChildrenOpAny?} ref
+ * @param {ChildrenOpAny} op
+ * @return {ChildrenOpAny}
+ */
+export const _insertChild = (d, ref, op) => {
+  list.insertBetween(d.children, ref == null ? d.children.end : ref.prev, ref, op)
+  d.childCnt += op.length
+  return op
+}
+
+/**
+ * Remove child `op` entirely; `d.childCnt -= op.length`.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {ChildrenOpAny} op
+ */
+export const _removeChild = (d, op) => {
+  d.childCnt -= op.length
+  list.remove(d.children, op)
+}
+
+/**
+ * Drop `len` positions from `op` starting at `offset` (`op._splice`); `d.childCnt -= len`. Does not remove
+ * an emptied op — the caller decides (call {@link _removeChild} when `op.length === 0`), because removal is
+ * usually entangled with the caller's own cursor advance. Retain/Delete ignore `offset` (uniform runs);
+ * Insert drops `insert[offset, offset+len)`.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {ChildrenOpAny} op
+ * @param {number} offset
+ * @param {number} len
+ */
+export const _shrinkChild = (d, op, offset, len) => {
+  op._splice(offset, len)
+  d.childCnt -= len
+}
+
+/**
+ * Grow a Retain or Delete run `op` by `n` positions in place (the invariant-safe form of `op.retain += n`);
+ * `d.childCnt += n`. Use to extend an existing same-kind run without a split.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {RetainOp|DeleteOp<any>} op
+ * @param {number} n
+ */
+export const _growRun = (d, op, n) => {
+  // reason: RetainOp.retain / DeleteOp.delete are @readonly for consumers; the @internal mutators grow them in place, just as _splice shrinks them
+  // @ts-ignore
+  if ($retainOp.check(op)) op.retain += n; else op.delete += n
+  op._fingerprint = null
+  d.childCnt += n
+}
+
+/**
+ * Splice `elems` into an Insert run `op` at `offset` in place; `d.childCnt += elems.length`.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {InsertOp<any>} op
+ * @param {number} offset
+ * @param {Array<any>} elems
+ */
+export const _spliceInsert = (d, op, offset, elems) => {
+  op.insert.splice(offset, 0, ...elems)
+  op._fingerprint = null
+  d.childCnt += elems.length
 }
 
 /**
@@ -1798,13 +1942,19 @@ export class DeltaBuilder extends Delta {
    * attribute). Any kind of `delete` op might be considered a bug. A final delta is not idempotent.
    *
    * @param {Delta<Conf>?} other
-   * @param {{ final?: boolean }} opts
+   * @param {{ final?: boolean, move?: boolean }} [opts] `move`: the caller donates `other` (it is not
+   * read again), so its content is consumed (shared mutable) rather than frozen-cloned — see {@link
+   * InsertOp#clone}. UNSAFE if the caller keeps using `other`.
    * @return {DeltaBuilder<Conf>}
    */
-  apply (other, { final = this.isFinal } = {}) {
+  apply (other, { final = this.isFinal, move = false } = {}) {
     if (other == null) return this
     modDeltaCheck(this)
     this.$schema?.expect(other)
+    // `move`: the caller donates `other` (it must not be read again), so content is consumed (shared
+    // mutable) instead of frozen-cloned — no `done()` and no re-clone on a later modify. UNSAFE if the
+    // caller keeps using `other`. `!move` is the default everywhere (today's behavior).
+    const keep = !move
     // apply attrs
     for (const op of other.attrs) {
       // @ts-ignore
@@ -1812,12 +1962,12 @@ export class DeltaBuilder extends Delta {
       if ($modifyAttrOp.check(op)) {
         if ($deltaAny.check(c?.value)) {
           const tgt = c._modValue
-          tgt.apply(op.value, { final })
+          tgt.apply(op.value, { final, move })
           this.maybeHasMarks ||= tgt.maybeHasMarks // flag the attr subtree's marks up
         } else {
           // then this is a simple modify (the attribute did not previously hold a delta)
           // @ts-ignore
-          this.attrs[op.key] = op.clone()
+          this.attrs[op.key] = move ? op : op.clone()
           this.maybeHasMarks ||= op.value.maybeHasMarks // flag any marks the new modify value carries
         }
       } else if ($setAttrOp.check(op)) {
@@ -1827,7 +1977,7 @@ export class DeltaBuilder extends Delta {
         // a delta-valued attribute carries marks in its subtree - flag conservatively (never decremented)
         if ($deltaAny.check(op.value)) this.maybeHasMarks ||= op.value.maybeHasMarks
         // @ts-ignore
-        this.attrs[op.key] = op.clone()
+        this.attrs[op.key] = move ? op : op.clone()
       } else if ($deleteAttrOp.check(op)) {
         const prev = c?.value
         op.prevValue = prev
@@ -1838,7 +1988,7 @@ export class DeltaBuilder extends Delta {
           delete this.attrs[op.key]
         } else {
           // @ts-ignore
-          this.attrs[op.key] = op.clone()
+          this.attrs[op.key] = move ? op : op.clone()
         }
       }
     }
@@ -1875,11 +2025,8 @@ export class DeltaBuilder extends Delta {
      */
     const splitHere = () => {
       if (offset > 0 && opsI != null) {
-        const rightPart = scheduleForMerge(opsI.clone(offset))
-        opsI._splice(offset, opsI.length - offset)
-        list.insertBetween(this.children, opsI, opsI.next || null, rightPart)
+        opsI = scheduleForMerge(_splitChildAt(this, opsI, offset))
         offset = 0
-        opsI = rightPart
       }
     }
     /**
@@ -1887,12 +2034,16 @@ export class DeltaBuilder extends Delta {
      */
     const insertClonedOp = op => {
       splitHere()
-      list.insertBetween(this.children, opsI == null ? this.children.end : opsI.prev, opsI, scheduleForMerge(op.clone()))
-      this.childCnt += op.length
+      // `move` re-parents the source op directly (it is donated); else clone with `keep`. Freshly
+      // built `new DeleteOp(...)` callers are unaliased, so moving them is likewise safe.
+      _insertChild(this, opsI, scheduleForMerge(move ? op : op.clone(0, op.length, keep)))
       // inserting pre-marked content (e.g. a node that already carries a cursor) brings its marks along
       if ($insertOp.check(op)) this.maybeHasMarks ||= elemsMaybeHaveMarks(op.insert)
     }
-    for (const op of other.children) {
+    // manual iteration (not `for..of`): a `move` apply re-parents the source op into `this.children`,
+    // rewiring its `.next`; capture the successor first so the walk stays on `other`'s chain.
+    for (let op = /** @type {ChildrenOpAny?} */ (other.children.start), nextOp = op; op != null; op = nextOp) {
+      nextOp = op.next
       // defensive: the per-branch logic below resets opsI/offset whenever it
       // consumes an op exactly. This guard catches any path that forgets to.
       /* c8 ignore start */
@@ -1932,22 +2083,19 @@ export class DeltaBuilder extends Delta {
             offset += retainLen
           }
         } else if (retainLen > 0) {
-          list.pushEnd(this.children, scheduleForMerge(new RetainOp(retainLen, op.format, op.attribution)))
-          this.childCnt += retainLen
+          _insertChild(this, null, scheduleForMerge(new RetainOp(retainLen, op.format, op.attribution)))
         }
       } else if ($deleteOp.check(op)) {
         let remainingLen = op.delete
         while (remainingLen > 0) {
           if (opsI == null) {
-            list.pushEnd(this.children, scheduleForMerge(new DeleteOp(remainingLen, null)))
-            this.childCnt += remainingLen
+            _insertChild(this, null, scheduleForMerge(new DeleteOp(remainingLen, null)))
             break
           } else if ($retainOp.check(opsI)) { // retain ⇒ splice retain, insert delete
             const delLen = math.min(opsI.length - offset, remainingLen)
-            opsI._splice(offset, delLen)
-            this.childCnt -= delLen
+            _shrinkChild(this, opsI, offset, delLen)
             if (opsI.length === 0) {
-              list.remove(this.children, opsI)
+              _removeChild(this, opsI)
               opsI = opNextUndeleted(opsI)
               offset = 0
             }
@@ -1962,8 +2110,7 @@ export class DeltaBuilder extends Delta {
             // must emit a DeleteOp for that position - exactly like the retain case above. (The
             // insert/embed branch below instead just cancels the inserted content, because that
             // content is new and has no source position to delete.)
-            this.childCnt -= 1
-            list.remove(this.children, opsI)
+            _removeChild(this, opsI)
             opsI = opNextUndeleted(opsI)
             offset = 0
             insertClonedOp(new DeleteOp(1, null))
@@ -1974,26 +2121,24 @@ export class DeltaBuilder extends Delta {
             // case3: delete some part of end
             // case4: delete some part of center
             const delLen = math.min(opsI.length - offset, remainingLen)
-            this.childCnt -= delLen
             // deleting content drops any marks in the removed embeds; the conservative `maybeHasMarks`
             // flag is left as-is (never decremented - marksToPositions self-corrects it)
             if (opsI.length === delLen) {
-              // case 1
-              list.remove(this.children, opsI)
+              // case 1: delete opsI fully
+              _removeChild(this, opsI)
               scheduleForMerge(opsI = opNextUndeleted(opsI))
               offset = 0
             } else if (offset === 0) {
-              // case 2
-              offset = 0
-              opsI._splice(offset, delLen)
+              // case 2: delete from the beginning
+              _shrinkChild(this, opsI, offset, delLen)
             } else if (offset + delLen === opsI.length) {
-              // case 3
-              opsI._splice(offset, delLen)
+              // case 3: delete to the end
+              _shrinkChild(this, opsI, offset, delLen)
               opsI = opNextUndeleted(opsI)
               offset = 0
             } else {
-              // case 4
-              opsI._splice(offset, delLen)
+              // case 4: delete from the center
+              _shrinkChild(this, opsI, offset, delLen)
             }
             remainingLen -= delLen
           /* c8 ignore start */
@@ -2016,17 +2161,16 @@ export class DeltaBuilder extends Delta {
           scheduleForMerge(opsI)
         }
         if (opsI == null) {
-          list.pushEnd(this.children, op.clone())
-          this.childCnt += 1
+          _insertChild(this, null, move ? op : op.clone(0, 1, keep))
           this.maybeHasMarks ||= /** @type {DeltaAny} */ (op.value).maybeHasMarks // a freshly-inserted modify brings its value's root marks
         } else if ($modifyOp.check(opsI)) {
           const tgt = opsI._modValue
-          tgt.apply(/** @type {any} */ (op.value), { final })
+          tgt.apply(/** @type {any} */ (op.value), { final, move })
           this.maybeHasMarks ||= tgt.maybeHasMarks // flag the child subtree's marks up (incl. the value's own root marks)
           opsI = opNextUndeleted(opsI)
         } else if ($insertOp.check(opsI)) {
           const tgt = opsI._modValue(offset)
-          tgt.apply(op.value, { final })
+          tgt.apply(op.value, { final, move })
           this.maybeHasMarks ||= tgt.maybeHasMarks // flag the child subtree's marks up (incl. the value's own root marks)
           if (opsI.length === ++offset) {
             opsI = opNextUndeleted(opsI)
@@ -2034,16 +2178,17 @@ export class DeltaBuilder extends Delta {
           }
         } else if ($retainOp.check(opsI)) {
           splitHere()
-          const insertModOp = scheduleForMerge(op.clone())
+          const insertModOp = scheduleForMerge(move ? op : op.clone(0, 1, keep))
           this.maybeHasMarks ||= /** @type {DeltaAny} */ (op.value).maybeHasMarks // the inserted modify brings its value's root marks
           opsI.format && updateOpFormat(insertModOp, opsI.format)
-          list.insertBetween(this.children, opsI.prev, opsI, insertModOp) // insert skipped len
+          // the modify replaces one retain position with a length-1 modify (net childCnt: +1 here, -1 below)
+          _insertChild(this, opsI, insertModOp)
           if (opsI.length === 1) {
-            list.remove(this.children, opsI)
+            _removeChild(this, opsI)
             opsI = opNextUndeleted(opsI)
             offset = 0
           } else {
-            opsI._splice(0, 1)
+            _shrinkChild(this, opsI, 0, 1)
             scheduleForMerge(opsI)
           }
         /* c8 ignore start */
@@ -2066,8 +2211,8 @@ export class DeltaBuilder extends Delta {
       const op = maybeMergeable[i]
       // check if this is still integrated
       if (op.prev != null ? op.prev.next === op : this.children.start === op) {
-        op.prev && tryMergeWithPrev(this.children, op)
-        op.next && tryMergeWithPrev(this.children, op.next)
+        op.prev && _mergeChildWithPrev(this, op)
+        op.next && _mergeChildWithPrev(this, op.next)
       }
     }
     // marks: shift this node's own leaf marks by the change, then fold in root-level mark adds/deletes
@@ -2155,8 +2300,7 @@ export class DeltaBuilder extends Delta {
          */
         if ($insertOp.check(otherChild) || $textOp.check(otherChild)) {
           if (!priority) {
-            list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
-            this.childCnt += otherChild.length
+            _insertChild(this, currChild, new RetainOp(otherChild.length, null, null))
             // curr is transformed against other, transform curr against next
             otherOffset = otherChild.length
           } else {
@@ -2177,8 +2321,7 @@ export class DeltaBuilder extends Delta {
         if ($insertOp.check(otherChild) || $textOp.check(otherChild)) {
           // @todo: with all list changes (retain insertions, removal), try to merge the surrounding
           // ops later
-          list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
-          this.childCnt += otherChild.length
+          _insertChild(this, currChild, new RetainOp(otherChild.length, null, null))
           // curr is transformed against other, transform curr against next
           otherOffset = otherChild.length
         } else {
@@ -2189,8 +2332,7 @@ export class DeltaBuilder extends Delta {
             // value's own root marks (via rebaseRootMarks), so a nested mark needs no special handling.
             currChild._modValue.rebase(otherChild.value, priority)
           } else if ($deleteOp.check(otherChild)) {
-            list.remove(this.children, currChild)
-            this.childCnt -= 1
+            _removeChild(this, currChild)
           }
           currOffset += 1
           otherOffset += 1
@@ -2229,15 +2371,11 @@ export class DeltaBuilder extends Delta {
             if (strippedAny) {
               // split off the suffix [currOffset+maxCommonLen..length] if any
               if (currOffset + maxCommonLen < currChild.length) {
-                const suffix = currChild.clone(currOffset + maxCommonLen, currChild.length)
-                list.insertBetween(this.children, currChild, currChild.next, suffix)
-                currChild._splice(currOffset + maxCommonLen, currChild.length - (currOffset + maxCommonLen))
+                _splitChildAt(this, currChild, currOffset + maxCommonLen)
               }
-              // split off the prefix [0..currOffset] if any
+              // split off the prefix [0..currOffset] if any: currChild becomes the [currOffset..] suffix
               if (currOffset > 0) {
-                const prefix = currChild.clone(0, currOffset)
-                list.insertBetween(this.children, currChild.prev, currChild, prefix)
-                currChild._splice(0, currOffset)
+                currChild = _splitChildAt(this, currChild, currOffset)
                 currOffset = 0
               }
               // currChild now spans exactly the overlap. Replace its format.
@@ -2248,30 +2386,21 @@ export class DeltaBuilder extends Delta {
           currOffset += maxCommonLen
           otherOffset += maxCommonLen
         } else if ($deleteOp.check(otherChild)) {
-          if ($retainOp.check(currChild)) {
-            // @ts-ignore
-            currChild.retain -= maxCommonLen
-            currChild._fingerprint = null
-          } else if ($deleteOp.check(currChild)) {
-            currChild.delete -= maxCommonLen
-            currChild._fingerprint = null
-          }
-          this.childCnt -= maxCommonLen
+          // currChild is Retain | Delete here (outer branch); shrink it by the overlap
+          _shrinkChild(this, currChild, currOffset, maxCommonLen)
           // advance other so subsequent currChild ops see what comes AFTER this
           // delete; without this we'd loop against the same delete forever and
           // never reach other's later inserts.
           otherOffset += maxCommonLen
         } else { // insert/text.check(otherChild)
           if (currOffset > 0) {
-            const leftPart = currChild.clone(0, currOffset)
-            list.insertBetween(this.children, currChild.prev, currChild, leftPart)
-            // leftPart is the prefix; currChild becomes the suffix. Remove the
-            // prefix portion from currChild so it represents [currOffset..length].
-            currChild._splice(0, currOffset)
+            // clone the LEFT (prefix) and shrink currChild from the front, so the original op survives as
+            // the [currOffset..] suffix — keeping a DeleteOp's prevValue in sync (DeleteOp.clone drops it).
+            _insertChild(this, currChild, currChild.clone(0, currOffset))
+            _shrinkChild(this, currChild, 0, currOffset)
             currOffset = 0
           }
-          list.insertBetween(this.children, currChild.prev, currChild, new RetainOp(otherChild.length, null, null))
-          this.childCnt += otherChild.length
+          _insertChild(this, currChild, new RetainOp(otherChild.length, null, null))
           otherOffset = otherChild.length
         }
       }
@@ -2321,17 +2450,15 @@ export class DeltaBuilder extends Delta {
    * >, FixedConf>}
    */
   append (other) {
-    const children = this.children
-    const prevLast = children.end
+    const prevLast = this.children.end
     // @todo Investigate. Above is a typescript issue. It is necessary to cast OtherDelta to a Delta first before
     // inferring type, otherwise Children will contain Text.
     for (const child of other.children) {
-      list.pushEnd(children, child.clone())
+      _insertChild(this, null, child.clone())
     }
-    this.childCnt += other.childCnt
     // appended children may carry marks in their subtrees - flag conservatively
     this.maybeHasMarks ||= other.maybeHasMarks
-    prevLast?.next && tryMergeWithPrev(children, prevLast.next)
+    prevLast?.next && _mergeChildWithPrev(this, prevLast.next)
     // @ts-ignore
     return this
   }

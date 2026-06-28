@@ -38,9 +38,9 @@ class TransformResult {
   applyA (a) {
     if (a !== null) {
       if (this.a == null) {
-        this.a = a
+        this.a = a // adopt: `a` is donated to this result (callers must not reuse it)
       } else {
-        this.a.apply(a)
+        this.a.apply(a, { move: true }) // ...so the merge may consume `a` rather than freeze-copy it
       }
     }
     return this
@@ -52,9 +52,9 @@ class TransformResult {
   applyB (b) {
     if (b !== null) {
       if (this.b == null) {
-        this.b = b
+        this.b = b // adopt: `b` is donated to this result (callers must not reuse it)
       } else {
-        this.b.apply(b)
+        this.b.apply(b, { move: true }) // ...so the merge may consume `b` rather than freeze-copy it
       }
     }
     return this
@@ -121,14 +121,14 @@ export class Transformer {
       if (ares.b != null) {
         tb.rebase(ares.b, false)
       }
-      const bres = this.applyB(tb)
+      const bres = this.applyB(tb) // a fresh, single-use result -> its sides may be consumed (moved)
       if (ares.a) {
-        ares.a.apply(bres.a)
+        ares.a.apply(bres.a, { move: true })
       } else {
         ares.a = bres.a
       }
       if (ares.b) {
-        ares.b.apply(bres.b)
+        ares.b.apply(bres.b, { move: true })
       } else {
         ares.b = bres.b
       }

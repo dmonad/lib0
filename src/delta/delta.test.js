@@ -48,6 +48,44 @@ export const testDeltaBasicApi = _tc => {
 }
 
 /**
+ * `apply(other, { move: true })` re-parents `other`'s ops into the target instead of cloning them.
+ * The merged result must equal the default (cloning) apply, and a moved op must be the *same* object.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testApplyMove = _tc => {
+  // build a change hitting every moved op site: set-attr, modify-attr, insert-text, insert-embed, modify
+  const build = () => delta.create()
+    .setAttr('a', 42)
+    .modifyAttr('m', delta.create('sub', null, 'hi').done())
+    .insert('text')
+    .insert([7])
+    .modify(delta.create('sub', null, 'x').done())
+  // empty target typed `any`: it receives confs it was not statically built for
+  const emptyTarget = () => /** @type {any} */ (delta.create())
+  // move == clone equivalence
+  const moved = emptyTarget().apply(build(), { move: true })
+  const cloned = emptyTarget().apply(build())
+  t.assert(moved.equals(cloned), 'move apply equals clone apply')
+  // deleteAttr (non-final) is moved too
+  t.assert(emptyTarget().apply(delta.create().deleteAttr('z'), { move: true })
+    .equals(delta.create().deleteAttr('z')), 'moved deleteAttr matches')
+  // modify landing on a retain target (the modify replaces one retained position) is moved too
+  const modChange = () => delta.create().modify(delta.create('s', null, 'y').done())
+  t.assert(emptyTarget().retain(2).apply(modChange(), { move: true })
+    .equals(emptyTarget().retain(2).apply(modChange())), 'moved modify-onto-retain matches')
+
+  // identity guard: the moved attr op is the *same* object in the target (clone was skipped)
+  const srcAttr = delta.create().setAttr('k', 1)
+  const attrOp = srcAttr.attrs.k
+  t.assert(emptyTarget().apply(srcAttr, { move: true }).attrs.k === attrOp, 'attr op moved, not cloned')
+  // identity guard for an inserted child op
+  const srcInsert = delta.create().insert([9])
+  const insOp = srcInsert.children.start
+  t.assert(emptyTarget().apply(srcInsert, { move: true }).children.start === insOp, 'insert op moved, not cloned')
+}
+
+/**
  * Deltas can describe changes on attributes and children. Textual insertions are children. But we
  * may also insert json-objects and other deltas as children.
  * Key-value pairs can be represented as attributes. This "convoluted" changeset enables us to
@@ -1251,6 +1289,19 @@ export const testRepeatRandomRichXmlDeltaDiff = tc => {
   testDeltaDiff(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 })
 }
 
+export const testDeltaApplyMoveEdges = () => {
+  // deterministic coverage for the move-mode op clones the random fuzz only hits probabilistically.
+  // modify PAST the end of the content -> the modify op is cloned (opsI == null); move must not freeze it
+  const mDoc = delta.create('doc').insert([delta.create('p').insert('hi')]).done()
+  const change = () => delta.create().retain(1).modify(delta.create().insert('!'))
+  t.compare(delta.clone(mDoc).apply(change()), delta.clone(mDoc).apply(change(), { move: true }))
+  // modifyAttr on an attribute that does not (yet) hold a delta -> the modifyAttr op is cloned; move ditto
+  // (modifyAttr on a node with no declared `a` attr is invalid input -> cast)
+  const aDoc = delta.create('node').done()
+  const aChange = () => /** @type {any} */ (delta.create().modifyAttr('a', delta.create().insert('x')))
+  t.compare(delta.clone(aDoc).apply(aChange()), delta.clone(aDoc).apply(aChange(), { move: true }))
+}
+
 /**
  * @template {delta.DeltaConf} Conf
  * @param {t.TestCase} tc
@@ -1267,6 +1318,10 @@ const testDeltaApply = (tc, $d, opts) => {
   const changesCombined = delta.clone(change1).apply(change2)
   const finalB = delta.clone(start).apply(changesCombined)
   t.compare(finalA, finalB)
+  // `move: true` donates disposable change clones (consumed mutable, not frozen-cloned); the result must
+  // be identical to the default copy path. A bad share would corrupt the second apply -> mismatch here.
+  const finalMove = delta.clone(start).apply(delta.clone(change1), { move: true }).apply(delta.clone(change2), { move: true })
+  t.compare(finalA, finalMove, 'move-mode apply matches the copy path')
 }
 
 /**
