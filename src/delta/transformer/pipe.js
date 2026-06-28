@@ -48,7 +48,7 @@ export class Pipe extends Template {
     this.stages = stages
   }
 
-  get fpName () { return 'lib0:pipe' }
+  get name () { return 'lib0:pipe' }
 
   /**
    * @return {Transformer<IN, OUT>}

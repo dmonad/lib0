@@ -61,7 +61,7 @@ export class Rename extends Template {
     this.target = name
   }
 
-  get fpName () { return 'lib0:rename:' + this.target }
+  get name () { return 'lib0:rename:' + this.target }
 
   /**
    * @return {Transformer<IN, delta.DeltaConfOverwrite<IN, { name: Name }>>}

@@ -229,12 +229,12 @@ export class Template {
    *
    * @return {string}
    */
-  get fpName () { return 'lib0:template' }
+  get name () { return 'lib0:template' }
 
   /**
    * @return {string}
    */
-  [fingerprintTrait.FingerprintTraitSymbol] () { return this.fpName }
+  [fingerprintTrait.FingerprintTraitSymbol] () { return this.name }
 
   /**
    * Instantiate a fresh stateful {@link Transformer} bound to this template's schema.

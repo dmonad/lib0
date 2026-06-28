@@ -168,7 +168,7 @@ export class Conform extends Template {
     this.config = configOf($schema)
   }
 
-  get fpName () { return 'lib0:conform' }
+  get name () { return 'lib0:conform' }
 
   /**
    * @return {Transformer<IN, SchemaConf>}

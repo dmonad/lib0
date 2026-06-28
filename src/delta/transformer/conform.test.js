@@ -18,7 +18,7 @@ const mp = d => position.marksToPositions(d)
 
 export const testConformBasics = () => {
   const $d3 = delta.$delta({ children: 42, attrs: { a: s.$string } })
-  t.assert(conform($d3, delta.$delta({ attrs: { a: s.$string } })).fpName === 'lib0:conform')
+  t.assert(conform($d3, delta.$delta({ attrs: { a: s.$string } })).name === 'lib0:conform')
   // schema-first: conform($in, $schema) — the output type is the target schema (conform guarantees it)
   const i3 = conform($d3, delta.$delta({ attrs: { a: [s.$number, s.$string] } })).init()
   t.assert(transformerWith($d3, delta.$delta({ attrs: { a: [s.$number, s.$string] } })).validate(i3))

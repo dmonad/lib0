@@ -190,7 +190,7 @@ export class UnwrapValue extends Template {
     super($d, /** @type {any} */ (delta.$deltaAny))
   }
 
-  get fpName () { return 'lib0:unwrapValue' }
+  get name () { return 'lib0:unwrapValue' }
 
   /**
    * @return {Transformer<IN, UnwrapValueOut<IN>>}

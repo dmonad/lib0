@@ -54,7 +54,7 @@ export class Attr extends Template {
     this.attrName = attrName
   }
 
-  get fpName () { return 'lib0:attr:' + this.attrName }
+  get name () { return 'lib0:attr:' + this.attrName }
 
   /**
    * @return {Transformer<IN, ApplyAttr<AttrName, IN>>}

@@ -455,7 +455,7 @@ export class ProjectionTemplate extends Template {
     this.spec = spec
   }
 
-  get fpName () { return 'lib0:project' }
+  get name () { return 'lib0:project' }
 
   /**
    * @return {Transformer<IN, ProjectOutput<SpecConf>>}

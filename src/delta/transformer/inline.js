@@ -783,7 +783,7 @@ export class Inline extends Template {
     this.names = names
   }
 
-  get fpName () { return 'lib0:inline:' + this.names.join(',') }
+  get name () { return 'lib0:inline:' + this.names.join(',') }
 
   /**
    * @return {Transformer<IN, any>}

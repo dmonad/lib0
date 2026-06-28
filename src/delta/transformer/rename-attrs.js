@@ -128,7 +128,7 @@ export class RenameAttrs extends Template {
     this.renames = renames
   }
 
-  get fpName () { return 'lib0:renameAttrs:' + JSON.stringify(this.renames) }
+  get name () { return 'lib0:renameAttrs:' + JSON.stringify(this.renames) }
 
   /**
    * @return {Transformer<IN,ApplyRenameAttrs<Renames,IN>>}

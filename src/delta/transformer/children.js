@@ -188,7 +188,7 @@ export class Children extends Template {
     this.childSchema = childSchemaOf($d)
   }
 
-  get fpName () { return 'lib0:children' }
+  get name () { return 'lib0:children' }
 
   /**
    * @return {Transformer<IN, any>}
