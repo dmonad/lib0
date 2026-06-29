@@ -277,7 +277,7 @@ class DomRDT extends ObservableV2 {
    *
    * @return {D}
    */
-  toDelta () {
+  get delta () {
     return /** @type {D} */ (domToDelta(this.observedNode))
   }
 

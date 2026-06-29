@@ -7,7 +7,7 @@
  *
  * `state` is kept as a **final** delta (`isFinal`): it represents the current document, so a `delete`
  * or `deleteAttr` removes the content/attribute outright instead of accumulating a delete-op marker.
- * `toDelta()` therefore always returns a clean insert-only document.
+ * The `delta` getter therefore always returns a clean insert-only document.
  *
  * @module delta/rdt/delta
  */
@@ -80,7 +80,7 @@ class DeltaRDT extends ObservableV2 {
    *
    * @return {D}
    */
-  toDelta () {
+  get delta () {
     return /** @type {any} */ (this.state ?? delta.create(this.$delta))
   }
 

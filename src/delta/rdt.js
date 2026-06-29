@@ -26,9 +26,9 @@
  * machinery already transposes the two sides. This repeats until neither side reports a fix, so fixes
  * must converge to a fixpoint (a well-behaved RDT applies them idempotently).
  *
- * On creation a binding first **synchronizes the initial state**: `a`'s current state (`a.toDelta()`)
+ * On creation a binding first **synchronizes the initial state**: `a`'s current state (`a.delta`)
  * is projected through the transformer, and the projection is diffed against `b`'s current state
- * (`b.toDelta()`); the resulting difference is applied to `b` so it matches `a`'s projection (and any
+ * (`b.delta`); the resulting difference is applied to `b` so it matches `a`'s projection (and any
  * self-heal correction is applied back to `a`). `a` is the source of truth — pre-existing state on `b`
  * that `a` does not project to is overwritten.
  *
@@ -60,8 +60,8 @@ export { $domDelta, domRDT } from './rdt/dom.js'
  *
  * An RDT is an observable that emits a `'delta'` (and, on teardown, a `'destroy'`) event, exposes the
  * {@link Schema schema} of the deltas it produces via `$delta` (so a {@link Binding} can initialize a
- * transformer for it), exposes its current state as a delta via `toDelta`, and accepts foreign deltas
- * via `applyDelta`.
+ * transformer for it), exposes its current state as a delta via the `delta` getter, and accepts foreign
+ * deltas via `applyDelta`.
  *
  * `applyDelta(d)` applies `d` and then, if the change would violate the RDT's own invariants, applies
  * a **fix** of its own (e.g. reversing part of `d`, or inserting missing content) and returns that fix
@@ -72,7 +72,7 @@ export { $domDelta, domRDT } from './rdt/dom.js'
  * @template {import('./delta.js').DeltaAny} D
  * @typedef {import('../observable.js').ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
  *   $delta: Schema<D>,
- *   toDelta: () => D,
+ *   delta: D,
  *   applyDelta: (delta: D) => D | null,
  *   destroy: () => void
  * }} RDT
@@ -140,9 +140,9 @@ export class Binding {
     // time are NOT transferred to `b` here; marks ride only on subsequent live `applyA`/`applyB`.
     // Wrapped in the mutex so these `applyDelta` calls don't echo back through the listeners above.
     this._mux(() => {
-      const tres = this.t.applyA(this.a.toDelta())
+      const tres = this.t.applyA(this.a.delta)
       const fa = tres.a ? this.a.applyDelta(tres.a) : null
-      const diffB = tres.b ? delta.diff(/** @type {delta.DeltaAny} */ (this.b.toDelta()), tres.b) : null
+      const diffB = tres.b ? delta.diff(/** @type {delta.DeltaAny} */ (this.b.delta), tres.b) : null
       const fb = diffB ? this.b.applyDelta(diffB) : null
       propagate(this, fa, fb)
     })

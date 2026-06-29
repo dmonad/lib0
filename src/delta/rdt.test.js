@@ -220,7 +220,7 @@ class ConstrainedRDT extends ObservableV2 {
     return fix
   }
 
-  toDelta () {
+  get delta () {
     return /** @type {any} */ (this.state ?? delta.create(this.$delta))
   }
 
