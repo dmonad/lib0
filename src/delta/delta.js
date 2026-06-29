@@ -3238,11 +3238,11 @@ export const random = (gen, $d, conf = {}) => {
  */
 /**
  * @template {string} NodeName
- * @template {DeltaConf} Conf
+ * @template {s.Schema<DeltaAny>} Schema
  * @overload
  * @param {NodeName} nodeName
- * @param {s.Schema<Delta<Conf>>} schema
- * @return {DeltaBuilder<Conf, true>}
+ * @param {Schema} schema
+ * @return {Schema extends s.Schema<Delta<infer Conf>> ? DeltaBuilder<Conf, true> : never}
  */
 /**
  * @template {s.Schema<DeltaAny>} Schema
