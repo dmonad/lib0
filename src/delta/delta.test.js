@@ -768,8 +768,8 @@ export const testSlice = () => {
  */
 export const testRepeatRandomListDiff = tc => {
   const $d = delta.$delta({ children: s.$number })
-  const d1 = delta.random(tc.prng, $d)
-  const d2 = delta.random(tc.prng, $d)
+  const d1 = delta.random(tc.prng, $d, { attribution: true })
+  const d2 = delta.random(tc.prng, $d, { attribution: true })
   $d.expect(d1)
   $d.expect(d2)
   const d = delta.diff(d1, d2)
@@ -782,8 +782,8 @@ export const testRepeatRandomListDiff = tc => {
  */
 export const testRepeatRandomMapDiff = tc => {
   const $d = delta.$delta('list', { attrs: { a: s.$string, b: s.$number } })
-  const d1 = delta.random(tc.prng, $d)
-  const d2 = delta.random(tc.prng, $d)
+  const d1 = delta.random(tc.prng, $d, { attribution: true })
+  const d2 = delta.random(tc.prng, $d, { attribution: true })
   d1.isFinal = true
   d2.isFinal = true
   $d.expect(d1)
@@ -1033,6 +1033,94 @@ export const testDeltaFormattingDiff = () => {
 }
 
 /**
+ * Diff must detect attribution changes (replace-whole semantics) the way it detects formats, and the
+ * diff must round-trip: `a.apply(diff(a,b)).equals(b)`.
+ */
+export const testDeltaAttributionDiffAdd = () => {
+  // attribution added to existing, otherwise-unchanged text — a pure attribution-only diff
+  const a = delta.create().insert('hello').done()
+  const b = delta.create().insert('hello', null, { insert: ['me'] }).done()
+  const diff = delta.diff(a, b)
+  t.compare(diff, delta.create().retain(5, null, { insert: ['me'] }))
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionDiffRemove = () => {
+  // removing attribution emits a `{}` clear (distinct from `null` = no change)
+  const a = delta.create().insert('hello', null, { insert: ['me'] }).done()
+  const b = delta.create().insert('hello').done()
+  const diff = delta.diff(a, b)
+  t.compare(diff, delta.create().retain(5, null, {}))
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionDiffChange = () => {
+  // replace-whole: the whole target attribution is emitted, NOT a per-key merge — the `insertAt: 1`
+  // present on `a` but absent on `b` must be dropped
+  const a = delta.create().insert('hi', null, { insert: ['a'], insertAt: 1 }).done()
+  const b = delta.create().insert('hi', null, { insert: ['b'] }).done()
+  const diff = delta.diff(a, b)
+  t.compare(diff, delta.create().retain(2, null, { insert: ['b'] }))
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionDiffWithFormat = () => {
+  // format (incremental) and attribution (replace-whole) carried on one retain
+  const a = delta.create().insert('hello world').done()
+  const b = delta.create().insert('hello ').insert('world', { bold: true }, { insert: ['me'] }).done()
+  const diff = delta.diff(a, b)
+  t.compare(diff, delta.create().retain(6).retain(5, { bold: true }, { insert: ['me'] }))
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionDiffSubRangeMerge = () => {
+  // two adjacent, differently-attributed ops collapse under one uniform replace-whole retain
+  const a = delta.create()
+    .insert('ab', null, { insert: ['a'] })
+    .insert('cd', null, { insert: ['b'] })
+    .done()
+  const b = delta.create().insert('abcd', null, { insert: ['z'] }).done()
+  const diff = delta.diff(a, b)
+  t.compare(diff, delta.create().retain(4, null, { insert: ['z'] }))
+  const applied = delta.clone(a).apply(diff)
+  t.assert(applied.equals(b))
+  t.assert(applied.children.start === applied.children.end, 'the covered range merges into a single op')
+}
+
+export const testDeltaAttributionDiffInsert = () => {
+  // newly inserted attributed content — attribution is recovered by the attribution-diff pass
+  const a = delta.create().insert('ab').done()
+  const b = delta.create().insert('a').insert('Xb', null, { insert: ['me'] }).done()
+  const diff = delta.diff(a, b)
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionDiffSetAttr = () => {
+  // node-level attribute attribution change (value unchanged)
+  const a = delta.create().setAttr('k', 1, { insert: ['a'] }).done()
+  const b = delta.create().setAttr('k', 1, { insert: ['b'] }).done()
+  const diff = delta.diff(a, b)
+  t.compare(diff, delta.create().setAttr('k', 1, { insert: ['b'] }))
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionDiffModifyAttr = () => {
+  // delta-valued attribute where only the attribution changes — emitted via modifyAttr
+  const a = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'] }).done()
+  const b = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['b'] }).done()
+  const diff = delta.diff(a, b)
+  t.assert(delta.clone(a).apply(diff).equals(b))
+}
+
+export const testDeltaAttributionApplyModifyAttr = () => {
+  // applying a `modifyAttr` carrying an attribution updates the target `setAttr`'s attribution (replace-whole)
+  const doc = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'] }).done()
+  const change = delta.create().modifyAttr('body', delta.create(), { insert: ['b'] }).done()
+  const applied = delta.clone(doc).apply(change)
+  t.assert(applied.equals(delta.create().setAttr('body', delta.create().insert('x'), { insert: ['b'] }).done()))
+}
+
+/**
  * We want to ensure that a.apply(b).apply(c) equals a.apply(b.apply(c)) - test the interactions of
  * different ops
  */
@@ -1178,8 +1266,8 @@ export const testDeltaTypings = () => {
  */
 const testDeltaDiff = (tc, $d, opts) => {
   // @todo this should  create sentences, words, functions, etc
-  const start = delta.random(tc.prng, $d, opts).done()
-  const change = delta.random(tc.prng, $d, { source: start, ...opts })
+  const start = delta.random(tc.prng, $d, { ...opts, attribution: true }).done()
+  const change = delta.random(tc.prng, $d, { source: start, ...opts, attribution: true })
   const final = delta.clone(start)
   final.isFinal = true
   final.apply(change)
