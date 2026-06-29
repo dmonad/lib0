@@ -986,27 +986,27 @@ export const testDeltaFormattingComparability = () => {
 }
 
 /**
- * Formatting & attribution semantics
+ * Formatting & attribution semantics — one unified tri-state for a `retain`/`modify`/`*Attr` update value
+ * (`format` and `attribution` behave identically):
  *
- * - f=null => retain current formatting/attribution
- * Attributions only:
- * - f={} => remove all formatting/attribution
- * - f={[k]:v} => update formatting to contain exactly "{[k]:v}" and remove everything else.
- * Formatting only:
- * - f={[k]:v} => update formatting/attribution to contain k=v
- * - f={[k]:null} => remove formatting/attribution to remove k
+ * - `undefined` / omitted => skip (leave the dimension unchanged)
+ * - `null`                => clear all keys
+ * - `{}`                  => no-op (merge nothing)
+ * - `{[k]: v}`            => set key k
+ * - `{[k]: null}`         => remove key k
  *
- * @todo there are a number of optimizations to apply. In formatting: null equals {} semantics.
+ * A `retain`/`modify` op stores the instruction verbatim (`undefined`/`null`/object); a settled
+ * `insert`/`text`/attr op stores resolved data (object or `null`/none).
  */
 export const testDeltaRemoveFormatOp = () => {
-  const rAttribution = delta.create().retain(1).retain(1, null, {}).done()
-  const rFormat = delta.create().retain(1).retain(1, {}).done()
-  // there are two distinct items
-  t.assert(rAttribution.children.start !== rAttribution.children.end)
-  // items are merged because of different semantics
-  t.assert(rFormat.children.start === rFormat.children.end)
-  // is removed when "done"
-  t.assert(rFormat.children.start == null)
+  // `null` (clear) is a real change op kept by done(); on either dimension
+  const rFormatClear = delta.create().retain(1, null).done()
+  const rAttrClear = delta.create().retain(1, undefined, null).done()
+  t.assert(rFormatClear.children.start != null && rFormatClear.children.start === rFormatClear.children.end, 'format clear is a kept change op')
+  t.assert(rAttrClear.children.start != null && rAttrClear.children.start === rAttrClear.children.end, 'attribution clear is a kept change op')
+  // `{}` / omitted are no-ops: positional retains merge and the whole tail is trimmed by done()
+  const rNoop = delta.create().retain(1).retain(1, {}).done()
+  t.assert(rNoop.children.start == null, '{} and omitted retains merge and are trimmed')
 }
 
 export const testDeltaFormattingDiff = () => {
@@ -1022,10 +1022,10 @@ export const testDeltaFormattingDiff = () => {
   const diff = delta.diff(db, da)
   const expectedDiff = delta.create()
     .retain(1)
-    .retain(2, { a: null })
+    .retain(2, null) // 'a' was the only format key, so removing it is a full clear → top-level `null`
     .delete(1)
     .retain(2)
-    .retain(2, { a: null })
+    .retain(2, null)
     .delete(1)
   t.compare(diff, expectedDiff)
   db.apply(diff)
@@ -1033,39 +1033,40 @@ export const testDeltaFormattingDiff = () => {
 }
 
 /**
- * Diff must detect attribution changes (replace-whole semantics) the way it detects formats, and the
+ * Diff must detect attribution changes — now incrementally (per-key, unified with formats) — and the
  * diff must round-trip: `a.apply(diff(a,b)).equals(b)`.
  */
 export const testDeltaAttributionDiffAdd = () => {
   // attribution added to existing, otherwise-unchanged text — a pure attribution-only diff
   const a = delta.create().insert('hello').done()
-  const b = delta.create().insert('hello', null, { insert: ['me'] }).done()
+  const b = delta.create().insert('hello', undefined, { insert: ['me'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(5, null, { insert: ['me'] }))
+  t.compare(diff, delta.create().retain(5, undefined, { insert: ['me'] }))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffRemove = () => {
-  // removing attribution emits a `{}` clear (distinct from `null` = no change)
-  const a = delta.create().insert('hello', null, { insert: ['me'] }).done()
+  // removing all attribution emits a top-level `null` (clear), distinct from `undefined` = no change
+  const a = delta.create().insert('hello', undefined, { insert: ['me'] }).done()
   const b = delta.create().insert('hello').done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(5, null, {}))
+  t.compare(diff, delta.create().retain(5, undefined, null))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffChange = () => {
-  // replace-whole: the whole target attribution is emitted, NOT a per-key merge — the `insertAt: 1`
-  // present on `a` but absent on `b` must be dropped
-  const a = delta.create().insert('hi', null, { insert: ['a'], insertAt: 1 }).done()
-  const b = delta.create().insert('hi', null, { insert: ['b'] }).done()
+  // incremental (per-key): the changed `insert` key is set and the `insertAt` key present on `a` but
+  // absent on `b` is removed via `{insertAt: null}` — NOT a whole-object replace
+  const a = delta.create().insert('hi', undefined, { insert: ['a'], insertAt: 1 }).done()
+  const b = delta.create().insert('hi', undefined, { insert: ['b'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(2, null, { insert: ['b'] }))
+  // `{insertAt: null}` is a per-key removal update, not a canonical Attribution → cast for the test
+  t.compare(diff, delta.create().retain(2, undefined, /** @type {any} */ ({ insert: ['b'], insertAt: null })))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffWithFormat = () => {
-  // format (incremental) and attribution (replace-whole) carried on one retain
+  // format and attribution carried on one retain (both incremental, unified)
   const a = delta.create().insert('hello world').done()
   const b = delta.create().insert('hello ').insert('world', { bold: true }, { insert: ['me'] }).done()
   const diff = delta.diff(a, b)
@@ -1074,14 +1075,14 @@ export const testDeltaAttributionDiffWithFormat = () => {
 }
 
 export const testDeltaAttributionDiffSubRangeMerge = () => {
-  // two adjacent, differently-attributed ops collapse under one uniform replace-whole retain
+  // two adjacent, differently-attributed ops collapse under one uniform retain
   const a = delta.create()
-    .insert('ab', null, { insert: ['a'] })
-    .insert('cd', null, { insert: ['b'] })
+    .insert('ab', undefined, { insert: ['a'] })
+    .insert('cd', undefined, { insert: ['b'] })
     .done()
-  const b = delta.create().insert('abcd', null, { insert: ['z'] }).done()
+  const b = delta.create().insert('abcd', undefined, { insert: ['z'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(4, null, { insert: ['z'] }))
+  t.compare(diff, delta.create().retain(4, undefined, { insert: ['z'] }))
   const applied = delta.clone(a).apply(diff)
   t.assert(applied.equals(b))
   t.assert(applied.children.start === applied.children.end, 'the covered range merges into a single op')
@@ -1090,7 +1091,7 @@ export const testDeltaAttributionDiffSubRangeMerge = () => {
 export const testDeltaAttributionDiffInsert = () => {
   // newly inserted attributed content — attribution is recovered by the attribution-diff pass
   const a = delta.create().insert('ab').done()
-  const b = delta.create().insert('a').insert('Xb', null, { insert: ['me'] }).done()
+  const b = delta.create().insert('a').insert('Xb', undefined, { insert: ['me'] }).done()
   const diff = delta.diff(a, b)
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
@@ -1113,11 +1114,35 @@ export const testDeltaAttributionDiffModifyAttr = () => {
 }
 
 export const testDeltaAttributionApplyModifyAttr = () => {
-  // applying a `modifyAttr` carrying an attribution updates the target `setAttr`'s attribution (replace-whole)
+  // applying a `modifyAttr` MERGES its attribution onto the target `setAttr`'s attribution (incremental):
+  // the `insert` sibling is kept while `insertAt` is added
   const doc = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'] }).done()
-  const change = delta.create().modifyAttr('body', delta.create(), { insert: ['b'] }).done()
+  const change = delta.create().modifyAttr('body', delta.create(), { insertAt: 5 }).done()
   const applied = delta.clone(doc).apply(change)
-  t.assert(applied.equals(delta.create().setAttr('body', delta.create().insert('x'), { insert: ['b'] }).done()))
+  t.assert(applied.equals(delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'], insertAt: 5 }).done()))
+}
+
+export const testDeltaAttributionIncrementalMerge = () => {
+  // applying a `retain` with an attribution object MERGES per-key: the existing `insert` provenance is
+  // kept while a new key is added (not replaced wholesale)
+  const a = delta.create().insert('hi', undefined, { insert: ['alice'] }).done()
+  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, { insertAt: 1 }))
+  t.assert(applied.equals(delta.create().insert('hi', undefined, { insert: ['alice'], insertAt: 1 }).done()))
+}
+
+export const testDeltaAttributionPerKeyRemove = () => {
+  // `{k: null}` removes just that attribution key, leaving siblings intact
+  const a = delta.create().insert('hi', undefined, { insert: ['alice'], insertAt: 1 }).done()
+  // `{insertAt: null}` is a per-key removal update, not a canonical Attribution → cast for the test
+  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, /** @type {any} */ ({ insertAt: null })))
+  t.assert(applied.equals(delta.create().insert('hi', undefined, { insert: ['alice'] }).done()))
+}
+
+export const testDeltaFormatClearAll = () => {
+  // `null` clears ALL format keys on the range (unified with attribution)
+  const a = delta.create().insert('hi', { bold: true, italic: true }).done()
+  const applied = delta.clone(a).apply(delta.create().retain(2, null))
+  t.assert(applied.equals(delta.create().insert('hi').done()))
 }
 
 /**

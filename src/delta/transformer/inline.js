@@ -396,7 +396,7 @@ export class InlineTransformer extends Transformer {
     }
     for (const op of da.children) {
       if (delta.$retainOp.check(op)) {
-        if (op.format == null && op.attribution == null) {
+        if (op.format === undefined && op.attribution === undefined) {
           srcInline += advanceStruct(op.retain)
         } else {
           // formatted retain: emit the format over the mapped inline range. An inline node's wrapper
@@ -408,7 +408,7 @@ export class InlineTransformer extends Transformer {
             const s = segs[si]
             const take = math.min(s.structLen - so, rem)
             const inl = s.isInline ? s.inlineLen : take
-            b.retain(inl, s.isInline ? null : op.format, s.isInline ? null : op.attribution)
+            b.retain(inl, s.isInline ? undefined : op.format, s.isInline ? undefined : op.attribution)
             emitted += inl
             outPos += inl
             srcInline += inl
@@ -604,7 +604,7 @@ export class InlineTransformer extends Transformer {
           if (si >= segs.length) break
           const s = segs[si]
           const take = math.min(s.inlineLen - so, rem)
-          if (fmt != null || attr != null) {
+          if (fmt !== undefined || attr !== undefined) {
             // a formatted retain re-formats existing content: pass-through content takes it
             // directly; content inside an inline node is reached through a modify on that node.
             if (!s.isInline) {

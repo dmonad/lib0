@@ -274,6 +274,28 @@ export const testInlineNullNodesBackwardFormatRetainIntoNull = () => {
   t.compare(res.a, delta.create().retain(4).modify(delta.create().retain(1).retain(3, { bold: true })))
 }
 
+// A `retain(n, null)` clears all formatting. It is a real instruction (unlike a `retain(n)`/`undefined`
+// skip) and must survive transformation in both directions - regression for the transformer treating
+// `null` like a no-op (the old `== null`/`!= null` gates conflated clear with skip).
+export const testInlineNullNodesFormatClearForwardRetain = () => {
+  const it = inline(delta.$deltaAny, [null]).init()
+  // 'some' + null('text') + 'end'
+  it.applyA(delta.create().insert('some').insert([delta.create().insert('text')]).insert('end'))
+  // clear 'some'; clear the null node wrapper (dropped, no inlined wrapper); clear 'end'
+  const res = it.applyA(delta.create().retain(4, null).retain(1, null).retain(3, null))
+  t.assert(res.a === null)
+  // the clear survives for root text; the null node's inline range is retained plain (skip)
+  t.compare(res.b, delta.create().retain(4, null).retain(4).retain(3, null))
+}
+
+export const testInlineNullNodesBackwardFormatClearRetainRoot = () => {
+  const it = inline(delta.$deltaAny, [null]).init()
+  it.applyA(structuredSomeText())
+  // clear formatting on inline positions 0..4 (root text 'some') => pass-through clear on A
+  const res = it.applyB(delta.create().retain(4, null))
+  t.compare(res.a, delta.create().retain(4, null))
+}
+
 /**
  * The transformer is typed loosely: `init($in)` yields a `Transformer<IN, any>`, so it validates
  * against the input schema with a `DeltaAny` output side. (Precise compile-time output shapes were

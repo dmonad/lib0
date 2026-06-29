@@ -46,6 +46,48 @@ $d.check(update2) // => false
 d.apply(update2) // type error: unexpected attribute 'attr1'
 ```
 
+## Formats & Attributions
+
+Content and attribute ops carry two independent metadata dimensions:
+
+- **`format`** — rich-text attributes (`{ bold: true, … }`), the styling of the content.
+- **`attribution`** — provenance: *who/what* inserted, deleted, or formatted the content (e.g.
+  `{ insert: ['alice'], insertAt: 1 }`). Its canonical shape is `(insert | delete + …At)` intersected with
+  an optional `{ format: { [name]: string[] }, formatAt }` part — and that `format` part exists only on
+  **children** (content ops), never on node attribute ops. Both dimensions are otherwise treated as
+  **opaque** objects: apply/diff/equality never branch on specific field names, so custom attribution keys
+  flow through unchanged.
+
+Both behave **identically** — the value you pass as the `format`/`attribution` argument of
+`retain`/`modify` (and to `setAttr`/`modifyAttr`) is one unified tri-state:
+
+| value         | meaning                                   |
+| ------------- | ----------------------------------------- |
+| `undefined` / omitted | **skip** — leave the dimension unchanged |
+| `null`        | **clear** all keys                        |
+| `{}`          | no-op (merge nothing)                     |
+| `{ k: v }`    | **set** / add key `k`                     |
+| `{ k: null }` | **remove** key `k`                        |
+
+```javascript
+const $d = delta.$delta({ text: true })
+const d = delta.create($d).insert('hello', { bold: true }, { insert: ['alice'] })
+// add italic (keeps bold), record bob as the formatter (keeps alice's insert provenance)
+d.apply(delta.create().retain(5, { italic: true }, { format: { italic: ['bob'] } }))
+// strip a single format key, leave the rest:
+d.apply(delta.create().retain(5, { bold: null }))
+// clear ALL formatting on the range:
+d.apply(delta.create().retain(5, null))
+```
+
+`delta.diff(a, b)` produces exactly these updates for both dimensions, so the round-trip
+`a.apply(diff(a, b)).equals(b)` holds for format and attribution changes alike.
+
+Internally a `retain`/`modify` op stores the instruction verbatim (`undefined` / `null` / object), while a
+settled `insert`/`text`/attr op stores the *resolved* data (an object, or `null` for "none"). One residual
+difference from `format`: concurrent `attribution` edits are **not** reconciled by `rebase` (there is no
+priority tie-break), whereas conflicting `format` keys are.
+
 ## Delta for Array-like structures
 
 ```javascript
