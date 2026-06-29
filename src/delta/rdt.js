@@ -43,6 +43,7 @@
 import * as dt from './transformer.js'
 import * as delta from './delta.js'
 import * as mux from '../mutex.js'
+import * as s from '../schema.js'
 
 // Re-export the two reference RDTs this module's doc references, so `bind`, `deltaRDT` and `domRDT` are
 // reachable from one import. The leaf modules (`lib0/delta/rdt/delta`, `lib0/delta/rdt/dom`) stay
@@ -77,6 +78,22 @@ export { $domDelta, domRDT } from './rdt/dom.js'
  *   destroy: () => void
  * }} RDT
  */
+
+/**
+ * Schema guard for any {@link RDT}. RDTs are **duck-typed** — they have several independent
+ * implementations (`deltaRDT`, `domRDT`, …) and no common constructor — so this matches by shape
+ * rather than by `instanceof`: an object exposing a `$delta` {@link Schema}, an `applyDelta` method,
+ * and the observable `on`/`destroy` channel. The (possibly expensive) `delta` getter is not invoked.
+ *
+ * @type {Schema<RDT<any>>}
+ */
+export const $rdt = /** @type {Schema<RDT<any>>} */ (/* @__PURE__ */ s.$custom(o =>
+  o != null &&
+  s.$$schema.check(o.$delta) &&
+  typeof o.applyDelta === 'function' &&
+  typeof o.on === 'function' &&
+  typeof o.destroy === 'function'
+))
 
 /**
  * Propagate a pair of concurrent changes between the two sides of `binding` until they converge.

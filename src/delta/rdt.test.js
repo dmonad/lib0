@@ -1,7 +1,7 @@
 import * as t from '../testing.js'
 import * as delta from './delta.js'
 import * as dt from './transformer.js'
-import { bind } from './rdt.js'
+import { bind, $rdt } from './rdt.js'
 import { deltaRDT } from './rdt/delta.js'
 import { ObservableV2 } from '../observable.js'
 import * as mux from '../mutex.js'
@@ -285,6 +285,22 @@ export const testBindFixAddsContent = () => {
   t.assert(b.state?.attrs.version?.value === '1', 'b added the missing version')
   t.assert(a.state?.attrs.version?.value === '1', 'version fix propagated back onto a')
   t.compare(a.state, b.state, 'both sides converge after the fix')
+}
+
+export const testRdtSchema = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string } })
+  const a = deltaRDT($d)
+  // a real RDT matches
+  t.assert($rdt.check(a), 'deltaRDT matches $rdt')
+  // the constrained test RDT (a different implementation) matches too — $rdt is duck-typed
+  t.assert($rdt.check(constrainedRDT($d, stripSecret)), 'a different RDT implementation also matches')
+  // non-RDTs don't match
+  t.assert(!$rdt.check(null), 'null is not an RDT')
+  t.assert(!$rdt.check(delta.create($d)), 'a plain delta is not an RDT')
+  t.assert(!$rdt.check(new ObservableV2()), 'a bare observable (no $delta/applyDelta) is not an RDT')
+  t.assert(!$rdt.check({ $delta: 'nope', applyDelta: () => null, on () {}, destroy () {} }), '$delta must be a schema')
+  // duck-typed: any object exposing the full RDT surface matches (no single constructor brand)
+  t.assert($rdt.check({ $delta: $d, applyDelta: () => null, on () {}, destroy () {} }), 'a structurally-complete object matches')
 }
 
 export const testBindDestroy = () => {
