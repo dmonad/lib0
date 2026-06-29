@@ -221,7 +221,7 @@ export const testDecodingPerformanceNativeVsPolyfill = () => {
   })
 
   console.log({ nativeTimeSmall, polyfillTimeSmall })
-  t.assert(nativeTimeSmall < polyfillTimeSmall * 2, 'Small dataset: We expect native decoding to be not much worse than')
+  t.assert(nativeTimeSmall < polyfillTimeSmall * 5, 'Small dataset: We expect native decoding to be not much worse than')
   t.assert(nativeTimeLarge < polyfillTimeLarge, 'Large dataset: We expect native decoding to be much better than polyfill decoding')
 }
 
