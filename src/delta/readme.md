@@ -55,8 +55,8 @@ Content and attribute ops carry two independent metadata dimensions:
   `{ insert: ['alice'], insertAt: 1 }`). Its canonical shape is `(insert | delete + …At)` intersected with
   an optional `{ format: { [name]: string[] }, formatAt }` part — and that `format` part exists only on
   **children** (content ops), never on node attribute ops. Both dimensions are otherwise treated as
-  **opaque** objects: apply/diff/equality never branch on specific field names, so custom attribution keys
-  flow through unchanged.
+  **opaque** objects: apply/diff/equality don't branch on field names (so custom attribution keys flow through
+  unchanged) — with one deliberate exception, an attribution's nested `format` sub-object (see below).
 
 Both behave **identically** — the value you pass as the `format`/`attribution` argument of
 `retain`/`modify` (and to `setAttr`/`modifyAttr`) is one unified tri-state:
@@ -82,6 +82,17 @@ d.apply(delta.create().retain(5, null))
 
 `delta.diff(a, b)` produces exactly these updates for both dimensions, so the round-trip
 `a.apply(diff(a, b)).equals(b)` holds for format and attribution changes alike.
+
+**One nesting exception — an attribution's `format` sub-object merges per inner key.** Provenance is
+incremental, so the tri-state recurses one level into attribution's `format` key (and *only* that key):
+
+```javascript
+//  apply({ format: { bold: [] } }, { format: { italic: [] } }) === { format: { italic: [], bold: [] } }   // add, keep bold
+//  apply({ format: { bold: [] } }, { format: { bold: null } }) === {}                                       // remove ⇒ format empties ⇒ dropped
+```
+
+Every other attribution key (`insert`/`delete` arrays, the `*At` numbers, custom keys) and the whole styling
+`format` dimension stay flat — set/removed/replaced wholesale.
 
 Internally a `retain`/`modify` op stores the instruction verbatim (`undefined` / `null` / object), while a
 settled `insert`/`text`/attr op stores the *resolved* data (an object, or `null` for "none").

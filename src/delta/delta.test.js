@@ -1138,6 +1138,56 @@ export const testDeltaAttributionPerKeyRemove = () => {
   t.assert(applied.equals(delta.create().insert('hi', undefined, { insert: ['alice'] }).done()))
 }
 
+export const testDeltaAttributionFormatMerge = () => {
+  // an attribution's nested `format` sub-object merges per inner key (the styling `format` dimension is
+  // unaffected): adding `italic` keeps the existing `bold`.
+  // apply({format:{bold:[]}}, {format:{italic:[]}}) === {format:{italic:[],bold:[]}}
+  const a = delta.create().insert('hi', undefined, { format: { bold: [] } }).done()
+  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, { format: { italic: [] } }))
+  t.assert(applied.equals(delta.create().insert('hi', undefined, { format: { bold: [], italic: [] } }).done()))
+}
+
+export const testDeltaAttributionFormatPerKeyRemove = () => {
+  // `{format:{k:null}}` removes just that inner format key, keeping inner siblings (and their values) intact
+  const a = delta.create().insert('hi', undefined, { format: { bold: ['alice'], italic: ['bob'] } }).done()
+  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })))
+  t.assert(applied.equals(delta.create().insert('hi', undefined, { format: { italic: ['bob'] } }).done()))
+}
+
+export const testDeltaAttributionFormatRemoveEmpties = () => {
+  // removing the last inner format key drops the whole `format` key (no stored `format:{}`), emptying the
+  // attribution. apply({format:{bold:[]}}, {format:{bold:null}}) === {} (no attribution)
+  const a = delta.create().insert('hi', undefined, { format: { bold: [] } }).done()
+  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })))
+  t.assert(applied.equals(delta.create().insert('hi').done()))
+}
+
+export const testDeltaAttributionFormatDiff = () => {
+  // diff emits a NESTED incremental update for attribution.format (per-inner-key set + remove) and round-trips
+  const a = delta.create().insert('hi', undefined, { format: { bold: ['alice'], italic: ['bob'] } }).done()
+  const b = delta.create().insert('hi', undefined, { format: { bold: ['alice'], under: ['carol'] } }).done()
+  const d = delta.diff(a, b)
+  // bold unchanged, italic removed, under added → nested {format:{italic:null, under:['carol']}}
+  t.compare(d, delta.create().retain(2, undefined, /** @type {any} */ ({ format: { italic: null, under: ['carol'] } })))
+  t.assert(delta.clone(a).apply(d).equals(b)) // round-trip
+}
+
+export const testDeltaAttributionFormatBuilderResolve = () => {
+  // a DATA-op builder resolves an inner `{format:{k:null}}` removal against a `useAttribution` context, storing
+  // canonical settled data (no `null` leaf) — consistent with apply-time resolution
+  const a = delta.create().useAttribution({ insert: ['alice'], format: { bold: ['x'], italic: ['y'] } })
+    .insert('hi', undefined, /** @type {any} */ ({ format: { bold: null } })).done()
+  t.assert(a.equals(delta.create().insert('hi', undefined, { insert: ['alice'], format: { italic: ['y'] } }).done()))
+}
+
+export const testDeltaFormatFormatStaysShallow = () => {
+  // the styling `format` dimension treats a key literally named `format` like any other — wholesale REPLACE,
+  // NOT the per-inner-key merge that attribution.format gets. Only attribution.format observes the deep merge.
+  const a = delta.create().insert('hi', { format: { a: 1 } }).done()
+  const r = delta.clone(a).apply(delta.create().retain(2, { format: { b: 2 } }))
+  t.assert(r.equals(delta.create().insert('hi', { format: { b: 2 } }).done()))
+}
+
 export const testDeltaFormatClearAll = () => {
   // `null` clears ALL format keys on the range (unified with attribution)
   const a = delta.create().insert('hi', { bold: true, italic: true }).done()
