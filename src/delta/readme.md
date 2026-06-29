@@ -84,9 +84,30 @@ d.apply(delta.create().retain(5, null))
 `a.apply(diff(a, b)).equals(b)` holds for format and attribution changes alike.
 
 Internally a `retain`/`modify` op stores the instruction verbatim (`undefined` / `null` / object), while a
-settled `insert`/`text`/attr op stores the *resolved* data (an object, or `null` for "none"). One residual
-difference from `format`: concurrent `attribution` edits are **not** reconciled by `rebase` (there is no
-priority tie-break), whereas conflicting `format` keys are.
+settled `insert`/`text`/attr op stores the *resolved* data (an object, or `null` for "none").
+
+### Clearing under concurrency — prefer `{ k: null }` over blanket `null`
+
+> ⚠️ **A blanket `null` clear is a local-only utility. Do not put it on the wire.**
+
+A `null` clear carries no key information, so `rebase` cannot reconcile it key-by-key. To stay convergent a
+blanket clear therefore *always wins* a concurrent edit — priority-independent — and that means it **silently
+drops** the other side's set:
+
+```javascript
+// two users edit the same range concurrently:
+//   user A:  retain(5, { bold: true })   // set bold
+//   user B:  retain(5, null)             // clear all   ← always wins the rebase
+// both clients converge on "cleared" — user A's bold is lost.
+```
+
+For collaborative / transmitted data, **clear keys individually** with `{ k: null }` removals. A per-key
+removal is just another key write: it reconciles by priority like any set, so it converges *without* data
+loss. This is what `delta.diff` emits and what the rebase fuzz exercises — and mirrors how Yjs clears today.
+Reach for blanket `null` only as a convenience when clearing local, non-concurrent state.
+
+Two further `rebase` notes: concurrent **`attribution`** edits are **not** reconciled at all (there is no
+priority tie-break — neither sets nor clears converge), whereas conflicting **`format`** *keys* are.
 
 ## Delta for Array-like structures
 

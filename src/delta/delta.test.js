@@ -2101,6 +2101,46 @@ export const testRebaseChildren = () => {
       .insert('de', { bold: true, color: 'red' })
     )
   })
+  t.group('retain vs retain: a blanket `null` clear always wins (priority-independent) → converges to cleared', () => {
+    // A blanket clear is a local-only utility: it beats a concurrent set on BOTH rebase orderings (the
+    // `otherChild.format === null` concession is priority-independent), so the result always ends up
+    // cleared and the concurrent set is LOST. This single TP1 case exercises both new code paths: stateA's
+    // rebase has currChild=clear (stays, wins); stateB's has otherChild=clear (currChild concedes despite
+    // having priority). See the `FormattingAttributes` docs for why `null` must not cross a channel.
+    const base = delta.create().insert('abcde', { italic: true }).done()
+    const d1 = delta.create().retain(5, { bold: true }) // d1 has priority, sets bold
+    const d2 = delta.create().retain(5, null) // d2 concedes, clears all
+    const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
+    const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
+    t.compare(stateA, stateB) // TP1
+    t.compare(stateA, delta.create().insert('abcde')) // both the pre-existing italic and d1's bold are cleared
+  })
+  t.group('retain vs retain: a clear over part of a formatted run splits and clears only the overlap', () => {
+    // exercises the split-around-overlap path of the `otherChild.format === null` branch (prefix + suffix)
+    const base = delta.create().insert('abcde').done()
+    const d1 = delta.create().retain(5, { bold: true }) // d1 priority, bold on all 5
+    const d2 = delta.create().retain(1).retain(2, null).retain(2) // d2 concedes, clears the middle 'bc'
+    const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
+    const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
+    t.compare(stateA, stateB) // TP1
+    t.compare(stateA, delta.create()
+      .insert('a', { bold: true })
+      .insert('bc')
+      .insert('de', { bold: true })
+    )
+  })
+  t.group('retain vs retain: a per-key `{k:null}` removal reconciles by priority (converges, no data loss)', () => {
+    // Unlike a blanket clear, a per-key removal is just another key write: it yields to a higher-priority
+    // concurrent write on the same key (the existing strip-loop), so the concurrent set is NOT lost. This is
+    // the recommended way to clear formats/attributions — what the rebase fuzz exercises.
+    const base = delta.create().insert('abcde', { bold: true }).done()
+    const d1 = delta.create().retain(5, { bold: false }) // d1 priority: set bold:false
+    const d2 = delta.create().retain(5, { bold: null }) // d2 concedes: remove bold
+    const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
+    const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
+    t.compare(stateA, stateB) // TP1
+    t.compare(stateA, delta.create().insert('abcde', { bold: false })) // d1's set wins; the removal is conceded
+  })
   t.group('delete vs delete with the same length leaves no remaining childCnt', () => {
     const c = delta.create().delete(2)
     c.rebase(delta.create().delete(2), false)

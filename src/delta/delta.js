@@ -45,7 +45,10 @@ import * as rand from '../random.js'
  * branching on these field names), so custom keys flow through. The `format`/`formatAt` part exists only on
  * children (content ops), never on node attribute ops. As an *update value* on `retain`/`modify`/`*Attr`,
  * attribution uses the same unified tri-state as {@link FormattingAttributes} (`undefined` skip / `null`
- * clear / `{k:v}` set / `{k:null}` remove) — see the delta `readme.md` "Formats & Attributions".
+ * clear / `{k:v}` set / `{k:null}` remove) — see the delta `readme.md` "Formats & Attributions". The blanket
+ * `null`-clear channel caveat on {@link FormattingAttributes} applies here too; note `rebase` does not
+ * reconcile attribution at all (concurrent attribution edits don't converge), so prefer deterministic
+ * attribution assignment outside of concurrent editing.
  *
  * @typedef {{
  *   insert?: string[]
@@ -73,6 +76,12 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  * Rich-text formatting attributes (`{ bold: true, … }`). As an *update value* on `retain`/`modify` it is a
  * unified tri-state (identical to {@link Attribution}): `undefined`/omitted = skip, `null` = clear all,
  * `{k:v}` = set, `{k:null}` = remove key — see the delta `readme.md` "Formats & Attributions".
+ *
+ * ⚠️ **Blanket `null` clear is a local-only utility — never send it over a channel.** A `null` clear carries
+ * no key information, so it cannot be reconciled key-by-key under `rebase`: a clear *always wins* a concurrent
+ * edit (priority-independent — that is what makes it converge), which silently DROPS the other side's set. For
+ * collaborative / transmitted data, clear keys individually with `{k:null}` removals instead — those reconcile
+ * by priority and converge without data loss (this is what {@link diff} emits and what the rebase fuzz uses).
  *
  * @typedef {{ [key: string]: any }} FormattingAttributes
  */
@@ -2428,29 +2437,35 @@ export class DeltaBuilder extends Delta {
          * - insert: split curr op and insert retain
          */
         if ($retainOp.check(otherChild) || $modifyOp.check(otherChild)) {
-          // Format reconciliation. priority=true is a no-op (currChild's format
-          // wins). For !priority, currChild concedes any format key that
-          // otherChild also writes — but only over the [currOffset..currOffset+
-          // maxCommonLen] overlap. Split currChild around the overlap so the
-          // prefix/suffix keep their original format and only the middle piece
-          // carries the stripped format.
-          if (
-            !priority &&
-            $retainOp.check(currChild) &&
-            currChild.format != null &&
-            otherChild.format != null
-          ) {
-            /** @type {FormattingAttributes} */
-            const stripped = {}
-            let strippedAny = false
-            for (const k in currChild.format) {
-              if (k in otherChild.format) {
-                strippedAny = true
-              } else {
-                stripped[k] = currChild.format[k]
+          // Format reconciliation over the [currOffset..currOffset+maxCommonLen] overlap. Split currChild
+          // around the overlap so the prefix/suffix keep their original format and only the middle piece
+          // changes. Three rules:
+          //  1. A blanket `null` clear ALWAYS wins, priority-independent (this is what lets it converge — both
+          //     rebase orderings agree the overlap ends up cleared, at the cost of dropping a concurrent set;
+          //     hence `null` is a local-only utility, see the `FormattingAttributes` docs). currChild's own
+          //     `null` clear is left untouched (it wins); if *other* clears, currChild concedes its whole format.
+          //  2. Otherwise (both per-key objects) priority decides: priority=true is a no-op (currChild wins);
+          //     for !priority currChild concedes any key otherChild also writes (a `{k:null}` removal is just
+          //     such a key, so per-key removals reconcile here and converge without data loss — the recommended
+          //     way to clear).
+          //  3. otherChild `undefined` (skip) never changes currChild.
+          if ($retainOp.check(currChild) && currChild.format !== null) {
+            let changed = false
+            /** @type {FormattingAttributes|null|undefined} */
+            let newFormat
+            if (otherChild.format === null) {
+              // other clears all → clear wins → currChild concedes its entire format
+              if (currChild.format !== undefined) { newFormat = undefined; changed = true }
+            } else if (!priority && currChild.format != null && otherChild.format != null) {
+              /** @type {FormattingAttributes} */
+              const stripped = {}
+              for (const k in currChild.format) {
+                if (k in otherChild.format) changed = true
+                else stripped[k] = currChild.format[k]
               }
+              if (changed) newFormat = object.isEmpty(stripped) ? undefined : stripped
             }
-            if (strippedAny) {
+            if (changed) {
               // split off the suffix [currOffset+maxCommonLen..length] if any
               if (currOffset + maxCommonLen < currChild.length) {
                 _splitChildAt(this, currChild, currOffset + maxCommonLen)
@@ -2460,9 +2475,9 @@ export class DeltaBuilder extends Delta {
                 currChild = _splitChildAt(this, currChild, currOffset)
                 currOffset = 0
               }
-              // currChild now spans exactly the overlap. Replace its format — fully-conceded → `undefined`
-              // (skip / no format change), NOT `null` (which would CLEAR the format on apply).
-              /** @type {any} */ (currChild).format = object.isEmpty(stripped) ? undefined : stripped
+              // currChild now spans exactly the overlap. A conceded format is `undefined` (skip / no format
+              // change), NOT `null` (which would CLEAR the format on apply).
+              /** @type {any} */ (currChild).format = newFormat
               currChild._fingerprint = null
             }
           }
@@ -3372,7 +3387,11 @@ export const random = (gen, $d, conf = {}) => {
       possibleOps.push(() => {
         const len = prng.uint32(gen, 1, sourceLen)
         sourceLen -= len
-        d.retain(len, prng.bool(gen) ? undefined : s.random(gen, $formats), genAttribution(true))
+        // a retain's format is a skip (`undefined`) or a per-key set object — never a blanket `null` clear
+        // ($null formats coerce to skip). Blanket clears are a local-only utility and discouraged on a
+        // channel (they "win" a rebase, dropping concurrent edits — see FormattingAttributes); the diff fuzz
+        // already exercises the recommended per-key `{k:null}` removals (which converge without data loss).
+        d.retain(len, prng.bool(gen) ? undefined : (s.random(gen, $formats) ?? undefined), genAttribution(true))
       })
       // if the op we currently point at is a node, it's also a choice to modify it: find the child
       // schema that matches the node and recursively generate a change against it.
