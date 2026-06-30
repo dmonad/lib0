@@ -189,6 +189,22 @@ const mergeAttr = (base, update, resolve) => {
   return r
 }
 /**
+ * Resolve a retain's tri-state `format`/`attribution` instruction against an EMPTY base — used by a
+ * `final` (materializing) apply for a retain that extends beyond existing content: a `{k:null}` removal or
+ * a `null` clear has nothing to act on, so it collapses to `undefined` (skip); a set survives. `deep`
+ * selects the attribution merge (its nested `format` key merges one level, {@link mergeAttr}) vs. the
+ * shallow `format` merge ({@link mergeShallow}).
+ *
+ * @param {{[k:string]:any}|null|undefined} arg
+ * @param {boolean} deep
+ * @return {{[k:string]:any}|undefined}
+ */
+const resolveBeyond = (arg, deep) => {
+  if (arg == null) return undefined // undefined = skip; null = clear-all with nothing to clear = no-op
+  const m = deep ? mergeAttr(undefined, arg, true) : mergeShallow(undefined, arg, true)
+  return object.isEmpty(m) ? undefined : m
+}
+/**
  * Combine a builder's `used*` context (set via {@link DeltaBuilder#useAttributes}/`useAttribution`) with
  * a per-call format/attribution argument under the unified tri-state: `undefined` inherits the context
  * (or stays `undefined` — "skip" — when there is none); `null` clears (ignoring the context); an object
@@ -2230,10 +2246,15 @@ export class DeltaBuilder extends Delta {
             offset += retainLen
           }
         } else if (retainLen > 0) {
-          // append the retain verbatim — a `null` (clear) format/attribution here is a meaningful change op
-          // (e.g. when a formatting/attribution diff is applied onto an as-yet-empty change delta), not a
-          // no-op to drop; only `undefined` (skip) on both dimensions is dropped (by done(), below)
-          _insertChild(this, null, scheduleForMerge(new RetainOp(retainLen, op.format, op.attribution)))
+          // append the retain beyond existing content. On a NON-final/instruction apply keep it verbatim —
+          // a `null` (clear) format/attribution here is a meaningful change op (e.g. a format/attribution
+          // diff applied onto an as-yet-empty change delta). On a FINAL (materializing) apply the
+          // removal/clear has nothing to act on, so resolve it away ({@link resolveBeyond}): a `{k:null}`
+          // removal or `null` clear collapses to `undefined`, a set survives. We still append the (possibly
+          // now-bare) retain so a following op stays positioned; done() trims it iff it is trailing.
+          const fmt = final ? resolveBeyond(op.format, false) : op.format
+          const attr = final ? resolveBeyond(op.attribution, true) : op.attribution
+          _insertChild(this, null, scheduleForMerge(new RetainOp(retainLen, fmt, attr)))
         }
       } else if ($deleteOp.check(op)) {
         let remainingLen = op.delete

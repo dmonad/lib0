@@ -1195,6 +1195,33 @@ export const testDeltaFormatClearAll = () => {
   t.assert(applied.equals(delta.create().insert('hi').done()))
 }
 
+export const testDeltaFinalApplyOverRetainCollapsesRemovals = () => {
+  // On a FINAL (materializing) apply, a `retain` carrying a "remove-by-null" attribution/format that lands
+  // BEYOND existing content has nothing to act on, so it resolves away (the now-bare retain is trimmed by
+  // done() when trailing). On a NON-final/instruction apply the same removal is kept verbatim (it must still
+  // propagate to clear downstream). Helper: a fresh empty FINAL doc.
+  const mkFinal = () => { const d = delta.create(delta.$deltaAny); d.isFinal = true; return d }
+
+  // 1. nested-format removal beyond content ⇒ empty (format collapses ⇒ attribution collapses ⇒ no attribution)
+  t.assert(mkFinal().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null } }))).done().equals(delta.create().done()))
+  // 2. leaf removal `{insert:null}` ⇒ empty
+  t.assert(mkFinal().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ insert: null }))).done().equals(delta.create().done()))
+  // 3. removal + set: the removal collapses, the set survives ⇒ retain(1, {insertAt:5})
+  t.assert(mkFinal().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ insert: null, insertAt: 5 }))).done()
+    .equals(delta.create().retain(1, undefined, { insertAt: 5 }).done()))
+  // 4. the styling `format` DIMENSION (not attribution.format) collapses its removal too
+  t.assert(mkFinal().apply(delta.create().retain(1, /** @type {any} */ ({ bold: null }))).done().equals(delta.create().done()))
+  // 5. positioning guard: a resolved-away retain followed by content stays (so the insert keeps its position)
+  t.assert(mkFinal().apply(delta.create().retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })).insert('X')).done()
+    .equals(delta.create().retain(2).insert('X').done()))
+  // 6. over-retain spanning content + beyond: the char keeps no attribution, no trailing attribution retain
+  t.assert(mkFinal().insert('a').apply(delta.create().retain(2, undefined, /** @type {any} */ ({ insert: null }))).done()
+    .equals(delta.create().insert('a').done()))
+  // 7. regression — a NON-final apply keeps the removal instruction verbatim (it must still clear downstream)
+  t.assert(delta.create().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null } })))
+    .equals(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null } }))))
+}
+
 /**
  * We want to ensure that a.apply(b).apply(c) equals a.apply(b.apply(c)) - test the interactions of
  * different ops
