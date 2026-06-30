@@ -13,7 +13,7 @@ import * as env from '../environment.js'
 import * as number from '../number.js'
 import * as logging from 'lib0/logging'
 
-const host = env.getParam('--host', 'localhost')
+const host = env.getParam('--host', '127.0.0.1')
 const port = number.parseInt(env.getParam('--port', '8000'))
 const paramOpenFile = env.getParam('-o', '')
 const debugBrowser = env.getConf('DEBUG_BROWSER')
