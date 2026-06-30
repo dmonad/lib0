@@ -1180,6 +1180,31 @@ export const testDeltaAttributionFormatBuilderResolve = () => {
   t.assert(a.equals(delta.create().insert('hi', undefined, { insert: ['alice'], format: { italic: ['y'] } }).done()))
 }
 
+export const testDeltaAttributionContextResolvesRemovals = () => {
+  // a `{k:null}` removal that lives in the `useAttribution` CONTEXT (the base, not the per-call arg) has
+  // nothing to clear on a fresh data op, so it must collapse away — settled data carries no `null` leaf. This
+  // makes the context path consistent with the direct-arg path (which already resolves).
+  const ctxNested = delta.create().useAttribution(/** @type {any} */ ({ format: { bold: null } }))
+    .insert('x', undefined, { insert: [] }).done()
+  t.assert(ctxNested.equals(delta.create().insert('x', undefined, { insert: [] }).done()))
+  // same result as passing the removal directly as the arg
+  const directArg = delta.create().insert('x', undefined, /** @type {any} */ ({ format: { bold: null }, insert: [] })).done()
+  t.assert(directArg.equals(ctxNested))
+  // a LEAF removal in the context (`{insert:null}`) collapses too, keeping the sibling set key
+  const ctxLeaf = delta.create().useAttribution(/** @type {any} */ ({ insert: null, insertAt: 3 }))
+    .insert('y', undefined, { format: { bold: ['u'] } }).done()
+  t.assert(ctxLeaf.equals(delta.create().insert('y', undefined, { insertAt: 3, format: { bold: ['u'] } }).done()))
+  // a context format with a real value AND a null sibling: the real survives, the removal drops
+  const ctxMixed = delta.create().useAttribution(/** @type {any} */ ({ format: { bold: ['alice'], italic: null } }))
+    .insert('z', undefined, { insertAt: 1 }).done()
+  t.assert(ctxMixed.equals(delta.create().insert('z', undefined, { format: { bold: ['alice'] }, insertAt: 1 }).done()))
+  // INSTRUCTION op (resolve=false): a `retain` via the same context KEEPS the `{bold:null}` removal so it
+  // still clears downstream — the canonicalisation is data-op only.
+  const retain = delta.create().useAttribution(/** @type {any} */ ({ format: { bold: null } }))
+    .retain(1, undefined, { insertAt: 2 }).done()
+  t.assert(retain.equals(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null }, insertAt: 2 })).done()))
+}
+
 export const testDeltaFormatFormatStaysShallow = () => {
   // the styling `format` dimension treats a key literally named `format` like any other — wholesale REPLACE,
   // NOT the per-inner-key merge that attribution.format gets. Only attribution.format observes the deep merge.

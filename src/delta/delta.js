@@ -143,7 +143,9 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  * Shallow per-key tri-state merge of `update` into `base` (the usual `format`-dimension semantics, also reused
  * as the inner step of {@link mergeAttr}). Per key: `undefined` skips, `null` removes, anything else sets.
  * `resolve` true (data semantics) applies a `null` removal by deleting the key; false (instruction semantics)
- * keeps the `null` verbatim so it still removes when the instruction is later applied.
+ * keeps the `null` verbatim so it still removes when the instruction is later applied. When `resolve` is true
+ * the `base` is canonicalised too — a `{k:null}` already present in `base` (e.g. from a `useAttribution`
+ * context) has nothing to clear on settled data, so it is dropped rather than copied through.
  *
  * @param {{[k:string]:any}|null|undefined} base
  * @param {{[k:string]:any}} update
@@ -151,7 +153,9 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  * @return {{[k:string]:any}}
  */
 const mergeShallow = (base, update, resolve) => {
-  const r = s.$objectAny.check(base) ? { ...base } : {}
+  const r = /** @type {{[k:string]:any}} */ ({})
+  // copy base; when resolving, drop any `{k:null}` removal already in base (settled data carries no `null` leaf)
+  if (s.$objectAny.check(base)) for (const k in base) { if (!resolve || base[k] !== null) r[k] = base[k] }
   for (const k in update) {
     const v = update[k]
     if (v === undefined) continue // skip this key
@@ -166,7 +170,11 @@ const mergeShallow = (base, update, resolve) => {
  * `format` key — attribution's one structured sub-field — is itself merged per inner key (one level only, same
  * tri-state). This realises "first merge the formats, then merge the whole attribution". The nesting applies to
  * the `format` key alone; every other attribution key (`insert`/`delete` arrays, the `*At` numbers, …) stays a
- * leaf. An emptied `format` is dropped (a settled attribution never stores `format: {}`).
+ * leaf. An emptied `format` is dropped (a settled attribution never stores `format: {}`). When `resolve` is
+ * true the `base` is canonicalised too (see {@link mergeShallow}): a `{k:null}` leaf in `base`, and a
+ * `{innerK:null}` inside `base.format`, have nothing to clear on settled data, so they are dropped — an
+ * emptied `base.format` is removed. This collapses a `useAttribution({format:{bold:null}})`-style context on
+ * a data op instead of storing the removal.
  *
  * @param {{[k:string]:any}|null|undefined} base
  * @param {{[k:string]:any}} update
@@ -174,7 +182,19 @@ const mergeShallow = (base, update, resolve) => {
  * @return {{[k:string]:any}}
  */
 const mergeAttr = (base, update, resolve) => {
-  const r = s.$objectAny.check(base) ? { ...base } : {}
+  // copy base; when resolving, canonicalise it — drop a `{k:null}` leaf and resolve `base.format`'s own
+  // inner removals (dropping an emptied `format`). On an instruction merge (`!resolve`) base is copied verbatim.
+  const r = /** @type {{[k:string]:any}} */ ({})
+  if (s.$objectAny.check(base)) {
+    for (const k in base) {
+      const bv = base[k]
+      if (resolve && bv === null) continue // drop a base leaf removal
+      if (resolve && k === 'format' && s.$objectAny.check(bv)) {
+        const f = mergeShallow(bv, {}, true) // resolve base.format's own `{innerK:null}` removals
+        if (!object.isEmpty(f)) r[k] = f // drop an emptied format
+      } else r[k] = bv
+    }
+  }
   for (const k in update) {
     const v = update[k]
     if (v === undefined) continue // skip this key
