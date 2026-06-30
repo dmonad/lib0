@@ -110,6 +110,10 @@
       "types": "./dist/delta/transformer/attribution-to-format.d.ts",
       "default": "./src/delta/transformer/attribution-to-format.js"
     },
+    "./delta/transformer/full-attributions": {
+      "types": "./dist/delta/transformer/full-attributions.d.ts",
+      "default": "./src/delta/transformer/full-attributions.js"
+    },
     "./delta/rdt": {
       "types": "./dist/delta/rdt.d.ts",
       "default": "./src/delta/rdt.js"

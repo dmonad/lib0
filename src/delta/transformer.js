@@ -18,6 +18,7 @@
  * - {@link unwrapValue} — composable resolver for `lib0:value` carrier children (scalar lift)
  * - {@link rename} — rename a node's name (e.g. mark a `children`-map as `lib0:inline`)
  * - {@link attributionToFormat} — render the `attribution` dimension as `y-attributed-*` formats
+ * - {@link fullAttributions} — re-emit the complete accumulated attribution on every attribution change
  *
  * @module delta/transformer
  */
@@ -34,3 +35,4 @@ export * from './transformer/project.js'
 export * from './transformer/value.js'
 export * from './transformer/rename-attrs.js'
 export * from './transformer/attribution-to-format.js'
+export * from './transformer/full-attributions.js'
