@@ -106,6 +106,10 @@
       "types": "./dist/delta/transformer/rename-attrs.d.ts",
       "default": "./src/delta/transformer/rename-attrs.js"
     },
+    "./delta/transformer/attribution-to-format": {
+      "types": "./dist/delta/transformer/attribution-to-format.d.ts",
+      "default": "./src/delta/transformer/attribution-to-format.js"
+    },
     "./delta/rdt": {
       "types": "./dist/delta/rdt.d.ts",
       "default": "./src/delta/rdt.js"
