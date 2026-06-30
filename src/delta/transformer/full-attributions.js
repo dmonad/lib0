@@ -27,9 +27,17 @@ import { Transformer, Template, createTransformResult } from './core.js'
  * state, both in place and bounded by the change. `applyB` is passthrough + overlay realign (the view
  * never attributes).
  *
- * Limitations: `applyA` **mutates and returns its input change** (the framework treats a transformer's
- * input as consumed — cf. `children.js`); per-change cost is O(change), but the overlay is
- * O(document attribution structure). See {@link fullAttributions}.
+ * Object ownership: `applyA` mutates the input delta's **structure** in place (legitimate — the framework
+ * hands a transformer a non-done change builder to consume, cf. `children.js`) and returns it as the
+ * output. It never mutates a `format`/`attribution` **object** in place. We do **not** own those objects —
+ * they may belong to done (shared) data — so they are read-only here, and every attribution we emit is a
+ * freshly allocated object (`mergeLeaves`/`applyFull`, mirroring delta.js's `mergeAttr`). The overlay and
+ * the output only ever receive fresh top-level objects (`apply`/`rebase` merge via `mergeAttr`; `clone`
+ * shallow-copies via `_cloneAttrs`), so no shared object is updated through a reference. Nested `format`
+ * maps and leaf values are shared by reference exactly as delta.js shares them — safe because nothing is
+ * written in place.
+ *
+ * Per-change cost is O(change); the overlay is O(document attribution structure). See {@link fullAttributions}.
  *
  * @module delta/transformer/full-attributions
  */
@@ -37,7 +45,8 @@ import { Transformer, Template, createTransformResult } from './core.js'
 /**
  * Instruction-form shallow merge of `update` into `base`: set every present key, **keep** a `{k:null}`
  * removal verbatim (so it still clears downstream), skip `undefined`. Used for attribution leaves and for
- * the nested `format` map. Mirrors `mergeShallow` with `resolve = false` (delta.js).
+ * the nested `format` map. Mirrors `mergeShallow` with `resolve = false` (delta.js). Allocates a fresh
+ * object; never mutates `base`/`update` (they may be done, shared data — read-only).
  *
  * @param {{[k:string]:any}|null|undefined} base
  * @param {{[k:string]:any}} update
@@ -54,7 +63,8 @@ const mergeLeaves = (base, update) => {
  * accumulated `base`, in instruction form. `undefined` ⇒ unchanged, `null` ⇒ clear all; otherwise a
  * shallow tri-state merge whose single nested `format` key merges one level. Mirrors `mergeAttr` with
  * `resolve = false` (delta.js) — kept in instruction form so a cleared key survives as `{k:null}` and is
- * re-emitted (the "set present + clear removed" contract).
+ * re-emitted (the "set present + clear removed" contract). Allocates a fresh object for the merge case;
+ * never mutates `base`/`update` (they may be done, shared data — read-only).
  *
  * @param {{[k:string]:any}|null|undefined} base
  * @param {{[k:string]:any}|null|undefined} update
