@@ -375,7 +375,7 @@ export const testText = () => {
  * @param {t.TestCase} _tc
  */
 export const testDelta = _tc => {
-  const d = delta.create().insert('hello').insert(' ').useAttributes({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!')
+  const d = delta.create().insert('hello').insert(' ').useFormats({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!')
   t.compare(d.toJSON(), { type: 'delta', children: [{ type: 'insert', insert: 'hello ' }, { type: 'insert', insert: 'world', format: { bold: true } }, { type: 'insert', insert: '!', format: { bold: true }, attribution: { insert: ['tester'] } }] })
 }
 
@@ -397,17 +397,17 @@ export const testDeltaMerging = _tc => {
 /**
  * @param {t.TestCase} _tc
  */
-export const testUseAttributes = _tc => {
+export const testUseFormats = _tc => {
   const d = delta.create()
     .insert('a')
-    .updateUsedAttributes('bold', true)
+    .updateUsedFormats('bold', true)
     .insert('b')
     .insert('c', { bold: 4 })
-    .updateUsedAttributes('bold', null)
+    .updateUsedFormats('bold', null)
     .insert('d')
-    .useAttributes({ italic: true })
+    .useFormats({ italic: true })
     .insert('e')
-    .useAttributes(null)
+    .useFormats(null)
     .insert('f')
 
   const d2 = delta.create()
@@ -1974,9 +1974,9 @@ export const testReadonlyAfterDone = () => {
   t.fails(() => /** @type {any} */ (d).deleteAttr('x'))
   t.fails(() => /** @type {any} */ (d).modifyAttr('m', delta.create()))
   // builder state mutators
-  t.fails(() => /** @type {any} */ (d).useAttributes({ bold: true }))
+  t.fails(() => /** @type {any} */ (d).useFormats({ bold: true }))
   t.fails(() => /** @type {any} */ (d).useAttribution({ insert: ['x'] }))
-  t.fails(() => /** @type {any} */ (d).updateUsedAttributes('bold', true))
+  t.fails(() => /** @type {any} */ (d).updateUsedFormats('bold', true))
   t.fails(() => /** @type {any} */ (d).updateUsedAttribution('insert', ['x']))
   // higher-level mutators
   t.fails(() => /** @type {any} */ (d).apply(delta.create()))
@@ -2208,7 +2208,7 @@ export const testRebaseChildren = () => {
     // `otherChild.format === null` concession is priority-independent), so the result always ends up
     // cleared and the concurrent set is LOST. This single TP1 case exercises both new code paths: stateA's
     // rebase has currChild=clear (stays, wins); stateB's has otherChild=clear (currChild concedes despite
-    // having priority). See the `FormattingAttributes` docs for why `null` must not cross a channel.
+    // having priority). See the `Formats` docs for why `null` must not cross a channel.
     const base = delta.create().insert('abcde', { italic: true }).done()
     const d1 = delta.create().retain(5, { bold: true }) // d1 has priority, sets bold
     const d2 = delta.create().retain(5, null) // d2 concedes, clears all
@@ -2530,17 +2530,17 @@ export const testNumericAndStringAttrKeys = () => {
 }
 
 /**
- * `updateUsedAttributes` / `updateUsedAttribution` are intended for repeated
+ * `updateUsedFormats` / `updateUsedAttribution` are intended for repeated
  * incremental updates. Setting a key to the value it already holds is a
  * no-op — it preserves object identity so consumers can cheaply detect "did
  * anything change?" via `===`.
  */
-export const testUsedAttributesIdempotent = () => {
-  t.group('updateUsedAttributes(name, sameValue) preserves identity', () => {
-    const d = delta.create().updateUsedAttributes('bold', true)
-    const before = d.usedAttributes
-    d.updateUsedAttributes('bold', true)
-    t.assert(d.usedAttributes === before)
+export const testUsedFormatsIdempotent = () => {
+  t.group('updateUsedFormats(name, sameValue) preserves identity', () => {
+    const d = delta.create().updateUsedFormats('bold', true)
+    const before = d.usedFormats
+    d.updateUsedFormats('bold', true)
+    t.assert(d.usedFormats === before)
   })
   t.group('updateUsedAttribution(name, equalValue) preserves identity', () => {
     const d = delta.create().updateUsedAttribution('insert', ['me'])

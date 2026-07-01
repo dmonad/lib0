@@ -47,9 +47,9 @@ import * as rand from '../random.js'
  * `{format:{bold:[…]}}`, and `{format:{bold:null}}` removes just that inner key (an emptied `format` is
  * dropped). Every other key is flat/wholesale. The `format`/`formatAt` part exists only on
  * children (content ops), never on node attribute ops. As an *update value* on `retain`/`modify`/`*Attr`,
- * attribution uses the same unified tri-state as {@link FormattingAttributes} (`undefined` skip / `null`
+ * attribution uses the same unified tri-state as {@link Formats} (`undefined` skip / `null`
  * clear / `{k:v}` set / `{k:null}` remove) — see the delta `readme.md` "Formats & Attributions". The blanket
- * `null`-clear channel caveat on {@link FormattingAttributes} applies here too; note `rebase` does not
+ * `null`-clear channel caveat on {@link Formats} applies here too; note `rebase` does not
  * reconcile attribution at all (concurrent attribution edits don't converge), so prefer deterministic
  * attribution assignment outside of concurrent editing.
  *
@@ -86,7 +86,7 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  * collaborative / transmitted data, clear keys individually with `{k:null}` removals instead — those reconcile
  * by priority and converge without data loss (this is what {@link diff} emits and what the rebase fuzz uses).
  *
- * @typedef {{ [key: string]: any }} FormattingAttributes
+ * @typedef {{ [key: string]: any }} Formats
  */
 
 /**
@@ -225,7 +225,7 @@ const resolveBeyond = (arg, deep) => {
   return object.isEmpty(m) ? undefined : m
 }
 /**
- * Combine a builder's `used*` context (set via {@link DeltaBuilder#useAttributes}/`useAttribution`) with
+ * Combine a builder's `used*` context (set via {@link DeltaBuilder#useFormats}/`useAttribution`) with
  * a per-call format/attribution argument under the unified tri-state: `undefined` inherits the context
  * (or stays `undefined` — "skip" — when there is none); `null` clears (ignoring the context); an object
  * merges over the context. `resolve` true (data op) applies any `{k:null}` removal against the context so the
@@ -293,7 +293,7 @@ const _markMaybeDeltaAsDone = maybeDelta => $deltaAny.check(maybeDelta) ? /** @t
 export class TextOp extends list.ListNode {
   /**
    * @param {string} insert
-   * @param {FormattingAttributes|null} format
+   * @param {Formats|null} format
    * @param {Attribution?} attribution
    */
   constructor (insert, format, attribution) {
@@ -306,7 +306,7 @@ export class TextOp extends list.ListNode {
     this.insert = insert
     /**
      * @readonly
-     * @type {FormattingAttributes|null}
+     * @type {Formats|null}
      */
     this.format = format
     this.attribution = attribution
@@ -397,7 +397,7 @@ export class TextOp extends list.ListNode {
 export class InsertOp extends list.ListNode {
   /**
    * @param {Array<ArrayContent>} insert
-   * @param {FormattingAttributes|null} format
+   * @param {Formats|null} format
    * @param {Attribution?} attribution
    */
   constructor (insert, format, attribution) {
@@ -409,7 +409,7 @@ export class InsertOp extends list.ListNode {
     this.insert = insert
     /**
      * @readonly
-     * @type {FormattingAttributes?}
+     * @type {Formats?}
      */
     this.format = format
     /**
@@ -608,7 +608,7 @@ export class DeleteOp extends list.ListNode {
 export class RetainOp extends list.ListNode {
   /**
    * @param {number} retain
-   * @param {FormattingAttributes|null|undefined} format tri-state: `undefined` skip / `null` clear / object merge
+   * @param {Formats|null|undefined} format tri-state: `undefined` skip / `null` clear / object merge
    * @param {Attribution|null|undefined} attribution tri-state: `undefined` skip / `null` clear / object merge
    */
   constructor (retain, format, attribution) {
@@ -620,7 +620,7 @@ export class RetainOp extends list.ListNode {
     this.retain = retain
     /**
      * @readonly
-     * @type {FormattingAttributes|null|undefined}
+     * @type {Formats|null|undefined}
      */
     this.format = format
     /**
@@ -709,7 +709,7 @@ export class RetainOp extends list.ListNode {
 export class ModifyOp extends list.ListNode {
   /**
    * @param {DTypes} delta
-   * @param {FormattingAttributes|null|undefined} format tri-state: `undefined` skip / `null` clear / object merge
+   * @param {Formats|null|undefined} format tri-state: `undefined` skip / `null` clear / object merge
    * @param {Attribution|null|undefined} attribution tri-state: `undefined` skip / `null` clear / object merge
    */
   constructor (delta, format, attribution) {
@@ -721,7 +721,7 @@ export class ModifyOp extends list.ListNode {
     this.value = delta
     /**
      * @readonly
-     * @type {FormattingAttributes|null|undefined}
+     * @type {Formats|null|undefined}
      */
     this.format = format
     /**
@@ -1821,11 +1821,10 @@ export class DeltaBuilder extends Delta {
    */
   constructor (name, $schema) {
     super(name, $schema)
-    // @todo rename to usedFormats !!
     /**
-     * @type {FormattingAttributes?}
+     * @type {Formats?}
      */
-    this.usedAttributes = null
+    this.usedFormats = null
     /**
      * @type {Attribution?}
      */
@@ -1842,12 +1841,12 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @param {FormattingAttributes?} attributes
+   * @param {Formats?} attributes
    * @return {this}
    */
-  useAttributes (attributes) {
+  useFormats (attributes) {
     modDeltaCheck(this)
-    this.usedAttributes = attributes
+    this.usedFormats = attributes
     return this
   }
 
@@ -1855,17 +1854,17 @@ export class DeltaBuilder extends Delta {
    * @param {string} name
    * @param {any} value
    */
-  updateUsedAttributes (name, value) {
+  updateUsedFormats (name, value) {
     modDeltaCheck(this)
     if (value == null) {
-      this.usedAttributes = object.assign({}, this.usedAttributes)
-      delete this.usedAttributes?.[name]
-      if (object.isEmpty(this.usedAttributes)) {
-        this.usedAttributes = null
+      this.usedFormats = object.assign({}, this.usedFormats)
+      delete this.usedFormats?.[name]
+      if (object.isEmpty(this.usedFormats)) {
+        this.usedFormats = null
       }
-    } else if (!fun.equalityDeep(this.usedAttributes?.[name], value)) {
-      this.usedAttributes = object.assign({}, this.usedAttributes)
-      this.usedAttributes[name] = value
+    } else if (!fun.equalityDeep(this.usedFormats?.[name], value)) {
+      this.usedFormats = object.assign({}, this.usedFormats)
+      this.usedFormats[name] = value
     }
     return this
   }
@@ -1893,7 +1892,7 @@ export class DeltaBuilder extends Delta {
   /**
    * @template {(FixedConf extends true ? never : (Array<any>|string)) | (DeltaConfGetChildren<Conf> extends infer Children ? (Children extends never ? never : Array<Children>) : never) | DeltaConfGetText<Conf>} NewContent
    * @param {NewContent} insert
-   * @param {FormattingAttributes?} [formatting]
+   * @param {Formats?} [formatting]
    * @param {Attribution?} [attribution]
    * @return {DeltaBuilder<FixedConf extends true ? Conf : DeltaConfOverwrite<Conf,
    * (Exclude<NewContent,string> extends never ? {} : {
@@ -1902,18 +1901,18 @@ export class DeltaBuilder extends Delta {
    */
   insert (insert, formatting, attribution) {
     modDeltaCheck(this)
-    const mergedAttributes = combineData(this.usedAttributes, formatting, false)
+    const mergedFormats = combineData(this.usedFormats, formatting, false)
     const mergedAttribution = combineData(this.usedAttribution, attribution, true)
     /**
      * @param {TextOp | InsertOp<any>} lastOp
      */
-    const checkMergedEquals = lastOp => (mergedAttributes === lastOp.format || fun.equalityDeep(mergedAttributes, lastOp.format)) && (mergedAttribution === lastOp.attribution || fun.equalityDeep(mergedAttribution, lastOp.attribution))
+    const checkMergedEquals = lastOp => (mergedFormats === lastOp.format || fun.equalityDeep(mergedFormats, lastOp.format)) && (mergedAttribution === lastOp.attribution || fun.equalityDeep(mergedAttribution, lastOp.attribution))
     const end = this.children.end
     if (s.$string.check(insert)) {
       if ($textOp.check(end) && checkMergedEquals(end)) {
         end._updateInsert(end.insert + insert)
       } else if (insert.length > 0) {
-        list.pushEnd(this.children, new TextOp(insert, mergedAttributes, mergedAttribution))
+        list.pushEnd(this.children, new TextOp(insert, mergedFormats, mergedAttribution))
       }
       this.childCnt += insert.length
     } else if (arr.isArray(insert)) {
@@ -1922,7 +1921,7 @@ export class DeltaBuilder extends Delta {
         end.insert.push(...insert)
         end._fingerprint = null
       } else if (insert.length > 0) {
-        list.pushEnd(this.children, new InsertOp(insert.slice() /* ensures that we don't reuse an existing array */, mergedAttributes, mergedAttribution))
+        list.pushEnd(this.children, new InsertOp(insert.slice() /* ensures that we don't reuse an existing array */, mergedFormats, mergedAttribution))
       }
       this.childCnt += insert.length
       // inserting pre-marked content brings its subtree marks along (as apply's insert path does)
@@ -1934,15 +1933,15 @@ export class DeltaBuilder extends Delta {
   /**
    * @template {Extract<DeltaConfGetAllowedChildren<Conf, FixedConf>,Delta|DeltaData<any,any,any,any>|DeltaBuilder>} NewContent
    * @param {NewContent} modify
-   * @param {FormattingAttributes?} [formatting] tri-state: omit/`undefined` skip, `null` clear, `{k:v}`/`{k:null}` set/remove
+   * @param {Formats?} [formatting] tri-state: omit/`undefined` skip, `null` clear, `{k:v}`/`{k:null}` set/remove
    * @param {Attribution?} [attribution] tri-state: omit/`undefined` skip, `null` clear, `{k:v}`/`{k:null}` set/remove
    * @return {DeltaBuilder<DeltaConfOverwrite<Conf, {children: DeltaConfGetChildren<Conf>|NewContent}>, FixedConf>}
    */
   modify (modify, formatting, attribution) {
     modDeltaCheck(this)
-    const mergedAttributes = combineInstr(this.usedAttributes, formatting, false)
+    const mergedFormats = combineInstr(this.usedFormats, formatting, false)
     const mergedAttribution = combineInstr(this.usedAttribution, attribution, true)
-    list.pushEnd(this.children, new ModifyOp(modify, mergedAttributes, mergedAttribution))
+    list.pushEnd(this.children, new ModifyOp(modify, mergedFormats, mergedAttribution))
     this.childCnt += 1
     // the modify target carries marks in its subtree (own root marks + nested) - flag conservatively
     this.maybeHasMarks ||= modify.maybeHasMarks
@@ -1987,12 +1986,12 @@ export class DeltaBuilder extends Delta {
 
   /**
    * @param {number} len
-   * @param {FormattingAttributes?} [format]
+   * @param {Formats?} [format]
    * @param {Attribution?} [attribution]
    */
   retain (len, format, attribution) {
     modDeltaCheck(this) // this clears _fingerprint
-    const mergedFormats = combineInstr(this.usedAttributes, format, false)
+    const mergedFormats = combineInstr(this.usedFormats, format, false)
     const mergedAttribution = combineInstr(this.usedAttribution, attribution, true)
     const lastOp = /** @type {RetainOp|InsertOp<any>} */ (this.children.end)
     if ($retainOp.check(lastOp) && fun.equalityDeep(mergedFormats, lastOp.format) && fun.equalityDeep(mergedAttribution, lastOp.attribution)) {
@@ -2542,7 +2541,7 @@ export class DeltaBuilder extends Delta {
           // changes. Three rules:
           //  1. A blanket `null` clear ALWAYS wins, priority-independent (this is what lets it converge — both
           //     rebase orderings agree the overlap ends up cleared, at the cost of dropping a concurrent set;
-          //     hence `null` is a local-only utility, see the `FormattingAttributes` docs). currChild's own
+          //     hence `null` is a local-only utility, see the `Formats` docs). currChild's own
           //     `null` clear is left untouched (it wins); if *other* clears, currChild concedes its whole format.
           //  2. Otherwise (both per-key objects) priority decides: priority=true is a no-op (currChild wins);
           //     for !priority currChild concedes any key otherChild also writes (a `{k:null}` removal is just
@@ -2551,13 +2550,13 @@ export class DeltaBuilder extends Delta {
           //  3. otherChild `undefined` (skip) never changes currChild.
           if ($retainOp.check(currChild) && currChild.format !== null) {
             let changed = false
-            /** @type {FormattingAttributes|null|undefined} */
+            /** @type {Formats|null|undefined} */
             let newFormat
             if (otherChild.format === null) {
               // other clears all → clear wins → currChild concedes its entire format
               if (currChild.format !== undefined) { newFormat = undefined; changed = true }
             } else if (!priority && currChild.format != null && otherChild.format != null) {
-              /** @type {FormattingAttributes} */
+              /** @type {Formats} */
               const stripped = {}
               for (const k in currChild.format) {
                 if (k in otherChild.format) changed = true
@@ -3510,7 +3509,7 @@ export const random = (gen, $d, conf = {}) => {
         sourceLen -= len
         // a retain's format is a skip (`undefined`) or a per-key set object — never a blanket `null` clear
         // ($null formats coerce to skip). Blanket clears are a local-only utility and discouraged on a
-        // channel (they "win" a rebase, dropping concurrent edits — see FormattingAttributes); the diff fuzz
+        // channel (they "win" a rebase, dropping concurrent edits — see Formats); the diff fuzz
         // already exercises the recommended per-key `{k:null}` removals (which converge without data loss).
         d.retain(len, prng.bool(gen) ? undefined : (s.random(gen, $formats) ?? undefined), genAttribution(true))
       })
