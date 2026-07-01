@@ -2726,7 +2726,9 @@ const applyDim = (op, field, update) => {
  */
 const diffDim = (aVal, bVal, deep) => {
   if (fun.equalityDeep(aVal, bVal)) return undefined
-  if (bVal === null || bVal === undefined || object.isEmpty(bVal)) return null // fully cleared
+  if ((bVal === null || bVal === undefined || object.isEmpty(bVal)) && (deep || aVal == null)) {
+    return null // fully cleared: attribution (`deep`) clears wholesale; format with no prior keys has nothing to enumerate
+  }
   /** @type {{[k:string]:any}} */
   const u = {}
   for (const k in bVal) {
@@ -2737,7 +2739,10 @@ const diffDim = (aVal, bVal, deep) => {
         : bVal[k]
     }
   }
-  for (const k in aVal) { if (!(k in bVal)) u[k] = null } // removed keys (`for..in` is a no-op when `aVal` is nullish)
+  // removed keys. For `format` (shallow) a full clear enumerates one `{k:null}` per prior key instead of a
+  // wholesale `format:null` — individual clears rebase without clobbering concurrently-added formats.
+  // (`for..in` is a no-op when `aVal` is nullish; `k in bVal` is guarded against a nullish `bVal`.)
+  for (const k in aVal) { if (bVal == null || !(k in bVal)) u[k] = null }
   return u
 }
 

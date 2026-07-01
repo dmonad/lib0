@@ -1022,10 +1022,12 @@ export const testDeltaFormattingDiff = () => {
   const diff = delta.diff(db, da)
   const expectedDiff = delta.create()
     .retain(1)
-    .retain(2, null) // 'a' was the only format key, so removing it is a full clear → top-level `null`
+    // formats clear per-key: even when 'a' is the only prior key we emit `{a:null}`, not a top-level
+    // `null` (individual clears rebase without clobbering concurrently-added formats)
+    .retain(2, /** @type {any} */ ({ a: null }))
     .delete(1)
     .retain(2)
-    .retain(2, null)
+    .retain(2, /** @type {any} */ ({ a: null }))
     .delete(1)
   t.compare(diff, expectedDiff)
   db.apply(diff)
