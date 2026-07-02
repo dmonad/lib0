@@ -173,6 +173,31 @@ This is a performance option. **Only pass `{ move: true }` when you own `change`
 after** — reading or re-applying a moved change is undefined (its content now lives in the target). The
 transformer layer uses it internally for its disposable intermediate results (see `transformer/core.js`).
 
+# Cloning: what is shared, and when to clone
+
+Deltas are edited through `apply`/`rebase`, which are copy-on-write: a shared, frozen (`done`) nested delta
+is re-cloned the first time it is touched. So the two clone primitives differ only in how deep the copy goes:
+
+- **`clone(d)`** — a shallow clone: fresh top node, but nested deltas are shared **frozen**. Enough whenever
+  the result is only ever edited via `apply`/`rebase` (the common case), because those re-clone a frozen
+  child on first write.
+- **`cloneDeep(d)`** — every nested delta is recursively cloned into a fresh, **mutable** node, so the whole
+  subtree is independently editable. Reach for this when a delta will be **manipulated directly** rather than
+  via `apply`/`rebase`.
+
+What gets cloned vs shared, and why:
+
+| kind                                       | clone/share | why |
+| ------------------------------------------ | ----------- | --- |
+| ops and (nested) deltas                    | **cloned**  | edited *in place* — a shared copy would be corrupted by a later edit of either side |
+| `format` / `attribution` objects, JSON insert values | **retained (shared)** | always *copied before* being changed (an update allocates a new object), so sharing is safe |
+
+A **`done` (frozen) delta must be cloned before any direct manipulation** — a plain `apply`/`rebase` handles
+the freeze itself and needs no pre-clone. The main consumer that manipulates deltas directly is a
+**transformer**: it splices op lists and rebases nodes in place (a deliberate exception to the
+edit-only-via-`apply`/`rebase` rule), so anything routing a shared change through one — e.g. a `Binding`
+(`rdt.js`) — must `cloneDeep` it first.
+
 # Cursors & selections (marks)
 
 A **mark** is a cursor/selection anchor stored on a delta node: a stable `id`, a terminal `key` (a

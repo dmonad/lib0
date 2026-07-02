@@ -5,8 +5,9 @@
  *
  * {@link domRDT} creates an RDT (see `../rdt.js`) backed by a live DOM subtree. DOM mutations are
  * observed with a `MutationObserver`, turned into deltas (by diffing the new DOM state against the
- * last-known one) and emitted as `'delta'` events; incoming deltas are applied back onto the DOM.
- * This lets a DOM subtree be bound to any other RDT.
+ * last-known one) and emitted as `'delta'` events (with the RDT itself as their
+ * {@link import('../rdt.js').RDT origin}); incoming deltas are applied back onto the DOM. This lets a
+ * DOM subtree be bound to any other RDT.
  *
  * @module delta/rdt/dom
  */
@@ -24,8 +25,8 @@ import * as s from '../../schema.js'
  */
 
 /**
- * @template {delta.DeltaAny} D
- * @typedef {import('../rdt.js').RDT<D>} RDT
+ * @template {delta.DeltaConf} Conf
+ * @typedef {import('../rdt.js').RDT<Conf>} RDT
  */
 
 /**
@@ -177,16 +178,21 @@ const applyDeltaToDom = (el, d) => {
 export const $domDelta = /* @__PURE__ */ delta.$delta({ name: s.$string, attrs: s.$record(s.$string, s.$string), children: s.$never, text: true, recursiveChildren: true })
 
 /**
- * @typedef {delta.Delta<{ name: string, attrs: { [key:string]: string }, text: true, recursiveChildren: true }>} DomDelta
+ * The {@link delta.DeltaConf} of the deltas a {@link DomRDT} produces/consumes (see {@link $domDelta}).
+ *
+ * @typedef {{ name: string, attrs: { [key:string]: string }, text: true, recursiveChildren: true }} DomConf
+ */
+
+/**
+ * @typedef {delta.Delta<DomConf>} DomDelta
  */
 
 /**
  * An RDT backed by a live DOM subtree. DOM mutations observed via `MutationObserver` are diffed
  * against the last-known state and emitted as deltas; incoming deltas are applied back onto the DOM.
  *
- * @template {DomDelta} [D=DomDelta]
- * @implements {RDT<D>}
- * @extends {ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: DomRDT<D>) => void }>}
+ * @implements {RDT<DomConf>}
+ * @extends {ObservableV2<{ delta: (delta: delta.Delta<DomConf>, origin: any) => void, destroy: (rdt: DomRDT) => void }>}
  */
 class DomRDT extends ObservableV2 {
   /**
@@ -195,7 +201,7 @@ class DomRDT extends ObservableV2 {
   constructor (observedNode) {
     super()
     /**
-     * @type {Schema<D>}
+     * @type {Schema<DomDelta>}
      */
     this.$delta = /** @type {any} */ ($domDelta)
     this.observedNode = observedNode
@@ -233,8 +239,9 @@ class DomRDT extends ObservableV2 {
    */
   _mutationHandler = mutations => {
     if (mutations.length === 0) return
-    const change = /** @type {D} */ (this._pull())
-    if (!change.isEmpty()) this.emit('delta', [change])
+    const change = this._pull()
+    // a locally-observed DOM edit: this RDT is the producer, so it is the origin (see {@link RDT})
+    if (!change.isEmpty()) this.emit('delta', [change, this])
   }
 
   /**
@@ -245,10 +252,14 @@ class DomRDT extends ObservableV2 {
    * `d` rebased onto `b` is applied to the DOM, and `b` rebased onto `d` is returned as the fix so the
    * binding pipes it back through the transformer to the other side.
    *
-   * @param {D} d
-   * @return {D | null} the rebased local change (`b`), or `null` when there were no concurrent edits
+   * @param {delta.Delta<DomConf>} d
+   * @param {any} [origin] who produced `d`; forwarded verbatim on the emitted `'delta'` event so
+   * listeners can recognise (and skip) their own changes — see {@link RDT} “Origins”. Defaults to `null`
+   * (an anonymous/local change).
+   * @return {delta.DeltaBuilder<DomConf> | null} the rebased local change (`b`), or `null` when there
+   * were no concurrent edits
    */
-  applyDelta (d) {
+  applyDelta (d, origin = null) {
     const b = this._pull()
     /** @type {DomDelta} */
     let toApply = d
@@ -266,19 +277,19 @@ class DomRDT extends ObservableV2 {
     // echo of our own write — draining the self-caused records here is what prevents it.
     this.observer.takeRecords()
     // Forward the effective change so a chained binding on the other side picks it up; the binding
-    // that fed us `d` swallows this re-emit via its own mutex (see ../rdt.js).
-    const effective = /** @type {D} */ (toApply)
-    this.emit('delta', [effective])
-    return /** @type {D?} */ (fix)
+    // that fed us `d` swallows this re-emit via its own mutex (see ../rdt.js). `fix` is a freshly
+    // rebased builder at runtime, returned as the owned change the binding maps on.
+    this.emit('delta', [toApply, origin])
+    return /** @type {delta.DeltaBuilder<DomConf>?} */ (fix)
   }
 
   /**
    * The current state as a delta: an "insert everything" delta describing the observed subtree.
    *
-   * @return {D}
+   * @return {delta.Delta<DomConf>}
    */
   get delta () {
-    return /** @type {D} */ (domToDelta(this.observedNode))
+    return domToDelta(this.observedNode)
   }
 
   destroy () {

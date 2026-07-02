@@ -4,8 +4,9 @@
  * An **RDT** ("replicated data type") is any object that represents some state and communicates changes
  * to that state as {@link import('./delta.js').Delta deltas}. Every RDT is an
  * {@link import('../observable.js').ObservableV2 observable}:
- * - it **emits** a `'delta'` event carrying a delta whenever its own state changes, and
- * - it **accepts** foreign changes through `applyDelta(delta)`, which mutates its state to match.
+ * - it **emits** a `'delta'` event carrying a delta and its {@link RDT origin} whenever its own state
+ *   changes, and
+ * - it **accepts** foreign changes through `applyDelta(delta, origin)`, which mutates its state to match.
  *
  * Because the changes are deltas, two different representations of "the same" data can be kept in sync
  * even when their shapes differ. That is the job of a {@link Binding}: it connects two RDTs `a` and `b`
@@ -64,17 +65,45 @@ export { $domDelta, domRDT } from './rdt/dom.js'
  * transformer for it), exposes its current state as a delta via the `delta` getter, and accepts foreign
  * deltas via `applyDelta`.
  *
- * `applyDelta(d)` applies `d` and then, if the change would violate the RDT's own invariants, applies
- * a **fix** of its own (e.g. reversing part of `d`, or inserting missing content) and returns that fix
- * — `null` when none was needed. The fix is a regular change on this RDT, so a {@link Binding} maps it
- * onto the other side just like any other change. `applyDelta` also emits the *effective* change
+ * `applyDelta(d, origin)` applies `d` and then, if the change would violate the RDT's own invariants,
+ * applies a **fix** of its own (e.g. reversing part of `d`, or inserting missing content) and returns
+ * that fix — `null` when none was needed. The fix is a regular change on this RDT, so a {@link Binding}
+ * maps it onto the other side just like any other change. `applyDelta` also emits the *effective* change
  * (`d` together with the fix) on the `'delta'` channel.
  *
- * @template {import('./delta.js').DeltaAny} D
- * @typedef {import('../observable.js').ObservableV2<{ delta: (delta: D) => void, destroy: (rdt: RDT<D>) => void }> & {
- *   $delta: Schema<D>,
- *   delta: D,
- *   applyDelta: (delta: D) => D | null,
+ * ## Origins
+ *
+ * Every `'delta'` event carries a second argument, `origin` — an opaque `any` value (modelled after
+ * {@link https://docs.yjs.dev/api/transactions Yjs transaction origins}) that identifies **where the
+ * change came from**. Whoever produces the change sets it, and it is usually the producing instance
+ * itself: a communication provider, an editor binding, or the {@link Binding} that mapped the change
+ * over from the other side. A change an RDT observes locally (e.g. a `MutationObserver` firing on a DOM
+ * edit) uses that RDT itself as the origin.
+ *
+ * Origins let a listener tell **its own** changes apart from foreign ones so it can skip the ones it
+ * already knows about — a change it produced is not looped back to where it came from. The canonical use
+ * is a network provider: it tags every remote update it applies with itself (`rdt.applyDelta(update,
+ * this)`) and then ignores `'delta'` events whose `origin === this`, so it never re-broadcasts an update
+ * it just received. The `origin` argument to `applyDelta` is optional and defaults to `null` (an
+ * anonymous/local change); the emitted event always carries whatever value was supplied.
+ *
+ * ## `Delta` vs `DeltaBuilder`
+ *
+ * The interface is parameterized by a {@link import('./delta.js').DeltaConf DeltaConf} (like a
+ * {@link import('./transformer.js').Transformer transformer}). Almost everything it exposes is the
+ * *read* form — {@link import('./delta.js').Delta Delta} — because those values are **shared** and must
+ * not be mutated in place: `$delta` is the delta schema, the `delta` getter returns a state snapshot,
+ * `applyDelta` reads a change into the RDT, and the `'delta'` event payload is broadcast to every
+ * listener. The one *owned, mutable* form — {@link import('./delta.js').DeltaBuilder DeltaBuilder} — is
+ * the fix `applyDelta` returns to the {@link Binding}. The binding never mutates a shared read delta: it
+ * {@link import('./delta.js').cloneDeep deep-clones} every change into a private builder before the
+ * transformer rebases it (transformers manipulate deltas in place — see {@link Binding}).
+ *
+ * @template {import('./delta.js').DeltaConf} Conf
+ * @typedef {import('../observable.js').ObservableV2<{ delta: (delta: delta.Delta<Conf>, origin: any) => void, destroy: (rdt: RDT<Conf>) => void }> & {
+ *   $delta: Schema<delta.Delta<Conf>>,
+ *   delta: delta.Delta<Conf>,
+ *   applyDelta: (delta: delta.Delta<Conf>, origin?: any) => delta.DeltaBuilder<Conf> | null,
  *   destroy: () => void
  * }} RDT
  */
@@ -101,47 +130,62 @@ export const $rdt = /** @type {Schema<RDT<any>>} */ (/* @__PURE__ */ s.$custom(o
  * `ta` / `tb` are changes that have ALREADY been applied to `a` / `b` (an incoming `'delta'`, or a fix
  * returned by a previous `applyDelta`). Each is mapped onto the other side via the transformer —
  * `apply` rebases the two against each other — and the mapped results are applied, which may yield
- * further RDT fixes. We repeat until neither side reports a fix.
+ * further RDT fixes. We repeat until neither side reports a fix. Every change it applies to either side
+ * uses the `binding` itself as its {@link RDT origin} — from each side's perspective the binding is what
+ * produced the mapped change.
  *
- * @param {Binding<any>} binding
- * @param {any} ta change already applied on `a` (or `null`)
- * @param {any} tb change already applied on `b` (or `null`)
+ * `ta`/`tb` are shared read deltas (an event payload, or a fix that was also written into the producing
+ * RDT's state), so they are {@link delta.cloneDeep deep-cloned} into private builders before the
+ * transformer — which rebases its inputs in place — touches them (see {@link Binding}).
+ *
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @param {Binding<A,B>} binding
+ * @param {any} ta change already applied on `a` — a shared read delta (event payload or a fix), or `null`
+ * @param {any} tb change already applied on `b` — a shared read delta (event payload or a fix), or `null`
  */
 const propagate = (binding, ta, tb) => {
   while ((ta != null && !ta.isEmpty()) || (tb != null && !tb.isEmpty())) {
-    const tres = binding.t.apply(dt.createTransformResult(ta, tb))
-    ta = tres.a != null ? binding.a.applyDelta(tres.a) : null
-    tb = tres.b != null ? binding.b.applyDelta(tres.b) : null
+    const tres = binding.t.apply(dt.createTransformResult(
+      ta != null ? delta.cloneDeep(ta) : null,
+      tb != null ? delta.cloneDeep(tb) : null
+    ))
+    ta = tres.a != null ? binding.a.applyDelta(tres.a, binding) : null
+    tb = tres.b != null ? binding.b.applyDelta(tres.b, binding) : null
   }
 }
 
 /**
  * Connects two RDTs so that changes on either side are transformed and reflected on the other.
  *
- * @template {import('./delta.js').DeltaAny} DeltaA
+ * The {@link dt.Transformer transformer} it drives **manipulates deltas in place** (it splices op lists
+ * and rebases nodes directly, rather than only via `apply`/`rebase`) — a deliberate exception to the
+ * general rule that deltas are edited through `apply`/`rebase`. Consequently every change handed to it
+ * must be a privately-owned, fully-mutable delta, so the binding {@link delta.cloneDeep deep-clones}
+ * each incoming change (which is a shared read delta — an event payload or a snapshot) before the
+ * transformer touches it. See the initial-state sync below and {@link propagate}.
+ *
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
  */
 export class Binding {
   /**
-   * @param {RDT<DeltaA>} a
-   * @param {RDT<import('./delta.js').DeltaAny>} b
-   * @param {dt.TemplateFactory<any,any>} [template] a `$d => Template` factory; defaults to the
+   * @param {RDT<A>} a
+   * @param {RDT<B>} b
+   * @param {dt.TemplateFactory<A,B>} [template] a `$d => Template` factory; defaults to the
    * {@link dt.id identity} transformer. `bind` injects `a`'s schema, then materializes via `.init()`.
    */
-  constructor (a, b, template = dt.id) {
+  constructor (a, b, template = /** @type {dt.TemplateFactory<A,B>} */ (dt.id)) {
     /**
-     * @type {dt.Transformer<any,any>}
+     * @type {dt.Transformer<A,B>}
      */
     this.t = template(a.$delta).init()
-    // reason: the `'delta'` channel carries `Delta` values while the transformer is typed for the
-    // mutable `DeltaBuilder` it consumes/produces, and the binding is generic over both sides; typing
-    // the internal handles as `RDT<any>` lets changes pass through the transformer without unsound
-    // cross-casts, while `bind`/the constructor keep precise public signatures.
     /**
-     * @type {RDT<any>}
+     * @type {RDT<A>}
      */
     this.a = a
     /**
-     * @type {RDT<any>}
+     * @type {RDT<B>}
      */
     this.b = b
     this._mux = mux.createMutex()
@@ -157,10 +201,17 @@ export class Binding {
     // time are NOT transferred to `b` here; marks ride only on subsequent live `applyA`/`applyB`.
     // Wrapped in the mutex so these `applyDelta` calls don't echo back through the listeners above.
     this._mux(() => {
-      const tres = this.t.applyA(this.a.delta)
-      const fa = tres.a ? this.a.applyDelta(tres.a) : null
-      const diffB = tres.b ? delta.diff(/** @type {delta.DeltaAny} */ (this.b.delta), tres.b) : null
-      const fb = diffB ? this.b.applyDelta(diffB) : null
+      // `a.delta` is a shared read snapshot (for an in-memory RDT it IS the live state, whose nested
+      // children are frozen `done`), so DEEP-clone it into a private, fully-mutable builder before the
+      // transformer — which rebases its input in place — projects it. A shallow `clone` would still share
+      // those frozen children and corrupt / fail on the live state (see `delta.cloneDeep`).
+      const tres = this.t.applyA(delta.cloneDeep(this.a.delta))
+      const fa = tres.a ? this.a.applyDelta(tres.a, this) : null
+      // `diff` shares nested children with `tres.b` by default, and `tres.b` is a (possibly stateful)
+      // transformer's output that may still alias its internal state — so `clone` keeps the diff
+      // independent, since it is then applied into `b` (which freezes it) and propagated onward.
+      const diffB = tres.b ? delta.diff(this.b.delta, tres.b, { clone: true }) : null
+      const fb = diffB ? this.b.applyDelta(diffB, this) : null
       propagate(this, fa, fb)
     })
   }
@@ -184,11 +235,12 @@ export class Binding {
  * {@link Binding#destroy} on the returned binding to stop syncing (it also self-destroys when either RDT
  * emits `'destroy'`).
  *
- * @template {import('./delta.js').DeltaAny} DeltaA
- * @param {RDT<DeltaA>} a
- * @param {RDT<import('./delta.js').DeltaAny>} b
- * @param {dt.TemplateFactory<any,any>} [template] a `$d => Template` factory (e.g. `dt.id` or
+ * @template {delta.DeltaConf} A
+ * @template {delta.DeltaConf} B
+ * @param {RDT<A>} a
+ * @param {RDT<B>} b
+ * @param {dt.TemplateFactory<A,B>} [template] a `$d => Template` factory (e.g. `dt.id` or
  * `$d => dt.renameAttrs($d, {a:'b'})`)
- * @return {Binding<DeltaA>}
+ * @return {Binding<A,B>}
  */
 export const bind = (a, b, template) => new Binding(a, b, template)

@@ -177,3 +177,20 @@ export const testDomRDTDestroy = () => {
   el.setAttribute('id', 'x')
   t.assert(!changed, 'no delta after destroy')
 }
+
+/**
+ * A change the RDT observes locally (a DOM edit picked up by the `MutationObserver`) is produced by the
+ * RDT itself, so it emits its `'delta'` with the RDT as the origin (see the "Origins" section of the
+ * `RDT` typedef). A consumer uses this to recognise edits that originated on this side.
+ */
+export const testDomLocalEditOrigin = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div')
+  const dr = domRDT(el)
+  /** @type {Array<any>} */
+  const origins = []
+  dr.on('delta', (_d, origin) => origins.push(origin))
+  el.setAttribute('id', 'x') // a local DOM edit
+  await promise.resolve() // flush the (microtask-scheduled) MutationObserver callback
+  t.assert(origins.length === 1 && origins[0] === dr, 'a locally-observed DOM edit uses the DomRDT itself as origin')
+}

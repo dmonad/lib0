@@ -167,7 +167,8 @@ export const testBindInitialSelfHealNullProjection = () => {
 }
 
 /**
- * @typedef {import('./rdt.js').RDT<delta.DeltaAny>} RDT
+ * @template {delta.DeltaConf} Conf
+ * @typedef {import('./rdt.js').RDT<Conf>} RDT
  */
 
 /**
@@ -176,13 +177,14 @@ export const testBindInitialSelfHealNullProjection = () => {
  * and returns it as the fix (emitting the effective change). This exercises the binding's
  * fix-propagation logic without baking invariants into the shipped `deltaRDT`.
  *
- * @implements {RDT}
- * @extends {ObservableV2<{ delta: (d: delta.DeltaAny) => void, destroy: (rdt: any) => void }>}
+ * @template {delta.DeltaConf} Conf
+ * @implements {RDT<Conf>}
+ * @extends {ObservableV2<{ delta: (d: delta.Delta<Conf>, origin: any) => void, destroy: (rdt: any) => void }>}
  */
 class ConstrainedRDT extends ObservableV2 {
   /**
-   * @param {import('../schema.js').Schema<delta.DeltaAny>} $delta
-   * @param {(state: delta.DeltaBuilderAny) => (delta.DeltaAny | null)} computeFix
+   * @param {import('../schema.js').Schema<delta.Delta<Conf>>} $delta
+   * @param {(state: delta.DeltaBuilderAny) => (delta.DeltaBuilderAny | null)} computeFix
    */
   constructor ($delta, computeFix) {
     super()
@@ -194,12 +196,13 @@ class ConstrainedRDT extends ObservableV2 {
   }
 
   /**
-   * @param {delta.DeltaAny} d
-   * @return {delta.DeltaAny | null}
+   * @param {delta.Delta<Conf>} d
+   * @param {any} [origin]
+   * @return {delta.DeltaBuilder<Conf> | null}
    */
-  applyDelta (d) {
+  applyDelta (d, origin = null) {
     if (d.isEmpty()) return null
-    /** @type {delta.DeltaAny | null} */
+    /** @type {delta.DeltaBuilderAny | null} */
     let fix = null
     /** @type {any} */
     let effective = d
@@ -213,13 +216,17 @@ class ConstrainedRDT extends ObservableV2 {
       if (f != null && !f.isEmpty()) {
         this.state.apply(f) // final → a deleteAttr fix removes the attr cleanly
         fix = f
-        effective = delta.clone(d).apply(f) // the emitted change keeps the deleteAttr (not final)
+        // the emitted change keeps the deleteAttr (not final); `f` is a same-conf fix at runtime
+        effective = delta.clone(d).apply(/** @type {any} */ (f))
       }
     })
-    this.emit('delta', [effective])
-    return fix
+    this.emit('delta', [effective, origin])
+    return /** @type {delta.DeltaBuilder<Conf> | null} */ (fix)
   }
 
+  /**
+   * @return {delta.Delta<Conf>}
+   */
   get delta () {
     return /** @type {any} */ (this.state ?? delta.create(this.$delta))
   }
@@ -231,8 +238,9 @@ class ConstrainedRDT extends ObservableV2 {
 }
 
 /**
- * @param {import('../schema.js').Schema<delta.DeltaAny>} $delta
- * @param {(state: delta.DeltaBuilderAny) => (delta.DeltaAny | null)} computeFix
+ * @template {delta.DeltaConf} Conf
+ * @param {import('../schema.js').Schema<delta.Delta<Conf>>} $delta
+ * @param {(state: delta.DeltaBuilderAny) => (delta.DeltaBuilderAny | null)} computeFix
  */
 const constrainedRDT = ($delta, computeFix) => new ConstrainedRDT($delta, computeFix)
 
@@ -287,6 +295,39 @@ export const testBindFixAddsContent = () => {
   t.compare(a.state, b.state, 'both sides converge after the fix')
 }
 
+/**
+ * A transformer manipulates deltas IN PLACE (see its docs), so the binding must hand it a privately-owned
+ * clone of every change — the `'delta'` event payload is a shared read delta, and an in-memory RDT's
+ * `delta` snapshot IS its (frozen) live state. `fullAttributions` is a shipped transformer that consumes
+ * its input via `apply({move:true})`, so it would corrupt the caller's change / throw on a frozen one if
+ * the binding did not `cloneDeep` first — unlike `identity`/`renameAttrs`, which clone internally. This
+ * pins that the binding deep-clones on both the live path (`propagate`) and the initial-state sync.
+ */
+export const testBindDeepClonesForTransformer = () => {
+  const $d = delta.$delta({ text: true })
+  // live path: the caller keeps (and must not have mutated) the change it applied
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  bind(a, b, dt.fullAttributions)
+  a.applyDelta(delta.create().insert('ab', undefined, { insert: ['alice'] }))
+  const change = delta.create().retain(2, undefined, { insertAt: 9 })
+  const snapshot = change.toJSON()
+  a.applyDelta(change)
+  t.compare(change.toJSON(), snapshot, "the caller's change was not mutated in place by the transformer")
+  t.compare(a.state, b.state, 'both sides converge')
+  // a frozen (done) change must not throw when routed through the in-place transformer
+  const frozen = delta.create().insert('c', undefined, { insert: ['bob'] }).done()
+  a.applyDelta(frozen)
+  t.compare(a.state, b.state, 'a done change propagates without error')
+
+  // initial-state sync: `a` already holds (frozen, nested) state before binding through the transformer
+  const a2 = deltaRDT($d)
+  const b2 = deltaRDT($d)
+  a2.applyDelta(delta.create().insert('hello', undefined, { insert: ['alice'] }))
+  bind(a2, b2, dt.fullAttributions) // must not throw or corrupt a2's live state
+  t.compare(b2.state, a2.state, 'b initialized from a through the in-place transformer')
+}
+
 export const testRdtSchema = () => {
   const $d = delta.$delta({ attrs: { x: s.$string } })
   const a = deltaRDT($d)
@@ -314,4 +355,30 @@ export const testBindDestroy = () => {
   b.applyDelta(delta.create().setAttr('x', 'orphan'))
   t.compare(b.state, delta.create().setAttr('x', 'orphan'))
   t.assert(a.state === null, 'destroyed side received no further updates')
+}
+
+/**
+ * The `'delta'` event carries a second `origin` argument (see the "Origins" section of the `RDT`
+ * typedef): `applyDelta(d, origin)` forwards it verbatim, and a change the `Binding` maps onto the
+ * other side carries the binding itself as its origin. This is how a consumer distinguishes the changes
+ * it produced from foreign ones (à la Yjs origins) and skips looping its own changes back.
+ */
+export const testDeltaEventOrigin = () => {
+  const $d = delta.$delta({ attrs: { x: s.$string } })
+  const a = deltaRDT($d)
+  const b = deltaRDT($d)
+  const binding = bind(a, b, identity)
+  /** @type {Array<any>} */
+  const aOrigins = []
+  /** @type {Array<any>} */
+  const bOrigins = []
+  a.on('delta', (_d, origin) => aOrigins.push(origin))
+  b.on('delta', (_d, origin) => bOrigins.push(origin))
+  // a stand-in for a communication provider / editor binding that "produces" the change
+  const provider = {}
+  a.applyDelta(delta.create().setAttr('x', 'v'), provider)
+  // the origin passed to applyDelta is forwarded verbatim on `a`'s own emit ...
+  t.assert(aOrigins.length === 1 && aOrigins[0] === provider, 'applyDelta forwards the caller origin')
+  // ... while the change the binding maps onto `b` is produced by the binding, so it is the origin
+  t.assert(bOrigins.length === 1 && bOrigins[0] === binding, 'binding-mapped change carries the binding as origin')
 }

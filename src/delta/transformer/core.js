@@ -89,6 +89,21 @@ export const $tresult = ($a, $b) => /** @type {any} */ (s.$instanceOf(TransformR
 export const createTransformResult = (a, b) => new TransformResult(a, b)
 
 /**
+ * A stateful, schema-bound mapper between changes of side A and side B, materialized from a
+ * {@link Template} via `init()`.
+ *
+ * ## Deltas are manipulated in place
+ *
+ * `apply`/`applyA`/`applyB` **mutate their input deltas directly** — they rebase nodes and splice op
+ * lists in place, and some transformers `apply(other, { move: true })` the input into an accumulator —
+ * rather than editing only through the copy-on-write `apply`/`rebase` surface. This is a deliberate
+ * exception to the general rule (a delta is normally edited only via `apply`/`rebase`, which re-clone
+ * frozen content on first touch); it keeps the transform allocation-free, but it means a transformer is
+ * an *owning* consumer of the delta it is given. **Callers must pass a privately-owned, fully-mutable
+ * delta** — never a shared or `done` (frozen) one. A caller holding a shared read delta must
+ * {@link import('../delta.js').cloneDeep deep-clone} it first (this is exactly what a
+ * {@link import('../rdt.js').Binding} does before routing a change through its transformer).
+ *
  * @template {import('../delta.js').DeltaConf} A
  * @template {import('../delta.js').DeltaConf} B
  */

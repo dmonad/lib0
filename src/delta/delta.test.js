@@ -1067,6 +1067,87 @@ export const testDeltaAttributionDiffChange = () => {
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
+/**
+ * `cloneDeep` produces a structurally-equal but fully-independent, mutable copy: every nested delta is
+ * itself cloned into a fresh, non-`done` node, so mutating the clone (even in place, as a transformer
+ * does) never touches the — possibly frozen — original. Contrast {@link delta.clone}, which shares nested
+ * deltas frozen.
+ */
+export const testCloneDeep = () => {
+  // a node-tree with a nested child (recursiveChildren) that carries a format + attribution, and a
+  // delta-valued attribute (recursiveAttrs)
+  const $d = delta.$delta({ attrs: { meta: delta.$deltaAny }, text: true, recursiveChildren: true })
+  const orig = delta.create($d)
+    .setAttr('meta', delta.create().insert('m'))
+    .insert([delta.create('p').insert('hi', { bold: true }, { insert: ['alice'] })])
+  orig.addMark(position.create([1], 1, { user: 'kevin' }), 'cursorA') // a cursor rides along
+  orig.done() // freeze, like a settled/shared delta
+
+  const deep = delta.cloneDeep(orig)
+  t.assert(deep.equals(orig), 'deep clone is structurally equal')
+  t.assert(!deep.isDone, 'the clone is a fresh, mutable (non-done) builder')
+  t.compare(position.marksToPositions(deep), position.marksToPositions(orig), 'marks are carried onto the clone')
+  // a delete-mark (deleteMarks) change is carried too
+  const delMark = delta.create().removeMark(position.create([1]), 'cursorA')
+  t.compare(delta.cloneDeep(delMark), delMark, 'a delete-mark change deep-clones equal')
+
+  // nested child is a distinct, mutable object ...
+  const nestedClone = /** @type {delta.DeltaBuilderAny} */ (/** @type {any} */ (deep.children.start).insert[0])
+  const nestedOrig = /** @type {any} */ (orig.children.start).insert[0]
+  t.assert(nestedClone !== nestedOrig, 'nested child is a copy, not shared')
+  t.assert(!nestedClone.isDone, 'nested child of the clone is mutable')
+  // ... and the delta-valued attribute too
+  const attrClone = deep.attrs.meta?.value
+  t.assert(attrClone !== orig.attrs.meta?.value && !(/** @type {any} */ (attrClone).isDone), 'attr delta deep-cloned & mutable')
+
+  // mutating the clone (in place, via apply on the nested node) leaves the frozen original untouched
+  nestedClone.apply(delta.create().retain(2).insert('!'))
+  t.compare(nestedOrig, delta.create('p').insert('hi', { bold: true }, { insert: ['alice'] }), 'original nested node unchanged')
+
+  // a *change* delta (retain/delete/modify, with a nested modify value) round-trips too
+  const change = delta.create().retain(1).delete(1).modify(delta.create().retain(1).insert('x'))
+  t.assert(delta.cloneDeep(change).equals(change), 'a change delta deep-clones equal')
+}
+
+/**
+ * `diff` does not produce a fully fresh delta by default — a wholesale-inserted child node and a
+ * delta-valued attribute are shared by reference from `d2`. `{ clone: true }` deep-clones those
+ * so the result aliases nothing in `d2` (while still round-tripping identically).
+ */
+export const testDiffCloneChildren = () => {
+  const $d = delta.$delta({ text: true, recursiveChildren: true, attrs: { meta: delta.$deltaAny } })
+  const d1 = delta.create($d).insert([delta.create('p').insert('keep')]).done()
+  // d2: a new wholesale-inserted child, a delta-valued attribute, and a modified existing child
+  const d2 = delta.create($d)
+    .setAttr('meta', delta.create().insert('m'))
+    .insert([delta.create('p').insert('keep!'), delta.create('span').insert('new')])
+    .done()
+
+  const d2span = /** @type {any} */ (d2.children.start).insert[1] // d2 holds [<p>, <span>] in one insert op
+
+  // default: the result SHARES nested deltas with d2 (not a fresh delta)
+  const shared = delta.diff(d1, d2)
+  const sharedInsert = /** @type {any} */ (shared.children.end).insert[0] // the wholesale-inserted <span>
+  t.assert(sharedInsert === d2span, 'default diff shares the inserted child with d2')
+  t.assert(shared.attrs.meta?.value === d2.attrs.meta?.value, 'default diff shares the delta-valued attr with d2')
+
+  // clone: fully independent, but the same change
+  const fresh = delta.diff(d1, d2, { clone: true })
+  t.assert(fresh.equals(shared), 'clone yields the same change')
+  const freshInsert = /** @type {delta.DeltaBuilderAny} */ (/** @type {any} */ (fresh.children.end).insert[0])
+  t.assert(freshInsert !== d2span, 'clone deep-clones the inserted child')
+  t.assert(!freshInsert.isDone, 'the cloned insert is mutable')
+  const freshAttr = fresh.attrs.meta?.value
+  t.assert(freshAttr !== d2.attrs.meta?.value && !(/** @type {any} */ (freshAttr).isDone), 'clone deep-clones the delta attr (mutable)')
+  // the nested modify value (recursion) is also independent of d2's child
+  const modInner = /** @type {any} */ (fresh.children.start).value
+  t.assert(!modInner.isDone, 'the nested modify value is mutable (recursion cloned)')
+
+  // both apply-round-trip d1 -> d2
+  t.assert(delta.clone(d1).apply(shared).equals(d2), 'default diff round-trips')
+  t.assert(delta.clone(d1).apply(fresh).equals(d2), 'clone diff round-trips')
+}
+
 export const testDeltaAttributionDiffWithFormat = () => {
   // format and attribution carried on one retain (both incremental, unified)
   const a = delta.create().insert('hello world').done()

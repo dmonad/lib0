@@ -1597,6 +1597,101 @@ export const slice = (d, start = 0, end = d.childCnt, currNode = d.children.star
 export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
 
 /**
+ * Deep-clone a value that may be a nested delta: a fresh {@link cloneDeep} of it when it is a delta,
+ * otherwise the value unchanged (plain JSON content is treated as immutable and shared).
+ *
+ * @param {any} v
+ * @return {any}
+ */
+const _cloneMaybeDeltaDeep = v => $deltaAny.check(v) ? cloneDeep(v) : v
+
+/**
+ * Deep-clone one content (child) op for {@link cloneDeep}: a fresh op whose nested deltas (an insert's
+ * delta content, a modify's value) are themselves deep-cloned. `format`/`attribution` objects are
+ * retained (shared) — they are always copied before being mutated (see {@link cloneDeep}). Ops without a
+ * nested delta a clone keeps (`text`/`retain`/`delete` — `delete` drops its prevValue) use `op.clone()`.
+ *
+ * @param {ChildrenOpAny} op
+ * @return {ChildrenOpAny}
+ */
+const _cloneChildOpDeep = op =>
+  $insertOp.check(op)
+    ? new InsertOp(op.insert.map(_cloneMaybeDeltaDeep), op.format, op.attribution)
+    : ($modifyOp.check(op)
+        ? new ModifyOp(cloneDeep(op.value), op.format, op.attribution)
+        : op.clone())
+
+/**
+ * Deep-clone one attribute op for {@link cloneDeep} — the attribute-dimension mirror of
+ * {@link _cloneChildOpDeep}: a `setAttr`'s value/prevValue and a `modifyAttr`'s value may be nested
+ * deltas and are deep-cloned.
+ *
+ * @param {AttrOpAny} op
+ * @return {AttrOpAny}
+ */
+const _cloneAttrOpDeep = op =>
+  $setAttrOp.check(op)
+    ? new SetAttrOp(op.key, _cloneMaybeDeltaDeep(op.value), _cloneMaybeDeltaDeep(op.prevValue), op.attribution)
+    : ($modifyAttrOp.check(op)
+        ? new ModifyAttrOp(op.key, cloneDeep(op.value), op.attribution)
+        // the only remaining attr op is a deleteAttr (its prevValue may be a nested delta)
+        : new DeleteAttrOp(op.key, _cloneMaybeDeltaDeep(op.prevValue), op.attribution))
+
+/**
+ * A **deep** clone of `d`: like {@link clone}, but every nested delta — an insert's delta content, a
+ * `modify`/`modifyAttr` value, a delta-valued attribute — is itself recursively cloned into a fresh,
+ * **mutable** node, instead of being frozen (`done`) and shared as {@link clone} does. The result and
+ * its whole subtree are therefore independently editable.
+ *
+ * ## What is cloned, and when to reach for this
+ *
+ * A delta owns two kinds of nested state, treated differently on purpose:
+ * - **Ops and (nested) deltas are cloned.** They carry structure edited *in place* — `apply`/`rebase`
+ *   splice op lists and mutate op fields — so a shared copy would be corrupted by a later edit of either
+ *   side.
+ * - **`format`/`attribution` objects and plain JSON insert values are retained (shared).** They are
+ *   always *copied before being changed* (a format/attribution update allocates a new object — see
+ *   {@link mergeAttr}), so sharing them is safe and avoids needless allocation.
+ *
+ * {@link clone} suffices for the common case because a delta is only ever edited through `apply`/`rebase`,
+ * which re-clone a `done` nested delta the first time they touch it (see {@link InsertOp#_modValue}) — the
+ * shared, frozen children are never mutated in place. Reach for `cloneDeep` when a nested delta will be
+ * **manipulated directly** instead of via `apply`/`rebase` — most notably by a
+ * {@link import('./transformer/core.js').Transformer transformer}, which walks and mutates a delta's
+ * ops/children in place. A `done` (frozen) delta must always be cloned before such direct manipulation
+ * (a plain `apply`/`rebase` handles the freeze itself, so it needs no pre-clone).
+ *
+ * @template {DeltaConf} Conf
+ * @param {Delta<Conf>} d
+ * @return {DeltaBuilder<Conf>}
+ */
+export const cloneDeep = d => {
+  const cpy = /** @type {DeltaAny} */ (new DeltaBuilder(d.name, d.$schema))
+  cpy.origin = d.origin
+  cpy.isFinal = d.isFinal
+  for (const op of d.attrs) {
+    // @ts-ignore dynamic attr key (the same limitation `slice` suppresses when copying attrs)
+    cpy.attrs[op.key] = _cloneAttrOpDeep(op)
+  }
+  for (const op of d.children) {
+    list.pushEnd(cpy.children, _cloneChildOpDeep(op))
+  }
+  cpy.childCnt = d.childCnt
+  // marks ride along verbatim — a full clone never clamps number-keyed root marks, and Mark objects are
+  // immutable so they are shared (mirrors slice's full-copy path); a change delta's deleteMarks is copied.
+  if (d.maybeHasMarks) {
+    if (d.marks !== null) {
+      const cpyMarks = new Marks()
+      for (const m of d.marks) cpyMarks.add(m)
+      if (cpyMarks.size > 0) cpy.marks = cpyMarks
+    }
+    cpy.maybeHasMarks = true
+  }
+  if (d.deleteMarks !== null) cpy.deleteMarks = new Set(d.deleteMarks)
+  return /** @type {any} */ (cpy)
+}
+
+/**
  * A *shallow* clone of `d`: a fresh {@link DeltaBuilder} carrying `d`'s name, attribute ops, and own
  * (root) marks — but **no children**. Content-transforming
  * {@link import('./transformer/core.js').Transformer transformers} (e.g. `children`, `value`) rebuild
@@ -3695,6 +3790,12 @@ class _DiffStringWrapper {
  * @property {(d1: DeltaAny, d2: DeltaAny) => boolean} [compare] Predicate deciding when two nodes
  * are paired into a `modify` (vs. replaced wholesale). Defaults to comparing names
  * (`(d1, d2) => d1.name === d2.name`). Called as `compare(fromNode, toNode)`.
+ * @property {boolean} [clone=false] By default `diff` does **not** produce a fully fresh delta: wherever
+ * it emits content from `d2` — a wholesale-inserted child node, or a delta-valued attribute — it *shares*
+ * that nested delta by reference, so the result aliases `d2`'s subtrees. Set `true` to
+ * {@link cloneDeep deep-clone} every such delta (children **and** attributes) as it is included in the
+ * output, yielding a result that shares no structure with `d2` (and is safe to hand to something that
+ * manipulates deltas in place, e.g. a transformer).
  */
 
 /**
@@ -3880,8 +3981,9 @@ export const diff = (d1, d2, options = {}) => {
             // while modifyAttr's param is typed Attribution for API ergonomics
             d.modifyAttr(key, diff(prevVal, nextVal, options), /** @type {Attribution|null|undefined} */ (diffDim(attr1?.attribution, attr2.attribution, true)))
           } else {
-            // setAttr replaces the whole attr, so it carries the new attribution as data (object-or-none)
-            d.setAttr(key, nextVal, attr2.attribution)
+            // setAttr replaces the whole attr, so it carries the new attribution as data (object-or-none).
+            // `nextVal` is shared from `d2`; deep-clone it when the caller wants an independent result.
+            d.setAttr(key, options.clone ? _cloneMaybeDeltaDeep(nextVal) : nextVal, attr2.attribution)
           }
         /* c8 ignore start */
         } else {
@@ -3923,13 +4025,16 @@ const contentLen = c => typeof c === 'string' ? c.length : 1
  */
 const applyRemoves = (d, crem, len) => { len > 0 && d.delete(crem.splice(0, len).map(contentLen).reduce(math.add, 0)) }
 /**
- * Apply inserts from c.insert to d, mutating c.insert to exclude the applied items
+ * Apply inserts from c.insert to d, mutating c.insert to exclude the applied items. A wholesale-inserted
+ * child is a nested delta shared from `d2`; deep-clone it when `cloneChildren` (the diff's `clone` option)
+ * so the result aliases nothing in `d2` (see {@link DiffOptions}).
  *
  * @param {DeltaBuilderAny} d
  * @param {Array<any>} cins
  * @param {number} len
+ * @param {boolean} [cloneChildren]
  */
-const applyInserts = (d, cins, len) => { len > 0 && cins.splice(0, len).forEach(ins => d.insert(typeof ins === 'string' ? ins : [ins instanceof _DiffStringWrapper ? ins.str : ins])) }
+const applyInserts = (d, cins, len, cloneChildren) => { len > 0 && cins.splice(0, len).forEach(ins => d.insert(typeof ins === 'string' ? ins : [ins instanceof _DiffStringWrapper ? ins.str : (cloneChildren ? _cloneMaybeDeltaDeep(ins) : ins)])) }
 
 /**
  * @param {DeltaBuilderAny} d
@@ -3954,13 +4059,13 @@ const applyChangesetToDelta = (d, changeset, compare, options) => {
         continue
       }
       applyRemoves(d, c.remove, cremoveDeltaIndex)
-      applyInserts(d, c.insert, cinsertDeltaIndex)
+      applyInserts(d, c.insert, cinsertDeltaIndex, options.clone)
       d.modify(diff(c.remove[0], c.insert[0], options))
       c.remove.splice(0, 1)
       c.insert.splice(0, 1)
     }
     applyRemoves(d, c.remove, c.remove.length)
-    applyInserts(d, c.insert, c.insert.length)
+    applyInserts(d, c.insert, c.insert.length, options.clone)
   }
   return d
 }
