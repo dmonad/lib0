@@ -175,6 +175,12 @@ const inv = delta.inverse(change, base) // ⇒ retain(6).insert('world').delete(
 Content only: like `diff`, marks are not inverted (cursor state is local/ephemeral cursor data), and
 the result *shares* re-inserted children and restored attribute values with `base`.
 
+The round-trip holds for changes whose content-consuming ops (`retain`/`delete`/`modify`) stay within
+`base`'s bounds. Beyond-base ops degrade gracefully: following ops stay positioned, but there is no
+stored content to restore — and what a final apply *materializes* beyond content (e.g. a format set
+kept as a trailing formatted retain) cannot be removed by any change, so such a change is not fully
+undone.
+
 # Consuming a change: `apply(change, { move: true })`
 
 `apply` defaults to **copying** the applied `change` into the target — the change's nested content is

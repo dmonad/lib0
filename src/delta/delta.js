@@ -4002,6 +4002,12 @@ const inverseDim = (stored, update, deep) => {
  * Content only: marks are local/ephemeral cursor state and are not inverted (mirroring {@link diff}).
  * Like {@link diff}, the result *shares* re-inserted children and restored attribute values with `base`.
  *
+ * The round-trip holds for changes whose content-consuming ops (`retain`/`delete`/`modify`) stay within
+ * `base`'s bounds. Beyond-base ops degrade gracefully: following ops stay positioned, but there is no
+ * stored content to restore — and what a final apply *materializes* beyond content (e.g. a format set
+ * kept as a trailing formatted retain, or an appended modify) cannot be removed by any change, so such
+ * a change is not fully undone.
+ *
  * @template {DeltaConf} Conf
  * @param {DeltaAny} d
  * @param {Delta<Conf>} base
@@ -4056,13 +4062,19 @@ export const inverse = (d, base) => {
       const rest = forBase(op.retain, (bop, start, end) => {
         inv.retain(end - start, inverseDim(bop.format, op.format, false), /** @type {Attribution?} */ (inverseDim(bop.attribution, op.attribution, true)))
       })
-      // a retain beyond base changed no stored content — just keep the position
+      // beyond base there is no stored content to restore — keep following ops positioned (see the
+      // beyond-base note in the fn docs)
       rest > 0 && inv.retain(rest)
     } else if ($modifyOp.check(op)) {
-      const bop = /** @type {InsertOp<any>} */ (baseOp)
-      const node = /** @type {DeltaAny} */ (bop.insert[baseOffset])
-      inv.modify(inverse(/** @type {DeltaAny} */ (op.value), node), inverseDim(bop.format, op.format, false), /** @type {Attribution?} */ (inverseDim(bop.attribution, op.attribution, true)))
-      forBase(1, () => {})
+      if (baseOp == null) {
+        // a modify beyond base edited no stored content — keep the position (mirrors retain-beyond)
+        inv.retain(1)
+      } else {
+        const bop = /** @type {InsertOp<any>} */ (baseOp)
+        const node = /** @type {DeltaAny} */ (bop.insert[baseOffset])
+        inv.modify(inverse(/** @type {DeltaAny} */ (op.value), node), inverseDim(bop.format, op.format, false), /** @type {Attribution?} */ (inverseDim(bop.attribution, op.attribution, true)))
+        forBase(1, () => {})
+      }
     } else if ($deleteOp.check(op)) {
       // re-insert the deleted base content with its stored format/attribution
       forBase(op.delete, (bop, start, end) => {

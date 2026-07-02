@@ -1664,6 +1664,13 @@ export const testInverse = () => {
     t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(5).delete(1).toJSON())
     checkRoundtrip(base, change)
   })
+  t.group('a modify beyond base keeps following ops positioned', () => {
+    // no roundtrip: a final apply materializes the beyond-content modify as an appended op that no
+    // change can remove (see the beyond-base note on inverse) — only positioning is preserved
+    const base = delta.create().insert('ab').done()
+    const change = delta.create().retain(2).modify(delta.create().insert('x')).insert('!').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(3).delete(1).toJSON())
+  })
   t.group('a delete beyond base re-inserts only what base holds', () => {
     // no roundtrip: applying a delete beyond a final doc's content leaves a pending DeleteOp in the
     // doc (degenerate input) — only the inverse's shape is meaningful here
@@ -1740,6 +1747,28 @@ export const testRepeatRandomRichXmlDeltaInverse = tc => {
  */
 export const testRepeatRandomRichXmlDeltaInverseLarge = tc => {
   testDeltaInverse(tc, $richXmlDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
+/**
+ * The recursive modifyAttr branch of `inverse`: random nested changes against a delta-valued
+ * attribute, with random attribution instructions. Fuzzed separately because {@link delta.random}
+ * never generates modifyAttr ops or delta-valued attrs.
+ *
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomInverseModifyAttr = tc => {
+  const gen = tc.prng
+  const inner = delta.random(gen, $richTextDelta, { minChildOps: 1, maxChildOps: 5, attribution: true }).done()
+  const base = delta.create().setAttr('t', inner, prng.bool(gen) ? { insert: ['alice'] } : null).done()
+  const innerChange = delta.random(gen, $richTextDelta, { source: inner, minChildOps: 1, maxChildOps: 5, attribution: true })
+  const attribution = prng.oneOf(gen, [undefined, null, { insert: ['bob'] }])
+  const change = delta.create().modifyAttr('t', innerChange, attribution).done()
+  const inv = delta.inverse(change, base)
+  const doc = delta.clone(base)
+  doc.isFinal = true
+  doc.apply(change)
+  doc.apply(inv)
+  t.compare(doc, delta.clone(base))
 }
 
 export const testDeltaApplyMoveEdges = () => {
