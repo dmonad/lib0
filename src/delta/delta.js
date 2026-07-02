@@ -6,7 +6,7 @@
  * This module exports a large surface, but a consumer only needs a handful of it:
  * - **build / apply / inspect:** {@link create} (the constructor) and the {@link DeltaBuilder} methods
  *   it returns (`insert`/`delete`/`retain`/`modify`/`setAttr`/`addMark`/…, `apply`, `rebase`, `done`);
- *   {@link clone}, {@link slice}, {@link diff}, and `toJSON`/`equals`/`isEmpty` on the result.
+ *   {@link clone}, {@link slice}, {@link diff}, {@link inverse}, and `toJSON`/`equals`/`isEmpty` on the result.
  * - **schemas:** {@link $delta} (define a typed delta schema) and {@link $deltaAny} (the catch-all).
  * - **types:** `Delta`, `DeltaBuilder`, `DeltaAny`, `DeltaConf` for annotations.
  *
@@ -109,7 +109,7 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  */
 
 /**
- * @typedef {{ type: 'insert', value: any, prevValue?: any, attribution?: Attribution } | { type: 'delete', prevValue?: any, attribution?: Attribution } | { type: 'modify', value: DeltaJSON, attribution?: Attribution|null }} DeltaAttrOpJSON
+ * @typedef {{ type: 'insert', value: any, attribution?: Attribution } | { type: 'delete', attribution?: Attribution } | { type: 'modify', value: DeltaJSON, attribution?: Attribution|null }} DeltaAttrOpJSON
  */
 
 /**
@@ -128,9 +128,9 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  * @type {s.Schema<DeltaAttrOpJSON>}
  */
 export const $deltaMapChangeJson = /* @__PURE__ */(() => s.$union(
-  s.$object({ type: s.$literal('insert'), value: s.$any, prevValue: s.$any.optional, attribution: $attribution.optional }),
+  s.$object({ type: s.$literal('insert'), value: s.$any, attribution: $attribution.optional }),
   s.$object({ type: s.$literal('modify'), value: s.$any, attribution: $attribution.optional }),
-  s.$object({ type: s.$literal('delete'), prevValue: s.$any.optional, attribution: $attribution.optional })
+  s.$object({ type: s.$literal('delete'), attribution: $attribution.optional })
 ))()
 
 /**
@@ -531,12 +531,10 @@ export class InsertOp extends list.ListNode {
 export class DeleteOp extends list.ListNode {
   /**
    * @param {number} len
-   * @param {DeltaBuilder<any>?} prevValue
    */
-  constructor (len, prevValue) {
+  constructor (len) {
     super()
     this.delete = len
-    this.prevValue = /** @type {Delta<Conf>?} */ (prevValue)
     /**
      * @type {string|null}
      */
@@ -564,13 +562,10 @@ export class DeleteOp extends list.ListNode {
   /**
    * Remove a part of the operation (similar to Array.splice)
    *
-   * @param {number} offset
+   * @param {number} _offset
    * @param {number} len
    */
-  _splice (offset, len) {
-    if (this.prevValue) {
-      /** @type {DeltaBuilder<any>} */ (this.prevValue).apply(create().retain(offset).delete(len))
-    }
+  _splice (_offset, len) {
     this._fingerprint = null
     this.delete -= len
     return this
@@ -594,11 +589,11 @@ export class DeleteOp extends list.ListNode {
    * @param {number} [start]
    * @param {number} [end]
    * @param {boolean} [_markAsDone] accepted for a uniform children-op `clone` signature; ignored (a
-   * cloned delete carries no prevValue).
+   * delete holds no nested content).
    * @return {DeleteOp}
    */
   clone (start = 0, end = this.delete, _markAsDone = true) {
-    return new DeleteOp(end - start, null)
+    return new DeleteOp(end - start)
   }
 }
 
@@ -822,10 +817,9 @@ export class SetAttrOp {
   /**
    * @param {K} key
    * @param {V} value
-   * @param {V|undefined} prevValue
    * @param {Attribution?} attribution
    */
-  constructor (key, value, prevValue, attribution) {
+  constructor (key, value, attribution) {
     /**
      * @readonly
      * @type {K}
@@ -836,11 +830,6 @@ export class SetAttrOp {
      * @type {V}
      */
     this.value = value
-    /**
-     * @readonly
-     * @type {V|undefined}
-     */
-    this.prevValue = prevValue
     /**
      * @readonly
      * @type {Attribution?}
@@ -905,7 +894,7 @@ export class SetAttrOp {
    * @return {SetAttrOp<V,K>}
    */
   clone () {
-    return new SetAttrOp(this.key, _markMaybeDeltaAsDone(this.value), _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
+    return new SetAttrOp(this.key, _markMaybeDeltaAsDone(this.value), _cloneAttrs(this.attribution))
   }
 }
 
@@ -917,18 +906,13 @@ export class SetAttrOp {
 export class DeleteAttrOp {
   /**
    * @param {K} key
-   * @param {V|undefined} prevValue
    * @param {Attribution?} attribution
    */
-  constructor (key, prevValue, attribution) {
+  constructor (key, attribution) {
     /**
      * @type {K}
      */
     this.key = key
-    /**
-     * @type {V|undefined}
-     */
-    this.prevValue = prevValue
     this.attribution = attribution
     /**
      * @type {string|null}
@@ -977,7 +961,7 @@ export class DeleteAttrOp {
    * @return {DeleteAttrOp<V,K>}
    */
   clone () {
-    return new DeleteAttrOp(this.key, _markMaybeDeltaAsDone(this.prevValue), _cloneAttrs(this.attribution))
+    return new DeleteAttrOp(this.key, _cloneAttrs(this.attribution))
   }
 }
 
@@ -1609,7 +1593,7 @@ const _cloneMaybeDeltaDeep = v => $deltaAny.check(v) ? cloneDeep(v) : v
  * Deep-clone one content (child) op for {@link cloneDeep}: a fresh op whose nested deltas (an insert's
  * delta content, a modify's value) are themselves deep-cloned. `format`/`attribution` objects are
  * retained (shared) — they are always copied before being mutated (see {@link cloneDeep}). Ops without a
- * nested delta a clone keeps (`text`/`retain`/`delete` — `delete` drops its prevValue) use `op.clone()`.
+ * nested delta (`text`/`retain`/`delete`) use `op.clone()`.
  *
  * @param {ChildrenOpAny} op
  * @return {ChildrenOpAny}
@@ -1623,7 +1607,7 @@ const _cloneChildOpDeep = op =>
 
 /**
  * Deep-clone one attribute op for {@link cloneDeep} — the attribute-dimension mirror of
- * {@link _cloneChildOpDeep}: a `setAttr`'s value/prevValue and a `modifyAttr`'s value may be nested
+ * {@link _cloneChildOpDeep}: a `setAttr`'s value and a `modifyAttr`'s value may be nested
  * deltas and are deep-cloned.
  *
  * @param {AttrOpAny} op
@@ -1631,11 +1615,11 @@ const _cloneChildOpDeep = op =>
  */
 const _cloneAttrOpDeep = op =>
   $setAttrOp.check(op)
-    ? new SetAttrOp(op.key, _cloneMaybeDeltaDeep(op.value), _cloneMaybeDeltaDeep(op.prevValue), op.attribution)
+    ? new SetAttrOp(op.key, _cloneMaybeDeltaDeep(op.value), op.attribution)
     : ($modifyAttrOp.check(op)
         ? new ModifyAttrOp(op.key, cloneDeep(op.value), op.attribution)
-        // the only remaining attr op is a deleteAttr (its prevValue may be a nested delta)
-        : new DeleteAttrOp(op.key, _cloneMaybeDeltaDeep(op.prevValue), op.attribution))
+        // the only remaining attr op is a deleteAttr
+        : new DeleteAttrOp(op.key, op.attribution))
 
 /**
  * A **deep** clone of `d`: like {@link clone}, but every nested delta — an insert's delta content, a
@@ -2102,19 +2086,15 @@ export class DeltaBuilder extends Delta {
 
   /**
    * @param {number} len
-   * @param {DeltaBuilder<any>|null} prevValue
    */
-  delete (len, prevValue = null) {
+  delete (len) {
     modDeltaCheck(this)
     const lastOp = /** @type {DeleteOp<any>|InsertOp<any>} */ (this.children.end)
-    if ($deleteOp.check(lastOp) && typeof lastOp.prevValue === typeof prevValue) {
+    if ($deleteOp.check(lastOp)) {
       lastOp.delete += len
       lastOp._fingerprint = null
-      if (prevValue != null) {
-        /** @type {DeltaBuilder<any>} */ (lastOp.prevValue).append(prevValue)
-      }
     } else if (len > 0) {
-      list.pushEnd(this.children, new DeleteOp(len, prevValue))
+      list.pushEnd(this.children, new DeleteOp(len))
     }
     this.childCnt += len
     return this
@@ -2126,14 +2106,13 @@ export class DeltaBuilder extends Delta {
    * @param {Key} key
    * @param {Val} val
    * @param {Attribution?} [attribution] provenance for this attr (data: object or `null`/none)
-   * @param {Val|undefined} [prevValue]
    * @return {DeltaBuilder<DeltaConfOverwrite<Conf,{attrs:AddToAttrs<DeltaConfGetAttrs<Conf>,Key,Val>}>, FixedConf>}
    */
-  setAttr (key, val, attribution, prevValue) {
+  setAttr (key, val, attribution) {
     modDeltaCheck(this)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
-      (new SetAttrOp(/** @type {any} */ (key), val, prevValue, combineData(this.usedAttribution, attribution, true)))
+      (new SetAttrOp(/** @type {any} */ (key), val, combineData(this.usedAttribution, attribution, true)))
     // a delta-valued attribute carries marks in its subtree - flag conservatively (never decremented)
     if ($deltaAny.check(val)) this.maybeHasMarks ||= val.maybeHasMarks
     return /** @type {any} */ (this)
@@ -2161,18 +2140,17 @@ export class DeltaBuilder extends Delta {
    * @template {Extract<keyof DeltaConfGetAllowedAttrs<Conf, FixedConf>,string|number>} Key
    * @param {Key} key
    * @param {Attribution?} [attribution] provenance for the deletion (data: object or `null`/none)
-   * @param {any} [prevValue]
    * @return {DeltaBuilder<DeltaConfOverwrite<Conf, {
    *   attrs: AddToAttrs<DeltaConfGetAttrs<Conf>,Key,never>
    * }>, FixedConf>}
    */
-  deleteAttr (key, attribution, prevValue) {
+  deleteAttr (key, attribution) {
     modDeltaCheck(this)
     // dropping a delta-valued attribute drops its subtree's marks; the conservative `maybeHasMarks` flag
     // is left as-is (never decremented - marksToPositions self-corrects it)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
-      (new DeleteAttrOp(/** @type {any} */ (key), prevValue, combineData(this.usedAttribution, attribution, true)))
+      (new DeleteAttrOp(/** @type {any} */ (key), combineData(this.usedAttribution, attribution, true)))
     return /** @type {any} */ (this)
   }
 
@@ -2240,16 +2218,11 @@ export class DeltaBuilder extends Delta {
           this.maybeHasMarks ||= op.value.maybeHasMarks // flag any marks the new modify value carries
         }
       } else if ($setAttrOp.check(op)) {
-        const prev = c?.value
-        // @ts-ignore
-        op.prevValue = prev
         // a delta-valued attribute carries marks in its subtree - flag conservatively (never decremented)
         if ($deltaAny.check(op.value)) this.maybeHasMarks ||= op.value.maybeHasMarks
         // @ts-ignore
         this.attrs[op.key] = move ? op : op.clone()
       } else if ($deleteAttrOp.check(op)) {
-        const prev = c?.value
-        op.prevValue = prev
         // removing a delta-valued attribute drops its subtree's marks; the conservative `maybeHasMarks`
         // flag is left as-is (never decremented - marksToPositions self-corrects it)
         if (final) {
@@ -2374,7 +2347,7 @@ export class DeltaBuilder extends Delta {
         let remainingLen = op.delete
         while (remainingLen > 0) {
           if (opsI == null) {
-            _insertChild(this, null, scheduleForMerge(new DeleteOp(remainingLen, null)))
+            _insertChild(this, null, scheduleForMerge(new DeleteOp(remainingLen)))
             break
           } else if ($retainOp.check(opsI)) { // retain ⇒ splice retain, insert delete
             const delLen = math.min(opsI.length - offset, remainingLen)
@@ -2388,7 +2361,7 @@ export class DeltaBuilder extends Delta {
               opsI = opNextUndeleted(opsI)
               offset = 0
             }
-            insertClonedOp(new DeleteOp(delLen, null))
+            insertClonedOp(new DeleteOp(delLen))
             remainingLen -= delLen
           } else if ($modifyOp.check(opsI)) { // modify ⇒ delete the source position it stands for
             // a modify op addresses an underlying source position (retain + change), so deleting it
@@ -2398,7 +2371,7 @@ export class DeltaBuilder extends Delta {
             _removeChild(this, opsI)
             opsI = opNextUndeleted(opsI)
             offset = 0
-            insertClonedOp(new DeleteOp(1, null))
+            insertClonedOp(new DeleteOp(1))
             remainingLen -= 1
           } else if (!$deleteOp.check(opsI)) { // insert / embed ⇒ replace
             // case1: delete o fully
@@ -2686,10 +2659,8 @@ export class DeltaBuilder extends Delta {
           otherOffset += maxCommonLen
         } else { // insert/text.check(otherChild)
           if (currOffset > 0) {
-            // clone the LEFT (prefix) and shrink currChild from the front, so the original op survives as
-            // the [currOffset..] suffix — keeping a DeleteOp's prevValue in sync (DeleteOp.clone drops it).
-            _insertChild(this, currChild, currChild.clone(0, currOffset))
-            _shrinkChild(this, currChild, 0, currOffset)
+            // split currChild so the cursor sits on the boundary; continue on the [currOffset..] suffix
+            currChild = _splitChildAt(this, currChild, currOffset)
             currOffset = 0
           }
           _insertChild(this, currChild, new RetainOp(otherChild.length, undefined, undefined))
@@ -4000,6 +3971,106 @@ export const diff = (d1, d2, options = {}) => {
     }
   }
   return d.done(false)
+}
+
+/**
+ * The tri-state update that undoes a `format`/`attribution` instruction `update` against the stored
+ * value `stored` (object or `null`/none) it was applied to: applying the result after `update` restores
+ * `stored`. Merge the instruction onto `stored` the way an apply resolves it ({@link applyDim}), then
+ * diff the merged result back to `stored` ({@link diffDim}). `undefined` (skip) inverts to `undefined`.
+ *
+ * @param {{[k:string]:any}|null|undefined} stored
+ * @param {{[k:string]:any}|null|undefined} update
+ * @param {boolean} deep `true` for the `attribution` dimension (its `format` key merges per inner key —
+ *   see {@link mergeAttr}); `false` for `format` (shallow)
+ * @return {{[k:string]:any}|null|undefined}
+ */
+const inverseDim = (stored, update, deep) => {
+  if (update === undefined) return undefined
+  const merged = update === null ? null : (deep ? mergeAttr(stored, update, true) : mergeShallow(stored, update, true))
+  return diffDim(object.isEmpty(merged) ? null : merged, stored ?? null, deep)
+}
+
+/**
+ * Compute a delta that undoes `d` — a change that was applied to the settled document state `base`
+ * (inserts and set attributes only, e.g. an RDT's final state): `base.apply(d).apply(inverse(d, base))`
+ * equals `base`. Inspired by Quill's `Delta#invert`, `base` supplies what the change alone doesn't
+ * carry: deleted content is re-inserted from `base` (with its stored format/attribution), an
+ * overwritten or deleted attribute is restored to its `base` value, and an inverted `retain`/`modify`
+ * instruction is diffed against the `base` op's stored format/attribution.
+ *
+ * Content only: marks are local/ephemeral cursor state and are not inverted (mirroring {@link diff}).
+ * Like {@link diff}, the result *shares* re-inserted children and restored attribute values with `base`.
+ *
+ * @template {DeltaConf} Conf
+ * @param {DeltaAny} d
+ * @param {Delta<Conf>} base
+ * @return {Delta<Conf>}
+ */
+export const inverse = (d, base) => {
+  const inv = create(d.name === base.name ? d.name : null, $deltaAny)
+  for (const op of d.attrs) {
+    const baseOp = /** @type {AttrOpAny|undefined} */ ((/** @type {any} */ (base.attrs))[op.key])
+    if ($modifyAttrOp.check(op) && $setAttrOp.check(baseOp) && $deltaAny.check(baseOp.value)) {
+      // the modify edited base's nested delta in place: undo it there, and undo the attribution
+      // instruction it merged onto the attr op
+      inv.modifyAttr(op.key, inverse(op.value, baseOp.value), /** @type {Attribution?} */ (inverseDim(baseOp.attribution, op.attribution, true)))
+    } else if ($setAttrOp.check(baseOp)) {
+      // a set/delete (or a modify that replaced a non-delta value) overwrote a settled attr:
+      // restore value + attribution from base
+      inv.setAttr(op.key, baseOp.value, baseOp.attribution)
+    } else if (!$deleteAttrOp.check(op)) {
+      // a set/modify introduced an attr base didn't have: undo by deleting it
+      inv.deleteAttr(op.key)
+    } // else: deleted an attr base didn't have — nothing to restore
+  }
+  // walk base's children alongside d's ops: an insert consumes no base positions; retain/delete/modify
+  // consume their length in base coordinates
+  let baseOp = /** @type {ChildrenOpAny?} */ (base.children.start)
+  let baseOffset = 0
+  /**
+   * Advance the base cursor by `len`, reporting each traversed chunk `(op, start, end)` (stored
+   * format/attribution are uniform per op, so per-op chunks are exact); returns the length that
+   * extends beyond base's content.
+   *
+   * @param {number} len
+   * @param {(op: TextOp|InsertOp<any>, start: number, end: number) => void} f
+   */
+  const forBase = (len, f) => {
+    while (len > 0 && baseOp != null) {
+      const chunk = math.min(len, baseOp.length - baseOffset)
+      f(/** @type {TextOp|InsertOp<any>} */ (baseOp), baseOffset, baseOffset + chunk)
+      len -= chunk
+      baseOffset += chunk
+      if (baseOffset === baseOp.length) {
+        baseOp = baseOp.next
+        baseOffset = 0
+      }
+    }
+    return len
+  }
+  for (const op of d.children) {
+    if ($textOp.check(op) || $insertOp.check(op)) {
+      inv.delete(op.length)
+    } else if ($retainOp.check(op)) {
+      const rest = forBase(op.retain, (bop, start, end) => {
+        inv.retain(end - start, inverseDim(bop.format, op.format, false), /** @type {Attribution?} */ (inverseDim(bop.attribution, op.attribution, true)))
+      })
+      // a retain beyond base changed no stored content — just keep the position
+      rest > 0 && inv.retain(rest)
+    } else if ($modifyOp.check(op)) {
+      const bop = /** @type {InsertOp<any>} */ (baseOp)
+      const node = /** @type {DeltaAny} */ (bop.insert[baseOffset])
+      inv.modify(inverse(/** @type {DeltaAny} */ (op.value), node), inverseDim(bop.format, op.format, false), /** @type {Attribution?} */ (inverseDim(bop.attribution, op.attribution, true)))
+      forBase(1, () => {})
+    } else if ($deleteOp.check(op)) {
+      // re-insert the deleted base content with its stored format/attribution
+      forBase(op.delete, (bop, start, end) => {
+        inv.insert(bop.insert.slice(start, end), bop.format, bop.attribution)
+      })
+    }
+  }
+  return inv.done(false)
 }
 
 /**

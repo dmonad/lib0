@@ -246,7 +246,7 @@ export class ConformTransformer extends Transformer {
         if (t != null) { out.modifyAttr(key, t.applyA(op.value).b); keptAttrKeys.add(key) }
       } else { // deleteAttr (the only remaining attr-op kind)
         const dop = /** @type {delta.DeleteAttrOp<any>} */ (op)
-        out.deleteAttr(key, dop.attribution, dop.prevValue)
+        out.deleteAttr(key, dop.attribution)
         this.transformAttrs.delete(key)
         keptAttrKeys.add(key)
       }
@@ -276,7 +276,7 @@ export class ConformTransformer extends Transformer {
     /** @param {number} n */
     const addRetain = n => addUniform(delta.$retainOp, n, () => new delta.RetainOp(n, null, null)) // n pass-through positions
     /** @param {number} n */
-    const addDrop = n => addUniform(delta.$deleteOp, n, () => new delta.DeleteOp(n, null)) // n dropped positions
+    const addDrop = n => addUniform(delta.$deleteOp, n, () => new delta.DeleteOp(n)) // n dropped positions
     /** @param {ConformTransformer} t */
     const addTransformed = t => { // one child routed through nested conform `t`
       if (src != null && delta.$insertOp.check(src)) { delta._spliceInsert(cmap, src, off, [t]); off += 1 } else { splitCursor(); delta._mergeChildWithPrev(cmap, delta._insertChild(cmap, src, new delta.InsertOp([t], null, null))) }

@@ -181,9 +181,9 @@ const buildFull = (d, overlay) => {
       const childOverlay = (oa != null && delta.$modifyAttrOp.check(oa) && delta.$deltaAny.check(oa.value)) ? oa.value : null
       full.modifyAttr(aop.key, delta.$deltaAny.check(aop.value) ? buildFull(aop.value, childOverlay) : aop.value, applyFull(oa == null ? undefined : oa.attribution, aop.attribution))
     } else if (delta.$setAttrOp.check(aop)) {
-      full.setAttr(aop.key, aop.value, aop.attribution, aop.prevValue)
+      full.setAttr(aop.key, aop.value, aop.attribution)
     } else if (delta.$deleteAttrOp.check(aop)) {
-      full.deleteAttr(aop.key, aop.attribution, aop.prevValue)
+      full.deleteAttr(aop.key, aop.attribution)
     }
   }
   full.done(false)

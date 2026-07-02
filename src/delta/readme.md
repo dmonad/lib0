@@ -156,6 +156,25 @@ d.apply(delta.create().modify(
 ))
 ```
 
+# Inverting a change: `inverse(d, base)`
+
+`delta.inverse(d, base)` computes the change that undoes `d` against `base` — the settled document
+state (inserts and set attributes only) that `d` was applied to. It works like
+[Quill's `Delta#invert`](https://github.com/slab/delta#invert): `base` supplies what the change alone
+doesn't carry — deleted content is re-inserted from `base` (with its stored format/attribution),
+an overwritten or deleted attribute is restored to its `base` value, and an inverted `retain`/`modify`
+format/attribution instruction is diffed against the `base` op's stored values.
+
+```javascript
+const base = delta.create().insert('hello world').done()
+const change = delta.create().retain(6).delete(5).insert('there')
+const inv = delta.inverse(change, base) // ⇒ retain(6).insert('world').delete(5)
+// base.apply(change).apply(inv) equals base
+```
+
+Content only: like `diff`, marks are not inverted (cursor state is local/ephemeral cursor data), and
+the result *shares* re-inserted children and restored attribute values with `base`.
+
 # Consuming a change: `apply(change, { move: true })`
 
 `apply` defaults to **copying** the applied `change` into the target — the change's nested content is

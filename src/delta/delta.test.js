@@ -570,7 +570,6 @@ export const testMapDelta = _tc => {
   t.compare(d.origin, null)
   for (const change of d.attrs) {
     if (change.key === 'v') {
-      t.assert(d.attrs[change.key]?.prevValue !== 94) // should know that value is number
       if (delta.$setAttrOp.check(change)) {
         // @ts-expect-error
         t.assert(change.value !== '')
@@ -581,11 +580,6 @@ export const testMapDelta = _tc => {
         t.fail('should be an insert op')
       }
     } else if (change.key === 'key') {
-      if (change.type === 'insert') {
-        t.assert(change.prevValue !== 'test')
-        // @ts-expect-error should know that prevValue is not a string
-        t.assert(change.prevValue !== 42)
-      }
       t.assert(d.attrs[change.key]?.value === 'value') // show know that value is a string
       t.assert(change.value === 'value')
     } else if (change.key === 'over') {
@@ -1587,6 +1581,167 @@ export const testRepeatRandomRichXmlDeltaDiff = tc => {
   testDeltaDiff(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 })
 }
 
+/**
+ * `inverse(change, base)` computes the change that undoes `change` against the settled document
+ * `base` it was applied to (inspired by Quill's `Delta#invert`): inserted content is deleted, deleted
+ * content is re-inserted from `base` (with its stored format/attribution), overwritten/removed
+ * attributes are restored, and retain/modify format & attribution instructions are inverted against
+ * the stored values.
+ */
+export const testInverse = () => {
+  /**
+   * Apply `change` on `base` (as a final doc), then the inverse; expect `base` back.
+   *
+   * @param {delta.DeltaAny} base
+   * @param {delta.DeltaAny} change
+   */
+  const checkRoundtrip = (base, change) => {
+    const inv = delta.inverse(change, base)
+    const doc = delta.clone(base)
+    doc.isFinal = true
+    doc.apply(change)
+    doc.apply(inv)
+    doc.done(false) // trim the trailing bare retain a beyond-content change leaves behind
+    t.compare(doc, delta.clone(base))
+  }
+  t.group('text: insert deletes, delete re-inserts from base', () => {
+    const base = delta.create().insert('hello world').done()
+    const change = delta.create().retain(6).delete(5).insert('there').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(6).insert('world').delete(5).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('formats: a set inverts to a removal, a removal/clear restores stored values', () => {
+    const base = delta.create().insert('ab', { bold: true }).insert('cd').done()
+    const change = delta.create().retain(1, { bold: null, italic: true }).retain(2, null).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(1, { bold: true, italic: null }).retain(1, { bold: true }).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('attribution: set/clear instructions invert against stored attribution', () => {
+    const base = delta.create().insert('ab', null, { insert: ['alice'] }).done()
+    const change = delta.create().retain(1, undefined, { insert: ['bob'] }).retain(1, undefined, null).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(2, undefined, { insert: ['alice'] }).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group("attribution's nested format part inverts per inner key", () => {
+    const base = delta.create().insert('a', null, { insert: ['alice'], format: { bold: ['alice'] } }).done()
+    const change = delta.create().retain(1, undefined, { format: { italic: ['bob'] } }).done()
+    // (a `{k:null}` inner removal isn't a canonical Attribution -> cast, mirroring diff's own emit)
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(1, undefined, /** @type {any} */ ({ format: { italic: null } })).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('attrs: set/delete restore the base value + attribution, new attrs are deleted', () => {
+    const base = delta.create().setAttr('a', 1).setAttr('b', 2, { insert: ['alice'] }).done()
+    const change = delta.create().setAttr('a', 10).setAttr('c', 3).deleteAttr('b').deleteAttr('missing').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().setAttr('a', 1).deleteAttr('c').setAttr('b', 2, { insert: ['alice'] }).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('modifyAttr: inverts the nested change against the base attr value', () => {
+    const base = delta.create().setAttr('t', delta.create().insert('hello').done(), { insert: ['alice'] }).done()
+    const change = delta.create().modifyAttr('t', delta.create().retain(2).delete(3), { insert: ['bob'] }).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().modifyAttr('t', delta.create().retain(2).insert('llo'), { insert: ['alice'] }).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('modifyAttr on a missing/scalar attr restores the base state', () => {
+    const base = delta.create().setAttr('s', 1).done()
+    // (modifyAttr on an untyped/scalar attr is invalid input -> cast)
+    const changeMissing = /** @type {any} */ (delta.create().modifyAttr('m', delta.create().insert('x'))).done()
+    t.compare(delta.inverse(changeMissing, base).toJSON(), delta.create().deleteAttr('m').toJSON())
+    checkRoundtrip(base, changeMissing)
+    const changeScalar = /** @type {any} */ (delta.create().modifyAttr('s', delta.create().insert('x'))).done()
+    t.compare(delta.inverse(changeScalar, base).toJSON(), delta.create().setAttr('s', 1).toJSON())
+    checkRoundtrip(base, changeScalar)
+  })
+  t.group('modify: inverts the nested change and the format instruction', () => {
+    const inner = delta.create('p', { x: 'old' }, 'text').done()
+    const base = delta.create().insert([inner]).insert('tail').done()
+    const change = delta.create().modify(delta.create().setAttr('x', 'new').retain(2).delete(2), { fmt: 1 }).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().modify(delta.create().setAttr('x', 'old').retain(2).insert('xt'), { fmt: null }).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('a retain beyond base keeps following ops positioned', () => {
+    const base = delta.create().insert('ab').done()
+    const change = delta.create().retain(5).insert('!').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(5).delete(1).toJSON())
+    checkRoundtrip(base, change)
+  })
+  t.group('a delete beyond base re-inserts only what base holds', () => {
+    // no roundtrip: applying a delete beyond a final doc's content leaves a pending DeleteOp in the
+    // doc (degenerate input) — only the inverse's shape is meaningful here
+    const base = delta.create().insert('ab').done()
+    const change = delta.create().delete(5).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.create().insert('ab').toJSON())
+  })
+}
+
+/**
+ * `base.apply(change).apply(inverse(change, base))` round-trips back to `base` for random changes —
+ * content, formats, attributions, nested nodes, and attributes alike.
+ *
+ * @template {delta.DeltaConf} Conf
+ * @param {t.TestCase} tc
+ * @param {s.Schema<delta.Delta<Conf>>} $d
+ * @param {{ minChildOps: number, maxChildOps: number }} opts
+ */
+const testDeltaInverse = (tc, $d, opts) => {
+  const base = delta.random(tc.prng, $d, { ...opts, attribution: true }).done()
+  const change = delta.random(tc.prng, $d, { source: base, ...opts, attribution: true })
+  const inv = delta.inverse(change, base)
+  const doc = delta.clone(base)
+  doc.isFinal = true
+  doc.apply(change)
+  doc.apply(inv)
+  t.compare(doc, delta.clone(base))
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomTextDeltaInverse = tc => {
+  testDeltaInverse(tc, $textDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomMapDeltaInverse = tc => {
+  testDeltaInverse(tc, $mapDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomArrayDeltaInverse = tc => {
+  testDeltaInverse(tc, $arrayDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomXmlDeltaInverse = tc => {
+  testDeltaInverse(tc, $xmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichTextDeltaInverse = tc => {
+  testDeltaInverse(tc, $richTextDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichXmlDeltaInverse = tc => {
+  testDeltaInverse(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 })
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomRichXmlDeltaInverseLarge = tc => {
+  testDeltaInverse(tc, $richXmlDelta, { minChildOps: 50, maxChildOps: 80 })
+}
+
 export const testDeltaApplyMoveEdges = () => {
   // deterministic coverage for the move-mode op clones the random fuzz only hits probabilistically.
   // modify PAST the end of the content -> the modify op is cloned (opsI == null); move must not freeze it
@@ -2068,35 +2223,18 @@ export const testReadonlyAfterDone = () => {
 }
 
 /**
- * `delete(len, prevValue)` records the content that was removed (used to
- * compute inverses). Two adjacent `.delete()` calls merge: their lengths add
- * and their `prevValue` deltas concatenate via `append`.
+ * Two adjacent `.delete()` calls merge into one op, and a concurrent insert
+ * landing in the middle of a delete splits it around the new content.
  */
-export const testDeleteWithPrevValue = () => {
-  t.group('adjacent deletes with non-null prevValue concatenate', () => {
-    const d = delta.create()
-      .delete(2, delta.create().insert('ab'))
-      .delete(3, delta.create().insert('cde'))
-    t.assert(d.children.len === 1, 'deletes merged into one op')
-    const op = d.children.start
-    t.assert(delta.$deleteOp.check(op))
-    t.assert(/** @type {any} */ (op).delete === 5, 'lengths added')
-    t.compare(/** @type {any} */ (op).prevValue, delta.create().insert('abcde'))
-  })
-  t.group('adjacent deletes with null prevValue still merge', () => {
+export const testDeleteMergeAndSplit = () => {
+  t.group('adjacent deletes merge', () => {
     const d = delta.create().delete(2).delete(3)
     t.assert(d.children.len === 1)
     const op = /** @type {any} */ (d.children.start)
     t.assert(op.delete === 5)
-    t.assert(op.prevValue === null)
   })
-  t.group('DeleteOp._splice keeps prevValue in sync when the delete is split by a concurrent insert', () => {
-    // A concurrent insert that lands in the middle of a delete forces the
-    // rebase to split the delete around the new content. The surviving tail
-    // DeleteOp must drop the prefix from its prevValue — otherwise the
-    // recorded "what was deleted" no longer matches `this.delete`, and an
-    // inverse computed from it would re-insert the wrong bytes.
-    const d1 = delta.create().delete(5, delta.create().insert('abcde'))
+  t.group('a delete is split by a concurrent insert', () => {
+    const d1 = delta.create().delete(5)
     const d2 = delta.create().retain(2).insert('XYZ').done()
     d1.rebase(d2, false)
     /** @type {Array<any>} */
@@ -2106,11 +2244,6 @@ export const testDeleteWithPrevValue = () => {
     t.assert(delta.$deleteOp.check(ops[0]) && ops[0].delete === 2)
     t.assert(delta.$retainOp.check(ops[1]) && ops[1].retain === 3)
     t.assert(delta.$deleteOp.check(ops[2]) && ops[2].delete === 3)
-    // The original op survives as the tail (suffix); _splice removed the
-    // first two entries from its prevValue, leaving just 'cde'.
-    t.compare(ops[2].prevValue, delta.create().insert('cde'))
-    // DeleteOp.clone() drops prevValue, so the prefix DeleteOp has none.
-    t.assert(ops[0].prevValue === null)
   })
 }
 

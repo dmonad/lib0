@@ -173,9 +173,9 @@ const stripAttrAttributions = (out) => {
     if (delta.$modifyAttrOp.check(op)) {
       if (op.attribution !== undefined) out.modifyAttr(op.key, op.value)
     } else if (delta.$setAttrOp.check(op)) {
-      if (op.attribution != null) out.setAttr(op.key, op.value, undefined, op.prevValue)
+      if (op.attribution != null) out.setAttr(op.key, op.value)
     } else if (op.attribution != null) { // DeleteAttrOp
-      out.deleteAttr(op.key, undefined, op.prevValue)
+      out.deleteAttr(op.key)
     }
   }
 }
