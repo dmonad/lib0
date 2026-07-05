@@ -156,6 +156,13 @@ const propagate = (binding, ta, tb) => {
 }
 
 /**
+ * @typedef {object} BindOptions
+ * @property {delta.DiffOptions['compare']} [diffCompare] **Experimental** (may be changed or removed
+ * in a future release). Forwarded as `compare` to {@link delta.diff} when the initial-state sync diffs
+ * `a`'s projection against `b`'s current state, controlling how nodes are paired into `modify` ops.
+ */
+
+/**
  * Connects two RDTs so that changes on either side are transformed and reflected on the other.
  *
  * The {@link dt.Transformer transformer} it drives **manipulates deltas in place** (it splices op lists
@@ -174,8 +181,9 @@ export class Binding {
    * @param {RDT<B>} b
    * @param {dt.TemplateFactory<A,B>} [template] a `$d => Template` factory; defaults to the
    * {@link dt.id identity} transformer. `bind` injects `a`'s schema, then materializes via `.init()`.
+   * @param {BindOptions} [options]
    */
-  constructor (a, b, template = /** @type {dt.TemplateFactory<A,B>} */ (dt.id)) {
+  constructor (a, b, template = /** @type {dt.TemplateFactory<A,B>} */ (dt.id), options = {}) {
     /**
      * @type {dt.Transformer<A,B>}
      */
@@ -210,7 +218,7 @@ export class Binding {
       // `diff` shares nested children with `tres.b` by default, and `tres.b` is a (possibly stateful)
       // transformer's output that may still alias its internal state — so `clone` keeps the diff
       // independent, since it is then applied into `b` (which freezes it) and propagated onward.
-      const diffB = tres.b ? delta.diff(this.b.delta, tres.b, { clone: true }) : null
+      const diffB = tres.b ? delta.diff(this.b.delta, tres.b, { clone: true, compare: options.diffCompare }) : null
       const fb = diffB ? this.b.applyDelta(diffB, this) : null
       propagate(this, fa, fb)
     })
@@ -241,6 +249,7 @@ export class Binding {
  * @param {RDT<B>} b
  * @param {dt.TemplateFactory<A,B>} [template] a `$d => Template` factory (e.g. `dt.id` or
  * `$d => dt.renameAttrs($d, {a:'b'})`)
+ * @param {BindOptions} [options] `diffCompare` is **experimental** — see {@link BindOptions}.
  * @return {Binding<A,B>}
  */
-export const bind = (a, b, template) => new Binding(a, b, template)
+export const bind = (a, b, template, options = {}) => new Binding(a, b, template, options)
