@@ -144,8 +144,10 @@ const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
  * as the inner step of {@link mergeAttr}). Per key: `undefined` skips, `null` removes, anything else sets.
  * `resolve` true (data semantics) applies a `null` removal by deleting the key; false (instruction semantics)
  * keeps the `null` verbatim so it still removes when the instruction is later applied. When `resolve` is true
- * the `base` is canonicalised too — a `{k:null}` already present in `base` (e.g. from a `useAttribution`
- * context) has nothing to clear on settled data, so it is dropped rather than copied through.
+ * the `base` is canonicalised too — a `{k:null}` already present in `base` has nothing to clear on settled
+ * data, so it is dropped rather than copied through. (The used-context call sites pass pre-resolved
+ * companions — see {@link resolveUsedData} — so for them this is a no-op safety net; it matters for the
+ * apply/diff paths that merge instructions onto stored values.)
  *
  * @param {{[k:string]:any}|null|undefined} base
  * @param {{[k:string]:any}} update
@@ -225,46 +227,83 @@ const resolveBeyond = (arg, deep) => {
   return object.isEmpty(m) ? undefined : m
 }
 /**
- * Combine a builder's `used*` context (set via {@link DeltaBuilder#useFormats}/`useAttribution`) with
- * a per-call format/attribution argument under the unified tri-state: `undefined` inherits the context
- * (or stays `undefined` — "skip" — when there is none); `null` clears (ignoring the context); an object
- * merges over the context. `resolve` true (data op) applies any `{k:null}` removal against the context so the
- * stored value is canonical (no `null` leaves); false (instruction op) keeps removals verbatim for later.
+ * Resolve a `used*` context (set via {@link DeltaBuilder#useFormats}/`useAttribution`) for **data**
+ * consumption: settled data stores canonical values only
+ * (no `null` leaves — see {@link combineData}), while the slot itself keeps removal instructions
+ * verbatim for the instruction ops it governs. Returns the SAME object when it is already canonical
+ * (the common case — provenance contexts carry no removals), so every data op under one context shares
+ * one interned object; otherwise strips the removals ONCE into a shared copy (`{}` collapses to `null`).
+ * Never called per op — {@link DeltaBuilder#_getUsedFormatsData} caches the result per context object.
  *
  * @param {{[k:string]:any}|null} used
+ * @param {boolean} deep `true` for the `attribution` dimension (its `format` key resolves one level
+ *   deeper via {@link mergeAttr}); `false` for `format` (shallow, {@link mergeShallow})
+ * @return {{[k:string]:any}|null}
+ */
+const resolveUsedData = (used, deep) => {
+  if (used === null) return null
+  let empty = true
+  let canonical = true
+  for (const k in used) {
+    empty = false
+    const v = used[k]
+    if (v === null) { canonical = false; break } // a top-level removal (incl. `format: null`)
+    if (deep && k === 'format' && s.$objectAny.check(v)) {
+      // mirror mergeAttr's resolve-mode base handling: an emptied `format` is dropped on data, and an
+      // inner `{k:null}` removal is stripped — either makes the context non-canonical for data ops
+      let formatCanonical = false // empty `format: {}` ⇒ non-canonical
+      for (const ik in v) {
+        if (v[ik] === null) { formatCanonical = false; break }
+        formatCanonical = true
+      }
+      if (!formatCanonical) { canonical = false; break }
+    }
+  }
+  if (empty) return null
+  if (canonical) return used
+  const m = deep ? mergeAttr(used, {}, true) : mergeShallow(used, {}, true)
+  return object.isEmpty(m) ? null : m
+}
+/**
+ * Combine a builder's `used*` context with a per-call format/attribution argument for an
+ * **instruction** op (`retain`/`modify`/`modifyAttr`) under the unified tri-state: `undefined` — or an
+ * empty object, an empty update — inherits the context BY IDENTITY (no traversal, no copy; contexts
+ * are interned); `null` clears (ignoring the context); a non-empty object merges over the context,
+ * keeping `{k:null}` removals verbatim so they still remove when the instruction is later applied.
+ * An empty result is a no-op → `undefined` (skip).
+ *
+ * @param {{[k:string]:any}|null} used the raw context slot (removal instructions intact)
  * @param {{[k:string]:any}|null|undefined} arg
  * @param {boolean} deep `true` for the `attribution` dimension (its `format` key merges per inner key via
  *   {@link mergeAttr}); `false` for `format` (shallow, {@link mergeShallow}).
- * @param {boolean} resolve see above ({@link mergeShallow})
  * @return {{[k:string]:any}|null|undefined}
  */
-const combineUsed = (used, arg, deep, resolve) =>
-  arg === undefined
-    ? (used === null ? undefined : used)
-    : arg === null
-      ? null
-      : (deep ? mergeAttr(used, arg, resolve) : mergeShallow(used, arg, resolve))
+const combineInstr = (used, arg, deep) => {
+  if (arg === null) return null // explicit clear — must precede the isEmpty check (object.isEmpty(null) is true)
+  if (arg === undefined || object.isEmpty(arg)) return used === null || object.isEmpty(used) ? undefined : used
+  const r = deep ? mergeAttr(used, arg, false) : mergeShallow(used, arg, false)
+  return object.isEmpty(r) ? undefined : r
+}
 /**
- * Combine + normalize for an **instruction** op (`retain`/`modify`/`modifyAttr`): keep the tri-state —
- * `undefined` (skip), `null` (clear), or a non-empty object; an empty merge result `{}` is a no-op → `undefined`.
+ * Combine for a **data** op (`insert`/`text`/`setAttr`/`deleteAttr`): the stored value is a canonical
+ * object or `null` ("none") — never a `{k:null}` removal, there is nothing to remove on settled data.
+ * `usedData` is the builder's RESOLVED context companion ({@link resolveUsedData}, cached by
+ * {@link DeltaBuilder#_getUsedFormatsData}) and thus already canonical (`null` or a non-empty
+ * no-`null` object), so `undefined` — or an empty object, an empty update — inherits it BY IDENTITY
+ * (no traversal, no copy); `null` clears; a non-empty object merges over it, resolving the argument's
+ * own `{k:null}` removals. `{}` results collapse to `null`.
  *
- * @param {{[k:string]:any}|null} used
+ * @param {{[k:string]:any}|null} usedData
  * @param {{[k:string]:any}|null|undefined} arg
- * @param {boolean} deep see {@link combineUsed}
- * @return {{[k:string]:any}|null|undefined}
- */
-const combineInstr = (used, arg, deep) => { const r = combineUsed(used, arg, deep, false); return r !== null && object.isEmpty(r) ? undefined : r }
-/**
- * Combine + normalize for a **data** op (`insert`/`text`/`setAttr`/`deleteAttr`): the stored value is a
- * canonical object or `null` ("none") — `{k:null}` removals are resolved against the context, and
- * `undefined`/`null`/`{}` all collapse to `null`.
- *
- * @param {{[k:string]:any}|null} used
- * @param {{[k:string]:any}|null|undefined} arg
- * @param {boolean} deep see {@link combineUsed}
+ * @param {boolean} deep see {@link combineInstr}
  * @return {{[k:string]:any}|null}
  */
-const combineData = (used, arg, deep) => { const r = combineUsed(used, arg, deep, true); return object.isEmpty(r) ? null : /** @type {{[k:string]:any}} */ (r) }
+const combineData = (usedData, arg, deep) => {
+  if (arg === null) return null // explicit clear — must precede the isEmpty check (object.isEmpty(null) is true)
+  if (arg === undefined || object.isEmpty(arg)) return usedData
+  const r = deep ? mergeAttr(usedData, arg, true) : mergeShallow(usedData, arg, true)
+  return object.isEmpty(r) ? null : /** @type {{[k:string]:any}} */ (r)
+}
 /**
  * @template {any} MaybeDelta
  * @param {MaybeDelta} maybeDelta
@@ -1903,30 +1942,98 @@ export class DeltaBuilder extends Delta {
     /**
      * @type {Formats?}
      */
-    this.usedFormats = null
+    this._usedFormats = null
     /**
      * @type {Attribution?}
      */
-    this.usedAttribution = null
+    this._usedAttribution = null
+    /**
+     * Resolved data-companion cache for the `used*` contexts ({@link resolveUsedData}): what data
+     * ops inherit instead of the raw context. `undefined` = stale, recomputed on the next data-op
+     * consumption ({@link DeltaBuilder#_getUsedFormatsData}) — {@link DeltaBuilder#useFormats} & co
+     * clear it whenever they swap the context (which is why the public slots are read-only).
+     *
+     * @type {Formats|null|undefined}
+     */
+    this._usedFormatsData = undefined
+    /**
+     * @type {Attribution|null|undefined}
+     */
+    this._usedAttributionData = undefined
   }
 
   /**
+   * The ambient formats context inherited by subsequent ops. Read-only: set it via
+   * {@link DeltaBuilder#useFormats} / {@link DeltaBuilder#updateUsedFormats}, which also invalidate
+   * the cached data companion — a direct overwrite would leave it stale.
+   *
+   * @return {Formats?}
+   */
+  get usedFormats () { return this._usedFormats }
+
+  /**
+   * The ambient attribution context inherited by subsequent ops. Read-only — see
+   * {@link DeltaBuilder#usedFormats}; set it via {@link DeltaBuilder#useAttribution} /
+   * {@link DeltaBuilder#updateUsedAttribution}.
+   *
+   * @return {Attribution?}
+   */
+  get usedAttribution () { return this._usedAttribution }
+
+  /**
+   * Set the ambient attribution context inherited by subsequent ops (`undefined`/empty dim args).
+   * The object is interned — instruction ops store it, and data ops store its resolved companion
+   * ({@link resolveUsedData}), BY REFERENCE. Never mutate it after setting; pass a fresh object
+   * instead (same invariant as the objects stored on ops).
+   *
    * @param {Attribution?} attribution
    */
   useAttribution (attribution) {
     modDeltaCheck(this)
-    this.usedAttribution = attribution
+    if (this._usedAttribution !== attribution) {
+      this._usedAttribution = attribution
+      this._usedAttributionData = undefined // clear the data companion — recomputed on next consumption
+    }
     return this
   }
 
   /**
+   * Set the ambient formats context inherited by subsequent ops (`undefined`/empty dim args). The
+   * object is interned — see {@link DeltaBuilder#useAttribution}: never mutate it after setting.
+   *
    * @param {Formats?} attributes
    * @return {this}
    */
   useFormats (attributes) {
     modDeltaCheck(this)
-    this.usedFormats = attributes
+    if (this._usedFormats !== attributes) {
+      this._usedFormats = attributes
+      this._usedFormatsData = undefined // clear the data companion — recomputed on next consumption
+    }
     return this
+  }
+
+  /**
+   * The `usedFormats` context resolved for data-op consumption ({@link resolveUsedData}): the slot
+   * object itself when it carries no `{k:null}` removals, one shared stripped copy otherwise.
+   * Cached until the context is swapped — no per-op traversal.
+   *
+   * @return {Formats?}
+   */
+  _getUsedFormatsData () {
+    const d = this._usedFormatsData
+    return d !== undefined ? d : (this._usedFormatsData = /** @type {Formats?} */ (resolveUsedData(this._usedFormats, false)))
+  }
+
+  /**
+   * See {@link DeltaBuilder#_getUsedFormatsData} — the `usedAttribution` analogue (its `format` key
+   * resolves one level deeper).
+   *
+   * @return {Attribution?}
+   */
+  _getUsedAttributionData () {
+    const d = this._usedAttributionData
+    return d !== undefined ? d : (this._usedAttributionData = /** @type {Attribution?} */ (resolveUsedData(this._usedAttribution, true)))
   }
 
   /**
@@ -1936,14 +2043,16 @@ export class DeltaBuilder extends Delta {
   updateUsedFormats (name, value) {
     modDeltaCheck(this)
     if (value == null) {
-      this.usedFormats = object.assign({}, this.usedFormats)
-      delete this.usedFormats?.[name]
-      if (object.isEmpty(this.usedFormats)) {
-        this.usedFormats = null
+      this._usedFormats = object.assign({}, this._usedFormats)
+      delete this._usedFormats?.[name]
+      if (object.isEmpty(this._usedFormats)) {
+        this._usedFormats = null
       }
-    } else if (!fun.equalityDeep(this.usedFormats?.[name], value)) {
-      this.usedFormats = object.assign({}, this.usedFormats)
-      this.usedFormats[name] = value
+      this._usedFormatsData = undefined // clear the data companion — recomputed on next consumption
+    } else if (!fun.equalityDeep(this._usedFormats?.[name], value)) {
+      this._usedFormats = object.assign({}, this._usedFormats)
+      this._usedFormats[name] = value
+      this._usedFormatsData = undefined // clear the data companion — recomputed on next consumption
     }
     return this
   }
@@ -1956,14 +2065,16 @@ export class DeltaBuilder extends Delta {
   updateUsedAttribution (name, value) {
     modDeltaCheck(this)
     if (value == null) {
-      this.usedAttribution = object.assign({}, this.usedAttribution)
-      delete this.usedAttribution?.[name]
-      if (object.isEmpty(this.usedAttribution)) {
-        this.usedAttribution = null
+      this._usedAttribution = object.assign({}, this._usedAttribution)
+      delete this._usedAttribution?.[name]
+      if (object.isEmpty(this._usedAttribution)) {
+        this._usedAttribution = null
       }
-    } else if (!fun.equalityDeep(this.usedAttribution?.[name], value)) {
-      this.usedAttribution = object.assign({}, this.usedAttribution)
-      this.usedAttribution[name] = value
+      this._usedAttributionData = undefined // clear the data companion — recomputed on next consumption
+    } else if (!fun.equalityDeep(this._usedAttribution?.[name], value)) {
+      this._usedAttribution = object.assign({}, this._usedAttribution)
+      this._usedAttribution[name] = value
+      this._usedAttributionData = undefined // clear the data companion — recomputed on next consumption
     }
     return this
   }
@@ -1980,8 +2091,8 @@ export class DeltaBuilder extends Delta {
    */
   insert (insert, formatting, attribution) {
     modDeltaCheck(this)
-    const mergedFormats = combineData(this.usedFormats, formatting, false)
-    const mergedAttribution = combineData(this.usedAttribution, attribution, true)
+    const mergedFormats = combineData(this._getUsedFormatsData(), formatting, false)
+    const mergedAttribution = combineData(this._getUsedAttributionData(), attribution, true)
     /**
      * @param {TextOp | InsertOp<any>} lastOp
      */
@@ -2112,7 +2223,7 @@ export class DeltaBuilder extends Delta {
     modDeltaCheck(this)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
-      (new SetAttrOp(/** @type {any} */ (key), val, combineData(this.usedAttribution, attribution, true)))
+      (new SetAttrOp(/** @type {any} */ (key), val, combineData(this._getUsedAttributionData(), attribution, true)))
     // a delta-valued attribute carries marks in its subtree - flag conservatively (never decremented)
     if ($deltaAny.check(val)) this.maybeHasMarks ||= val.maybeHasMarks
     return /** @type {any} */ (this)
@@ -2150,7 +2261,7 @@ export class DeltaBuilder extends Delta {
     // is left as-is (never decremented - marksToPositions self-corrects it)
     // @ts-ignore
     this.attrs[key] /** @type {any} */ =
-      (new DeleteAttrOp(/** @type {any} */ (key), combineData(this.usedAttribution, attribution, true)))
+      (new DeleteAttrOp(/** @type {any} */ (key), combineData(this._getUsedAttributionData(), attribution, true)))
     return /** @type {any} */ (this)
   }
 

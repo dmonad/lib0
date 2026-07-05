@@ -1681,6 +1681,139 @@ export const testInverse = () => {
 }
 
 /**
+ * REGRESSION: a `useFormats`/`useAttribution` context may carry `{k:null}` removal instructions —
+ * meaningful for the *instruction* ops (`retain`) it governs, which keep them verbatim for a later
+ * apply. But a *data* op (insert/text) created under that context is settled content: an unresolved
+ * removal stored on it is meaningless ({@link combineData}'s contract is "the stored value is
+ * canonical — no `null` leaves"), and applying such a delta plants the removal literally on the
+ * settled state. Data ops therefore inherit the context's resolved companion
+ * ({@link resolveUsedData}, cached per context object), never the raw context.
+ *
+ * The yjs shape that hit this: the reject-heal render walks a rejected format marker — installing
+ * the per-key clear context (`{ format: { bold: null } }`) for the retains that follow — and then
+ * renders reject-resurrected content as a fresh insert under that same ambient context. The insert
+ * used to inherit the clear verbatim, and the cache apply materialized
+ * `attribution: { format: { bold: null } }` on settled data — the maintained cache no longer
+ * equaled a fresh render.
+ */
+export const testUsedContextRemovalsStayOffDataOps = () => {
+  t.group('a used-attribution format-clear governs retains, not data ops', () => {
+    // the exact shape of yjs's reject-heal render: clear-carrying retains around a resurrected insert
+    const d = delta.create()
+    d.useAttribution(/** @type {any} */ ({ format: { bold: null } }))
+    d.retain(8, { bold: null })
+    d.insert('rl')
+    /** @type {Array<any>} */
+    const ops = []
+    for (const op of d.children) ops.push(op)
+    // the retain keeps the removal verbatim — instruction semantics, resolved on a later apply
+    t.compare(ops[0].attribution, /** @type {any} */ ({ format: { bold: null } }))
+    // the insert is settled data — there is nothing to clear on it, the removal must resolve away
+    t.assert(ops[1].attribution === null, 'a data op stores no unresolved attribution removal')
+  })
+  t.group('a used-formats null leaf resolves away on data ops', () => {
+    const d = delta.create()
+    d.useFormats({ bold: null, italic: true })
+    d.insert('a')
+    t.compare(/** @type {any} */ (d.children.start).format, { italic: true })
+  })
+  t.group('applying such a change must not plant the removal on settled data', () => {
+    const doc = delta.create().insert('hello wod')
+    doc.isFinal = true
+    const change = delta.create()
+    change.useAttribution(/** @type {any} */ ({ format: { bold: null } }))
+    change.retain(8, { bold: null })
+    change.insert('rl')
+    doc.apply(change)
+    t.compare(doc.toJSON(), delta.create().insert('hello world').done().toJSON())
+  })
+}
+
+/**
+ * The `used*` contexts are interned: ops must store the context object — or its ONE resolved data
+ * companion ({@link resolveUsedData}) — by reference, never an equivalent per-op copy (a document can
+ * hold millions of ops; equivalent objects must be shared). Also pins the companion-cache trigger:
+ * it is keyed by the context object's IDENTITY, so assigning the public slot directly (bypassing
+ * `useFormats` — the yjs render does this) must still resolve freshly after a swap.
+ */
+export const testUsedContextIdentityReuse = () => {
+  t.group('data ops under a canonical context store it by identity', () => {
+    const ctx = /** @type {any} */ ({ insert: ['tester'] })
+    const d = delta.create().useAttribution(ctx)
+    d.insert('a')
+    d.insert([1])
+    /** @type {Array<any>} */
+    const ops = []
+    for (const op of d.children) ops.push(op)
+    t.assert(ops.length === 2)
+    t.assert(ops[0].attribution === ctx, 'the text op shares the context by reference')
+    t.assert(ops[1].attribution === ctx, 'the insert op shares the context by reference')
+    t.assert(d.usedAttribution === ctx, 'the slot keeps the verbatim object')
+  })
+  t.group('data ops under a removal-carrying context share one resolved companion', () => {
+    const ctx = /** @type {any} */ ({ bold: null, italic: true })
+    const d = delta.create().useFormats(ctx)
+    d.insert('a')
+    d.insert([1])
+    /** @type {Array<any>} */
+    const ops = []
+    for (const op of d.children) ops.push(op)
+    t.assert(ops.length === 2)
+    t.compare(ops[0].format, { italic: true })
+    t.assert(ops[0].format === ops[1].format, 'ONE stripped companion is shared, not re-created per op')
+    t.assert(ops[0].format !== ctx, 'the companion is a stripped copy (the context had a removal)')
+    t.assert(d.usedFormats === ctx, 'the slot keeps the verbatim removal-carrying object')
+  })
+  t.group('an explicit empty update reuses the context — no traversal, no copy', () => {
+    const ctx = { bold: true }
+    const d = delta.create().useFormats(ctx)
+    d.insert('a').insert('b', {})
+    t.assert(d.children.start === d.children.end, 'the empty update merges into the previous op (identical dims)')
+    t.assert(/** @type {any} */ (d.children.start).format === ctx, 'the merged op holds the context by reference')
+    const r = delta.create().useFormats(ctx).retain(5, {})
+    t.assert(/** @type {any} */ (r.children.start).format === ctx, 'an instruction op reuses the context identity too')
+  })
+  t.group('insert and setAttr share the attribution companion', () => {
+    const ctx = /** @type {any} */ ({ insert: ['tester'], format: { bold: null } })
+    const d = /** @type {any} */ (delta.create().useAttribution(ctx))
+    d.insert('a')
+    d.setAttr('k', 42)
+    const insOp = /** @type {any} */ (d.children.start)
+    const attrOp = /** @type {any} */ (d.attrs.k)
+    t.compare(insOp.attribution, { insert: ['tester'] })
+    t.assert(insOp.attribution === attrOp.attribution, 'one companion across op families')
+  })
+  t.group('re-setting the context recomputes the companion; the slot itself is read-only', () => {
+    const d = delta.create()
+    d.useFormats(/** @type {any} */ ({ bold: true }))
+    d.insert('a')
+    d.useFormats(/** @type {any} */ ({}))
+    d.insert([1])
+    /** @type {Array<any>} */
+    const ops = []
+    for (const op of d.children) ops.push(op)
+    t.assert(ops.length === 2)
+    t.compare(ops[0].format, { bold: true })
+    t.assert(ops[1].format === null, 'a swapped-in empty context resolves to null, not the stale companion')
+    // the public slots are getter-only: a direct overwrite (which would leave the companion stale) throws
+    t.fails(() => { /** @type {any} */ (d).usedFormats = { italic: true } })
+    t.fails(() => { /** @type {any} */ (d).usedAttribution = { insert: ['x'] } })
+  })
+  t.group('updateUsedFormats between data ops recomputes', () => {
+    const d = delta.create().useFormats({ bold: true })
+    d.insert('a')
+    d.updateUsedFormats('italic', true)
+    d.insert([1])
+    /** @type {Array<any>} */
+    const ops = []
+    for (const op of d.children) ops.push(op)
+    t.assert(ops.length === 2)
+    t.compare(ops[0].format, { bold: true })
+    t.compare(ops[1].format, { bold: true, italic: true })
+  })
+}
+
+/**
  * `base.apply(change).apply(inverse(change, base))` round-trips back to `base` for random changes —
  * content, formats, attributions, nested nodes, and attributes alike.
  *
