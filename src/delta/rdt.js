@@ -25,7 +25,9 @@
  * back as a fresh change on its side. A fix on one side and a fix on the other are concurrent, so they
  * are rebased against each other: the pending pair `{ a, b }` is run through `transformer.apply`, whose
  * machinery already transposes the two sides. This repeats until neither side reports a fix, so fixes
- * must converge to a fixpoint (a well-behaved RDT applies them idempotently).
+ * must converge to a fixpoint (a well-behaved RDT applies them idempotently). All of this fix traffic
+ * is applied with the {@link correctionOrigin} origin, while an ordinary mapped change carries the binding
+ * itself — see the "Origins" section of {@link RDT}.
  *
  * On creation a binding first **synchronizes the initial state**: `a`'s current state (`a.delta`)
  * is projected through the transformer, and the projection is diffed against `b`'s current state
@@ -87,6 +89,12 @@ export { $domDelta, domRDT } from './rdt/dom.js'
  * it just received. The `origin` argument to `applyDelta` is optional and defaults to `null` (an
  * anonymous/local change); the emitted event always carries whatever value was supplied.
  *
+ * A {@link Binding} distinguishes the two kinds of changes it produces. An ordinary change mapped
+ * over from the other side carries the binding itself as its origin. A change that adjusts a side's
+ * own earlier change after the fact — a fix returned by the opposite RDT transformed back, or a
+ * transformer self-heal — carries {@link correctionOrigin}, so a consumer that applied a delta can recognise
+ * that (part of) its change was reverted or amended.
+ *
  * ## `Delta` vs `DeltaBuilder`
  *
  * The interface is parameterized by a {@link import('./delta.js').DeltaConf DeltaConf} (like a
@@ -125,14 +133,29 @@ export const $rdt = /** @type {Schema<RDT<any>>} */ (/* @__PURE__ */ s.$custom(o
 ))
 
 /**
+ * The {@link RDT origin} carried by every change a {@link Binding} applies as an after-the-fact
+ * adjustment to a side's own change: a fix returned by the opposite RDT's `applyDelta` transformed back
+ * onto the side that produced the original change, a transformer self-heal (including during the
+ * initial-state sync), and every later round of the fix-convergence loop (fixes of fixes). A "fix"
+ * covers invariant corrections as well as rebased concurrent edits (see `./rdt/dom.js`). An ordinary
+ * mapped change carries the binding itself instead — see the "Origins" section of {@link RDT}. The
+ * value is a plain string, so `origin === 'correction'` works without importing this constant.
+ *
+ * @type {'correction'}
+ */
+export const correctionOrigin = 'correction'
+
+/**
  * Propagate a pair of concurrent changes between the two sides of `binding` until they converge.
  *
  * `ta` / `tb` are changes that have ALREADY been applied to `a` / `b` (an incoming `'delta'`, or a fix
  * returned by a previous `applyDelta`). Each is mapped onto the other side via the transformer —
  * `apply` rebases the two against each other — and the mapped results are applied, which may yield
- * further RDT fixes. We repeat until neither side reports a fix. Every change it applies to either side
- * uses the `binding` itself as its {@link RDT origin} — from each side's perspective the binding is what
- * produced the mapped change.
+ * further RDT fixes. We repeat until neither side reports a fix. `aOrigin` / `bOrigin` are the
+ * {@link RDT origins} for the first round's applications: the side receiving the ordinary mapped
+ * change is handed the `binding` itself, while the side that produced the triggering change only ever
+ * receives adjustments (a transformer self-heal), tagged {@link correctionOrigin}. After the first round
+ * every applied change derives from a fix, so both origins become {@link correctionOrigin}.
  *
  * `ta`/`tb` are shared read deltas (an event payload, or a fix that was also written into the producing
  * RDT's state), so they are {@link delta.cloneDeep deep-cloned} into private builders before the
@@ -143,15 +166,19 @@ export const $rdt = /** @type {Schema<RDT<any>>} */ (/* @__PURE__ */ s.$custom(o
  * @param {Binding<A,B>} binding
  * @param {any} ta change already applied on `a` — a shared read delta (event payload or a fix), or `null`
  * @param {any} tb change already applied on `b` — a shared read delta (event payload or a fix), or `null`
+ * @param {any} [aOrigin] origin for the first-round application onto `a`; defaults to {@link correctionOrigin}
+ * @param {any} [bOrigin] origin for the first-round application onto `b`; defaults to {@link correctionOrigin}
  */
-const propagate = (binding, ta, tb) => {
+const propagate = (binding, ta, tb, aOrigin = correctionOrigin, bOrigin = correctionOrigin) => {
   while ((ta != null && !ta.isEmpty()) || (tb != null && !tb.isEmpty())) {
     const tres = binding.t.apply(dt.createTransformResult(
       ta != null ? delta.cloneDeep(ta) : null,
       tb != null ? delta.cloneDeep(tb) : null
     ))
-    ta = tres.a != null ? binding.a.applyDelta(tres.a, binding) : null
-    tb = tres.b != null ? binding.b.applyDelta(tres.b, binding) : null
+    ta = tres.a != null ? binding.a.applyDelta(tres.a, aOrigin) : null
+    tb = tres.b != null ? binding.b.applyDelta(tres.b, bOrigin) : null
+    aOrigin = correctionOrigin
+    bOrigin = correctionOrigin
   }
 }
 
@@ -197,14 +224,16 @@ export class Binding {
      */
     this.b = b
     this._mux = mux.createMutex()
-    this._achanged = this.a.on('delta', d => this._mux(() => propagate(this, d, null)))
-    this._bchanged = this.b.on('delta', d => this._mux(() => propagate(this, null, d)))
+    this._achanged = this.a.on('delta', d => this._mux(() => propagate(this, d, null, correctionOrigin, this)))
+    this._bchanged = this.b.on('delta', d => this._mux(() => propagate(this, null, d, this, correctionOrigin)))
     this.a.on('destroy', this.destroy)
     this.b.on('destroy', this.destroy)
     // Sync the initial state. `a` is the source of truth: project its current state through the
     // transformer (`applyA`) — which also yields any self-heal correction for `a` (`tres.a`) — then
     // diff the projection against `b`'s current state and apply the difference so `b` ends up
     // matching `a`'s projection. Any fixes the two sides report are reconciled via `propagate`.
+    // The self-heal onto `a` adjusts a's own state, so it is a `correction`; the diff onto `b` is an
+    // ordinary binding-produced change.
     // NOTE: `delta.diff` is content-only (it excludes marks), so cursor marks present on `a` at bind
     // time are NOT transferred to `b` here; marks ride only on subsequent live `applyA`/`applyB`.
     // Wrapped in the mutex so these `applyDelta` calls don't echo back through the listeners above.
@@ -214,7 +243,7 @@ export class Binding {
       // transformer — which rebases its input in place — projects it. A shallow `clone` would still share
       // those frozen children and corrupt / fail on the live state (see `delta.cloneDeep`).
       const tres = this.t.applyA(delta.cloneDeep(this.a.delta))
-      const fa = tres.a ? this.a.applyDelta(tres.a, this) : null
+      const fa = tres.a ? this.a.applyDelta(tres.a, correctionOrigin) : null
       // `diff` shares nested children with `tres.b` by default, and `tres.b` is a (possibly stateful)
       // transformer's output that may still alias its internal state — so `clone` keeps the diff
       // independent, since it is then applied into `b` (which freezes it) and propagated onward.

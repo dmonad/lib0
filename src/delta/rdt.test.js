@@ -1,7 +1,7 @@
 import * as t from '../testing.js'
 import * as delta from './delta.js'
 import * as dt from './transformer.js'
-import { bind, $rdt } from './rdt.js'
+import { bind, $rdt, correctionOrigin } from './rdt.js'
 import { deltaRDT } from './rdt/delta.js'
 import { ObservableV2 } from '../observable.js'
 import * as mux from '../mutex.js'
@@ -159,9 +159,14 @@ export const testBindInitialSelfHealNullProjection = () => {
       apply: (/** @type {any} */ tr) => tr
     })
   })
+  /** @type {Array<any>} */
+  const aOrigins = []
+  a.on('delta', (_d, origin) => aOrigins.push(origin))
   bind(a, b, template)
   // `tres.a` (the self-heal) was applied back onto `a` during initial sync ...
   t.assert(a.state?.attrs.x?.value === 'healed', 'init-sync applied the self-heal onto a')
+  // ... adjusting a's own state, so it carries the correction origin ...
+  t.assert(aOrigins.length === 1 && aOrigins[0] === correctionOrigin, 'the init-sync self-heal is a correction')
   // ... and `tres.b` was null, so `b` was never diffed/touched
   t.assert(b.state === null, 'no projection onto b when tres.b is null')
 }
@@ -361,7 +366,8 @@ export const testBindDestroy = () => {
  * The `'delta'` event carries a second `origin` argument (see the "Origins" section of the `RDT`
  * typedef): `applyDelta(d, origin)` forwards it verbatim, and a change the `Binding` maps onto the
  * other side carries the binding itself as its origin. This is how a consumer distinguishes the changes
- * it produced from foreign ones (à la Yjs origins) and skips looping its own changes back.
+ * it produced from foreign ones (à la Yjs origins) and skips looping its own changes back. Fix traffic
+ * carries the `correction` origin instead — see testCorrectionOrigin below.
  */
 export const testDeltaEventOrigin = () => {
   const $d = delta.$delta({ attrs: { x: s.$string } })
@@ -381,4 +387,61 @@ export const testDeltaEventOrigin = () => {
   t.assert(aOrigins.length === 1 && aOrigins[0] === provider, 'applyDelta forwards the caller origin')
   // ... while the change the binding maps onto `b` is produced by the binding, so it is the origin
   t.assert(bOrigins.length === 1 && bOrigins[0] === binding, 'binding-mapped change carries the binding as origin')
+}
+
+/**
+ * When the receiving side's `applyDelta` returns a fix, the binding transforms it back onto the
+ * originating side and applies it with the correction origin (see the "Origins" section of the `RDT`
+ * typedef) — so a consumer can tell "my change was adjusted after the fact" apart from an ordinary
+ * foreign change (which carries the binding as its origin). The listeners are registered BEFORE the
+ * binding so they observe events in causal order — the binding propagates synchronously from inside
+ * `a`'s emit, so a listener registered after it would see the nested correction event first.
+ */
+export const testCorrectionOrigin = () => {
+  const $d = delta.$delta({ attrs: { secret: s.$string, ok: s.$string } })
+  const a = deltaRDT($d)
+  const b = constrainedRDT($d, stripSecret) // b forbids `secret`
+  /** @type {Array<delta.DeltaAny>} */
+  const aDeltas = []
+  /** @type {Array<any>} */
+  const aOrigins = []
+  /** @type {Array<any>} */
+  const bOrigins = []
+  a.on('delta', (d, origin) => { aDeltas.push(d); aOrigins.push(origin) })
+  b.on('delta', (_d, origin) => bOrigins.push(origin))
+  const binding = bind(a, b, identity)
+  const provider = {}
+  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'), provider)
+  // `a` first emits the caller's own change, then receives b's strip fix as a correction
+  t.assert(aOrigins.length === 2 && aOrigins[0] === provider, 'a first emits the caller change')
+  t.assert(aOrigins[1] === correctionOrigin, "b's fix reaches a with the correction origin")
+  // the exported constant is the plain string, so `origin === 'correction'` works without the import
+  t.assert(correctionOrigin === 'correction')
+  t.assert(delta.$deleteAttrOp.check(aDeltas[1].attrs.secret), 'the correction reverts the forbidden attr')
+  // `b` folds its fix into the single effective change it emits — an ordinary binding-mapped change
+  t.assert(bOrigins.length === 1 && bOrigins[0] === binding, 'b sees one binding-mapped change, no correction')
+  t.compare(a.state, b.state, 'both sides converge after the correction')
+}
+
+/**
+ * When the side that received the caller's change fixes it itself, the fix is folded into the
+ * effective change before the binding sees it — there is nothing to correct after the fact, so no
+ * `correction` origin appears on either side.
+ */
+export const testCorrectionOriginOriginatingSide = () => {
+  const $d = delta.$delta({ attrs: { secret: s.$string, ok: s.$string } })
+  const a = constrainedRDT($d, stripSecret) // a fixes its own incoming change
+  const b = deltaRDT($d)
+  const binding = bind(a, b, identity)
+  /** @type {Array<any>} */
+  const aOrigins = []
+  /** @type {Array<any>} */
+  const bOrigins = []
+  a.on('delta', (_d, origin) => aOrigins.push(origin))
+  b.on('delta', (_d, origin) => bOrigins.push(origin))
+  const provider = {}
+  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'), provider)
+  t.assert(aOrigins.length === 1 && aOrigins[0] === provider, 'a emits only the effective caller change')
+  t.assert(bOrigins.length === 1 && bOrigins[0] === binding, 'b receives one ordinary binding-mapped change')
+  t.compare(a.state, b.state, 'both sides converge')
 }

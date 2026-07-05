@@ -257,7 +257,8 @@ class DomRDT extends ObservableV2 {
    * listeners can recognise (and skip) their own changes — see {@link RDT} “Origins”. Defaults to `null`
    * (an anonymous/local change).
    * @return {delta.DeltaBuilder<DomConf> | null} the rebased local change (`b`), or `null` when there
-   * were no concurrent edits
+   * were no concurrent edits. A binding maps a returned fix back onto the other side with the
+   * `correction` origin (see `../rdt.js`)
    */
   applyDelta (d, origin = null) {
     const b = this._pull()
