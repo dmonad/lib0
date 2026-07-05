@@ -21,8 +21,29 @@ export const isNode = /* @__PURE__ */(() => typeof process !== 'undefined' && pr
 // @ts-ignore
 export const isDeno = /* @__PURE__ */(() => typeof Deno !== 'undefined')()
 
+/* c8 ignore start */
+const globalScope = /* @__PURE__ */(() =>/** @type {any} */ (typeof globalThis !== 'undefined'
+  ? globalThis
+  : typeof window !== 'undefined'
+    ? window
+    // @ts-ignore
+    : typeof global !== 'undefined' ? global : {}))()
+/* c8 ignore stop */
+
+/**
+ * True iff this script is running in a browser-family environment — either a DOM main
+ * thread (`window` + `document`) or a WebWorker / ServiceWorker (a `WorkerGlobalScope`,
+ * which has `btoa`/`atob`/`fetch` but no DOM). Excludes Node and Deno.
+ * @type {boolean}
+ */
 /* c8 ignore next */
-export const isBrowser = /* @__PURE__ */(() => typeof window !== 'undefined' && typeof document !== 'undefined' && !isNode)()
+export const isBrowser = /* @__PURE__ */(() =>
+  !isNode && !isDeno && (
+    (typeof window !== 'undefined' && typeof document !== 'undefined') ||
+    // WebWorker / ServiceWorker: no window/document, but a worker global scope
+    (typeof globalScope.WorkerGlobalScope !== 'undefined' && globalScope.self instanceof globalScope.WorkerGlobalScope)
+  )
+)()
 /* c8 ignore next */
 export const isMac = /* @__PURE__ */(() => typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false)()
 
@@ -166,15 +187,6 @@ export const supportsColor = /* @__PURE__ */(() => forceColor || (
     (getVariable('TERM') || '').includes('color')
   )
 ))()
-/* c8 ignore stop */
-
-/* c8 ignore start */
-const globalScope = /* @__PURE__ */(() =>/** @type {any} */ (typeof globalThis !== 'undefined'
-  ? globalThis
-  : typeof window !== 'undefined'
-    ? window
-    // @ts-ignore
-    : typeof global !== 'undefined' ? global : {}))()
 /* c8 ignore stop */
 
 export { globalScope as global }
