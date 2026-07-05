@@ -9,41 +9,10 @@ import * as string from './string.js'
 import * as conditions from './conditions.js'
 import * as storage from './storage.js'
 import * as f from './function.js'
+import { isNode, globalScope } from './environment.common.js'
 
-/* c8 ignore next */
-export const isNode = /* @__PURE__ */(() => typeof process !== 'undefined' && process.release && /node|io\.js/.test(process.release.name) && Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]')()
+export { isNode, isDeno, isBrowser } from './environment.common.js'
 
-/**
- * True iff this script is running in deno
- * @type {boolean}
- */
-/* c8 ignore next 2 */
-// @ts-ignore
-export const isDeno = /* @__PURE__ */(() => typeof Deno !== 'undefined')()
-
-/* c8 ignore start */
-const globalScope = /* @__PURE__ */(() =>/** @type {any} */ (typeof globalThis !== 'undefined'
-  ? globalThis
-  : typeof window !== 'undefined'
-    ? window
-    // @ts-ignore
-    : typeof global !== 'undefined' ? global : {}))()
-/* c8 ignore stop */
-
-/**
- * True iff this script is running in a browser-family environment — either a DOM main
- * thread (`window` + `document`) or a WebWorker / ServiceWorker (a `WorkerGlobalScope`,
- * which has `btoa`/`atob`/`fetch` but no DOM). Excludes Node and Deno.
- * @type {boolean}
- */
-/* c8 ignore next */
-export const isBrowser = /* @__PURE__ */(() =>
-  !isNode && !isDeno && (
-    (typeof window !== 'undefined' && typeof document !== 'undefined') ||
-    // WebWorker / ServiceWorker: no window/document, but a worker global scope
-    (typeof globalScope.WorkerGlobalScope !== 'undefined' && globalScope.self instanceof globalScope.WorkerGlobalScope)
-  )
-)()
 /* c8 ignore next */
 export const isMac = /* @__PURE__ */(() => typeof navigator !== 'undefined' ? /Mac/.test(navigator.platform) : false)()
 

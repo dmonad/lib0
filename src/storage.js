@@ -8,6 +8,8 @@
  * @module storage
  */
 
+import { isBrowser } from './environment.common.js'
+
 /* c8 ignore start */
 class VarStoragePolyfill {
   constructor () {
@@ -39,8 +41,10 @@ let usePolyfill = true
 
 /* c8 ignore start */
 try {
-  // if the same-origin rule is violated, accessing localStorage might thrown an error
-  if (typeof localStorage !== 'undefined' && localStorage) {
+  // Only use localStorage in the browser — node & deno also define a localStorage global, but
+  // with different semantics (in node it is non-functional unless `--localstorage-file` is set).
+  // If the same-origin rule is violated, accessing localStorage might throw an error.
+  if (isBrowser && typeof localStorage !== 'undefined' && localStorage) {
     _localStorage = localStorage
     usePolyfill = false
   }
