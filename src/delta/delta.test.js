@@ -2954,3 +2954,67 @@ export const testSchemaCheckRejections = () => {
     t.assert(!$d.check(delta.create().insert('hi', { bold: 'not-bool' })))
   })
 }
+
+/**
+ * REGRESSION PIN (currently failing — reduction of a real corruption): **in-place `apply` that
+ * merges an insert into an existing op does not invalidate the memoized fingerprints** of the
+ * extended op or of the delta itself, violating the invariant documented on the op classes
+ * ("Any mutation of a fingerprinted field MUST null `_fingerprint`"). The `insert` array of the
+ * existing `InsertOp` is extended, but `op._fingerprint` and the root `_fingerprint` keep their
+ * pre-mutation values.
+ *
+ * Consumer-visible corruption: `diff` gates on the root fingerprint and trims common
+ * prefix/suffix by op fingerprint, so once a fingerprint was memoized (any prior `fingerprint`
+ * read, e.g. by an earlier `diff` over the same live delta), a subsequent in-place merge makes
+ * `diff` treat *changed* content as unchanged — two differing states diff to an **empty** delta,
+ * or, with an extra trailing op on the other side, to a bogus `delete` of content present on both
+ * sides.
+ *
+ * Found in the wild through y-prosemirror's `YSyncRdt`, which diffs a caller-expected state
+ * against the yjs-maintained live `ytype.delta` cache: Yjs patches that cache in place with
+ * change deltas whose inserts merge into existing (equal-attribution) ops, and the wrapper's own
+ * previous diff had memoized the fingerprints — the resulting bogus `delete(1)` reverted a user's
+ * freshly inserted paragraph out of their view (y-prosemirror repro:
+ * `node .dbg-fuzz.mjs 140276057 10`, before its `cloneDeep` workaround in
+ * `src/rdt/y-sync.js#applyDelta`). `cloneDeep`ing either side before diffing avoids the stale
+ * memo, which is the downstream workaround until this is fixed.
+ *
+ * Note `equals` is NOT affected (it compares op values, not fingerprints) — which is what makes
+ * the corruption subtle: `!a.equals(b)` while `diff(a, b)` is empty.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testFingerprintInvalidatedByInplaceApplyMerge = _tc => {
+  t.group('op + root fingerprints change when a merge extends an existing op', () => {
+    const live = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+    live.isFinal = true
+    live.apply(delta.create().insert([{ embed: 1 }]).done())
+    const fpRootBefore = live.fingerprint
+    const fpOpBefore = /** @type {any} */ (live.children.start).fingerprint
+    // merges into the existing InsertOp (still a single op afterwards)
+    live.apply(delta.create().retain(1).insert([{ embed: 2 }]).done())
+    t.assert(/** @type {any} */ (live.children.start).next === null, 'precondition: the insert merged into the existing op')
+    t.assert(/** @type {any} */ (live.children.start).fingerprint !== fpOpBefore, 'op fingerprint reflects the merged-in content')
+    t.assert(live.fingerprint !== fpRootBefore, 'root fingerprint reflects the merged-in content')
+  })
+  t.group('diff must not report differing states as equal', () => {
+    const p = (/** @type {string} */ text) => {
+      const x = delta.create('paragraph')
+      x.insert(text)
+      return x.done()
+    }
+    const live = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+    live.isFinal = true
+    live.apply(delta.create().insert([p('s')]).done())
+    const pre = delta.cloneDeep(live) // snapshot of the pre-patch state
+    t.assert(live.fingerprint !== '', 'memoize the fingerprint (as any prior diff/serialization would)')
+    live.apply(delta.create().retain(1).insert([p('w')]).done()) // in-place merge
+    t.assert(!pre.equals(live), 'precondition: the states genuinely differ')
+    const d = delta.diff(pre, /** @type {any} */ (live), { clone: true })
+    t.assert(!d.isEmpty(), 'diff between differing states must not be empty')
+    // and the diff must actually converge pre -> live
+    const check = delta.cloneDeep(pre)
+    check.apply(/** @type {any} */ (d), { final: true, move: true })
+    t.assert(check.equals(live), 'applying the diff converges to the live state')
+  })
+}

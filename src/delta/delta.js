@@ -356,15 +356,6 @@ export class TextOp extends list.ListNode {
   }
 
   /**
-   * @param {string} newVal
-   */
-  _updateInsert (newVal) {
-    // @ts-ignore
-    this.insert = newVal
-    this._fingerprint = null
-  }
-
-  /**
    * @return {'insert'}
    */
   get type () {
@@ -461,18 +452,6 @@ export class InsertOp extends list.ListNode {
      */
     this._fingerprint = null
   }
-
-  /* c8 ignore start */
-  /**
-   * @param {ArrayContent} _newVal
-   */
-  _updateInsert (_newVal) {
-    // Mirror of TextOp._updateInsert; not currently called on InsertOp because
-    // adjacent inserts are merged in-place via `end.insert.push(...)`. Kept for
-    // parity with TextOp's API.
-    error.unexpectedCase() // throw if called
-  }
-  /* c8 ignore stop */
 
   /**
    * @return {'insert'}
@@ -1810,13 +1789,15 @@ export const _mergeChildWithPrev = (d, op) => {
   } else if ($deleteOp.check(op)) {
     /** @type {DeleteOp<any>} */ (prevOp).delete += op.delete
   } else if ($textOp.check(op)) {
-    /** @type {TextOp} */ (prevOp)._updateInsert(/** @type {TextOp} */ (prevOp).insert + op.insert)
+    // @ts-ignore
+    /** @type {TextOp} */ (prevOp).insert += op.insert
   /* c8 ignore start */
   } else {
     // unreachable: the constructor check at the top of the function already
     // limits `op` to one of the four kinds tested above
     error.unexpectedCase()
   }
+  prevOp._fingerprint = null
   /* c8 ignore stop */
   list.remove(d.children, op)
   return true
@@ -2100,7 +2081,9 @@ export class DeltaBuilder extends Delta {
     const end = this.children.end
     if (s.$string.check(insert)) {
       if ($textOp.check(end) && checkMergedEquals(end)) {
-        end._updateInsert(end.insert + insert)
+        // @ts-ignore
+        end.insert += insert
+        end._fingerprint = null
       } else if (insert.length > 0) {
         list.pushEnd(this.children, new TextOp(insert, mergedFormats, mergedAttribution))
       }
