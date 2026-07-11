@@ -194,3 +194,136 @@ export const testDomLocalEditOrigin = async () => {
   await promise.resolve() // flush the (microtask-scheduled) MutationObserver callback
   t.assert(origins.length === 1 && origins[0] === dr, 'a locally-observed DOM edit uses the DomRDT itself as origin')
 }
+
+/**
+ * A deep edit re-reads only the changed path: every unchanged sibling subtree is reused by reference
+ * (its `_nodes` mirror entry is untouched), so the emitted delta is a single minimal modify-path — the
+ * core of the incremental reconcile.
+ */
+export const testDomDeepEditReusesSiblings = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div', [], [
+    dom.element('ul', [], [
+      dom.element('li', [], [dom.text('a')]),
+      dom.element('li', [], [dom.text('b')])
+    ]),
+    dom.element('section', [], [dom.text('keep')])
+  ])
+  const dr = domRDT(el)
+  const section = /** @type {Element} */ (el.querySelector('section'))
+  const firstLi = el.querySelectorAll('li')[0]
+  const sectionMirror = dr._nodes.get(section)
+  const firstLiMirror = dr._nodes.get(firstLi)
+  /** @type {Array<any>} */
+  const changes = []
+  dr.on('delta', d => changes.push(d))
+  // edit only the second <li>'s text: 'b' -> 'bX'
+  dom.$text.cast(/** @type {Element} */ (el.querySelectorAll('li')[1]).firstChild).textContent = 'bX'
+  await promise.resolve()
+  t.assert(changes.length === 1, 'exactly one delta emitted')
+  // the untouched subtrees are reused by reference (never re-read into a fresh mirror node)
+  t.assert(dr._nodes.get(section) === sectionMirror, '<section> mirror reused by reference')
+  t.assert(dr._nodes.get(firstLi) === firstLiMirror, 'first <li> mirror reused by reference')
+  // and the live mirror reflects the deep edit
+  t.compare(dr.delta, delta.create('div', {}, [
+    delta.create('ul', {}, [delta.create('li', {}, 'a'), delta.create('li', {}, 'bX')]),
+    delta.create('section', {}, 'keep')
+  ]), 'mirror reflects the deep edit')
+}
+
+/**
+ * Moving a subtree to a new parent (one childList record on each parent) converges on the other side;
+ * the moved subtree is reused by identity, so its inner content survives the delete+insert unchanged.
+ */
+export const testDomMovedSubtreeConverges = async () => {
+  t.skip(!env.hasDom)
+  const el1 = dom.element('div', [], [
+    dom.element('a', [], [dom.element('b', [], [dom.text('x')])]),
+    dom.element('c', [], [])
+  ])
+  const domRDT1 = domRDT(el1)
+  const el2 = dom.element('div')
+  const domRDT2 = domRDT(el2)
+  // domRDT1 is the source of truth: its state is projected onto el2 at bind time
+  bind(domRDT1, domRDT2, identity())
+  t.compare(el2.outerHTML, el1.outerHTML, 'el2 mirrors el1 initially')
+  // move <b> from <a> into <c>
+  const b = /** @type {Element} */ (el1.querySelector('b'))
+  ;/** @type {Element} */ (el1.querySelector('c')).appendChild(b)
+  await promise.resolve()
+  t.compare(el1.outerHTML, '<div><a></a><c><b>x</b></c></div>', 'el1 reflects the move')
+  t.compare(el2.outerHTML, el1.outerHTML, 'el2 converged after the move')
+}
+
+/**
+ * A node appended and removed again within one synchronous block is a net no-op: reconcile reads the
+ * current (restored) child list, the diff is empty, and nothing is emitted.
+ */
+export const testDomBatchedAddRemoveNoDelta = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div', [], [dom.element('p', [], [dom.text('x')])])
+  const dr = domRDT(el)
+  let count = 0
+  dr.on('delta', () => { count++ })
+  const span = dom.element('span', [], [dom.text('hi')])
+  el.appendChild(span) // add ...
+  el.removeChild(span) // ... then remove, in the same batch
+  await promise.resolve()
+  t.assert(count === 0, 'a net add+remove in one batch emits no delta')
+  t.compare(el.outerHTML, '<div><p>x</p></div>', 'DOM is unchanged')
+}
+
+/**
+ * A concurrent rebase with edits DEEP in the tree: a pending local text edit on one child while an
+ * incoming change edits a sibling child. Both must land and both sides converge.
+ */
+export const testDomConcurrentDeepRebase = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div')
+  const dr = domRDT(el)
+  const d = deltaRDT($domDelta)
+  bind(d, dr, identity())
+  // initial: <div><p>x</p><span>y</span></div>
+  d.applyDelta(delta.create('div', {}, [delta.create('p', {}, 'x'), delta.create('span', {}, 'y')]))
+  // a local DOM edit deep in the tree whose MutationObserver callback has NOT fired: <p> 'x' -> 'xL'
+  dom.$text.cast(/** @type {Element} */ (el.querySelector('p')).firstChild).textContent = 'xL'
+  // ... concurrently (edit still pending), a remote change to the SIBLING <span>: 'y' -> 'yR'
+  d.applyDelta(delta.create('div').retain(1).modify(delta.create().retain(1).insert('R')))
+  await promise.resolve()
+  t.compare(el.outerHTML, '<div><p>xL</p><span>yR</span></div>', 'both concurrent deep edits landed on the DOM')
+  t.compare(d.state, delta.create('div', {}, [delta.create('p', {}, 'xL'), delta.create('span', {}, 'yR')]),
+    'data side received both edits')
+}
+
+/**
+ * Splitting a text node (two adjacent Text nodes with the same combined content) reconciles to
+ * identical, coalesced text — a no-op that emits no delta.
+ */
+export const testDomTextSplitNormalized = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div', [], [dom.text('abcdef')])
+  const dr = domRDT(el)
+  let count = 0
+  dr.on('delta', () => { count++ })
+  dom.$text.cast(el.firstChild).splitText(3) // 'abc' | 'def'
+  await promise.resolve()
+  t.assert(count === 0, 'splitText produces no net content change, so no delta')
+  t.compare(dr.delta, delta.create('div').insert('abcdef'), 'mirror text is unchanged (adjacent text coalesced)')
+}
+
+/**
+ * A delta previously returned by `get delta` is an immutable snapshot: reconcile only ever swaps the
+ * whole `_state` root and never mutates existing mirror nodes, so a later edit leaves the snapshot intact.
+ */
+export const testDomDeltaSnapshotStable = async () => {
+  t.skip(!env.hasDom)
+  const el = dom.element('div', [], [dom.element('p', [], [dom.text('x')])])
+  const dr = domRDT(el)
+  const snap = dr.delta
+  const before = delta.create('div', {}, [delta.create('p', {}, 'x')])
+  t.compare(snap, before, 'snapshot matches the initial document')
+  dom.$text.cast(/** @type {Element} */ (el.querySelector('p')).firstChild).textContent = 'xy'
+  await promise.resolve()
+  t.compare(snap, before, 'the previously-returned snapshot is unchanged by a later reconcile')
+  t.compare(dr.delta, delta.create('div', {}, [delta.create('p', {}, 'xy')]), 'the live mirror reflects the edit')
+}

@@ -3,11 +3,12 @@
 /**
  * # DOM delta RDT
  *
- * {@link domRDT} creates an RDT (see `../rdt.js`) backed by a live DOM subtree. DOM mutations are
- * observed with a `MutationObserver`, turned into deltas (by diffing the new DOM state against the
- * last-known one) and emitted as `'delta'` events (with the RDT itself as their
- * {@link import('../rdt.js').RDT origin}); incoming deltas are applied back onto the DOM. This lets a
- * DOM subtree be bound to any other RDT.
+ * {@link domRDT} creates an RDT (see `../rdt.js`) backed by a live DOM subtree. A `MutationObserver`
+ * reports which nodes changed; the mirror ({@link DomRDT#_state}) is reconciled *incrementally* — only
+ * the changed paths are re-read from the DOM, every unchanged subtree is reused by reference (via the
+ * {@link DomRDT#_nodes} `WeakMap`), and the rebuilt tree is diffed against the previous mirror to emit a
+ * minimal `'delta'` (with the RDT itself as its {@link import('../rdt.js').RDT origin}). Incoming deltas
+ * are applied back onto the DOM. This lets a DOM subtree be bound to any other RDT.
  *
  * @module delta/rdt/dom
  */
@@ -30,30 +31,15 @@ import * as s from '../../schema.js'
  */
 
 /**
- * Recursively convert a DOM node into a {@link DomDelta} (an "insert everything" delta describing the
- * node, its attributes, and its subtree).
+ * A shared, never-mutated empty `onPath` set for the initial full read (see {@link reconcile}), where an
+ * empty `_nodes` map means nothing is reused anyway.
  *
- * @param {Node} domNode
- * @return {DomDelta}
+ * @type {Set<Node>}
  */
-const domToDelta = domNode => {
-  if (dom.$element.check(domNode)) {
-    const d = delta.create(domNode.nodeName.toLowerCase())
-    for (let i = 0; i < domNode.attributes.length; i++) {
-      const attr = /** @type {Attr} */ (domNode.attributes.item(i))
-      d.setAttr(attr.nodeName, attr.value)
-    }
-    domNode.childNodes.forEach(child => {
-      d.insert(dom.$text.check(child) ? (child.textContent ?? '') : [domToDelta(child)])
-    })
-    return /** @type {DomDelta} */ (d)
-  }
-  /* c8 ignore next */ // defensive: only element nodes are ever rendered/observed
-  error.unexpectedCase()
-}
+const EMPTY_ON_PATH = new Set()
 
 /**
- * Render a {@link DomDelta} into a fresh DOM element (the inverse of {@link domToDelta}).
+ * Render a {@link DomDelta} into a fresh DOM element (the inverse of {@link reconcile}).
  *
  * @param {DomDelta} d
  * @return {Element}
@@ -187,9 +173,143 @@ export const $domDelta = /* @__PURE__ */ delta.$delta({ name: s.$string, attrs: 
  * @typedef {delta.Delta<DomConf>} DomDelta
  */
 
+// The mirror is maintained by these module-private functions (kept as functions, not methods, per the
+// lib0 style guide — methods are reserved for the duck-typed RDT interface: `applyDelta`/`delta`/
+// `destroy`). Each takes the {@link DomRDT} whose `_state`/`_nodes`/`observedNode` it reads or advances.
+
 /**
- * An RDT backed by a live DOM subtree. DOM mutations observed via `MutationObserver` are diffed
- * against the last-known state and emitted as deltas; incoming deltas are applied back onto the DOM.
+ * Reconcile `node` against the DOM, reusing subtrees by reference. When `node` is not on the dirty
+ * `onPath` and is already mapped in `rdt._nodes`, its existing mirror subtree is returned unread;
+ * otherwise the node's shell (name + attributes + child list) is rebuilt — text children become an
+ * `insert` of their content (adjacent text coalesces, normalising `splitText`), element children recurse
+ * — and re-registered in `rdt._nodes`. Purely constructive: it never mutates an existing mirror node,
+ * only allocates fresh shells and shares unchanged subtrees.
+ *
+ * @param {DomRDT} rdt
+ * @param {Node} node
+ * @param {Set<Node>} onPath dirty elements ∪ their ancestors up to the observed root
+ * @return {DomDelta}
+ */
+const reconcile = (rdt, node, onPath) => {
+  if (!onPath.has(node) && rdt._nodes.has(node)) {
+    return /** @type {DomDelta} */ (rdt._nodes.get(node))
+  }
+  if (dom.$element.check(node)) {
+    const d = delta.create(node.nodeName.toLowerCase())
+    for (let i = 0; i < node.attributes.length; i++) {
+      const attr = /** @type {Attr} */ (node.attributes.item(i))
+      d.setAttr(attr.nodeName, attr.value)
+    }
+    node.childNodes.forEach(child => {
+      d.insert(dom.$text.check(child) ? (child.textContent ?? '') : [reconcile(rdt, child, onPath)])
+    })
+    rdt._nodes.set(node, /** @type {DomDelta} */ (d))
+    return /** @type {DomDelta} */ (d)
+  }
+  /* c8 ignore next */ // defensive: only element nodes are ever rendered/observed
+  error.unexpectedCase()
+}
+
+/**
+ * The set of elements whose OWN content (attributes, character data, or child list) a mutation batch
+ * changed: a `characterData` record dirties the text node's parent, every other record its target.
+ * Targets no longer under the observed root (removed in this same batch) are dropped — their removal is
+ * captured by a surviving ancestor's `childList` record.
+ *
+ * @param {DomRDT} rdt
+ * @param {MutationRecord[]} records
+ * @return {Set<Element>}
+ */
+const dirtyElements = (rdt, records) => {
+  /** @type {Set<Element>} */
+  const dirty = new Set()
+  for (const r of records) {
+    const el = r.type === 'characterData' ? r.target.parentNode : r.target
+    // `contains` is reflexive, so it admits the observed root itself and drops disconnected targets
+    if (el != null && dom.$element.check(el) && rdt.observedNode.contains(el)) {
+      dirty.add(el)
+    }
+  }
+  return dirty
+}
+
+/**
+ * The dirty elements together with all their ancestors up to (and including) the observed root — the
+ * nodes whose shells {@link reconcile} must rebuild (everything off this path is reused).
+ *
+ * @param {DomRDT} rdt
+ * @param {Set<Element>} dirty
+ * @return {Set<Node>}
+ */
+const computeOnPath = (rdt, dirty) => {
+  /** @type {Set<Node>} */
+  const onPath = new Set()
+  for (const el of dirty) {
+    /** @type {Node?} */
+    let p = el
+    while (p != null && !onPath.has(p)) {
+      onPath.add(p)
+      if (p === rdt.observedNode) break
+      p = p.parentNode
+    }
+  }
+  return onPath
+}
+
+/**
+ * Reconcile the mirror against the DOM described by `records`, returning the freshly-rebuilt root — or
+ * `null` when nothing relevant changed (in which case no `rdt._nodes` entries were touched, so the
+ * caller may safely leave `rdt._state` as-is).
+ *
+ * @param {DomRDT} rdt
+ * @param {MutationRecord[]} records
+ * @return {DomDelta?}
+ */
+const reconcileFromRecords = (rdt, records) => {
+  const dirty = dirtyElements(rdt, records)
+  if (dirty.size === 0) return null
+  return reconcile(rdt, rdt.observedNode, computeOnPath(rdt, dirty))
+}
+
+/**
+ * Reconcile against the DOM described by `records` and return the change to emit (the diff of the
+ * previous mirror against the rebuilt one), advancing `rdt._state`. Returns an empty delta when nothing
+ * relevant changed.
+ *
+ * @param {DomRDT} rdt
+ * @param {MutationRecord[]} records
+ * @return {DomDelta}
+ */
+const pull = (rdt, records) => {
+  const fresh = reconcileFromRecords(rdt, records)
+  if (fresh == null) return /** @type {DomDelta} */ (delta.create())
+  // `clone: true` is REQUIRED here (not merely an optimisation as on a throwaway diff): `fresh` becomes
+  // the persistent `_state`, so the emitted change must share none of its subtrees — a consumer that
+  // freezes/mutates a shared child would otherwise corrupt the live mirror.
+  const change = /** @type {DomDelta} */ (delta.diff(rdt._state, fresh, { clone: true }))
+  // MUST commit: `reconcile` already re-pointed `rdt._nodes` at the rebuilt shells, so keeping the old
+  // `_state` would desync it. (Skipping is safe only when nothing was reconciled — the `fresh == null`
+  // short-circuit above.)
+  rdt._state = fresh
+  return change
+}
+
+/**
+ * The `MutationObserver` callback: reconcile the batch and, if it produced a change, emit it with the
+ * RDT itself as origin (a locally-observed DOM edit is produced by this RDT — see {@link RDT}).
+ *
+ * @param {DomRDT} rdt
+ * @param {MutationRecord[]} mutations
+ */
+const mutationHandler = (rdt, mutations) => {
+  const change = pull(rdt, mutations)
+  if (!change.isEmpty()) rdt.emit('delta', [change, rdt])
+}
+
+/**
+ * An RDT backed by a live DOM subtree. DOM mutations observed via `MutationObserver` reconcile the
+ * mirror incrementally (re-reading only changed paths, reusing unchanged subtrees by reference) and the
+ * resulting minimal diff is emitted as a delta; incoming deltas are applied back onto the DOM.
  *
  * @implements {RDT<DomConf>}
  * @extends {ObservableV2<{ delta: (delta: delta.Delta<DomConf>, origin: any) => void, destroy: (rdt: DomRDT) => void }>}
@@ -206,42 +326,28 @@ class DomRDT extends ObservableV2 {
     this.$delta = /** @type {any} */ ($domDelta)
     this.observedNode = observedNode
     /**
-     * Last-known DOM state. The observe path diffs the live DOM against this to compute the change to
-     * emit, then advances it; `applyDelta` re-syncs it after mutating the DOM.
+     * Maps each observed DOM node to its mirror delta node in {@link DomRDT#_state}. A {@link reconcile}
+     * reuses an unchanged subtree by reference (skipping its DOM read) via this map; entries for removed
+     * nodes are reclaimed automatically.
+     *
+     * @type {WeakMap<Node, DomDelta>}
+     */
+    this._nodes = new WeakMap()
+    /**
+     * The live delta mirror of the observed subtree, maintained incrementally. A reconcile rebuilds only
+     * the changed paths and swaps this whole root (see {@link pull}); it is never mutated in place, so a
+     * mirror handed out by {@link DomRDT#delta} stays a valid immutable snapshot.
      *
      * @type {DomDelta}
      */
-    this._state = domToDelta(observedNode)
-    this.observer = new MutationObserver(this._mutationHandler)
+    this._state = reconcile(this, observedNode, EMPTY_ON_PATH)
+    this.observer = new MutationObserver(mutations => mutationHandler(this, mutations))
     this.observer.observe(observedNode, {
       subtree: true,
       childList: true,
       attributes: true,
-      characterDataOldValue: true
+      characterData: true
     })
-  }
-
-  /**
-   * Pull the local DOM changes accumulated since the last sync as a delta (by diffing the live DOM
-   * against `_state`), advancing `_state` to the current DOM.
-   *
-   * @return {DomDelta}
-   */
-  _pull () {
-    const next = domToDelta(this.observedNode)
-    const change = delta.diff(this._state, next)
-    this._state = next
-    return change
-  }
-
-  /**
-   * @param {MutationRecord[]} mutations
-   */
-  _mutationHandler = mutations => {
-    if (mutations.length === 0) return
-    const change = this._pull()
-    // a locally-observed DOM edit: this RDT is the producer, so it is the origin (see {@link RDT})
-    if (!change.isEmpty()) this.emit('delta', [change, this])
   }
 
   /**
@@ -261,7 +367,8 @@ class DomRDT extends ObservableV2 {
    * `correction` origin (see `../rdt.js`)
    */
   applyDelta (d, origin = null) {
-    const b = this._pull()
+    // Drain + diff any pending local edits (their async MutationObserver callback may not have fired).
+    const b = pull(this, this.observer.takeRecords())
     /** @type {DomDelta} */
     let toApply = d
     /** @type {DomDelta?} */
@@ -273,10 +380,13 @@ class DomRDT extends ObservableV2 {
       fix = bOnD.isEmpty() ? null : bOnD
     }
     applyDeltaToDom(this.observedNode, toApply)
-    this._state = domToDelta(this.observedNode)
-    // MutationObserver callbacks are async, so the Binding's (synchronous) mutex cannot suppress the
-    // echo of our own write — draining the self-caused records here is what prevents it.
-    this.observer.takeRecords()
+    // Re-sync `_state` from the DOM our own write produced, reconciling from its self-caused records
+    // (taken here — MutationObserver callbacks are async, so the Binding's synchronous mutex cannot
+    // suppress this echo; draining the records is what prevents it). We reconcile rather than
+    // `_state.apply(toApply)` because apply's copy-on-write would re-clone nodes out of `_nodes`, and
+    // its inserted nodes carry no mapping — the DOM (incl. its text coalescing) is the authority.
+    const fresh = reconcileFromRecords(this, this.observer.takeRecords())
+    if (fresh != null) this._state = fresh
     // Forward the effective change so a chained binding on the other side picks it up; the binding
     // that fed us `d` swallows this re-emit via its own mutex (see ../rdt.js). `fix` is a freshly
     // rebased builder at runtime, returned as the owned change the binding maps on.
@@ -285,12 +395,14 @@ class DomRDT extends ObservableV2 {
   }
 
   /**
-   * The current state as a delta: an "insert everything" delta describing the observed subtree.
+   * The current state as a delta: the live mirror ({@link DomRDT#_state}), an "insert everything" delta
+   * describing the observed subtree. A shared read snapshot — consumers clone before mutating (see
+   * {@link RDT}); the mirror is never mutated in place, so a returned snapshot stays valid.
    *
    * @return {delta.Delta<DomConf>}
    */
   get delta () {
-    return domToDelta(this.observedNode)
+    return this._state
   }
 
   destroy () {
