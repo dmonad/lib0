@@ -7,3 +7,4 @@ node_modules
 *.d.ts
 *.d.ts.map
 .vscode
+next.md
