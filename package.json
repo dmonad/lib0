@@ -336,7 +336,7 @@
     "dpdm": "^4.0.1",
     "jsdom": "^29.1.1",
     "standard": "^17.1.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "scripts": {
     "clean": "rm -rf dist",
