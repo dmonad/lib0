@@ -8,3 +8,4 @@ node_modules
 *.d.ts.map
 .vscode
 next.md
+.playwright-mcp
