@@ -656,8 +656,8 @@ export const testRepeatRebaseMergeDeltas = tc => {
   }
   const dmerged1 = apply(order1)
   const dmerged2 = apply(order2)
-  console.log('1', JSON.stringify(dmerged1))
-  console.log('2', JSON.stringify(dmerged2))
+  // console.log('1', JSON.stringify(dmerged1))
+  // console.log('2', JSON.stringify(dmerged2))
   t.compare(dmerged1, dmerged2)
 }
 

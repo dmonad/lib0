@@ -69,10 +69,9 @@ export const testGolangBinaryEncodingCompatibility = () => {
   tests.forEach(test => {
     const encoder = encoding.createEncoder()
     encoding.writeVarUint(encoder, test.in)
-    const buffer = encoding.toUint8Array(encoder)
+    const buffer = encoder.toUint8Array()
     t.assert(buffer.byteLength === test.out.length)
     t.assert(buffer.length > 0)
-    t.assert(encoding.hasContent(encoder))
     for (let j = 0; j < buffer.length; j++) {
       t.assert(buffer[j] === test.out[j])
     }
@@ -90,12 +89,12 @@ export const testGolangBinaryEncodingCompatibility = () => {
 function test (testname, write, read, val, doLog = true) {
   const encoder = encoding.createEncoder()
   write(encoder, val)
-  const buffer = encoding.toUint8Array(encoder)
-  t.assert((buffer.length > 0) === encoding.hasContent(encoder))
+  const buffer = encoder.toUint8Array()
+  t.assert(buffer.length === encoder.length)
   const reader = decoding.createDecoder(buffer)
   const result = read(reader)
   const utf8ByteLength = string.utf8ByteLength(val + '')
-  const binaryByteLength = encoding.length(encoder)
+  const binaryByteLength = encoder.length
   if (doLog) {
     t.describe(testname, ` utf8 encode: ${utf8ByteLength} bytes / binary encode: ${binaryByteLength} bytes`)
   }
@@ -121,10 +120,11 @@ export const testVerifyLen = () => {
   const encoder = encoding.createEncoder()
   const vLen = encoder.cbuf.length + 1
   const bufsLen = encoder.bufs.length
-  encoding.verifyLen(encoder, vLen)
+  // verifyLen function was inlined into writeInto. this tests the same behavior
+  encoder.writeInto(vLen, () => {})
   t.assert(encoder.cbuf.length >= vLen)
   t.assert(encoder.bufs.length >= bufsLen)
-  t.assert(encoding.hasContent(encoder))
+  t.assert(encoder.length > 0)
 }
 
 export const testStringEncodingPerformanceNativeVsPolyfill = () => {
@@ -189,8 +189,8 @@ export const testDecodingPerformanceNativeVsPolyfill = () => {
   for (let i = 0; i < iterationsLarge; i++) {
     encoding.writeVarString(encoderLarge, bigstr)
   }
-  const buf = encoding.toUint8Array(encoder)
-  const bufLarge = encoding.toUint8Array(encoderLarge)
+  const buf = encoder.toUint8Array()
+  const bufLarge = encoderLarge.toUint8Array()
 
   const polyfillTimeSmall = t.measureTime('small dataset: polyfill encoding', () => {
     const decoder = decoding.createDecoder(buf)
@@ -236,7 +236,7 @@ export const testStringDecodingPerformance = () => {
         encoding.writeVarString(encoder, 'i')
       }
     })
-    const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+    const decoder = decoding.createDecoder(encoder.toUint8Array())
     t.measureTime('read / write single elements - read', () => {
       const arr = []
       for (let i = 0; i < N; i++) {
@@ -260,10 +260,10 @@ export const testStringDecodingPerformance = () => {
         }
       }
       encoding.writeVarString(encoder, s)
-      stringbuf = encoding.toUint8Array(encoder)
+      stringbuf = encoder.toUint8Array()
     })
     const decoder = decoding.createDecoder(stringbuf)
-    const decoderLengths = decoding.createDecoder(encoding.toUint8Array(encoderLengths))
+    const decoderLengths = decoding.createDecoder(encoderLengths.toUint8Array())
     t.measureTime('read / write concatenated string - read', () => {
       const arr = []
       const concatS = decoding.readVarString(decoder)
@@ -286,7 +286,7 @@ export const testAnyEncodeUnknowns = _tc => {
   encoding.writeAny(encoder, undefined)
   // @ts-ignore
   encoding.writeAny(encoder, () => {})
-  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const decoder = decoding.createDecoder(encoder.toUint8Array())
   t.assert(decoding.readAny(decoder) === undefined)
   t.assert(decoding.readAny(decoder) === undefined)
   t.assert(decoding.readAny(decoder) === undefined)
@@ -395,14 +395,14 @@ export const testAnyVsJsonEncoding = tc => {
   t.measureTime('lib0 any encoding', () => {
     const encoder = encoding.createEncoder()
     encoding.writeAny(encoder, n)
-    const buffer = encoding.toUint8Array(encoder)
+    const buffer = encoder.toUint8Array()
     t.info('buffer length is ' + buffer.length)
     decoding.readAny(decoding.createDecoder(buffer))
   })
   t.measureTime('JSON.stringify encoding', () => {
     const encoder = encoding.createEncoder()
     encoding.writeVarString(encoder, JSON.stringify(n))
-    const buffer = encoding.toUint8Array(encoder)
+    const buffer = encoder.toUint8Array()
     t.info('buffer length is ' + buffer.length)
     JSON.parse(decoding.readVarString(decoding.createDecoder(buffer)))
   })
@@ -439,7 +439,7 @@ export const testSetMethods = _tc => {
   encoding.setUint8(encoder, 0, 8)
   encoding.setUint16(encoder, 1, 16)
   encoding.setUint32(encoder, 3, 32)
-  const buf = encoding.toUint8Array(encoder)
+  const buf = encoder.toUint8Array()
   const decoder = decoding.createDecoder(buf)
   t.assert(decoding.peekUint8(decoder) === 8)
   decoding.readUint8(decoder)
@@ -509,9 +509,9 @@ export const testRepeatRandomWrites = tc => {
   }
   const tailData = prng.uint8Array(gen, prng.int32(gen, 0, defLen))
   encoding.writeUint8Array(encoder, tailData)
-  const buf = encoding.toUint8Array(encoder)
+  const buf = encoder.toUint8Array()
   const decoder = decoding.createDecoder(buf)
-  t.assert(encoding.length(encoder) === buf.byteLength)
+  t.assert(encoder.length === buf.byteLength)
   for (let i = 0; i < ops.length; i++) {
     const o = ops[i]
     const val = o.read(decoder)
@@ -531,8 +531,8 @@ export const testWriteUint8ArrayOverflow = _tc => {
     buf[i] = i
   }
   encoding.writeUint8Array(encoder, buf)
-  encoding.write(encoder, 42)
-  const res = encoding.toUint8Array(encoder)
+  encoder.write(42)
+  const res = encoder.toUint8Array()
   t.assert(res.length === initialLen * 4 + 1)
   for (let i = 0; i < buf.length - 1; i++) {
     t.assert(res[i] === (i % 256))
@@ -548,8 +548,8 @@ export const testSetOnOverflow = _tc => {
   const initialLen = encoder.cbuf.byteLength
   encoder.cpos = initialLen - 2
   encoding.writeUint32(encoder, binary.BITS32)
-  const buf = encoding.toUint8Array(encoder)
-  t.assert(encoding.length(encoder) === initialLen + 2)
+  const buf = encoder.toUint8Array()
+  t.assert(encoder.length === initialLen + 2)
   const decoder = decoding.createDecoder(buf)
   const space = buffer.createUint8ArrayFromArrayBuffer(decoding.readUint8Array(decoder, initialLen - 2).buffer)
   for (let i = 0; i < initialLen - 2; i++) {
@@ -560,7 +560,7 @@ export const testSetOnOverflow = _tc => {
   t.assert(!decoding.hasContent(decoder))
   encoding.setUint8(encoder, 5, binary.BITS8)
   encoding.setUint8(encoder, initialLen + 1, 7)
-  const buf2 = encoding.toUint8Array(encoder)
+  const buf2 = encoder.toUint8Array()
   t.assert(buf2[5] === binary.BITS8)
   t.assert(buf[5] === 0, 'old buffer is not affected')
   t.assert(buf2[initialLen + 1] === 7)
@@ -574,7 +574,7 @@ export const testCloneDecoder = _tc => {
   encoding.writeUint8(encoder, 12132)
   encoding.writeVarUint(encoder, 329840128734)
   encoding.writeVarString(encoder, 'dtrnuiaednudiaendturinaedt nduiaen dturinaed ')
-  const buf = encoding.toUint8Array(encoder)
+  const buf = encoder.toUint8Array()
   const decoder = decoding.createDecoder(buf)
   decoding.skip8(decoder)
   const decoder2 = decoding.clone(decoder)
@@ -592,7 +592,7 @@ export const testWriteBinaryEncoder = _tc => {
   const encoder2 = encoding.createEncoder()
   encoding.writeVarUint(encoder2, 143095)
   encoding.writeBinaryEncoder(encoder2, encoder)
-  const buf = encoding.toUint8Array(encoder2)
+  const buf = encoder2.toUint8Array()
   const decoder = decoding.createDecoder(buf)
   t.assert(decoding.readVarUint(decoder) === 143095)
   t.assert(decoding.readUint16(decoder) === 4)
@@ -609,7 +609,7 @@ export const testOverflowStringDecoding = tc => {
     longStr += prng.utf16String(gen, 100000)
   }
   encoding.writeVarString(encoder, longStr)
-  const buf = encoding.toUint8Array(encoder)
+  const buf = encoder.toUint8Array()
   const decoder = decoding.createDecoder(buf)
   t.assert(longStr === decoding.readVarString(decoder))
 }
@@ -621,12 +621,12 @@ export const testRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.RleEncoder(encoding.writeVarUint)
   for (let i = 0; i < N; i++) {
-    encoder.write(i)
+    encoder.rle(i)
     for (let j = 0; j < i; j++) { // write additional i times
-      encoder.write(i)
+      encoder.rle(i)
     }
   }
-  const decoder = new decoding.RleDecoder(encoding.toUint8Array(encoder), decoding.readVarUint)
+  const decoder = new decoding.RleDecoder(encoder.toUint8Array(), decoding.readVarUint)
   for (let i = 0; i < N; i++) {
     t.assert(i === decoder.read())
     for (let j = 0; j < i; j++) { // read additional i times
@@ -642,12 +642,12 @@ export const testRleIntDiffEncoder = _tc => {
   const N = 100
   const encoder = new encoding.RleIntDiffEncoder(0)
   for (let i = -N; i < N; i++) {
-    encoder.write(i)
+    encoder.writeInt(i)
     for (let j = 0; j < i; j++) { // write additional i times
-      encoder.write(i)
+      encoder.writeInt(i)
     }
   }
-  const decoder = new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0)
+  const decoder = new decoding.RleIntDiffDecoder(encoder.toUint8Array(), 0)
   for (let i = -N; i < N; i++) {
     t.assert(i === decoder.read())
     for (let j = 0; j < i; j++) { // read additional i times
@@ -663,9 +663,9 @@ export const testUintOptRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.UintOptRleEncoder()
   for (let i = 0; i < N; i++) {
-    encoder.write(i)
+    encoder.writeUint(i)
     for (let j = 0; j < i; j++) { // write additional i times
-      encoder.write(i)
+      encoder.writeUint(i)
     }
   }
   const decoder = new decoding.UintOptRleDecoder(encoder.toUint8Array())
@@ -684,9 +684,9 @@ export const testIncUintOptRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.IncUintOptRleEncoder()
   for (let i = 0; i < N; i++) {
-    encoder.write(i)
+    encoder.writeUint(i)
     for (let j = 0; j < i; j++) { // write additional i times
-      encoder.write(i)
+      encoder.writeUint(i)
     }
   }
   const decoder = new decoding.IncUintOptRleDecoder(encoder.toUint8Array())
@@ -705,9 +705,9 @@ export const testIntDiffRleEncoder = _tc => {
   const N = 100
   const encoder = new encoding.IntDiffOptRleEncoder()
   for (let i = -N; i < N; i++) {
-    encoder.write(i)
+    encoder.writeInt(i)
     for (let j = 0; j < i; j++) { // write additional i times
-      encoder.write(i)
+      encoder.writeInt(i)
     }
   }
   const decoder = new decoding.IntDiffOptRleDecoder(encoder.toUint8Array())
@@ -736,17 +736,14 @@ export const testIntEncoders = tc => {
       vals.push(prng.int32(gen, -10, 10))
     }
   }
-  /**
-   * @type {Array<{ encoder: any, read: function(any):any }>}
-   */
   const intEncoders = [
-    { encoder: new encoding.IntDiffOptRleEncoder(), read: encoder => new decoding.IntDiffOptRleDecoder(encoder.toUint8Array()) },
-    { encoder: new encoding.IntDiffEncoder(0), read: encoder => new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 0) },
-    { encoder: new encoding.IntDiffEncoder(42), read: encoder => new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 42) },
-    { encoder: new encoding.RleIntDiffEncoder(0), read: encoder => new decoding.RleIntDiffDecoder(encoding.toUint8Array(encoder), 0) }
+    { encoder: new encoding.IntDiffOptRleEncoder(), read: /** @param {{ toUint8Array: ()=>Uint8Array }} encoder */ encoder => new decoding.IntDiffOptRleDecoder(encoder.toUint8Array()) },
+    { encoder: new encoding.IntDiffEncoder(0), read: /** @param {{ toUint8Array: ()=>Uint8Array }} encoder */ encoder => new decoding.IntDiffDecoder(encoder.toUint8Array(), 0) },
+    { encoder: new encoding.IntDiffEncoder(42), read: /** @param {{ toUint8Array: ()=>Uint8Array }} encoder */ encoder => new decoding.IntDiffDecoder(encoder.toUint8Array(), 42) },
+    { encoder: new encoding.RleIntDiffEncoder(0), read: /** @param {{ toUint8Array: ()=>Uint8Array }} encoder */ encoder => new decoding.RleIntDiffDecoder(encoder.toUint8Array(), 0) }
   ]
   intEncoders.forEach(({ encoder, read }) => {
-    vals.forEach(v => encoder.write(v))
+    vals.forEach(v => encoder.writeInt(v))
     /**
      * @type {Array<number>}
      */
@@ -766,9 +763,9 @@ export const testIntDiffEncoder = _tc => {
   const N = 100
   const encoder = new encoding.IntDiffEncoder(0)
   for (let i = -N; i < N; i++) {
-    encoder.write(i)
+    encoder.writeInt(i)
   }
-  const decoder = new decoding.IntDiffDecoder(encoding.toUint8Array(encoder), 0)
+  const decoder = new decoding.IntDiffDecoder(encoder.toUint8Array(), 0)
   for (let i = -N; i < N; i++) {
     t.assert(i === decoder.read())
   }
@@ -794,7 +791,7 @@ export const testStringDecoder = tc => {
   }
   const encoder = new encoding.StringEncoder()
   for (let i = 0; i < words.length; i++) {
-    encoder.write(words[i])
+    encoder.writeString(words[i])
   }
   const decoder = new decoding.StringDecoder(encoder.toUint8Array())
   for (let i = 0; i < words.length; i++) {
@@ -817,7 +814,7 @@ export const testLargeNumberEncoding = tc => {
   encoding.writeBigUint64(encoder, num3)
   encoding.writeFloat64(encoder, num4)
   encoding.writeFloat32(encoder, num5)
-  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const decoder = decoding.createDecoder(encoder.toUint8Array())
   const readNum1 = decoding.readAny(decoder)
   t.assert(readNum1 === num1)
   const readNum2 = decoding.readBigInt64(decoder)
@@ -859,7 +856,7 @@ export const testTerminatedEncodering = _tc => {
   encoding.writeTerminatedString(encoder, str2)
   encoding.writeTerminatedUint8Array(encoder, buf1)
   encoding.writeTerminatedUint8Array(encoder, buf2)
-  const decoder = decoding.createDecoder(encoding.toUint8Array(encoder))
+  const decoder = decoding.createDecoder(encoder.toUint8Array())
   const readStr1 = decoding.readTerminatedString(decoder)
   const readStr2 = decoding.readTerminatedString(decoder)
   const readBuf1 = decoding.readTerminatedUint8Array(decoder)

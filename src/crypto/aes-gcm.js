@@ -30,13 +30,13 @@ export const encrypt = (key, data) => {
     },
     key,
     data
-  ).then(cipher => {
-    const encryptedDataEncoder = encoding.createEncoder()
-    // iv may be sent in the clear to the other peers
-    encoding.writeUint8Array(encryptedDataEncoder, iv)
-    encoding.writeVarUint8Array(encryptedDataEncoder, new Uint8Array(cipher))
-    return encoding.toUint8Array(encryptedDataEncoder)
-  })
+  ).then(cipher =>
+    encoding.encode(encryptedDataEncoder => {
+      // iv may be sent in the clear to the other peers
+      encoding.writeUint8Array(encryptedDataEncoder, iv)
+      encoding.writeVarUint8Array(encryptedDataEncoder, new Uint8Array(cipher))
+    })
+  )
 }
 
 /**

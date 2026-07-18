@@ -399,12 +399,12 @@ export const readTerminatedUint8Array = decoder => {
   while (true) {
     b = readUint8(decoder)
     if (b === 0) {
-      return encoding.toUint8Array(encoder)
+      return encoder.toUint8Array()
     }
     if (b === 1) {
       b = readUint8(decoder)
     }
-    encoding.write(encoder, b)
+    encoder.write(b)
   }
 }
 
@@ -538,6 +538,15 @@ export class RleDecoder extends Decoder {
   }
 }
 
+/**
+ * @function
+ * @template T
+ * @param {Uint8Array} uint8Array
+ * @param {function(Decoder):T} reader
+ * @return {RleDecoder<T>}
+ */
+export const createRleDecoder = (uint8Array, reader) => new RleDecoder(uint8Array, reader)
+
 export class IntDiffDecoder extends Decoder {
   /**
    * @param {Uint8Array} uint8Array
@@ -560,6 +569,14 @@ export class IntDiffDecoder extends Decoder {
     return this.s
   }
 }
+
+/**
+ * @function
+ * @param {Uint8Array} uint8Array
+ * @param {number} start
+ * @return {IntDiffDecoder}
+ */
+export const createIntDiffDecoder = (uint8Array, start) => new IntDiffDecoder(uint8Array, start)
 
 export class RleIntDiffDecoder extends Decoder {
   /**
@@ -593,6 +610,14 @@ export class RleIntDiffDecoder extends Decoder {
   }
 }
 
+/**
+ * @function
+ * @param {Uint8Array} uint8Array
+ * @param {number} start
+ * @return {RleIntDiffDecoder}
+ */
+export const createRleIntDiffDecoder = (uint8Array, start) => new RleIntDiffDecoder(uint8Array, start)
+
 export class UintOptRleDecoder extends Decoder {
   /**
    * @param {Uint8Array} uint8Array
@@ -622,6 +647,13 @@ export class UintOptRleDecoder extends Decoder {
   }
 }
 
+/**
+ * @function
+ * @param {Uint8Array} uint8Array
+ * @return {UintOptRleDecoder}
+ */
+export const createUintOptRleDecoder = uint8Array => new UintOptRleDecoder(uint8Array)
+
 export class IncUintOptRleDecoder extends Decoder {
   /**
    * @param {Uint8Array} uint8Array
@@ -650,6 +682,13 @@ export class IncUintOptRleDecoder extends Decoder {
     return /** @type {number} */ (this.s++)
   }
 }
+
+/**
+ * @function
+ * @param {Uint8Array} uint8Array
+ * @return {IncUintOptRleDecoder}
+ */
+export const createIncUintOptRleDecoder = uint8Array => new IncUintOptRleDecoder(uint8Array)
 
 export class IntDiffOptRleDecoder extends Decoder {
   /**
@@ -685,6 +724,13 @@ export class IntDiffOptRleDecoder extends Decoder {
   }
 }
 
+/**
+ * @function
+ * @param {Uint8Array} uint8Array
+ * @return {IntDiffOptRleDecoder}
+ */
+export const createIntDiffOptRleDecoder = uint8Array => new IntDiffOptRleDecoder(uint8Array)
+
 export class StringDecoder {
   /**
    * @param {Uint8Array} uint8Array
@@ -708,3 +754,10 @@ export class StringDecoder {
     return res
   }
 }
+
+/**
+ * @function
+ * @param {Uint8Array} uint8Array
+ * @return {StringDecoder}
+ */
+export const createStringDecoder = uint8Array => new StringDecoder(uint8Array)
