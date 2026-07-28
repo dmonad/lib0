@@ -291,6 +291,36 @@ export const testAnyEncodeUnknowns = _tc => {
 }
 
 /**
+ * writeAny must reject cyclic data (which would otherwise loop forever) while still
+ * accepting legitimately deep, acyclic data past the recursion-guard's threshold.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testAnyEncodeRecursive = _tc => {
+  // cyclic structures must throw instead of looping forever
+  const arrCycle = /** @type {any} */ ([])
+  arrCycle.push(arrCycle)
+  t.fails(() => encoding.writeAny(encoding.createEncoder(), arrCycle))
+  const objCycle = /** @type {any} */ ({})
+  objCycle.self = objCycle
+  t.fails(() => encoding.writeAny(encoding.createEncoder(), objCycle))
+  const a = /** @type {any} */ ([])
+  const b = /** @type {any} */ ([])
+  a.push(b)
+  b.push(a)
+  t.fails(() => encoding.writeAny(encoding.createEncoder(), a))
+  // deep but acyclic data past the guard's threshold must NOT be falsely rejected
+  let deep = /** @type {any} */ (0)
+  for (let i = 0; i < 120000; i++) deep = [deep]
+  const encoder = encoding.createEncoder()
+  encoding.writeAny(encoder, deep)
+  let decoded = decoding.readAny(decoding.createDecoder(encoder.toUint8Array()))
+  let depth = 0
+  while (Array.isArray(decoded)) { depth++; decoded = decoded[0] }
+  t.assert(depth === 120000 && decoded === 0)
+}
+
+/**
  * @param {t.TestCase} _tc
  */
 export const testAnyEncodeDate = _tc => {

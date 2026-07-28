@@ -542,7 +542,16 @@ const isFloat32 = num => {
 export const writeAny = (encoder, val) => {
   let stack = /** @type {Array<{ v: any, keys: string[] | null, len: number }>|null} */ (null)
   let stackHead = /** @type {{ v: any, keys: string[] | null, len: number }|null} */ (null)
+  let i = 0
   while (true) {
+    // Detect cyclic data structures
+    // Every 100k iterations: check if we find stackHead.v already on the stack
+    if (++i % 100000 === 0 && stack && stack.length > 5000) {
+      for (let si = stack.length - 2; si >= 0; si--) {
+        // Throw exception when encoding a cyclic / recursive data structure.
+        if (stack[si].v === /** @type {any} */ (stackHead).v) throw new Error('cyclic json')
+      }
+    }
     let len = 0
     let keys = null
     switch (typeof val) {
@@ -605,6 +614,13 @@ export const writeAny = (encoder, val) => {
       if (stack == null) stack = []
       stack.push(stackHead = { v: val, keys, len })
     }
+    // pop all empty stackHeads
+    while (stackHead?.len === 0) {
+      // @ts-ignore
+      stack.pop()
+      // @ts-ignore
+      stackHead = stack.length > 0 ? stack[stack.length - 1] : null
+    }
     // pop some state from the stackHead
     if (stackHead != null) {
       if (stackHead.keys === null) {
@@ -613,12 +629,6 @@ export const writeAny = (encoder, val) => {
         const key = stackHead.keys[stackHead.keys.length - stackHead.len--]
         val = stackHead.v[key]
         writeVarString(encoder, key)
-      }
-      if (stackHead.len === 0) {
-        // @ts-ignore
-        stack.pop()
-        // @ts-ignore
-        stackHead = stack.length > 0 ? stack[stack.length - 1] : null
       }
     } else {
       // no new data to write
