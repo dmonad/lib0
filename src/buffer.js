@@ -142,7 +142,7 @@ export const copyUint8Array = uint8Array => {
  * See encoding.writeAny for more information.
  *
  * @param {any} data
- * @return {Uint8Array}
+ * @return {Uint8Array<ArrayBuffer>}
  */
 export const encodeAny = data =>
   encoding.encode(encoder => encoding.writeAny(encoder, data))
@@ -150,7 +150,7 @@ export const encodeAny = data =>
 /**
  * Decode an any-encoded value.
  *
- * @param {Uint8Array} buf
+ * @param {Uint8Array<ArrayBuffer>} buf
  * @return {any}
  */
 export const decodeAny = buf => decoding.readAny(decoding.createDecoder(buf))

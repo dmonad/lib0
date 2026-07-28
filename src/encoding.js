@@ -47,7 +47,7 @@ import * as array from './array.js'
 /**
  * An encoder that additionally supports overwriting already-written positions.
  *
- * @typedef {AbstractEncoder & { toUint8Array: ()=>Uint8Array }} AbstractBufferedEncoder
+ * @typedef {AbstractEncoder & { toUint8Array: ()=>Uint8Array<ArrayBuffer> }} AbstractBufferedEncoder
  */
 
 /**
@@ -105,8 +105,8 @@ export class Encoder {
    * @param {(buf:ArrayBuffer,start:number,len:number)=>void} writer
    */
   writeInto (len, writer) {
-   // Verify that it is possible to write `len` bytes wtihout checking. If
-   // necessary, a new Buffer with the required length is attached.
+    // Verify that it is possible to write `len` bytes wtihout checking. If
+    // necessary, a new Buffer with the required length is attached.
     const bufferLen = this.cbuf.length
     if (bufferLen - this.cpos < len) {
       this.bufs.push(new Uint8Array(this.cbuf.buffer, 0, this.cpos))
@@ -143,7 +143,6 @@ export class Encoder {
     buffer[pos] = num
   }
 
-
   /**
    * Transform to Uint8Array.
    *
@@ -160,7 +159,6 @@ export class Encoder {
     uint8arr.set(new Uint8Array(this.cbuf.buffer, 0, this.cpos), curPos)
     return uint8arr
   }
-
 }
 
 /**
@@ -172,7 +170,7 @@ export const createEncoder = () => new Encoder()
  * @template {AbstractBufferedEncoder} [Enc=Encoder]
  * @param {(encoder:Enc)=>void} f
  * @param {()=>Enc} [create]
- * @return {Uint8Array}
+ * @return {Uint8Array<ArrayBuffer>}
  */
 export const encode = (f, create) => {
   // reason: with `create` omitted, Enc defaults to Encoder, so createEncoder()'s Encoder is exactly Enc
@@ -446,11 +444,9 @@ export const writeVarUint8Array = (encoder, uint8Array) => {
  *
  * ```js
  * // write float32 using DataView
- * const dv = writeOnDataView(encoder, 4)
- * dv.setFloat32(0, 1.1)
+ * writeOnDataView(encoder, 4, dv => dv.setFloat32(0, 1.1))
  * // read float32 using DataView
- * const dv = readFromDataView(encoder, 4)
- * dv.getFloat32(0) // => 1.100000023841858 (leaving it to the reader to find out why this is the correct result)
+ * readFromDataView(decoder, 4, dv => dv.getFloat32(0)) // => 1.100000023841858 (leaving it to the reader to find out why this is the correct result)
  * ```
  *
  * @param {AbstractEncoder} encoder
@@ -541,69 +537,93 @@ const isFloat32 = num => {
  *          lib0/encoding.js
  *
  * @param {AbstractEncoder} encoder
- * @param {AnyEncodable} data
+ * @param {AnyEncodable} val
  */
-export const writeAny = (encoder, data) => {
-  switch (typeof data) {
-    case 'string':
-      // TYPE 119: STRING
-      encoder.write(119)
-      writeVarString(encoder, data)
-      break
-    case 'number':
-      if (number.isInteger(data) && math.abs(data) <= binary.BITS31) {
-        // TYPE 125: INTEGER
-        encoder.write(125)
-        writeVarInt(encoder, data)
-      } else if (isFloat32(data)) {
-        // TYPE 124: FLOAT32
-        encoder.write(124)
-        writeFloat32(encoder, data)
-      } else {
-        // TYPE 123: FLOAT64
-        encoder.write(123)
-        writeFloat64(encoder, data)
-      }
-      break
-    case 'bigint':
-      // TYPE 122: BigInt
-      encoder.write(122)
-      writeBigInt64(encoder, data)
-      break
-    case 'object':
-      if (data === null) {
-        // TYPE 126: null
-        encoder.write(126)
-      } else if (array.isArray(data)) {
-        // TYPE 117: Array
-        encoder.write(117)
-        writeVarUint(encoder, data.length)
-        for (let i = 0; i < data.length; i++) {
-          writeAny(encoder, data[i])
+export const writeAny = (encoder, val) => {
+  let stack = /** @type {Array<{ v: any, keys: string[] | null, len: number }>|null} */ (null)
+  let stackHead = /** @type {{ v: any, keys: string[] | null, len: number }|null} */ (null)
+  while (true) {
+    let len = 0
+    let keys = null
+    switch (typeof val) {
+      case 'string':
+        // TYPE 119: STRING
+        encoder.write(119)
+        writeVarString(encoder, val)
+        break
+      case 'number':
+        if (number.isInteger(val) && math.abs(val) <= binary.BITS31) {
+          // TYPE 125: INTEGER
+          encoder.write(125)
+          writeVarInt(encoder, val)
+        } else if (isFloat32(val)) {
+          // TYPE 124: FLOAT32
+          encoder.write(124)
+          writeFloat32(encoder, val)
+        } else {
+          // TYPE 123: FLOAT64
+          encoder.write(123)
+          writeFloat64(encoder, val)
         }
-      } else if (data instanceof Uint8Array) {
-        // TYPE 116: ArrayBuffer
-        encoder.write(116)
-        writeVarUint8Array(encoder, data)
-      } else {
-        // TYPE 118: Object
-        encoder.write(118)
-        const keys = Object.keys(data)
-        writeVarUint(encoder, keys.length)
-        for (let i = 0; i < keys.length; i++) {
-          const key = keys[i]
-          writeVarString(encoder, key)
-          writeAny(encoder, data[key])
+        break
+      case 'bigint':
+        // TYPE 122: BigInt
+        encoder.write(122)
+        writeBigInt64(encoder, val)
+        break
+      case 'object':
+        if (val === null) {
+          // TYPE 126: null
+          encoder.write(126)
+        } else if (array.isArray(val)) {
+          // TYPE 117: Array
+          encoder.write(117)
+          len = val.length
+          writeVarUint(encoder, len)
+        } else if (val instanceof Uint8Array) {
+          // TYPE 116: ArrayBuffer
+          encoder.write(116)
+          writeVarUint8Array(encoder, val)
+        } else {
+          // TYPE 118: Object
+          encoder.write(118)
+          keys = Object.keys(val)
+          len = keys.length
+          writeVarUint(encoder, keys.length)
         }
+        break
+      case 'boolean':
+        // TYPE 120/121: boolean (true/false)
+        encoder.write(val ? 120 : 121)
+        break
+      default:
+        // TYPE 127: undefined
+        encoder.write(127)
+    }
+    // write new stackHead, if writing nested data
+    if (len > 0) {
+      if (stack == null) stack = []
+      stack.push(stackHead = { v: val, keys, len })
+    }
+    // pop some state from the stackHead
+    if (stackHead != null) {
+      if (stackHead.keys === null) {
+        val = stackHead.v[stackHead.v.length - stackHead.len--]
+      } else {
+        const key = stackHead.keys[stackHead.keys.length - stackHead.len--]
+        val = stackHead.v[key]
+        writeVarString(encoder, key)
       }
+      if (stackHead.len === 0) {
+        // @ts-ignore
+        stack.pop()
+        // @ts-ignore
+        stackHead = stack.length > 0 ? stack[stack.length - 1] : null
+      }
+    } else {
+      // no new data to write
       break
-    case 'boolean':
-      // TYPE 120/121: boolean (true/false)
-      encoder.write(data ? 120 : 121)
-      break
-    default:
-      // TYPE 127: undefined
-      encoder.write(127)
+    }
   }
 }
 
@@ -643,7 +663,7 @@ export class RleEncoder extends Encoder {
   /**
    * @param {T} v
    */
-  rle (v) {
+  writeValue (v) {
     if (this.s === v) {
       this.count++
     } else {
