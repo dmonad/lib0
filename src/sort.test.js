@@ -6,8 +6,8 @@ import * as sort from './sort.js'
  * @template T
  * @param {t.TestCase} tc
  * @param {Array<T>} arr
- * @param {function(T,T):number} compare
- * @param {function(T):number} getVal
+ * @param {(a: T, b: T) => number} compare
+ * @param {(a: T) => number} getVal
  */
 const runSortTest = (tc, arr, compare, getVal) => {
   const arrSort = arr
@@ -32,9 +32,9 @@ const runSortTest = (tc, arr, compare, getVal) => {
 /**
  * @template T
  * @param {t.TestCase} tc
- * @param {function(number):Array<T>} createArray
- * @param {function(T,T):number} compare 0 if equal, 1 if a<b, -1 otherwise
- * @param {function(T):number} getVal
+ * @param {(len: number) => Array<T>} createArray
+ * @param {(a: T, b: T) => number} compare 0 if equal, 1 if a<b, -1 otherwise
+ * @param {(a: T) => number} getVal
  */
 const createSortTest = (tc, createArray, compare, getVal) => {
   t.describe('sort 10 elements')

@@ -23,7 +23,7 @@ const _nodeStyleMap = {
 
 /* c8 ignore start */
 /**
- * @param {Array<string|undefined|Symbol|Object|number|function():Array<any>>} args
+ * @param {Array<string|undefined|Symbol|Object|number|(() => Array<any>)>} args
  * @return {Array<string|object|number|undefined>}
  */
 const computeNodeLoggingArgs = (args) => {
@@ -137,7 +137,7 @@ export const groupEnd = () => {
 }
 
 /**
- * @param {function():Node} _createNode
+ * @param {() => Node} _createNode
  */
 /* c8 ignore next 2 */
 export const printDom = (_createNode) => {}
@@ -158,7 +158,7 @@ export const createVConsole = (_dom) => {}
 
 /**
  * @param {string} moduleName
- * @return {function(...any):void}
+ * @return {(...args: Array<any>) => void}
  */
 /* c8 ignore next */
 export const createModuleLogger = (moduleName) => common.createModuleLogger(print, moduleName)

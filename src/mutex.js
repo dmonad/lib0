@@ -6,8 +6,8 @@
 
 /**
  * @callback mutex
- * @param {function():void} cb Only executed when this mutex is not in the current stack
- * @param {function():void} [elseCb] Executed when this mutex is in the current stack
+ * @param {() => void} cb Only executed when this mutex is not in the current stack
+ * @param {() => void} [elseCb] Executed when this mutex is in the current stack
  */
 
 /**

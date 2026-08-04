@@ -173,7 +173,7 @@ export const remove = (cache, key) => {
  *
  * @param {Cache<K, V>} cache
  * @param {K} key
- * @param {function():Promise<V>} init
+ * @param {() => Promise<V>} init
  * @param {boolean} removeNull Optional argument that automatically removes values that resolve to null/undefined from the cache.
  * @return {Promise<V> | V}
  */

@@ -53,7 +53,7 @@ export class Encoder {
 export const createEncoder = () => new Encoder()
 
 /**
- * @param {function(Encoder):void} f
+ * @param {(encoder: Encoder) => void} f
  */
 export const encode = (f) => {
   const encoder = createEncoder()
@@ -622,7 +622,7 @@ export const writeAny = (encoder, data) => {
  */
 export class RleEncoder extends Encoder {
   /**
-   * @param {function(Encoder, T):void} writer
+   * @param {(encoder: Encoder, value: T) => void} writer
    */
   constructor (writer) {
     super()

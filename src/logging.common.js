@@ -16,7 +16,7 @@ export const UNCOLOR = symbol.create()
 
 /* c8 ignore start */
 /**
- * @param {Array<undefined|string|Symbol|Object|number|function():any>} args
+ * @param {Array<undefined|string|Symbol|Object|number|(() => any)>} args
  * @return {Array<string|object|number|undefined>}
  */
 export const computeNoColorLoggingArgs = args => {
@@ -58,9 +58,9 @@ let lastLoggingTime = time.getUnixTime()
 
 /* c8 ignore start */
 /**
- * @param {function(...any):void} _print
+ * @param {(...args: Array<any>) => void} _print
  * @param {string} moduleName
- * @return {function(...any):void}
+ * @return {(...args: Array<any>) => void}
  */
 export const createModuleLogger = (_print, moduleName) => {
   const color = loggingColors[nextColor]

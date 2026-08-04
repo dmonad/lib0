@@ -21,7 +21,7 @@ const _runQueue = () => {
 }
 
 /**
- * @param {function():void} f
+ * @param {() => void} f
  */
 export const enqueue = f => {
   queue.push(f)
@@ -36,7 +36,7 @@ export const enqueue = f => {
  */
 
 /**
- * @param {function(number):void} clearFunction
+ * @param {(timeoutId: number) => void} clearFunction
  */
 const createTimeoutClass = clearFunction => class TT {
   /**
@@ -73,7 +73,7 @@ export const interval = (timeout, callback) => new Interval(setInterval(callback
 export const Animation = createTimeoutClass(arg => typeof requestAnimationFrame !== 'undefined' && cancelAnimationFrame(arg))
 
 /**
- * @param {function(number):void} cb
+ * @param {(timestamp: number) => void} cb
  * @return {TimeoutObject}
  */
 /* c8 ignore next */

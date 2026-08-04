@@ -14,13 +14,13 @@ import * as time from './time.js'
 
 /**
  * @template T
- * @param {function(PromiseResolve<T>,function(Error):void):any} f
+ * @param {(resolve: PromiseResolve<T>, reject: (err: Error) => void) => any} f
  * @return {Promise<T>}
  */
 export const create = f => /** @type {Promise<T>} */ (new Promise(f))
 
 /**
- * @param {function(function():void,function(Error):void):void} f
+ * @param {(resolve: () => void, reject: (err: Error) => void) => void} f
  * @return {Promise<void>}
  */
 export const createEmpty = f => new Promise(f)
@@ -59,7 +59,7 @@ export const resolveWith = res => Promise.resolve(res)
  * @deprecated use untilAsync instead
  *
  * @param {number} timeout
- * @param {function():boolean} check
+ * @param {() => boolean} check
  * @param {number} [intervalResolution]
  * @return {Promise<void>}
  */

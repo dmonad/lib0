@@ -460,7 +460,7 @@ export const readBigInt64 = decoder => /** @type {any} */ (readFromDataView(deco
 export const readBigUint64 = decoder => /** @type {any} */ (readFromDataView(decoder, 8)).getBigUint64(0, false)
 
 /**
- * @type {Array<function(Decoder):any>}
+ * @type {Array<(decoder: Decoder) => any>}
  */
 const readAnyLookupTable = [
   decoder => undefined, // CASE 127: undefined
@@ -508,7 +508,7 @@ export const readAny = decoder => readAnyLookupTable[127 - readUint8(decoder)](d
 export class RleDecoder extends Decoder {
   /**
    * @param {Uint8Array} uint8Array
-   * @param {function(Decoder):T} reader
+   * @param {(decoder: Decoder) => T} reader
    */
   constructor (uint8Array, reader) {
     super(uint8Array)

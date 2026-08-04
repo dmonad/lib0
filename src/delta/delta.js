@@ -1416,7 +1416,7 @@ export class Delta extends DeltaData {
       })
       encoding.writeVarUint(encoder, keys.length)
       for (const key of keys) {
-        encoding.writeVarString(encoder, /** @type {any} */ (this.attrs[/** @type {keyof Attrs} */ (key)]).fingerprint)
+        encoding.writeVarString(encoder, /** @type {any} */ (this.attrs[/** @type {keyof typeof this.attrs} */ (key)]).fingerprint)
       }
       encoding.writeVarUint(encoder, this.children.len)
       for (const child of this.children) {
@@ -3642,7 +3642,7 @@ export const random = (gen, $d, conf = {}) => {
   }
   for (let i = prng.uint32(gen, minChildOps, maxChildOps); i > 0; i--) {
     /**
-     * @type {Array<function():void>}
+     * @type {Array<() => void>}
      */
     const possibleOps = []
     if (hasText) {
@@ -3801,7 +3801,11 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * }>}
  */
 /**
- * @param {Array<string|null|{[K:string|number]:any}|Array<any>>} args
+ * `...X` (not `Array<X>`) is the rest-parameter form — `@param {Array<X>} args` declares a single
+ * array-typed parameter, which makes the overloads above incompatible with this signature. TS only
+ * cross-checks overloads against the implementation for function declarations, so it stayed silent.
+ *
+ * @param {...(string|null|{[K:string|number]:any}|Array<any>)} args
  * @return {DeltaBuilder<{}>}
  */
 export const from = (...args) => {

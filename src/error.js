@@ -12,8 +12,12 @@
 export const create = s => new Error(s)
 
 /**
+ * `@type` (not `@param`/`@return`) is required for the `never` return to affect control-flow
+ * analysis — a call to a never-returning function only terminates a code path if the callee is
+ * declared with an explicit type annotation.
+ *
  * @throws {Error}
- * @return {never}
+ * @type {() => never}
  */
 /* c8 ignore next 3 */
 export const methodUnimplemented = () => {
@@ -22,7 +26,7 @@ export const methodUnimplemented = () => {
 
 /**
  * @throws {Error}
- * @return {never}
+ * @type {() => never}
  */
 /* c8 ignore next 3 */
 export const unexpectedCase = () => {
@@ -30,7 +34,9 @@ export const unexpectedCase = () => {
 }
 
 /**
- * @param {boolean} property
- * @return {asserts property is true}
+ * `@type` (not `@param`/`@return`) is required — an assertion signature only narrows if the
+ * callee is declared with an explicit type annotation.
+ *
+ * @type {(property: boolean) => asserts property is true}
  */
 export const assert = property => { if (!property) throw create('Assert failed') }

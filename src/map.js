@@ -44,7 +44,7 @@ export const copy = m => {
  *
  * @function
  * @template {Map<any, any>} MAP
- * @template {MAP extends Map<any,infer V> ? function():V : unknown} CF
+ * @template {MAP extends Map<any,infer V> ? (() => V) : unknown} CF
  * @param {MAP} map
  * @param {MAP extends Map<infer K,any> ? K : unknown} key
  * @param {CF} createT
@@ -66,7 +66,7 @@ export const setIfUndefined = (map, key, createT) => {
  * @template V
  * @template R
  * @param {Map<K,V>} m
- * @param {function(V,K):R} f
+ * @param {(value: V, key: K) => R} f
  * @return {Array<R>}
  */
 export const map = (m, f) => {
@@ -86,7 +86,7 @@ export const map = (m, f) => {
  * @template K
  * @template V
  * @param {Map<K,V>} m
- * @param {function(V,K):boolean} f
+ * @param {(value: V, key: K) => boolean} f
  * @return {boolean}
  */
 export const any = (m, f) => {
@@ -105,7 +105,7 @@ export const any = (m, f) => {
  * @template K
  * @template V
  * @param {Map<K,V>} m
- * @param {function(V,K):boolean} f
+ * @param {(value: V, key: K) => boolean} f
  * @return {boolean}
  */
 export const all = (m, f) => {

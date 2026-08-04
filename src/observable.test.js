@@ -6,7 +6,7 @@ import { ObservableV2 } from './observable.js'
  */
 export const testTypedObservable = _tc => {
   /**
-   * @type {ObservableV2<{ "hey": function(number, string):any, listen: function(string):any }>}
+   * @type {ObservableV2<{ "hey": (n: number, s: string) => any, listen: (s: string) => any }>}
    */
   const o = new ObservableV2()
   let calls = 0

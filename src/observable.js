@@ -15,7 +15,7 @@ import * as array from './array.js'
  * This is basically a (better typed) duplicate of Observable, which will replace Observable in the
  * next release.
  *
- * @template {{[key in keyof EVENTS]: function(...any):void}} EVENTS
+ * @template {{[key in keyof EVENTS]: (...args: Array<any>) => void}} EVENTS
  */
 export class ObservableV2 {
   constructor () {

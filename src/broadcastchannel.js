@@ -24,7 +24,7 @@ import * as storage from './storage.js'
 
 /**
  * @typedef {Object} Channel
- * @property {Set<function(any, any):any>} Channel.subs
+ * @property {Set<(data: any, origin: any) => any>} Channel.subs
  * @property {any} Channel.bc
  */
 
@@ -41,7 +41,7 @@ class LocalStoragePolyfill {
   constructor (room) {
     this.room = room
     /**
-     * @type {null|function({data:Uint8Array}):void}
+     * @type {null|((e: {data:Uint8Array}) => void)}
      */
     this.onmessage = null
     /**
@@ -96,7 +96,7 @@ const getChannel = room =>
  *
  * @function
  * @param {string} room
- * @param {function(any, any):any} f
+ * @param {(data: any, origin: any) => any} f
  */
 export const subscribe = (room, f) => {
   getChannel(room).subs.add(f)
@@ -108,7 +108,7 @@ export const subscribe = (room, f) => {
  *
  * @function
  * @param {string} room
- * @param {function(any, any):any} f
+ * @param {(data: any, origin: any) => any} f
  */
 export const unsubscribe = (room, f) => {
   const channel = getChannel(room)

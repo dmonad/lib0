@@ -119,16 +119,16 @@ export const testDeltaValues = _tc => {
     }
   }
   /**
-   * @typedef {t.Assert<t.Equal<typeof _q,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true}>>>}
+   * @typedef {t.Assert<t.Equal<typeof _q,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true}>>>} _Check1
    */
   /**
-   * @typedef {t.AssertExtends<typeof _q,delta.DeltaBuilder<{attrs:{a:string|number,b:string},text:true}>>}
+   * @typedef {t.AssertExtends<typeof _q,delta.DeltaBuilder<{attrs:{a:string|number,b:string},text:true}>>} _Check2
    */
   /**
-   * @typedef {t.Assert<t.Equal<typeof change,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true,children:{my:string}}>>>}
+   * @typedef {t.Assert<t.Equal<typeof change,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true,children:{my:string}}>>>} _Check3
    */
   /**
-   * @typedef {t.AssertExtends<typeof change,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true,children:{my:string}}>>}
+   * @typedef {t.AssertExtends<typeof change,delta.DeltaBuilder<{attrs:{a:number,b:never},text:true,children:{my:string}}>>} _Check4
    */
 }
 
@@ -272,7 +272,7 @@ export const testAssignability = () => {
      */
     let a = delta.create(delta.$delta({ children: s.$number })).done()
     /**
-     * @type {delta.Delta<{ children: number|string|s.Unwrap<$child> }>}
+     * @type {delta.Delta<{ children: number|string|s.Unwrap<typeof $child> }>}
      */
     let b = delta.create(delta.$delta({ children: s.$union(s.$string, s.$number, $child) })).done()
     b = a
@@ -283,15 +283,15 @@ export const testAssignability = () => {
     const $child = delta.$delta('string', { attrs: s.$object({ a: s.$string }), text: false })
     const $child2 = delta.$delta('number', { attrs: s.$object({ a: s.$number }), text: false })
     /**
-     * @type {delta.Delta<{ children: s.Unwrap<$child> }>}
+     * @type {delta.Delta<{ children: s.Unwrap<typeof $child> }>}
      */
     let a = delta.create(delta.$delta({ children: $child })).done()
     /**
-     * @type {delta.Delta<{ children: s.Unwrap<$child>|s.Unwrap<$child2> }>}
+     * @type {delta.Delta<{ children: s.Unwrap<typeof $child>|s.Unwrap<typeof $child2> }>}
      */
     let b = delta.create(delta.$delta({ children: s.$union($child, $child2) })).done()
     /**
-     * @type {delta.Delta<{ children: s.Unwrap<$child2> }>}
+     * @type {delta.Delta<{ children: s.Unwrap<typeof $child2> }>}
      */
     let c = delta.create(delta.$delta({ children: $child2 })).done()
     // d is a superset of a and b
@@ -451,7 +451,7 @@ export const testMapTyping = () => {
   $q.expect(mmm)
   const mmm2 = delta.create().setAttr('x', 'xx')
   /**
-   * @typedef {t.Assert<t.Equal<typeof mmm2, delta.DeltaBuilder<{ attrs: {x:string} }>>>}
+   * @typedef {t.Assert<t.Equal<typeof mmm2, delta.DeltaBuilder<{ attrs: {x:string} }>>>} _Check
    */
   t.fails(() => {
     // @ts-expect-error
@@ -633,7 +633,7 @@ export const testRepeatRebaseMergeDeltas = tc => {
   const order1 = [da, db, dc].map(delta.clone)
   const order2 = [dc, db, da].map(delta.clone)
   /**
-   * @param {Array<s.Unwrap<$d>>} ops
+   * @param {Array<s.Unwrap<typeof $d>>} ops
    */
   const rebase = (ops) => {
     for (let i = 1; i < ops.length; i++) {

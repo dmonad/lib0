@@ -108,7 +108,7 @@ export const flatten = arr => fold(arr, /** @type {Array<ELEM>} */ ([]), (acc, v
 /**
  * @template T
  * @param {number} len
- * @param {function(number, Array<T>):T} f
+ * @param {(index: number, arr: Array<T>) => T} f
  * @return {Array<T>}
  */
 export const unfold = (len, f) => {
@@ -124,7 +124,7 @@ export const unfold = (len, f) => {
  * @template RESULT
  * @param {Array<T>} arr
  * @param {RESULT} seed
- * @param {function(RESULT, T, number):RESULT} folder
+ * @param {(acc: RESULT, val: T, index: number) => RESULT} folder
  */
 export const fold = (arr, seed, folder) => arr.reduce(folder, seed)
 
@@ -145,7 +145,7 @@ export const unique = arr => from(set.from(arr))
  * @template T
  * @template M
  * @param {ArrayLike<T>} arr
- * @param {function(T):M} mapper
+ * @param {(val: T) => M} mapper
  * @return {Array<T>}
  */
 export const uniqueBy = (arr, mapper) => {
@@ -170,10 +170,10 @@ export const uniqueBy = (arr, mapper) => {
 
 /**
  * @template {ArrayLike<any>} ARR
- * @template {function(ARR extends ArrayLike<infer T> ? T : never, number, ARR):any} MAPPER
+ * @template {(val: ARR extends ArrayLike<infer T> ? T : never, index: number, arr: ARR) => any} MAPPER
  * @param {ARR} arr
  * @param {MAPPER} mapper
- * @return {Array<MAPPER extends function(...any): infer M ? M : never>}
+ * @return {Array<MAPPER extends ((...args: Array<any>) => infer M) ? M : never>}
  */
 export const map = (arr, mapper) => {
   /**

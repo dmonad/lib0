@@ -77,7 +77,7 @@ export const simpleDiff = simpleDiffString
  *
  * @param {Array<T>} a The old version of the array
  * @param {Array<T>} b The updated version of the array
- * @param {function(T, T):boolean} [compare]
+ * @param {(a: T, b: T) => boolean} [compare]
  * @return {SimpleDiff<Array<T>>} The diff description.
  */
 export const simpleDiffArray = (a, b, compare = equalityStrict) => {

@@ -60,7 +60,7 @@ export const varStorage = _localStorage
 /**
  * A polyfill for `addEventListener('storage', event => {..})` that does nothing if the polyfill is being used.
  *
- * @param {function({ key: string, newValue: string, oldValue: string }): void} eventHandler
+ * @param {(e: { key: string, newValue: string, oldValue: string }) => void} eventHandler
  * @function
  */
 /* c8 ignore next */
@@ -69,7 +69,7 @@ export const onChange = eventHandler => usePolyfill || addEventListener('storage
 /**
  * A polyfill for `removeEventListener('storage', event => {..})` that does nothing if the polyfill is being used.
  *
- * @param {function({ key: string, newValue: string, oldValue: string }): void} eventHandler
+ * @param {(e: { key: string, newValue: string, oldValue: string }) => void} eventHandler
  * @function
  */
 /* c8 ignore next */

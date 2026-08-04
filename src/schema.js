@@ -228,7 +228,7 @@ export class Schema {
    * Can be useful when defining lambdas: `s.lambda(s.$number, s.$number).expect((n) => n + 1)`
    *
    * @param {T} o
-   * @return {o extends T ? T : never}
+   * @return {T extends T ? T : never}
    */
   expect (o) {
     assert(o, this)
@@ -1058,8 +1058,8 @@ export const $primitive = $union($number, $string, $null, $undefined, $bigint, $
  * @type {Schema<null|number|string|boolean|JSON[]|{[key:string]:JSON}>}
  */
 export const $json = /* @__PURE__ */(() => {
-  const $jsonArr = /** @type {$Array<$any>} */ ($array($any))
-  const $jsonRecord = /** @type {$Record<$string,$any>} */ ($record($string, $any))
+  const $jsonArr = /** @type {$Array<typeof $any>} */ ($array($any))
+  const $jsonRecord = /** @type {$Record<typeof $string,typeof $any>} */ ($record($string, $any))
   const $json = $union($number, $string, $null, $boolean, $jsonArr, $jsonRecord)
   $jsonArr.shape = $json
   $jsonRecord.shape.values = $json

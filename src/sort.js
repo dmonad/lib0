@@ -14,7 +14,7 @@ import * as math from './math.js'
  * @param {Array<T>} arr
  * @param {number} lo
  * @param {number} hi
- * @param {function(T,T):number} compare
+ * @param {(a: T, b: T) => number} compare
  */
 export const _insertionSort = (arr, lo, hi, compare) => {
   for (let i = lo + 1; i <= hi; i++) {
@@ -29,7 +29,7 @@ export const _insertionSort = (arr, lo, hi, compare) => {
 /**
  * @template T
  * @param {Array<T>} arr
- * @param {function(T,T):number} compare
+ * @param {(a: T, b: T) => number} compare
  * @return {void}
  */
 export const insertionSort = (arr, compare) => {
@@ -41,7 +41,7 @@ export const insertionSort = (arr, compare) => {
  * @param {Array<T>} arr
  * @param {number} lo
  * @param {number} hi
- * @param {function(T,T):number} compare
+ * @param {(a: T, b: T) => number} compare
  */
 const _quickSort = (arr, lo, hi, compare) => {
   if (hi - lo < 42) {
@@ -80,7 +80,7 @@ const _quickSort = (arr, lo, hi, compare) => {
  *
  * @template T
  * @param {Array<T>} arr
- * @param {function(T,T):number} compare
+ * @param {(a: T, b: T) => number} compare
  * @return {void}
  */
 export const quicksort = (arr, compare) => {

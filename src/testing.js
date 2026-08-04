@@ -133,7 +133,7 @@ const repeatTestRegex = /^(repeat|repeating)\s/
 /**
  * @param {string} moduleName
  * @param {string} name
- * @param {function(TestCase):void|Promise<any>} f
+ * @param {(tc: TestCase) => void|Promise<any>} f
  * @param {number} i
  * @param {number} numberOfTests
  */
@@ -257,7 +257,7 @@ export const printCanvas = log.printCanvas
  * ```
  *
  * @param {string} description
- * @param {function(...any):void} f
+ * @param {(...args: Array<any>) => void} f
  */
 export const group = (description, f) => {
   log.group(log.BLUE, description)
@@ -284,7 +284,7 @@ export const group = (description, f) => {
  * ```
  *
  * @param {string} description
- * @param {function(...any):Promise<any>} f
+ * @param {(...args: Array<any>) => Promise<any>} f
  */
 export const groupAsync = async (description, f) => {
   log.group(log.BLUE, description)
@@ -310,7 +310,7 @@ export const groupAsync = async (description, f) => {
  * ```
  *
  * @param {string} message
- * @param {function(...any):void} f
+ * @param {(...args: Array<any>) => void} f
  * @return {number} Returns a promise that resolves the measured duration to apply f
  */
 export const measureTime = (message, f) => {
@@ -340,7 +340,7 @@ export const measureTime = (message, f) => {
  * ```
  *
  * @param {string} message
- * @param {function(...any):Promise<any>} f
+ * @param {(...args: Array<any>) => Promise<any>} f
  * @return {Promise<number>} Returns a promise that resolves the measured duration to apply f
  */
 export const measureTimeAsync = async (message, f) => {
@@ -428,7 +428,7 @@ const _failMessage = (message, reason, path) => fail(
  * @param {any} b
  * @param {string} path
  * @param {string?} message
- * @param {function(any,any,any,string,any):boolean} customCompare
+ * @param {(constructor: any, a: any, b: any, path: string, compareValues: any) => boolean} customCompare
  */
 const _compare = (a, b, path, message, customCompare) => {
   // we don't use assert here because we want to test all branches (istanbul errors if one branch is not tested)
@@ -519,22 +519,22 @@ const _compare = (a, b, path, message, customCompare) => {
  * @param {T} a
  * @param {T} b
  * @param {string?} [message]
- * @param {function(any,T,T,string,any):boolean} [customCompare]
+ * @param {(constructor: any, a: T, b: T, path: string, compareValues: any) => boolean} [customCompare]
  */
 export const compare = (a, b, message = null, customCompare = compareValues) => _compare(a, b, 'obj', message, customCompare)
 
 /**
- * @template T
- * @param {T} property
- * @param {string?} [message]
- * @return {asserts property is NonNullable<T>}
+ * `@type` (not `@param`/`@return`) is required — an assertion signature only narrows if the
+ * callee is declared with an explicit type annotation.
+ *
  * @throws {TestError}
+ * @type {<T>(property: T, message?: string|null) => asserts property is NonNullable<T>}
  */
 /* c8 ignore next */
 export const assert = (property, message = null) => { property || fail(`Assertion failed${message !== null ? `: ${message}` : ''}`) }
 
 /**
- * @param {function(...any):Promise<any>} f
+ * @param {(...args: Array<any>) => Promise<any>} f
  */
 export const promiseRejected = async f => {
   try {
@@ -546,7 +546,7 @@ export const promiseRejected = async f => {
 }
 
 /**
- * @param {function(...any):void} f
+ * @param {(...args: Array<any>) => void} f
  * @throws {TestError}
  */
 export const fails = f => {
@@ -560,7 +560,7 @@ export const fails = f => {
 }
 
 /**
- * @param {function(...any):Promise<any>} f
+ * @param {(...args: Array<any>) => Promise<any>} f
  * @throws {TestError}
  */
 export const failsAsync = async f => {
@@ -574,7 +574,7 @@ export const failsAsync = async f => {
 }
 
 /**
- * @param {Object<string, Object<string, function(TestCase):any|Promise<any>>>} tests
+ * @param {Object<string, Object<string, (tc: TestCase) => any|Promise<any>>>} tests
  */
 export const runTests = async tests => {
   /**

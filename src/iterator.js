@@ -7,7 +7,7 @@
 /**
  * @template T,R
  * @param {Iterator<T>} iterator
- * @param {function(T):R} f
+ * @param {(v: T) => R} f
  * @return {IterableIterator<R>}
  */
 export const mapIterator = (iterator, f) => ({
@@ -23,7 +23,7 @@ export const mapIterator = (iterator, f) => ({
 
 /**
  * @template T
- * @param {function():IteratorResult<T>} next
+ * @param {() => IteratorResult<T>} next
  * @return {IterableIterator<T>}
  */
 export const createIterator = next => ({
@@ -40,7 +40,7 @@ export const createIterator = next => ({
 /**
  * @template T
  * @param {Iterator<T>} iterator
- * @param {function(T):boolean} filter
+ * @param {(v: T) => boolean} filter
  */
 export const iteratorFilter = (iterator, filter) => createIterator(() => {
   let res
@@ -53,7 +53,7 @@ export const iteratorFilter = (iterator, filter) => createIterator(() => {
 /**
  * @template T,M
  * @param {Iterator<T>} iterator
- * @param {function(T):M} fmap
+ * @param {(v: T) => M} fmap
  */
 export const iteratorMap = (iterator, fmap) => createIterator(() => {
   const { done, value } = iterator.next()

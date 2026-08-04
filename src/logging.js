@@ -32,7 +32,7 @@ const _browserStyleMap = {
 }
 
 /**
- * @param {Array<string|Symbol|Object|number|function():any>} args
+ * @param {Array<string|Symbol|Object|number|(() => any)>} args
  * @return {Array<string|object|number>}
  */
 /* c8 ignore start */
@@ -174,7 +174,7 @@ export const groupEnd = () => {
 }
 
 /**
- * @param {function():Node} createNode
+ * @param {() => Node} createNode
  */
 /* c8 ignore next 2 */
 export const printDom = (createNode) =>
@@ -378,6 +378,6 @@ export const createVConsole = (dom) => new VConsole(dom)
 
 /**
  * @param {string} moduleName
- * @return {function(...any):void}
+ * @return {(...args: Array<any>) => void}
  */
 export const createModuleLogger = (moduleName) => common.createModuleLogger(print, moduleName)

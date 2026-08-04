@@ -28,7 +28,7 @@ export const bindPledge = (p, request) => {
 
 /**
  * @param {string} name
- * @param {function(IDBDatabase):any} initDB Called when the database is first created
+ * @param {(db: IDBDatabase) => any} initDB Called when the database is first created
  * @return {pledge.PledgeInstance<IDBDatabase>}
  */
 export const openDB = (name, initDB) => {
@@ -194,7 +194,7 @@ export const getAllKeysValues = (store, range, limit) => pledge.createWithDepend
 /**
  * @param {pledge.PledgeInstance<void>} p
  * @param {any} request
- * @param {function(IDBCursorWithValue):void|boolean|Promise<void|boolean>} f
+ * @param {(cursor: IDBCursorWithValue) => void|boolean|Promise<void|boolean>} f
  */
 const iterateOnRequest = (p, request, f) => {
   request.onerror = p.cancel.bind(p)
@@ -215,7 +215,7 @@ const iterateOnRequest = (p, request, f) => {
  * Iterate on keys and values
  * @param {pledge.Pledge<IDBObjectStore>} store
  * @param {pledge.Pledge<IDBKeyRange|null>} keyrange
- * @param {function(any,any):void|boolean|Promise<void|boolean>} f Callback that receives (value, key)
+ * @param {(value: any, key: any) => void|boolean|Promise<void|boolean>} f Callback that receives (value, key)
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 export const iterate = (store, keyrange, f, direction = 'next') => pledge.createWithDependencies((p, store, keyrange) => {
@@ -227,7 +227,7 @@ export const iterate = (store, keyrange, f, direction = 'next') => pledge.create
  *
  * @param {pledge.Pledge<IDBObjectStore>} store
  * @param {pledge.Pledge<IDBKeyRange|null>} keyrange
- * @param {function(any):void|boolean|Promise<void|boolean>} f callback that receives the key
+ * @param {(key: any) => void|boolean|Promise<void|boolean>} f callback that receives the key
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 export const iterateKeys = (store, keyrange, f, direction = 'next') => pledge.createWithDependencies((p, store, keyrange) => {

@@ -37,7 +37,7 @@ export const values = Object.values
 /**
  * @template V
  * @param {{[k:string]:V}} obj
- * @param {function(V,string):any} f
+ * @param {(value: V, key: string) => any} f
  */
 export const forEach = (obj, f) => {
   for (const key in obj) {
@@ -50,7 +50,7 @@ export const forEach = (obj, f) => {
  *
  * @template R
  * @param {Object<string,any>} obj
- * @param {function(any,string):R} f
+ * @param {(value: any, key: string) => R} f
  * @return {Array<R>}
  */
 export const map = (obj, f) => {

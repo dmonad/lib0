@@ -30,7 +30,7 @@ export const nop = () => {}
 
 /**
  * @template T
- * @param {function():T} f
+ * @param {() => T} f
  * @return {T}
  */
 export const apply = f => f()

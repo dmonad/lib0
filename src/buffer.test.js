@@ -4,8 +4,8 @@ import * as prng from './prng.js'
 
 /**
  * @param {t.TestCase} tc
- * @param {function(Uint8Array):string} encoder
- * @param {function(string):Uint8Array} decoder
+ * @param {(data: Uint8Array) => string} encoder
+ * @param {(s: string) => Uint8Array} decoder
  */
 const testEncodingHelper = (tc, encoder, decoder) => {
   const gen = tc.prng

@@ -26,7 +26,7 @@ export const rtop = request => promise.create((resolve, reject) => {
 
 /**
  * @param {string} name
- * @param {function(IDBDatabase):any} initDB Called when the database is first created
+ * @param {(db: IDBDatabase) => any} initDB Called when the database is first created
  * @return {Promise<IDBDatabase>}
  */
 export const openDB = (name, initDB) => promise.create((resolve, reject) => {
@@ -193,7 +193,7 @@ export const getAllKeysValues = (store, range, limit) =>
 
 /**
  * @param {any} request
- * @param {function(IDBCursorWithValue):void|boolean|Promise<void|boolean>} f
+ * @param {(cursor: IDBCursorWithValue) => void|boolean|Promise<void|boolean>} f
  * @return {Promise<void>}
  */
 const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
@@ -214,7 +214,7 @@ const iterateOnRequest = (request, f) => promise.create((resolve, reject) => {
  * Iterate on keys and values
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange|null} keyrange
- * @param {function(any,any):void|boolean|Promise<void|boolean>} f Callback that receives (value, key)
+ * @param {(value: any, key: any) => void|boolean|Promise<void|boolean>} f Callback that receives (value, key)
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 export const iterate = (store, keyrange, f, direction = 'next') =>
@@ -225,7 +225,7 @@ export const iterate = (store, keyrange, f, direction = 'next') =>
  *
  * @param {IDBObjectStore} store
  * @param {IDBKeyRange|null} keyrange
- * @param {function(any):void|boolean|Promise<void|boolean>} f callback that receives the key
+ * @param {(key: any) => void|boolean|Promise<void|boolean>} f callback that receives the key
  * @param {'next'|'prev'|'nextunique'|'prevunique'} direction
  */
 export const iterateKeys = (store, keyrange, f, direction = 'next') =>

@@ -10,7 +10,7 @@ import * as number from './number.js'
 import * as math from './math.js'
 
 /**
- * @type {Array<function(prng.PRNG, number, boolean):any>}
+ * @type {Array<(gen: prng.PRNG, i: number, isLast: boolean) => any>}
  */
 let genAnyLookupTable = [
   gen => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)), // TYPE 122
@@ -82,8 +82,8 @@ export const testGolangBinaryEncodingCompatibility = () => {
 /**
  * @template T
  * @param {string} testname
- * @param {function(encoding.Encoder, T):void} write
- * @param {function(decoding.Decoder):T} read
+ * @param {(encoder: encoding.Encoder, value: T) => void} write
+ * @param {(decoder: decoding.Decoder) => T} read
  * @param {T} val
  * @param {boolean} doLog
  */
@@ -461,10 +461,10 @@ const strictComparison = (a, b) => a === b
 
 /**
  * @typedef {Object} EncodingPair
- * @property {function(decoding.Decoder):any} EncodingPair.read
- * @property {function(encoding.Encoder,any):void} EncodingPair.write
- * @property {function(prng.PRNG):any} EncodingPair.gen
- * @property {function(any,any):boolean} EncodingPair.compare
+ * @property {(decoder: decoding.Decoder) => any} EncodingPair.read
+ * @property {(encoder: encoding.Encoder, value: any) => void} EncodingPair.write
+ * @property {(gen: prng.PRNG) => any} EncodingPair.gen
+ * @property {(a: any, b: any) => boolean} EncodingPair.compare
  * @property {string} name
  */
 
@@ -737,7 +737,7 @@ export const testIntEncoders = tc => {
     }
   }
   /**
-   * @type {Array<{ encoder: any, read: function(any):any }>}
+   * @type {Array<{ encoder: any, read: (v: any) => any }>}
    */
   const intEncoders = [
     { encoder: new encoding.IntDiffOptRleEncoder(), read: encoder => new decoding.IntDiffOptRleDecoder(encoder.toUint8Array()) },

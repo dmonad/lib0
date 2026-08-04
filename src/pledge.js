@@ -45,11 +45,11 @@ export class PledgeInstance {
     this._v = null
     this.isResolved = false
     /**
-     * @type {Array<function(Val):void> | null}
+     * @type {Array<(val: Val) => void> | null}
      */
     this._whenResolved = []
     /**
-     * @type {Array<function(CancelReason):void> | null}
+     * @type {Array<(reason: CancelReason) => void> | null}
      */
     this._whenCanceled = []
   }
@@ -93,7 +93,7 @@ export class PledgeInstance {
 
   /**
    * @template R
-   * @param {function(Val):Pledge<R>} f
+   * @param {(val: Val) => Pledge<R>} f
    * @return {PledgeInstance<R>}
    */
   map (f) {
@@ -117,7 +117,7 @@ export class PledgeInstance {
   }
 
   /**
-   * @param {function(Val):void} f
+   * @param {(val: Val) => void} f
    */
   whenResolved (f) {
     if (this.isResolved) {
@@ -187,7 +187,7 @@ export const createWithDependencies = (init, ...deps) => {
 /**
  * @template R
  * @param {Pledge<R>} p
- * @param {function(R):void} f
+ * @param {(res: R) => void} f
  */
 export const whenResolved = (p, f) => {
   if (p instanceof PledgeInstance) {
@@ -199,7 +199,7 @@ export const whenResolved = (p, f) => {
 /**
  * @template {Pledge<unknown>} P
  * @param {P} p
- * @param {P extends PledgeInstance<unknown, infer CancelReason> ? function(CancelReason):void : function(any):void} f
+ * @param {P extends PledgeInstance<unknown, infer CancelReason> ? ((reason: CancelReason) => void) : ((reason: any) => void)} f
  */
 export const whenCanceled = (p, f) => {
   if (p instanceof PledgeInstance) {

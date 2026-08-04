@@ -45,7 +45,7 @@ export class List {
   }
 
   /**
-   * @param {function(N):any} f
+   * @param {(node: N) => any} f
    */
   forEach (f) {
     forEach(this, f)
@@ -53,7 +53,7 @@ export class List {
 
   /**
    * @template M
-   * @param {function(N):M} f
+   * @param {(node: N) => M} f
    * @return {Array<M>}
    */
   map (f) {
@@ -206,7 +206,7 @@ export const popEnd = list =>
  * @template M
  *
  * @param {List<N>} list
- * @param {function(N):M} f
+ * @param {(node: N) => M} f
  * @return {Array<M>}
  */
 export const map = (list, f) => {
@@ -232,7 +232,7 @@ export const toArray = list => map(list, id)
 /**
  * @template {ListNode} N
  * @param {List<N>} list
- * @param {function(N):any} f
+ * @param {(node: N) => any} f
  */
 export const forEach = (list, f) => {
   let n = list.start
