@@ -1241,3 +1241,316 @@ const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const random = (gen, schema, fallback) => /* @__PURE__ */_random($(schema), { gen, fallback })
+
+/**
+ * Carries the reason of a failed coercion out of the recursion.
+ *
+ * @typedef {{ err: string }} _CoerceCtx
+ */
+
+/**
+ * A compiled coercer. Returns the coerced value, or `_failed` after writing the reason to
+ * `ctx.err`.
+ *
+ * @typedef {(o:any, path:string, ctx:_CoerceCtx) => any} _Coercer
+ */
+
+const _failed = Symbol('schema:coercion failed')
+
+const _bigintRegex = /^[+-]?\d+$/
+
+/**
+ * Render a value for an error message. Objects are only rendered by kind - printing them adds
+ * noise (and `String` throws on null-prototype objects).
+ *
+ * @param {any} o
+ * @return {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+const _show = o => typeof o === 'string'
+  ? JSON.stringify(o)
+  : (o !== null && object.isObject(o) ? (arr.isArray(o) ? 'array' : 'object') : String(o))
+
+/**
+ * @param {_CoerceCtx} ctx
+ * @param {string} path
+ * @param {any} o
+ * @param {string} expected
+ * @return {typeof _failed}
+ */
+const _fail = (ctx, path, o, expected) => {
+  ctx.err = `${path === '' ? '' : `[${path}] `}${_show(o)} doesn't match ${expected}`
+  return _failed
+}
+
+/**
+ * @param {string} path
+ * @param {string} key
+ */
+/* @__NO_SIDE_EFFECTS__ */
+const _prop = (path, key) => path === '' ? key : `${path}.${key}`
+
+/**
+ * @param {string} path
+ * @param {number} i
+ */
+/* @__NO_SIDE_EFFECTS__ */
+const _idx = (path, i) => path === '' ? `${i}` : `${path}[${i}]`
+
+/**
+ * `$$x.check` is a type predicate. Dispatching through this indirection keeps `$s` from being
+ * narrowed to `never` in the negative branches of the coercer dispatch.
+ *
+ * @param {Schema<any>} $meta
+ * @param {Schema<any>} $s
+ * @return {boolean}
+ */
+const _isMeta = ($meta, $s) => $meta.check($s)
+
+/**
+ * A short, human readable name for a schema - used in coercion error messages.
+ *
+ * Only `$union` & `$optional` are descended into (`$union` flattens nested unions, so this
+ * terminates). Container shapes are *not* descended into - that's what makes this safe on
+ * self-referential schemas like `$json`.
+ *
+ * @param {Schema<any>} $s
+ * @return {string}
+ */
+const _nameOf = $s => {
+  const shape = /** @type {any} */ ($s).shape
+  if (_isMeta($$any, $s)) return 'any'
+  if (_isMeta($$string, $s)) return 'string'
+  if (_isMeta($$number, $s)) return 'number'
+  if (_isMeta($$bigint, $s)) return 'bigint'
+  if (_isMeta($$boolean, $s)) return 'boolean'
+  if (_isMeta($$symbol, $s)) return 'symbol'
+  if (_isMeta($$literal, $s) || _isMeta($$null, $s) || _isMeta($$undefined, $s)) {
+    return /** @type {Array<Primitive>} */ (shape).map(l => String(l)).join(' | ')
+  }
+  if (_isMeta($$optional, $s)) return `${_nameOf(shape)} | undefined`
+  if (_isMeta($$union, $s)) return /** @type {Array<Schema<any>>} */ (shape).map(_nameOf).join(' | ')
+  if (_isMeta($$object, $s)) return 'object'
+  if (_isMeta($$record, $s)) return 'record'
+  if (_isMeta($$tuple, $s)) return 'tuple'
+  if (_isMeta($$array, $s)) return 'array'
+  // `instanceof` instead of the meta schemas: `$uint8Array` & `$promise` overwrite their inherited
+  // `$type` with a more specific one, so `_isMeta($$constructedBy, ..)` doesn't hold for them
+  if ($s instanceof $ConstructedBy || $s instanceof $InstanceOf) return shape.name
+  return $s.constructor.name
+}
+
+/**
+ * Compile a coercer for `$s`. Dispatches on the meta schemas (`$$string`, `$$object`, ..) which are
+ * an exact identity check. The order matters: `$string` & friends are `$Custom` instances and
+ * `$null` & `$undefined` are `$Literal` instances that are only distinguishable by their `$type`.
+ *
+ * @param {Schema<any>} $s
+ * @param {Map<Schema<any>,_Coercer>} cache
+ * @return {_Coercer}
+ */
+const _createCoercer = ($s, cache) => {
+  // `shape` is only defined on the subclasses - see the comment on `Schema`
+  const shape = /** @type {any} */ ($s).shape
+  const expected = _nameOf($s)
+  if (_isMeta($$any, $s)) {
+    return o => o
+  }
+  if (_isMeta($$string, $s)) {
+    return (o, path, ctx) => {
+      const t = typeof o
+      return t === 'string' ? o : (t === 'number' || t === 'bigint' || t === 'boolean' ? o + '' : _fail(ctx, path, o, expected))
+    }
+  }
+  if (_isMeta($$number, $s)) {
+    return (o, path, ctx) => {
+      const t = typeof o
+      if (t === 'number') return o
+      if (t === 'boolean' || t === 'bigint' || (t === 'string' && o.trim() !== '')) {
+        const n = Number(o)
+        if (!number.isNaN(n)) return n
+      }
+      return _fail(ctx, path, o, expected)
+    }
+  }
+  if (_isMeta($$bigint, $s)) {
+    return (o, path, ctx) => {
+      const t = typeof o
+      return t === 'bigint'
+        ? o
+        : ((t === 'number' && number.isInteger(o)) || (t === 'string' && _bigintRegex.test(o))
+            ? BigInt(o)
+            : _fail(ctx, path, o, expected))
+    }
+  }
+  if (_isMeta($$boolean, $s)) {
+    return (o, path, ctx) => typeof o === 'boolean'
+      ? o
+      : (o === 'true' ? true : (o === 'false' ? false : _fail(ctx, path, o, expected)))
+  }
+  if (_isMeta($$literal, $s) || _isMeta($$null, $s) || _isMeta($$undefined, $s)) {
+    const literals = /** @type {Array<Primitive>} */ (shape)
+    return (o, path, ctx) => {
+      if (arr.some(literals, l => l === o)) return o
+      if (typeof o === 'string') {
+        const i = literals.findIndex(l => String(l) === o)
+        if (i >= 0) return literals[i]
+      }
+      return _fail(ctx, path, o, expected)
+    }
+  }
+  if (_isMeta($$optional, $s)) {
+    const c = _buildCoercer(shape, cache)
+    return (o, path, ctx) => o === undefined ? undefined : c(o, path, ctx)
+  }
+  if (_isMeta($$union, $s)) {
+    const members = /** @type {Array<Schema<any>>} */ (shape)
+    const cs = members.map($m => _buildCoercer($m, cache))
+    return (o, path, ctx) => {
+      // a value that already matches one of the members is never converted
+      if (arr.some(members, $m => $m.check(o))) return o
+      for (let i = 0; i < cs.length; i++) {
+        const v = cs[i](o, path, ctx)
+        if (v !== _failed) return v
+      }
+      return _fail(ctx, path, o, expected)
+    }
+  }
+  if (_isMeta($$object, $s)) {
+    const isPartial = /** @type {any} */ ($s)._isPartial
+    /**
+     * @type {Array<{ key: string, skippable: boolean, c: _Coercer }>}
+     */
+    const props = []
+    for (const key in shape) {
+      props.push({ key, skippable: isPartial || $$optional.check(shape[key]), c: _buildCoercer(shape[key], cache) })
+    }
+    return (o, path, ctx) => {
+      if (o === null || !object.isObject(o)) return _fail(ctx, path, o, expected)
+      let changed = false
+      /**
+       * @type {any}
+       */
+      const res = {}
+      for (let i = 0; i < props.length; i++) {
+        const { key, skippable, c } = props[i]
+        if (skippable && !object.hasProperty(o, key)) continue
+        const v = c(o[key], _prop(path, key), ctx)
+        if (v === _failed) return _failed
+        changed = changed || v !== o[key]
+        res[key] = v
+      }
+      // unknown props are preserved - `$Object` accepts them as well
+      return changed ? object.assign({}, o, res) : o
+    }
+  }
+  if (_isMeta($$record, $s)) {
+    const ckey = _buildCoercer(shape.keys, cache)
+    const cval = _buildCoercer(shape.values, cache)
+    return (o, path, ctx) => {
+      if (o === null || !object.isObject(o)) return _fail(ctx, path, o, expected)
+      let changed = false
+      /**
+       * @type {any}
+       */
+      const res = {}
+      for (const key in o) {
+        const p = _prop(path, key)
+        // keys are coerced only to validate them - the property name stays a string either way
+        if (ckey(key, p, ctx) === _failed) return _failed
+        const v = cval(o[key], p, ctx)
+        if (v === _failed) return _failed
+        changed = changed || v !== o[key]
+        res[key] = v
+      }
+      return changed ? res : o
+    }
+  }
+  if (_isMeta($$tuple, $s)) {
+    const cs = /** @type {Array<Schema<any>>} */ (shape).map($m => _buildCoercer($m, cache))
+    return (o, path, ctx) => {
+      if (!arr.isArray(o)) return _fail(ctx, path, o, expected)
+      let changed = false
+      // `$Tuple` doesn't constrain the length - additional items are preserved
+      const res = o.slice()
+      for (let i = 0; i < cs.length; i++) {
+        const v = cs[i](o[i], _idx(path, i), ctx)
+        if (v === _failed) return _failed
+        changed = changed || v !== o[i]
+        res[i] = v
+      }
+      return changed ? res : o
+    }
+  }
+  if (_isMeta($$array, $s)) {
+    const c = _buildCoercer(shape, cache)
+    return (o, path, ctx) => {
+      if (!arr.isArray(o)) return _fail(ctx, path, o, expected)
+      let changed = false
+      const res = new Array(o.length)
+      for (let i = 0; i < o.length; i++) {
+        const v = c(o[i], _idx(path, i), ctx)
+        if (v === _failed) return _failed
+        changed = changed || v !== o[i]
+        res[i] = v
+      }
+      return changed ? res : o
+    }
+  }
+  // everything else ($instanceOf, $constructedBy, $custom, $lambda, $intersect, $stringTemplate,
+  // $type, ..) has no meaningful conversion - accept the value iff it already matches
+  return (o, path, ctx) => $s.check(o) ? o : _fail(ctx, path, o, expected)
+}
+
+/**
+ * Compile with memoization. The coercer is registered *before* recursing so that self-referential
+ * schemas (e.g. `$json`) terminate.
+ *
+ * @param {Schema<any>} $s
+ * @param {Map<Schema<any>,_Coercer>} cache
+ * @return {_Coercer}
+ */
+const _buildCoercer = ($s, cache) => {
+  const cached = cache.get($s)
+  if (cached != null) return cached
+  // `self` is a box because the registered forwarder must close over a coercer that doesn't exist
+  // yet
+  /**
+   * @type {Array<_Coercer>}
+   */
+  const self = []
+  cache.set($s, (o, path, ctx) => self[0](o, path, ctx))
+  self.push(_createCoercer($s, cache))
+  return self[0]
+}
+
+/**
+ * Compile a coercion function for `schema`.
+ *
+ * Unlike `check` (which only validates) a coercion converts values that don't match yet - `'42'`
+ * becomes `42` for `$number`, `'true'` becomes `true` for `$boolean`. Values that already match
+ * are returned untouched (including object identity). Containers (`$object`, `$array`, `$record`,
+ * `$tuple`, `$union`, `$optional`) are coerced recursively. Schemas without a meaningful
+ * conversion (`$instanceOf`, `$custom`, ..) simply have to match.
+ *
+ * Failures are returned instead of thrown - this is the only api in lib0 that reports errors as a
+ * value.
+ *
+ * @example
+ *   const readConfig = coerce($object({ port: $number, dev: $boolean }))
+ *   readConfig({ port: '8080', dev: 'true' }) // => { err: null, result: { port: 8080, dev: true } }
+ *   readConfig({ port: 'x', dev: 'true' })    // => { err: '[port] "x" doesn\'t match number', result: null }
+ *
+ * @template {Schema<any>} S
+ * @param {S} schema
+ * @return {(o:any) => { err: string, result: null } | { err: null, result: Unwrap<S> }}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const coerce = schema => {
+  const c = _buildCoercer(schema, new Map())
+  return o => {
+    const ctx = { err: '' }
+    const res = c(o, '', ctx)
+    return res === _failed ? { err: ctx.err, result: null } : { err: null, result: res }
+  }
+}

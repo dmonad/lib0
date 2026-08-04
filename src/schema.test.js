@@ -682,6 +682,226 @@ export const testRepeatRandomFromSchema = tc => {
   })
 }
 
+/**
+ * Assert that `o` coerces to `expected`.
+ *
+ * @template {s.Schema<any>} S
+ * @param {S} $s
+ * @param {any} o
+ * @param {s.Unwrap<S>} expected
+ */
+const _coerces = ($s, o, expected) => {
+  const res = s.coerce($s)(o)
+  if (res.err !== null) {
+    t.fail(`expected a successful coercion of ${JSON.stringify(o)}, got: ${res.err}`)
+  } else {
+    t.compare(res.result, expected)
+  }
+}
+
+/**
+ * Assert that `o` doesn't coerce, and that the reported error reads exactly like `expectedErr`.
+ *
+ * @param {s.Schema<any>} $s
+ * @param {any} o
+ * @param {string} expectedErr
+ */
+const _coerceFails = ($s, o, expectedErr) => {
+  const res = s.coerce($s)(o)
+  if (res.err === null) {
+    t.fail(`expected coercion to fail, got: ${JSON.stringify(res.result)}`)
+  } else {
+    t.assert(res.result === null)
+    t.compareStrings(res.err, expectedErr)
+  }
+}
+
+export const testCoercePrimitives = () => {
+  t.group('string', () => {
+    _coerces(s.$string, 'hi', 'hi')
+    _coerces(s.$string, 42, '42')
+    _coerces(s.$string, true, 'true')
+    _coerces(s.$string, BigInt(7), '7')
+    _coerceFails(s.$string, null, 'null doesn\'t match string')
+    _coerceFails(s.$string, {}, 'object doesn\'t match string')
+    _coerceFails(s.$string, [], 'array doesn\'t match string')
+  })
+  t.group('number', () => {
+    _coerces(s.$number, 42, 42)
+    _coerces(s.$number, '42', 42)
+    _coerces(s.$number, '-4.5', -4.5)
+    _coerces(s.$number, true, 1)
+    _coerces(s.$number, BigInt(7), 7)
+    _coerceFails(s.$number, 'abc', '"abc" doesn\'t match number')
+    // an empty (or blank) string is `Number('') === 0` in js - that's a footgun, not a coercion
+    _coerceFails(s.$number, '', '"" doesn\'t match number')
+    _coerceFails(s.$number, '  ', '"  " doesn\'t match number')
+    _coerceFails(s.$number, null, 'null doesn\'t match number')
+  })
+  t.group('bigint', () => {
+    _coerces(s.$bigint, BigInt(7), BigInt(7))
+    _coerces(s.$bigint, 7, BigInt(7))
+    _coerces(s.$bigint, '-7', BigInt(-7))
+    _coerceFails(s.$bigint, 7.5, '7.5 doesn\'t match bigint')
+    _coerceFails(s.$bigint, '7.5', '"7.5" doesn\'t match bigint')
+    _coerceFails(s.$bigint, true, 'true doesn\'t match bigint')
+  })
+  t.group('boolean', () => {
+    _coerces(s.$boolean, false, false)
+    _coerces(s.$boolean, 'true', true)
+    _coerces(s.$boolean, 'false', false)
+    _coerceFails(s.$boolean, 1, '1 doesn\'t match boolean')
+    _coerceFails(s.$boolean, 'yes', '"yes" doesn\'t match boolean')
+  })
+  t.group('any', () => {
+    _coerces(s.$any, 'anything', 'anything')
+    _coerces(s.$any, undefined, undefined)
+  })
+  t.group('no conversion defined', () => {
+    const sym = Symbol('x')
+    _coerces(s.$symbol, sym, sym)
+    _coerceFails(s.$symbol, 'x', '"x" doesn\'t match symbol')
+    const u8 = new Uint8Array([1])
+    _coerces(s.$uint8Array, u8, u8)
+    // `$uint8Array` overwrites its inherited `$type`, so the name still has to resolve
+    _coerceFails(s.$uint8Array, 'x', '"x" doesn\'t match Uint8Array')
+    _coerceFails(s.$instanceOf(Map, null), 'x', '"x" doesn\'t match Map')
+    _coerceFails(s.$objectAny, 'x', '"x" doesn\'t match $Custom')
+  })
+}
+
+export const testCoerceLiterals = () => {
+  _coerces(s.$literal('a', 'b'), 'a', 'a')
+  _coerces(s.$literal(1, 2, 3), '2', 2)
+  _coerces(s.$literal(true), 'true', true)
+  _coerces(s.$null, null, null)
+  _coerces(s.$null, 'null', null)
+  _coerces(s.$undefined, undefined, undefined)
+  _coerces(s.$undefined, 'undefined', undefined)
+  _coerceFails(s.$literal('a', 'b'), 'c', '"c" doesn\'t match a | b')
+  _coerceFails(s.$literal(1, 2), 3, '3 doesn\'t match 1 | 2')
+  _coerceFails(s.$null, 0, '0 doesn\'t match null')
+}
+
+export const testCoerceContainers = () => {
+  t.group('object', () => {
+    const $conf = s.$object({ port: s.$number, dev: s.$boolean, name: s.$string.optional })
+    _coerces($conf, { port: '8080', dev: 'true' }, { port: 8080, dev: true })
+    _coerces($conf, { port: '1', dev: false, name: 2 }, { port: 1, dev: false, name: '2' })
+    // unknown props survive - `$Object` accepts them too (they aren't part of the schema's type)
+    const expectedWithUnknownProp = { port: 1, dev: false, extra: 'kept' }
+    t.compare(s.coerce($conf)({ port: '1', dev: false, extra: 'kept' }).result, expectedWithUnknownProp)
+    _coerceFails($conf, null, 'null doesn\'t match object')
+    _coerceFails($conf, { dev: true }, '[port] undefined doesn\'t match number')
+  })
+  t.group('partial object', () => {
+    const $p = s.$partial({ a: s.$number, b: s.$number })
+    _coerces($p, { a: '1' }, { a: 1 })
+    _coerces($p, {}, {})
+    _coerceFails($p, { b: 'x' }, '[b] "x" doesn\'t match number')
+  })
+  t.group('array', () => {
+    _coerces(s.$array(s.$number), ['1', 2], [1, 2])
+    _coerces(s.$array(s.$number), [], [])
+    _coerceFails(s.$array(s.$number), 'nope', '"nope" doesn\'t match array')
+    _coerceFails(s.$array(s.$number), ['1', 'x'], '[1] "x" doesn\'t match number')
+  })
+  t.group('record', () => {
+    _coerces(s.$record(s.$string, s.$number), { a: '1', b: 2 }, { a: 1, b: 2 })
+    _coerceFails(s.$record(s.$string, s.$number), null, 'null doesn\'t match record')
+    _coerceFails(s.$record(s.$string, s.$number), { a: 'x' }, '[a] "x" doesn\'t match number')
+    _coerceFails(s.$record(s.$literal('a'), s.$number), { b: 1 }, '[b] "b" doesn\'t match a')
+  })
+  t.group('tuple', () => {
+    _coerces(s.$tuple(s.$number, s.$string), ['1', 2], [1, '2'])
+    // `$Tuple` doesn't constrain the length - additional items are preserved as-is
+    t.compare(s.coerce(s.$tuple(s.$number))(['1', 'kept']).result, [1, 'kept'])
+    _coerceFails(s.$tuple(s.$number), 'nope', '"nope" doesn\'t match tuple')
+    _coerceFails(s.$tuple(s.$number, s.$string), ['x'], '[0] "x" doesn\'t match number')
+  })
+  t.group('optional', () => {
+    const $o = s.$object({ a: s.$number.optional })
+    _coerces($o, {}, {})
+    _coerces($o, { a: '1' }, { a: 1 })
+    _coerceFails($o, { a: 'x' }, '[a] "x" doesn\'t match number')
+  })
+  t.group('nested paths', () => {
+    const $n = s.$object({ a: s.$object({ b: s.$array(s.$number) }) })
+    _coerces($n, { a: { b: ['1'] } }, { a: { b: [1] } })
+    _coerceFails($n, { a: { b: [1, 'x'] } }, '[a.b[1]] "x" doesn\'t match number')
+  })
+  t.group('values that already match are returned untouched', () => {
+    const $conf = s.$object({ port: s.$number, xs: s.$array(s.$number) })
+    const input = { port: 1, xs: [1, 2] }
+    const res = s.coerce($conf)(input)
+    t.assert(res.result === input, 'the object is not rebuilt')
+    t.assert(/** @type {any} */ (res.result).xs === input.xs, 'the nested array is not rebuilt')
+    const rec = { a: 1 }
+    t.assert(s.coerce(s.$record(s.$string, s.$number))(rec).result === rec)
+    const tup = [1]
+    t.assert(s.coerce(s.$tuple(s.$number))(tup).result === tup)
+  })
+}
+
+export const testCoerceUnions = () => {
+  // a value that already matches one of the members is never converted
+  _coerces(s.$union(s.$number, s.$string), '42', '42')
+  _coerces(s.$union(s.$number, s.$string), 42, 42)
+  // ..only then are the members tried in order
+  _coerces(s.$union(s.$number, s.$boolean), '42', 42)
+  _coerces(s.$union(s.$number, s.$boolean), 'true', true)
+  _coerces(s.$number.nullable, 'null', null)
+  _coerceFails(s.$union(s.$number, s.$null), {}, 'object doesn\'t match number | null')
+  _coerceFails(s.$union(s.$number, s.$boolean), 'nope', '"nope" doesn\'t match number | boolean')
+}
+
+export const testCoerceRecursiveSchema = () => {
+  // `$json` is self-referential (`$jsonArr.shape === $json`) - compiling it must terminate
+  const coerceJson = s.coerce(s.$json)
+  const input = { a: [1, 'x', { b: null }], c: true }
+  t.assert(coerceJson(input).result === input)
+  t.compare(coerceJson({ a: [1] }).result, { a: [1] })
+  _coerceFails(s.$json, { a: undefined }, 'object doesn\'t match number | string | null | boolean | array | record')
+}
+
+export const testCoerceTyping = () => {
+  const res = s.coerce(s.$object({ port: s.$number }))({ port: '80' })
+  // @ts-expect-error `result` is `null` until `err` has been checked
+  t.assert(res.result.port === 80)
+  if (res.err === null) {
+    t.assert(res.result.port === 80)
+  } else {
+    t.fail('expected a successful coercion')
+  }
+}
+
+/**
+ * Coercion is a no-op for values that already match the schema.
+ *
+ * @param {t.TestCase} tc
+ */
+export const testRepeatCoerceRandom = tc => {
+  const $s = s.$object({
+    n: s.$number,
+    str: s.$string,
+    b: s.$boolean,
+    lit: s.$union(s.$literal('a'), s.$literal('b')),
+    maybe: s.$number.optional,
+    xs: s.$array(s.$number),
+    rec: s.$record(s.$string, s.$number)
+  })
+  const v = s.random(tc.prng, $s)
+  const res = s.coerce($s)(v)
+  if (res.err !== null) {
+    t.fail(`expected a successful coercion, got: ${res.err}`)
+  } else {
+    t.assert(res.result === v, 'an already matching value is returned untouched')
+  }
+  // ..and stringified numbers coerce back to the original number
+  const n = prng.int53(tc.prng, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+  _coerces(s.$number, `${n}`, n)
+}
+
 export const testBenchmarkTypeCheckUsingProps = () => {
   class A {
     /**
