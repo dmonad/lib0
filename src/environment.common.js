@@ -31,7 +31,7 @@ export const globalScope = /* @__PURE__ */(() =>/** @type {any} */ (typeof globa
  * which has `btoa`/`atob`/`fetch` but no DOM). Excludes Node and Deno.
  * @type {boolean}
  */
-/* c8 ignore next */
+/* c8 ignore start */
 export const isBrowser = /* @__PURE__ */(() =>
   !isNode && !isDeno && (
     (typeof window !== 'undefined' && typeof document !== 'undefined') ||
@@ -39,3 +39,4 @@ export const isBrowser = /* @__PURE__ */(() =>
     (typeof globalScope.WorkerGlobalScope !== 'undefined' && globalScope.self instanceof globalScope.WorkerGlobalScope)
   )
 )()
+/* c8 ignore stop */
