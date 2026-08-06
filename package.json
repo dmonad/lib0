@@ -9,9 +9,9 @@
     "url": "https://github.com/sponsors/dmonad"
   },
   "bin": {
-    "0gentesthtml": "./src/bin/gentesthtml.js",
-    "0serve": "./src/bin/0serve.js",
-    "0ecdsa-generate-keypair": "./src/bin/0ecdsa-generate-keypair.js"
+    "0gentesthtml": "src/bin/gentesthtml.js",
+    "0serve": "src/bin/0serve.js",
+    "0ecdsa-generate-keypair": "src/bin/0ecdsa-generate-keypair.js"
   },
   "files": [
     "dist/**/*.d.ts",
