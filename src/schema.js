@@ -5,6 +5,7 @@
  */
 
 import * as arr from './array.js'
+import * as buffer from './buffer.js'
 import * as error from './error.js'
 import * as equalityTraits from './trait/equality.js'
 import * as fun from './function.js'
@@ -1259,6 +1260,8 @@ const _failed = Symbol('schema:coercion failed')
 
 const _bigintRegex = /^[+-]?\d+$/
 
+const _base64Regex = /^[A-Za-z0-9+/]+={0,2}$/
+
 /**
  * Render a value for an error message. Objects are only rendered by kind - printing them adds
  * noise (and `String` throws on null-prototype objects).
@@ -1387,6 +1390,20 @@ const _createCoercer = ($s, cache) => {
     return (o, path, ctx) => typeof o === 'boolean'
       ? o
       : (o === 'true' ? true : (o === 'false' ? false : _fail(ctx, path, o, expected)))
+  }
+  if (_isMeta($$uint8Array, $s)) {
+    // the format is checked here (rather than left to the decoder) because the `buffer.fromBase64`
+    // backends disagree on invalid input: `Buffer` silently ignores unexpected characters, `atob` &
+    // `Uint8Array.fromBase64` throw
+    return (o, path, ctx) => {
+      if ($uint8Array.check(o)) return o
+      if (typeof o !== 'string' || !_base64Regex.test(o)) return _fail(ctx, path, o, expected)
+      // base64 encodes 3 bytes as 4 characters. The '=' padding is optional, but when it is there
+      // the length has to be a multiple of 4 - and without it the last chunk must not be a single
+      // character, which carries no full byte.
+      const rest = o.length % 4
+      return (o.endsWith('=') ? rest === 0 : rest !== 1) ? buffer.fromBase64(o) : _fail(ctx, path, o, expected)
+    }
   }
   if (_isMeta($$literal, $s) || _isMeta($$null, $s) || _isMeta($$undefined, $s)) {
     const literals = /** @type {Array<Primitive>} */ (shape)
@@ -1530,8 +1547,9 @@ const _buildCoercer = ($s, cache) => {
  * Unlike `check` (which only validates) a coercion converts values that don't match yet - `'42'`
  * becomes `42` for `$number`, `'true'` becomes `true` for `$boolean`. Values that already match
  * are returned untouched (including object identity). Containers (`$object`, `$array`, `$record`,
- * `$tuple`, `$union`, `$optional`) are coerced recursively. Schemas without a meaningful
- * conversion (`$instanceOf`, `$custom`, ..) simply have to match.
+ * `$tuple`, `$union`, `$optional`) are coerced recursively. `$uint8Array` accepts a base64 string
+ * (padding optional) - the inverse of `buffer.toBase64`. Schemas without a meaningful conversion
+ * (`$instanceOf`, `$custom`, ..) simply have to match.
  *
  * Failures are returned instead of thrown - this is the only api in lib0 that reports errors as a
  * value.

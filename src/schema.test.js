@@ -3,6 +3,7 @@ import * as s from './schema.js'
 import * as env from './environment.js'
 import * as prng from './prng.js'
 import * as array from './array.js'
+import * as buffer from './buffer.js'
 import * as promise from 'lib0/promise'
 
 /**
@@ -757,17 +758,52 @@ export const testCoercePrimitives = () => {
     _coerces(s.$any, 'anything', 'anything')
     _coerces(s.$any, undefined, undefined)
   })
+  t.group('uint8Array', () => {
+    const u8 = new Uint8Array([1, 2, 3])
+    _coerces(s.$uint8Array, u8, u8)
+    t.assert(s.coerce(s.$uint8Array)(u8).result === u8, 'a Uint8Array is returned untouched')
+    _coerces(s.$uint8Array, 'AQID', u8)
+    _coerces(s.$uint8Array, 'AQIDBA==', new Uint8Array([1, 2, 3, 4]))
+    // padding is optional
+    _coerces(s.$uint8Array, 'AQIDBA', new Uint8Array([1, 2, 3, 4]))
+    // `$uint8Array` overwrites its inherited `$type`, so the name still has to resolve
+    _coerceFails(s.$uint8Array, 'x', '"x" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, 'AQIDB', '"AQIDB" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, '', '"" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, '====', '"====" doesn\'t match Uint8Array')
+    // malformed padding
+    _coerceFails(s.$uint8Array, 'AQ=', '"AQ=" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, 'AQID==', '"AQID==" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, 'AQID=', '"AQID=" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, 'A=BC', '"A=BC" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, 'ab!c', '"ab!c" doesn\'t match Uint8Array')
+    // the url-safe alphabet is not accepted
+    _coerceFails(s.$uint8Array, '-_8=', '"-_8=" doesn\'t match Uint8Array')
+    // a data url is not bare base64
+    _coerceFails(s.$uint8Array, 'data:;base64,AQID', '"data:;base64,AQID" doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, null, 'null doesn\'t match Uint8Array')
+    _coerceFails(s.$uint8Array, [1, 2, 3], 'array doesn\'t match Uint8Array')
+  })
   t.group('no conversion defined', () => {
     const sym = Symbol('x')
     _coerces(s.$symbol, sym, sym)
     _coerceFails(s.$symbol, 'x', '"x" doesn\'t match symbol')
-    const u8 = new Uint8Array([1])
-    _coerces(s.$uint8Array, u8, u8)
-    // `$uint8Array` overwrites its inherited `$type`, so the name still has to resolve
-    _coerceFails(s.$uint8Array, 'x', '"x" doesn\'t match Uint8Array')
     _coerceFails(s.$instanceOf(Map, null), 'x', '"x" doesn\'t match Map')
     _coerceFails(s.$objectAny, 'x', '"x" doesn\'t match $Custom')
   })
+}
+
+/**
+ * `coerce($uint8Array)` is the inverse of `buffer.toBase64`.
+ *
+ * @param {t.TestCase} tc
+ */
+export const testCoerceUint8ArrayRoundtrip = tc => {
+  // starts at 1 - the empty string doesn't coerce
+  for (let len = 1; len < 20; len++) {
+    const u8 = prng.uint8Array(tc.prng, len)
+    _coerces(s.$uint8Array, buffer.toBase64(u8), u8)
+  }
 }
 
 export const testCoerceLiterals = () => {
