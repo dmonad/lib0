@@ -1,7 +1,7 @@
 {
   "name": "lib0",
   "version": "1.0.0-rc.24",
-  "description": "",
+  "description": "isomorphic utility functions",
   "sideEffects": false,
   "type": "module",
   "funding": {
