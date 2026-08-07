@@ -624,9 +624,17 @@ export const $$object = /* @__PURE__ */$type('s:$Object', $Object)
 export const $partial = def => /** @type {any} */ (new $Object(def, true))
 
 /**
+ * Matches plain objects only - `{}`-literals and `Object.create(null)` objects, not class
+ * instances. The check is prototype-based, not `o.constructor === Object`, because a plain
+ * object may declare an own property named "constructor".
+ *
  * @type {Schema<{[key:string]: any}>}
  */
-export const $objectAny = $custom(o => o != null && (o.constructor === Object || o.constructor == null))
+export const $objectAny = $custom(o => {
+  if (o == null) return false
+  const proto = Object.getPrototypeOf(o)
+  return proto === Object.prototype || proto === null
+})
 
 /**
  * @template {Schema<string|number|symbol>} Keys
