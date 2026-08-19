@@ -19,6 +19,33 @@ export const testSchemas = _tc => {
     // @ts-expect-error
     t.assert(!s.$number.validate(new Date()))
   })
+  t.group('int', () => {
+    t.assert(s.$int.validate(42))
+    t.assert(s.$int.validate(-1))
+    t.assert(!s.$int.validate(4.5))
+    t.assert(!s.$int.validate(NaN))
+    t.assert(!s.$int.validate(Infinity))
+    // @ts-expect-error
+    t.assert(!s.$int.validate(BigInt(42)))
+    // @ts-expect-error
+    t.assert(!s.$int.validate('42'))
+    // @ts-expect-error
+    t.assert(!s.$int.validate(undefined))
+  })
+  t.group('uint', () => {
+    t.assert(s.$uint.validate(42))
+    t.assert(s.$uint.validate(0))
+    t.assert(!s.$uint.validate(-1))
+    t.assert(!s.$uint.validate(4.5))
+    t.assert(!s.$uint.validate(NaN))
+    t.assert(!s.$uint.validate(Infinity))
+    // @ts-expect-error
+    t.assert(!s.$uint.validate(BigInt(42)))
+    // @ts-expect-error
+    t.assert(!s.$uint.validate('42'))
+    // @ts-expect-error
+    t.assert(!s.$uint.validate(undefined))
+  })
   t.group('bigint', () => {
     t.assert(s.$bigint.validate(BigInt(42)))
     // @ts-expect-error
@@ -672,6 +699,8 @@ export const testRepeatRandomFromSchema = tc => {
   testCase('object', s.$object({ number: s.$number, maybeStr: s.$string.optional }))
   testCase('any', s.$any)
   testCase('number', s.$number)
+  testCase('int', s.$int)
+  testCase('uint', s.$uint)
   testCase('array', s.$array(s.$any))
   t.group('custom', () => {
     const $res = s.$object({ a: s.$number.optional, str: s.$string })
@@ -738,6 +767,30 @@ export const testCoercePrimitives = () => {
     _coerceFails(s.$number, '', '"" doesn\'t match number')
     _coerceFails(s.$number, '  ', '"  " doesn\'t match number')
     _coerceFails(s.$number, null, 'null doesn\'t match number')
+  })
+  t.group('int', () => {
+    _coerces(s.$int, 42, 42)
+    _coerces(s.$int, '42', 42)
+    _coerces(s.$int, '-7', -7)
+    _coerces(s.$int, true, 1)
+    _coerces(s.$int, BigInt(7), 7)
+    _coerceFails(s.$int, 4.5, '4.5 doesn\'t match int')
+    _coerceFails(s.$int, '4.5', '"4.5" doesn\'t match int')
+    _coerceFails(s.$int, NaN, 'NaN doesn\'t match int')
+    _coerceFails(s.$int, '', '"" doesn\'t match int')
+    _coerceFails(s.$int, null, 'null doesn\'t match int')
+  })
+  t.group('uint', () => {
+    _coerces(s.$uint, 42, 42)
+    _coerces(s.$uint, 0, 0)
+    _coerces(s.$uint, '42', 42)
+    _coerces(s.$uint, true, 1)
+    _coerces(s.$uint, BigInt(7), 7)
+    _coerceFails(s.$uint, -7, '-7 doesn\'t match uint')
+    _coerceFails(s.$uint, '-7', '"-7" doesn\'t match uint')
+    _coerceFails(s.$uint, 4.5, '4.5 doesn\'t match uint')
+    _coerceFails(s.$uint, '', '"" doesn\'t match uint')
+    _coerceFails(s.$uint, null, 'null doesn\'t match uint')
   })
   t.group('bigint', () => {
     _coerces(s.$bigint, BigInt(7), BigInt(7))

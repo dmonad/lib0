@@ -1017,6 +1017,24 @@ export const $number = /* @__PURE__ */$custom(o => typeof o === 'number')
 export const $$number = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$number', $number))
 
 /**
+ * A number without fractional component (`Number.isInteger`). The unwrapped type is still
+ * `number` - JS has no separate integer type.
+ *
+ * @type {Schema<number>}
+ */
+export const $int = /* @__PURE__ */$custom(o => number.isInteger(o))
+export const $$int = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$int', $int))
+
+/**
+ * An unsigned integer: a number without fractional component that is `>= 0`. The unwrapped type is
+ * still `number` - JS has no separate integer type.
+ *
+ * @type {Schema<number>}
+ */
+export const $uint = /* @__PURE__ */$custom(o => number.isInteger(o) && o >= 0)
+export const $$uint = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$uint', $uint))
+
+/**
  * @type {Schema<string>}
  */
 export const $string = /* @__PURE__ */$custom(o => typeof o === 'string')
@@ -1174,6 +1192,8 @@ export const match = state => new PatternMatcher(/** @type {any} */ (state))
  */
 const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>} */ ($any), fallback: $lambda($any, $any, $any).optional })
   .if($$number, (_o, { gen }) => prng.oneOf(gen, [-1, 0, 1, prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)]))
+  .if($$int, (_o, { gen }) => prng.oneOf(gen, [-1, 0, 1, prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)]))
+  .if($$uint, (_o, { gen }) => prng.oneOf(gen, [0, 1, prng.int53(gen, 0, number.MAX_SAFE_INTEGER)]))
   .if($$string, (_o, { gen }) => prng.word(gen))
   .if($$boolean, (_o, { gen }) => prng.bool(gen))
   .if($$undefined, (_o) => undefined)
@@ -1333,6 +1353,8 @@ const _nameOf = $s => {
   if (_isMeta($$any, $s)) return 'any'
   if (_isMeta($$string, $s)) return 'string'
   if (_isMeta($$number, $s)) return 'number'
+  if (_isMeta($$int, $s)) return 'int'
+  if (_isMeta($$uint, $s)) return 'uint'
   if (_isMeta($$bigint, $s)) return 'bigint'
   if (_isMeta($$boolean, $s)) return 'boolean'
   if (_isMeta($$symbol, $s)) return 'symbol'
@@ -1380,6 +1402,18 @@ const _createCoercer = ($s, cache) => {
       if (t === 'boolean' || t === 'bigint' || (t === 'string' && o.trim() !== '')) {
         const n = Number(o)
         if (!number.isNaN(n)) return n
+      }
+      return _fail(ctx, path, o, expected)
+    }
+  }
+  if (_isMeta($$int, $s) || _isMeta($$uint, $s)) {
+    const min = _isMeta($$uint, $s) ? 0 : -Infinity
+    return (o, path, ctx) => {
+      if (number.isInteger(o) && o >= min) return o
+      const t = typeof o
+      if (t === 'boolean' || t === 'bigint' || (t === 'string' && o.trim() !== '')) {
+        const n = Number(o)
+        if (number.isInteger(n) && n >= min) return n
       }
       return _fail(ctx, path, o, expected)
     }
