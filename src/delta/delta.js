@@ -822,6 +822,10 @@ export class ModifyOp extends list.ListNode {
    * @return {ModifyOp<DTypes>}
    */
   clone (_start = 0, _end = 1, markAsDone = true) {
+    // `markAsDone=false` is currently unreachable: only `_splitOp` passes `false`, and a length-1
+    // modify is never split (apply's `move ? op : op.clone(0, 1, keep)` evaluates the clone only when
+    // `keep` is true). Kept for the uniform children-op `clone` signature.
+    /* c8 ignore next */
     return new ModifyOp(/** @type {DTypes} */ (markAsDone ? this.value.done() : this.value), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
   }
 }
@@ -2847,6 +2851,11 @@ const applyDim = (op, field, update) => {
     // additionally merges its nested `format` key one level (see {@link mergeAttr}); format stays shallow.
     const cur = /** @type {any} */ (op)[field]
     const merged = field === 'attribution' ? mergeAttr(cur, update, false) : object.assign({}, cur, update)
+    // the empty-merge guard is currently unreachable: a stored `update` is canonical (the builder's
+    // combine strips `{k:undefined}` keys and drops empty objects to `undefined`, which `applyDim`
+    // already returned on), and a verbatim (non-resolving) merge never removes keys — so `merged`
+    // keeps at least one key of `update`. Kept to document that an empty result means skip.
+    /* c8 ignore next */
     ;/** @type {any} */ (op)[field] = object.isEmpty(merged) ? undefined : merged
   } else if (field === 'attribution') {
     // data op, attribution: resolve per key; the nested `format` key merges one level (see {@link mergeAttr})
@@ -2857,6 +2866,9 @@ const applyDim = (op, field, update) => {
     let f = /** @type {any} */ (op)[field]
     for (const k in update) {
       const v = update[k]
+      // the skip is currently unreachable: a stored `update` never carries a `{k:undefined}` key
+      // (the builder's combine strips them). Kept for the unified tri-state contract.
+      /* c8 ignore next */
       if (v === undefined) continue // skip this key
       if (v === null) { // remove this key (no-op when the stored value is already `null`)
         if (f !== null) {
@@ -2915,6 +2927,9 @@ const diffDim = (aVal, bVal, deep) => {
  * @param {{[k:string]:any}|null|undefined} attributionUpdate
  */
 const updateOpFormat = (op, formatUpdate, attributionUpdate) => {
+  // defensive: apply's walk never passes a delete op (the initial `opsI` skips leading deletes and
+  // every advance goes through `opNextUndeleted`)
+  /* c8 ignore next */
   if ($deleteOp.check(op)) return
   const changedF = applyDim(op, 'format', formatUpdate)
   const changedA = applyDim(op, 'attribution', attributionUpdate)
@@ -2960,6 +2975,9 @@ const cmpKey = (a, b) =>
  * @param {Mark} a
  * @param {Mark} b
  */
+// the `: 0` id tie is unreachable: a Marks set is deduplicated by id (`add` replaces), so the sort
+// never compares two marks with the same id
+/* c8 ignore next */
 const cmpMarkKey = (a, b) => cmpKey(a.key, b.key) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
 /**

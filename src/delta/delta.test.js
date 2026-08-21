@@ -397,6 +397,118 @@ export const testDeltaMerging = _tc => {
 /**
  * @param {t.TestCase} _tc
  */
+export const testMergeAttributionsAndFormats = _tc => {
+  t.group('mergeAttributions', () => {
+    /**
+     * @type {{ [k:string]: any }}
+     */
+    const a = { insertedBy: ['alice'], format: { bold: ['alice'] } }
+    /**
+     * @type {{ [k:string]: any }}
+     */
+    const b = { insertedBy: ['bob'], format: { italic: ['bob'] } }
+    t.assert(delta.mergeAttributions(null, null) === null)
+    t.assert(delta.mergeAttributions(a, null) === a)
+    t.assert(delta.mergeAttributions(null, b) === b)
+    // the latter wins per key; the nested `format` key merges per inner key
+    t.compare(delta.mergeAttributions(a, b), { insertedBy: ['bob'], format: { bold: ['alice'], italic: ['bob'] } })
+    // a `null` inner format key removes it; an emptied `format` is dropped
+    t.compare(delta.mergeAttributions(a, { format: { bold: null } }), { insertedBy: ['alice'] })
+    // inputs are not mutated
+    t.compare(a, { insertedBy: ['alice'], format: { bold: ['alice'] } })
+    t.compare(b, { insertedBy: ['bob'], format: { italic: ['bob'] } })
+  })
+  t.group('mergeFormats', () => {
+    /**
+     * @type {{ [k:string]: any }}
+     */
+    const a = { bold: true, italic: true }
+    /**
+     * @type {{ [k:string]: any }}
+     */
+    const b = { bold: 4 }
+    t.assert(delta.mergeFormats(null, null) === null)
+    t.assert(delta.mergeFormats({}, null) === null)
+    t.assert(delta.mergeFormats(a, null) === a)
+    t.assert(delta.mergeFormats(a, {}) === a)
+    t.assert(delta.mergeFormats(null, b) === b)
+    // the latter wins per key
+    t.compare(delta.mergeFormats(a, b), { bold: 4, italic: true })
+    // inputs are not mutated
+    t.compare(a, { bold: true, italic: true })
+  })
+}
+
+/**
+ * `{k: undefined}` keys collapse to "skip" through the tri-state combine: a data op resolves to no
+ * format/attribution, an instruction op stores none (so adjacent bare retains merge).
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testTriStateUndefinedKeysCollapse = _tc => {
+  const d = delta.create()
+    .insert('a', { bold: undefined })
+    .retain(1, { bold: undefined })
+    .retain(1, undefined, { insert: undefined })
+    .insert('b', undefined, { insert: undefined })
+  t.compare(/** @type {any} */ (d.toJSON()), {
+    type: 'delta',
+    children: [
+      { type: 'insert', insert: 'a' },
+      { type: 'retain', retain: 2 },
+      { type: 'insert', insert: 'b' }
+    ]
+  })
+}
+
+/**
+ * The fingerprint's canonical key order sorts number keys (incl. non-index floats, which iterate
+ * after string keys in JS objects) before string keys, so the fingerprint is independent of the
+ * order the attrs were set in.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testFingerprintMixedAttrKeys = _tc => {
+  const fp1 = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+    .setAttr(7, 'seven').setAttr('a', 'ay').setAttr(1.5, 'freq').done().fingerprint
+  const fp2 = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+    .setAttr(1.5, 'freq').setAttr('a', 'ay').setAttr(7, 'seven').done().fingerprint
+  t.assert(s.$string.check(fp1) && fp1.length > 0)
+  t.compare(fp1, fp2)
+}
+
+/**
+ * `cloneDeep` of a delta holding a `modifyAttr` op clones the op's nested delta value instead of
+ * sharing it.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testCloneDeepModifyAttr = _tc => {
+  const change = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+    .modifyAttr('k', /** @type {delta.DeltaBuilderAny} */ (delta.create()).insert('x'))
+  const cpy = delta.cloneDeep(change)
+  t.compare(/** @type {any} */ (cpy.toJSON()), /** @type {any} */ (change.toJSON()))
+  t.assert(/** @type {any} */ (cpy).attrs.k.value !== /** @type {any} */ (change).attrs.k.value)
+}
+
+/**
+ * Two marks anchored at the same (string) key sort deterministically by their id tie-break when the
+ * marks set is iterated.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testMarksSameKeySort = _tc => {
+  const d = /** @type {delta.DeltaBuilderAny} */ (delta.create()).insert('x')
+  d.addMark(position.create(['k']), 'm2')
+  d.addMark(position.create(['k']), 'm1')
+  const ms = Array.from(/** @type {Iterable<any>} */ (d.marks))
+  t.compare(ms.map(m => m.id), ['m1', 'm2'])
+  t.assert(ms[0].key === 'k' && ms[1].key === 'k')
+}
+
+/**
+ * @param {t.TestCase} _tc
+ */
 export const testUseFormats = _tc => {
   const d = delta.create()
     .insert('a')
