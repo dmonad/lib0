@@ -859,6 +859,37 @@ export const testCoerceUint8ArrayRoundtrip = tc => {
   }
 }
 
+/**
+ * @param {t.TestCase} tc
+ */
+export const testTrueFalse = tc => {
+  t.assert(s.$true.check(true))
+  t.assert(!s.$true.check(false))
+  t.assert(s.$false.check(false))
+  t.assert(!s.$false.check(true))
+  t.assert(s.random(tc.prng, s.$true) === true)
+  t.assert(s.random(tc.prng, s.$false) === false)
+  t.assert(s.random(tc.prng, s.$null) === null)
+  t.assert(s.random(tc.prng, s.$undefined) === undefined)
+  // `$true`, `$false`, `$null` & `$undefined` are plain `$Literal`s without an own `$type`
+  t.assert(s.$$literal.check(s.$true))
+  t.assert(s.$$literal.check(s.$false))
+  t.assert(s.$$literal.check(s.$null))
+  t.assert(s.$$literal.check(s.$undefined))
+  t.group('$$literalWith', () => {
+    t.assert(s.$$literalWith(true).check(s.$true))
+    t.assert(!s.$$literalWith(false).check(s.$true))
+    t.assert(s.$$literalWith(null).check(s.$null))
+    t.assert(s.$$literalWith(undefined).check(s.$undefined))
+    t.assert(s.$$literalWith('a', 'b').check(s.$literal('a', 'b')))
+    t.assert(!s.$$literalWith('a').check(s.$literal('a', 'b')))
+    // not a `$Literal` at all
+    t.assert(!s.$$literalWith(true).check(s.$boolean))
+    // the handler forwards the `ValidationError` to the inner `$$literal` check
+    t.fails(() => s.assert(s.$boolean, s.$$literalWith(true)))
+  })
+}
+
 export const testCoerceLiterals = () => {
   _coerces(s.$literal('a', 'b'), 'a', 'a')
   _coerces(s.$literal(1, 2, 3), '2', 2)
@@ -867,9 +898,15 @@ export const testCoerceLiterals = () => {
   _coerces(s.$null, 'null', null)
   _coerces(s.$undefined, undefined, undefined)
   _coerces(s.$undefined, 'undefined', undefined)
+  _coerces(s.$true, true, true)
+  _coerces(s.$true, 'true', true)
+  _coerces(s.$false, false, false)
+  _coerces(s.$false, 'false', false)
   _coerceFails(s.$literal('a', 'b'), 'c', '"c" doesn\'t match a | b')
   _coerceFails(s.$literal(1, 2), 3, '3 doesn\'t match 1 | 2')
   _coerceFails(s.$null, 0, '0 doesn\'t match null')
+  _coerceFails(s.$true, false, 'false doesn\'t match true')
+  _coerceFails(s.$false, 'true', '"true" doesn\'t match false')
 }
 
 export const testCoerceContainers = () => {

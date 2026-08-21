@@ -357,23 +357,23 @@ export const $$constructedBy = $type('s:$ConstructedBy', $ConstructedBy)
  */
 export class $Custom extends Schema {
   /**
-   * @param {(o:any) => boolean} check
+   * @param {(o:any,err?:ValidationError) => boolean} check
    */
   constructor (check) {
     super()
     /**
-     * @type {(o:any) => boolean}
+     * @type {(o:any,err?:ValidationError) => boolean}
      */
     this.shape = check
   }
 
   /**
    * @param {any} o
-   * @param {ValidationError} err
+   * @param {ValidationError} [err]
    * @return {o is any}
    */
   check (o, err) {
-    const c = this.shape(o)
+    const c = this.shape(o, err)
     /* c8 ignore next */
     !c && err?.extend(null, 'custom prop', o?.constructor.name, 'failed to check custom prop')
     return c
@@ -381,7 +381,7 @@ export class $Custom extends Schema {
 }
 
 /**
- * @param {(o:any) => boolean} check
+ * @param {(o:any,err?:ValidationError) => boolean} check
  * @return {Schema<any>}
  */
 /* @__NO_SIDE_EFFECTS__ */
@@ -423,6 +423,17 @@ export class $Literal extends Schema {
 /* @__NO_SIDE_EFFECTS__ */
 export const $literal = (...literals) => new $Literal(literals)
 export const $$literal = $type('s:$Literal', $Literal)
+
+/**
+ * Meta schema that matches a `$Literal` whose shape is exactly `literals` - e.g.
+ * `$$literalWith(null).check($null)` or `.if($$literalWith(true), ..)` in a pattern matcher.
+ *
+ * @template {Primitive[]} T
+ * @param {T} literals
+ * @return {Schema<CastToSchema<$Literal<T[number]>>>}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const $$literalWith = (...literals) => $custom((o, err) => $$literal.check(o, err) && o.shape.length === literals.length && arr.every(o.shape, (l, i) => l === literals[i]))
 
 /**
  * @template {Array<string|Schema<string|number>>} Ts
@@ -1047,19 +1058,29 @@ export const $boolean = /* @__PURE__ */$custom(o => typeof o === 'boolean')
 export const $$boolean = /** @type {Schema<Schema<Boolean>>} */ (/* @__PURE__ */$type('s:$boolean', $boolean))
 
 /**
+ * `$true`, `$false`, `$undefined` & `$null` are plain `$Literal`s (no own `$type`), so the generic
+ * `$$literal` handling covers them in `random`, `coerce` & error messages.
+ *
+ * @type {Schema<true>}
+ */
+export const $true = /* @__PURE__ */$literal(true)
+
+/**
+ * @type {Schema<false>}
+ */
+export const $false = /* @__PURE__ */$literal(false)
+
+/**
  * @type {Schema<undefined>}
  */
 export const $undefined = /* @__PURE__ */$literal(undefined)
-export const $$undefined = /** @type {Schema<Schema<undefined>>} */ (/* @__PURE__ */$type('s:$undefined', $undefined))
 
 /**
  * @type {Schema<void>}
  */
 export const $void = $undefined
-export const $$void = /** @type {Schema<Schema<void>>} */ ($$undefined)
 
 export const $null = $literal(null)
-export const $$null = /** @type {Schema<Schema<null>>} */ ($type('s:$null', $null))
 
 export const $uint8Array = $constructedBy(Uint8Array)
 export const $$uint8Array = /** @type {Schema<Schema<Uint8Array>>} */ ($type('s:$uint8Array', $uint8Array))
@@ -1196,7 +1217,6 @@ const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>
   .if($$uint, (_o, { gen }) => prng.oneOf(gen, [0, 1, prng.int53(gen, 0, number.MAX_SAFE_INTEGER)]))
   .if($$string, (_o, { gen }) => prng.word(gen))
   .if($$boolean, (_o, { gen }) => prng.bool(gen))
-  .if($$undefined, (_o) => undefined)
   .if($$bigint, (_o, { gen }) => BigInt(prng.int53(gen, number.MIN_SAFE_INTEGER, number.MAX_SAFE_INTEGER)))
   .if($$union, (o, opts) => _random(prng.oneOf(opts.gen, o.shape), opts))
   .if($$object, (o, opts) => {
@@ -1227,9 +1247,6 @@ const _random = /* @__PURE__ */ (() => match({ gen: /** @type {Schema<prng.PRNG>
   })
   .if($$literal, (o, { gen }) => {
     return prng.oneOf(gen, o.shape)
-  })
-  .if($$null, (_o) => {
-    return null
   })
   .if($$lambda, (o, opts) => {
     const res = _random(o.res, opts)
@@ -1358,7 +1375,7 @@ const _nameOf = $s => {
   if (_isMeta($$bigint, $s)) return 'bigint'
   if (_isMeta($$boolean, $s)) return 'boolean'
   if (_isMeta($$symbol, $s)) return 'symbol'
-  if (_isMeta($$literal, $s) || _isMeta($$null, $s) || _isMeta($$undefined, $s)) {
+  if (_isMeta($$literal, $s)) {
     return /** @type {Array<Primitive>} */ (shape).map(l => String(l)).join(' | ')
   }
   if (_isMeta($$optional, $s)) return `${_nameOf(shape)} | undefined`
@@ -1375,8 +1392,7 @@ const _nameOf = $s => {
 
 /**
  * Compile a coercer for `$s`. Dispatches on the meta schemas (`$$string`, `$$object`, ..) which are
- * an exact identity check. The order matters: `$string` & friends are `$Custom` instances and
- * `$null` & `$undefined` are `$Literal` instances that are only distinguishable by their `$type`.
+ * an exact identity check.
  *
  * @param {Schema<any>} $s
  * @param {Map<Schema<any>,_Coercer>} cache
@@ -1447,7 +1463,7 @@ const _createCoercer = ($s, cache) => {
       return (o.endsWith('=') ? rest === 0 : rest !== 1) ? buffer.fromBase64(o) : _fail(ctx, path, o, expected)
     }
   }
-  if (_isMeta($$literal, $s) || _isMeta($$null, $s) || _isMeta($$undefined, $s)) {
+  if (_isMeta($$literal, $s)) {
     const literals = /** @type {Array<Primitive>} */ (shape)
     return (o, path, ctx) => {
       if (arr.some(literals, l => l === o)) return o
