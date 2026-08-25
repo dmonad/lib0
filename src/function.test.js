@@ -106,6 +106,12 @@ export const testDeepEquality = _tc => {
   t.assert(f.equalityDeep({}, {}))
   t.assert(!f.equalityDeep({}, { a: 4 }))
 
+  t.assert(f.equalityDeep({ constructor: 4 }, { constructor: 4 }))
+  t.assert(!f.equalityDeep({ constructor: 4 }, { constructor: 5 }))
+  t.assert(!f.equalityDeep({}, { constructor: Object }))
+  t.assert(f.equalityDeep(Object.assign(Object.create(null), { constructor: 4 }), { constructor: 4 }))
+  t.assert(f.equalityDeep({ constructor: 4 }, Object.assign(Object.create(null), { constructor: 4 })))
+
   t.assert(f.equalityDeep([{ a: 4 }, 1], [{ a: 4 }, 1]))
   t.assert(!f.equalityDeep([{ a: 4 }, 1], [{ a: 4 }, 2]))
   t.assert(!f.equalityDeep([{ a: 4 }, 1], [{ a: 4 }, 1, 3]))

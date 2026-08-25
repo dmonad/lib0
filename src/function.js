@@ -61,8 +61,6 @@ export const equalityStrict = (a, b) => a === b
  */
 export const equalityFlat = (a, b) => a === b || (a != null && b != null && a.constructor === b.constructor && ((array.isArray(a) && array.equalFlat(a, /** @type {Array<T>} */ (b))) || (typeof a === 'object' && object.equalFlat(a, b))))
 
-/* c8 ignore start */
-
 /**
  * @param {any} a
  * @param {any} b
@@ -72,13 +70,20 @@ export const equalityDeep = (a, b) => {
   if (a === b) {
     return true
   }
-  if (a == null || b == null || (a.constructor !== b.constructor && (a.constructor || Object) !== (b.constructor || Object))) {
+  if (a == null || b == null) {
+    return false
+  }
+  // read the constructor off the prototype, not the object — a plain object may declare an own
+  // property named "constructor" (e.g. `{ constructor: 4 }`)
+  const aC = Object.getPrototypeOf(a)?.constructor
+  const bC = Object.getPrototypeOf(b)?.constructor
+  if (aC !== bC && (aC || Object) !== (bC || Object)) {
     return false
   }
   if (a[equalityTrait.EqualityTraitSymbol] != null) {
     return a[equalityTrait.EqualityTraitSymbol](b)
   }
-  switch (a.constructor) {
+  switch (aC) {
     case ArrayBuffer:
       a = new Uint8Array(a)
       b = new Uint8Array(b)
@@ -152,7 +157,6 @@ export const equalityDeep = (a, b) => {
  */
 // @ts-ignore
 export const isOneOf = (value, options) => options.includes(value)
-/* c8 ignore stop */
 
 export const isArray = array.isArray
 
