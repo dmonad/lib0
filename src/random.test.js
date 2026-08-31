@@ -73,7 +73,11 @@ export const testUint53 = tc => {
  * @param {t.TestCase} tc
  */
 export const testUuidv4 = tc => {
-  t.info(`Generated a UUIDv4: ${random.uuidv4()}`)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  const uuid = random.uuidv4()
+  t.info(`Generated a UUIDv4: ${uuid}`)
+  t.assert(uuidRegex.test(uuid))
+  t.assert(uuidRegex.test(random._uuidv4Polyfill()))
 }
 
 /**

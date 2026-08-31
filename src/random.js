@@ -1,7 +1,9 @@
 /**
  * Isomorphic module for true random numbers / buffers / uuids.
  *
- * Attention: falls back to Math.random if the browser does not support crypto.
+ * uuidv4 uses the native `crypto.randomUUID` when available and falls back to a
+ * `getRandomValues`-based implementation otherwise (insecure browser contexts,
+ * react-native).
  *
  * @module random
  */
@@ -30,8 +32,20 @@ export const oneOf = arr => arr[math.floor(rand() * arr.length)]
 const uuidv4Template = [1e7] + -1e3 + -4e3 + -8e3 + -1e11
 
 /**
+ * Fallback for environments without `crypto.randomUUID` (insecure browser
+ * contexts, react-native).
+ *
  * @return {string}
  */
-export const uuidv4 = () => uuidv4Template.replace(/[018]/g, /** @param {number} c */ c =>
+export const _uuidv4Polyfill = () => uuidv4Template.replace(/[018]/g, /** @param {number} c */ c =>
   (c ^ uint32() & 15 >> c / 4).toString(16)
 )
+
+/**
+ * @type {() => string}
+ */
+export const uuidv4 = /* @__PURE__ */ (() =>
+  typeof crypto !== 'undefined' && crypto.randomUUID != null
+    ? crypto.randomUUID.bind(crypto)
+    : _uuidv4Polyfill
+)()
