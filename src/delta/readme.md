@@ -269,6 +269,19 @@ equality** — only document *content* is part of a delta's identity. Consequenc
 A mark needs a terminal step, so the root position `[]` cannot anchor one. A node holds at most one mark
 per `id` (re-adding the same id replaces it — e.g. to update its `attrs`).
 
+**One-shot mapping (no stored marks).** When you only want to know where a position lands on the other
+side of a transformer *right now* — without maintaining it as a stored mark — map it in one pass:
+
+```javascript
+position.mapPositionsA(transformer, [position.create([0, 'a'])]) // ⇒ [Pos on the B side, or null]
+position.mapPositionsB(transformer, positionsOnB)                // the reverse direction
+```
+
+Nothing is applied to either document and the transformer is not (semantically) modified. The probe
+marks are flagged **`transient`**, meaning *never to be stored*: a consumer that keeps marks in
+persistent state must filter transient marks before applying a change to that state, or strip them when
+found on final state (relevant only to transformers that store marks internally; none in lib0 today).
+
 # Transformers
 
 We often have two different data structures that we want to keep in sync — e.g. a

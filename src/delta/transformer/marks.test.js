@@ -236,6 +236,63 @@ export const testMarkModifyChangeRidesChildren = () => {
   t.compare(mp(rb.a), [{ id: 'N', path: [0, 'a'], assoc: 1 }])
 }
 
+export const testMapPositionsOneShot = () => {
+  // one-shot position mapping: transient probe marks ride a single transform pass and nothing is
+  // stored anywhere - order, gravity, and attrs of the inputs are preserved in the result
+  const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
+  it.applyA(delta.create().insert([delta.create('p', { a: 1 })])) // establish the child + its sub-transformer
+  const res = position.mapPositionsA(it, [position.create([0, 'a']), position.create([2], -1, { u: 1 })])
+  t.compare(res, [{ path: [0, 'b'], assoc: 1 }, { path: [2], assoc: -1, attrs: { u: 1 } }])
+  // and back through applyB
+  t.compare(position.mapPositionsB(it, [position.create([0, 'b'])]), [{ path: [0, 'a'], assoc: 1 }])
+}
+
+export const testMapPositionsDrop = () => {
+  // attr projects exactly one attribute onto the B side; a probe on any other key has no image -> null
+  // (the documented best-effort drop); a probe INSIDE the projected attribute maps through modifyAttr
+  const it = attr(delta.$deltaAny, 'x').init()
+  t.compare(position.mapPositionsA(it, [position.create(['x']), position.create(['other']), position.create(['x', 3])]), [
+    { path: ['value'], assoc: 1 },
+    null,
+    { path: ['value', 3], assoc: 1 }
+  ])
+}
+
+export const testMapPositionsStateNeutral = () => {
+  // mapping leaves the transformer semantically untouched: after a mapping (run twice - the read is
+  // idempotent), the instance still transforms real changes exactly like an untouched control instance
+  const mk = () => {
+    const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
+    it.applyA(delta.create().insert([delta.create('p', { a: 1 })]))
+    return it
+  }
+  const probed = mk()
+  const control = mk()
+  const probe = [position.create([0, 'a'])]
+  t.compare(position.mapPositionsA(probed, probe), position.mapPositionsA(probed, probe))
+  // a modify routed through the preserved per-child sub-transformer, then a structural insert
+  const modChange = () => /** @type {any} */ (delta.create().modify(delta.create().setAttr('a', 7)))
+  t.compare(probed.applyA(modChange()).b?.toJSON(), control.applyA(modChange()).b?.toJSON())
+  const insChange = () => /** @type {any} */ (delta.create().insert([delta.create('p', { a: 2 })]))
+  t.compare(probed.applyA(insChange()).b?.toJSON(), control.applyA(insChange()).b?.toJSON())
+}
+
+export const testMapPositionsEmpty = () => {
+  // an empty batch short-circuits without invoking the transformer at all
+  const boom = /** @type {any} */ ({ applyA: () => { throw new Error('unreachable') } })
+  t.compare(position.mapPositionsA(boom, []), [])
+}
+
+export const testMarkTransientSurvivesRemap = () => {
+  // a key remap reconstructs marks via Mark#copy, which must forward the transient flag - otherwise a
+  // future mark-storing transformer could not honor the never-store contract after a remap
+  const it = attr(delta.$deltaAny, 'x').init()
+  const c = /** @type {any} */ (delta.create())
+  c.addMark(position.create(['x']), 'T', true)
+  const m = [...(/** @type {any} */ (it.applyA(c).b).marks)][0]
+  t.assert(m.transient === true && m.key === 'value')
+}
+
 /**
  * Fuzz: marks on a random set of attributes survive `renameAttrs` (each present key renamed to a fresh
  * target), and round-trip back through `applyB`.

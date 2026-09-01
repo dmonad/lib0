@@ -172,3 +172,66 @@ export const marksToPositions = d => {
   walk(d, [])
   return out
 }
+
+/**
+ * Shared body of {@link mapPositionsA}/{@link mapPositionsB}: encode `positions` as marks on one
+ * synthetic change (ids are the input indices), run it through `transform` once, and read the images
+ * back off the raw output. Nothing is ever applied to a document, so no mark persists anywhere.
+ *
+ * @param {Array<Pos>} positions
+ * @param {(change: delta.DeltaBuilderAny) => delta.DeltaAny?} transform
+ * @return {Array<Pos?>}
+ */
+const mapPositionsThrough = (positions, transform) => {
+  if (positions.length === 0) return []
+  const change = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  positions.forEach((pos, i) => change.addMark(pos, '' + i, true)) // transient probes - never to be stored
+  const mapped = transform(change)
+  /**
+   * @type {Map<string, MarkPos>}
+   */
+  const byId = new Map()
+  if (mapped != null) {
+    // the raw output may alias transformer-internal state; marksToPositions' `maybeHasMarks`
+    // self-correction is safe there (`false` is only written where verifiably no marks exist)
+    for (const m of marksToPositions(mapped)) {
+      if (!byId.has(m.id)) byId.set(m.id, m) // fan-out (e.g. one datum in several project holes): first image in doc order wins
+    }
+  }
+  return positions.map((_, i) => {
+    const m = byId.get('' + i)
+    return m === undefined ? null : create(m.path, m.assoc, m.attrs ?? null)
+  })
+}
+
+/**
+ * One-shot map of `positions` living on a transformer's **A side** to the B side (the mirror of
+ * {@link mapPositionsB}) — for when you want an answer *now* without maintaining a position-set as
+ * stored marks. One transform pass maps the whole batch; the result is in input order, each entry the
+ * B-side image or `null` when the position has none (a transformer maps marks best-effort — see the
+ * readme). `assoc` and `attrs` ride through on the probe mark.
+ *
+ * The probes are `transient` marks ({@link import('./delta.js').createMark Mark}`#transient`): a
+ * transformer that keeps marks in internal state must not store them (none does today). Beyond that
+ * the call is state-neutral by construction — a mark-only change shifts no content and is never
+ * applied to any document, so neither the documents nor the transformer are (semantically) modified.
+ *
+ * The transformer must already have been fed the document state (a live
+ * {@link import('./rdt.js').Binding} always has): with no document behind it there is nothing for a
+ * position to point into — and e.g. a fresh `project` transformer would consume its initial render.
+ *
+ * @param {import('./transformer/core.js').Transformer<any, any>} tr
+ * @param {Array<Pos>} positions positions on the A side
+ * @return {Array<Pos?>} their images on the B side (input order; `null` = no image)
+ */
+export const mapPositionsA = (tr, positions) => mapPositionsThrough(positions, c => tr.applyA(c).b)
+
+/**
+ * One-shot map of `positions` living on a transformer's **B side** to the A side — see
+ * {@link mapPositionsA} for the contract (this is the same mapping, fed through `applyB`).
+ *
+ * @param {import('./transformer/core.js').Transformer<any, any>} tr
+ * @param {Array<Pos>} positions positions on the B side
+ * @return {Array<Pos?>} their images on the A side (input order; `null` = no image)
+ */
+export const mapPositionsB = (tr, positions) => mapPositionsThrough(positions, c => tr.applyB(c).a)

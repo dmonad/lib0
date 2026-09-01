@@ -90,7 +90,7 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  */
 
 /**
- * @typedef {{ id: string, key: number|string, assoc: 1|-1, attrs?: object }} MarkJSON
+ * @typedef {{ id: string, key: number|string, assoc: 1|-1, attrs?: object, transient?: boolean }} MarkJSON
  */
 
 /**
@@ -1136,6 +1136,7 @@ export const $modifyAttrOpWith = $content => s.$custom(o => $modifyAttrOp.check(
  * - `attrs` — optional user-supplied data carried with the mark **by reference**: the same
  *   object is shared across the mark, its `copy`/`clone`s, `toJSON`, and every `MarkPos` from
  *   `marksToPositions`, so the caller must treat it as immutable (do not mutate it after attaching).
+ * - `transient` — the mark only rides through a mapping and must never be stored (see the field doc).
  *
  * A `Mark` is **immutable** — never mutate one in place; to "move" a mark, replace it with a fresh
  * `Mark` via {@link Mark#copy} (the {@link Marks} set keys by id, so re-adding the same id replaces
@@ -1148,8 +1149,9 @@ class Mark {
    * @param {string} [id] unique id; defaults to a fresh GUID
    * @param {1|-1} [assoc] gravity at a boundary; defaults to right (`1`)
    * @param {object?} [attrs] optional user data, stored by reference; treat as immutable
+   * @param {boolean} [transient] the mark must never be stored; see the field doc
    */
-  constructor (key, id = rand.uuidv4(), assoc = 1, attrs = null) {
+  constructor (key, id = rand.uuidv4(), assoc = 1, attrs = null, transient = false) {
     /**
      * @readonly
      * @type {number|string}
@@ -1170,6 +1172,18 @@ class Mark {
      * @type {object?}
      */
     this.attrs = attrs
+    /**
+     * A transient mark exists only to ride through a mapping (see
+     * {@link import('./position.js').mapPositionsA}) and must never be stored: a consumer that
+     * maintains persistent state (a document, a transformer's internal model of one) either filters
+     * transient marks before applying a change to that state, or removes them when found on
+     * final/settled state. How that is achieved is left to the implementation — the core does not
+     * enforce it (today nothing in lib0 stores marks outside a document, so nothing needs to).
+     *
+     * @readonly
+     * @type {boolean}
+     */
+    this.transient = transient
   }
 
   /**
@@ -1179,23 +1193,26 @@ class Mark {
    * @return {Mark}
    */
   copy (key = this.key) {
-    return new Mark(key, this.id, this.assoc, this.attrs)
+    return new Mark(key, this.id, this.assoc, this.attrs, this.transient)
   }
 
   /**
    * @return {MarkJSON}
    */
   toJSON () {
-    return this.attrs === null
+    /** @type {MarkJSON} */
+    const json = this.attrs === null
       ? { id: this.id, key: this.key, assoc: this.assoc }
       : { id: this.id, key: this.key, assoc: this.assoc, attrs: this.attrs }
+    if (this.transient) json.transient = true
+    return json
   }
 
   /**
    * @param {Mark} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    return $mark.check(other) && this.id === other.id && this.key === other.key && this.assoc === other.assoc && fun.equalityDeep(this.attrs, other.attrs)
+    return $mark.check(other) && this.id === other.id && this.key === other.key && this.assoc === other.assoc && this.transient === other.transient && fun.equalityDeep(this.attrs, other.attrs)
   }
 }
 
@@ -1203,16 +1220,17 @@ export const $mark = /** @type {s.Schema<Mark>} */ (Mark.prototype.$type = s.$ty
 
 /**
  * Create a {@link Mark} (use this instead of `new Mark(...)`). `id` defaults to a fresh GUID, `assoc`
- * to right gravity (`1`), `attrs` to `null`. A `Mark` is stored on a delta node's own
- * {@link Marks} set (see {@link DeltaBuilder#addMark}).
+ * to right gravity (`1`), `attrs` to `null`, `transient` to `false`. A `Mark` is stored on a delta
+ * node's own {@link Marks} set (see {@link DeltaBuilder#addMark}).
  *
  * @param {number|string} key
  * @param {string} [id]
  * @param {1|-1} [assoc]
  * @param {object?} [attrs]
+ * @param {boolean} [transient] never to be stored (see {@link Mark#transient})
  * @return {Mark}
  */
-export const createMark = (key, id, assoc, attrs) => new Mark(key, id, assoc, attrs)
+export const createMark = (key, id, assoc, attrs, transient) => new Mark(key, id, assoc, attrs, transient)
 
 /**
  * @typedef {Delta<any>} DeltaAny
@@ -2135,12 +2153,14 @@ export class DeltaBuilder extends Delta {
    *
    * @param {import('./position.js').Pos} pos
    * @param {string} [id]
+   * @param {boolean} [transient] flag the mark as never-to-be-stored (a one-shot mapping probe, see
+   * {@link Mark#transient} and {@link import('./position.js').mapPositionsA})
    * @return {this}
    */
-  addMark (pos, id = rand.uuidv4()) {
+  addMark (pos, id = rand.uuidv4(), transient = false) {
     // apply with the default `final = this.isFinal` (do NOT force `{ final: true }`): a fresh change
     // builder is non-final so a sibling `removeMark` stays transmittable; a final doc collects nothing
-    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, false)))
+    this.apply(/** @type {Delta<Conf>} */ (markChange(pos, id, false, transient)))
     return this
   }
 
@@ -3363,14 +3383,15 @@ const rebaseRootMarks = (node, other, priority) => {
  * @param {import('./position.js').Pos} pos
  * @param {string} id
  * @param {boolean} isDelete
+ * @param {boolean} [transient] never to be stored (see {@link Mark#transient})
  * @return {DeltaBuilderAny}
  */
-const markChange = (pos, id, isDelete) => {
+const markChange = (pos, id, isDelete, transient = false) => {
   const path = pos.path
   // a mark anchors at the terminal step of its path (a content offset or attribute key); the root
   // position `[]` has no terminal and cannot carry a mark - reject it instead of recursing forever
   if (path.length === 0) throw error.create('cannot place a mark at the root position (empty path): a mark needs a terminal content-offset or attribute-key step')
-  const mark = isDelete ? null : createMark(path[path.length - 1], id, pos.assoc, pos.attrs ?? null)
+  const mark = isDelete ? null : createMark(path[path.length - 1], id, pos.assoc, pos.attrs ?? null, transient)
   /**
    * @param {number} i
    * @return {DeltaBuilderAny}

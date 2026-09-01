@@ -1,4 +1,5 @@
 import * as t from 'lib0/testing'
+import * as fun from 'lib0/function'
 import * as delta from './delta.js'
 import * as position from './position.js'
 
@@ -563,6 +564,25 @@ export const testMarkModifyFlagSelfCorrect = () => {
   t.assert(stale.maybeHasMarks === true)
   t.compare(position.marksToPositions(stale), [])
   t.assert(stale.maybeHasMarks === false)
+}
+
+export const testMarkTransient = () => {
+  // a transient mark is a one-shot mapping probe that must never be stored (see Mark#transient); the
+  // flag threads addMark -> markChange -> createMark, survives Mark#copy, and shows in JSON only when set
+  const c = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  c.addMark(position.create(['k']), 'T', true)
+  const tm = [...(/** @type {any} */ (c).marks)][0]
+  t.assert(tm.transient === true)
+  t.assert(tm.copy('z').transient === true)
+  t.compare(tm.toJSON(), { id: 'T', key: 'k', assoc: 1, transient: true })
+  const p = /** @type {delta.DeltaBuilderAny} */ (delta.create())
+  p.addMark(position.create(['k']), 'P')
+  const pm = [...(/** @type {any} */ (p).marks)][0]
+  t.assert(pm.transient === false)
+  t.compare(pm.toJSON(), { id: 'P', key: 'k', assoc: 1 }) // the JSON of a normal mark is unchanged by the feature
+  // equality distinguishes transience
+  t.assert(!fun.equalityDeep(delta.createMark('k', 'E', 1, null, true), delta.createMark('k', 'E', 1, null)))
+  t.assert(fun.equalityDeep(delta.createMark('k', 'E', 1, null, true), delta.createMark('k', 'E', 1, null, true)))
 }
 
 export const testMarkRebaseAttr = () => {
