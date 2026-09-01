@@ -228,8 +228,9 @@ edit-only-via-`apply`/`rebase` rule), so anything routing a shared change throug
 A **mark** is a cursor/selection anchor stored on a delta node: a stable `id`, a terminal `key` (a
 content offset or an attribute key), an `assoc` gravity (`-1` binds to the preceding content, `1`
 to the following), and optional immutable `attrs` (user metadata, e.g. a client/user id). Build a
-`Pos` with `position.create(path, assoc?, attrs?)`, add a mark at it, and read them back from a
-settled delta with `marksToPositions`:
+`Pos` with `position.create(path, assoc?, attrs?)`, add a mark at it, and read them back with
+`marksToPositions` — from a settled delta or from a change delta (e.g. a raw transformer output),
+whose paths are post-change content indices:
 
 ```javascript
 import * as position from 'lib0/delta/position'

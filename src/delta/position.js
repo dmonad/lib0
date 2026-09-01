@@ -104,9 +104,12 @@ export const $markPos = /* @__PURE__ */ s.$object({
 })
 
 /**
- * Reconstruct every {@link MarkPos} stored as a {@link import('./delta.js').Mark mark} inside `d` (a
- * settled delta). A mark's `path` is the content indices / attribute keys walked to reach it, plus the
- * mark's own `key`. Add marks with {@link import('./delta.js').DeltaBuilder#addMark}.
+ * Reconstruct every {@link MarkPos} stored as a {@link import('./delta.js').Mark mark} inside `d` — a
+ * settled delta or a change delta (e.g. a raw transformer output, or the change `addMark` builds). A
+ * mark's `path` is the content indices / attribute keys walked to reach it, plus the mark's own `key`;
+ * the walk descends insert embeds, `modify` values, and `setAttr`/`modifyAttr` values. In a change
+ * delta the indices are post-change coordinates (delete ops span no slot). Add marks with
+ * {@link import('./delta.js').DeltaBuilder#addMark}.
  *
  * Subtrees are pruned via each node's conservative `maybeHasMarks` flag (`false` ⇒ guaranteed empty,
  * skipped). This is also the **sole resetter** of that flag: a descended subtree that turns out to hold
@@ -137,7 +140,8 @@ export const marksToPositions = d => {
           : { id: m.id, path: [...path, m.key], assoc: m.assoc, attrs: m.attrs })
       }
     }
-    // a settled delta has only text/insert children; descend the delta-valued embeds
+    // descend the delta-valued insert embeds and the modify values (a change delta's mark rides on a
+    // modify's nested root marks - see markChange; `apply` may also leave a modify on a settled node)
     let i = 0
     for (const op of node.children) {
       if (delta.$insertOp.check(op)) {
@@ -145,7 +149,12 @@ export const marksToPositions = d => {
           if (delta.$deltaAny.check(el) && el.maybeHasMarks && walk(el, [...path, i])) found = true
           i++
         }
-      } else {
+      } else if (delta.$modifyOp.check(op)) {
+        if (op.value.maybeHasMarks && walk(op.value, [...path, i])) found = true
+        i++
+      } else if (!delta.$deleteOp.check(op)) {
+        // text / retain advance the content index; a delete occupies only the pre-change coordinate -
+        // mark paths (like mark keys, see delta.js's shiftMarkKey) are post-change content indices
         i += op.length
       }
     }

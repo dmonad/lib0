@@ -517,6 +517,54 @@ export const testMarkInModifyAttrValue = () => {
   t.compare(position.marksToPositions(d), [{ id: 'I', path: ['body', 0], assoc: 1 }])
 }
 
+export const testMarkInModifyChildValue = () => {
+  // applying a mark change whose numeric step points past the settled content leaves a modify op on
+  // the settled node (the content twin of testMarkInModifyAttrValue); marksToPositions descends modify
+  // values, so the mark stays reachable and the read must not destroy the conservative flag
+  const d = /** @type {delta.DeltaBuilderAny} */ (delta.create('p'))
+  d.apply(mkAdd([2, 'a'], 'X'), { final: true })
+  t.assert(d.maybeHasMarks === true)
+  t.compare(position.marksToPositions(d), [{ id: 'X', path: [2, 'a'], assoc: 1 }])
+  t.assert(d.maybeHasMarks === true)
+}
+
+export const testMarkChangeRoundTrip = () => {
+  // a change delta built by addMark reads back the exact position that was written: the walk descends
+  // the retain/modify chain markChange builds
+  t.compare(position.marksToPositions(mkAdd([2, 'a'], 'M')), [{ id: 'M', path: [2, 'a'], assoc: 1 }])
+  // nested numeric steps ⇒ nested modify ops; left gravity survives the round-trip
+  t.compare(position.marksToPositions(mkAdd([1, 3], 'N', -1)), [{ id: 'N', path: [1, 3], assoc: -1 }])
+}
+
+export const testMarkChangeAfterDelete = () => {
+  // mark paths are post-change content indices (delete ops span no slot - matching shiftMarkKey and
+  // the retain steps markChange itself counts), so a delete before the modify must not shift the path
+  const c1 = /** @type {delta.DeltaBuilderAny} */ (delta.create().delete(2))
+  c1.addMark(position.create([1, 'k'], 1), 'D')
+  t.compare(position.marksToPositions(c1), [{ id: 'D', path: [1, 'k'], assoc: 1 }])
+  const c2 = /** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).delete(2))
+  c2.addMark(position.create([3, 'k'], 1), 'E')
+  t.compare(position.marksToPositions(c2), [{ id: 'E', path: [3, 'k'], assoc: 1 }])
+}
+
+export const testMarkModifyFlagSelfCorrect = () => {
+  // a delta whose ONLY mark lives inside a modify op keeps its conservative flag across the read
+  const mv = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
+  mv.addMark(position.create([0], 1), 'mod')
+  const withMark = /** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv))
+  t.compare(position.marksToPositions(withMark), [{ id: 'mod', path: [1, 0], assoc: 1 }])
+  t.assert(withMark.maybeHasMarks === true)
+  // a stale flag (mark added then removed in place - the flag is never decremented) propagates through
+  // modify(); the read descends the markless modify value and self-corrects the parent to false
+  const mv2 = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('y'))
+  mv2.addMark(position.create([0], 1), 'tmp')
+  mv2.removeMark(position.create([0], 1), 'tmp')
+  const stale = /** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv2))
+  t.assert(stale.maybeHasMarks === true)
+  t.compare(position.marksToPositions(stale), [])
+  t.assert(stale.maybeHasMarks === false)
+}
+
 export const testMarkRebaseAttr = () => {
   // a mark living inside a delta-valued attribute rides on a modifyAttr chain; rebase recurses into it
   const base = /** @type {delta.DeltaBuilderAny} */ (delta.create().setAttr('doc', delta.create().insert('hello')).done())

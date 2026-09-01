@@ -219,6 +219,23 @@ export const testMarkAttrsRoundTrip = () => {
   t.compare([...(/** @type {any} */ (back.a).marks ?? [])].map(m => ({ key: m.key, attrs: m.attrs })), [{ key: 'a', attrs: { note: 'hi' } }])
 }
 
+export const testMarkModifyChangeRidesChildren = () => {
+  // an incremental mark-only change addressing an EXISTING child arrives as a retain/modify chain
+  // (what addMark builds); the mark is readable directly off the raw transformer output — no settle —
+  // via marksToPositions' modify descent, re-keyed a->b by the per-child sub-transformer
+  const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
+  it.applyA(delta.create().insert([delta.create('p', { a: 1 })])) // establish the child + its sub-transformer
+  const change = /** @type {any} */ (delta.create())
+  change.addMark(position.create([0, 'a']), 'M')
+  const r = it.applyA(change)
+  t.compare(mp(r.b), [{ id: 'M', path: [0, 'b'], assoc: 1 }])
+  // and back: a B-side mark change maps through the same modify path
+  const changeB = /** @type {any} */ (delta.create())
+  changeB.addMark(position.create([0, 'b']), 'N')
+  const rb = it.applyB(changeB)
+  t.compare(mp(rb.a), [{ id: 'N', path: [0, 'a'], assoc: 1 }])
+}
+
 /**
  * Fuzz: marks on a random set of attributes survive `renameAttrs` (each present key renamed to a fresh
  * target), and round-trip back through `applyB`.
