@@ -96,21 +96,28 @@ const contentFmt = (conf, attribution, isData) => {
 
 /**
  * Build the `y-attributed-attrs` format value from a child node's attribute-op attributions — the
- * lift that lets the *parent* op carry a node's attr provenance (attr ops have no format slot). For a
- * `modifyAttr` op a `null` attribution is an instruction *clear* (⇒ `{ <key>: null }`); for a settled
- * `setAttr`/`deleteAttr` op `null` is "none" (skipped).
+ * lift that lets the *parent* op carry a node's attr provenance (attr ops have no format slot).
+ * Whether a `null` attribution clears or is skipped depends on the *container context* `instr`, not
+ * only the op kind: inside a `modify` op (`instr` true) the node delta is a change, so a
+ * `setAttr(key, value, null)` means "the attr is no longer attributed" (e.g. a suggestion was
+ * accepted — `diff` emits exactly this op when only the attribution went away) ⇒ emit the
+ * `{ <key>: null }` clear instruction. Inside an `insert` op (`instr` false) the node delta is
+ * settled data, where `null` is simply "unattributed" ⇒ skip. A `modifyAttr` op is an instruction in
+ * either context. The emitted map is *partial* — downstream consumers must merge it per-key
+ * (`null` deletes, value sets), never replace the whole map.
  *
  * @param {Conf} conf
  * @param {import('../delta.js').DeltaAny} node
+ * @param {boolean} instr `true` when `node` is a change (`modify` op value), `false` for settled data (`insert` op element)
  * @return {{[k:string]:any}|undefined}
  */
-const attrsFmt = (conf, node) => {
+const attrsFmt = (conf, node, instr) => {
   const handler = conf.attrs
   if (handler == null) return undefined
   /** @type {{[k:string]:any}} */
   const map = {}
   for (const op of node.attrs) {
-    const isInstr = delta.$modifyAttrOp.check(op) // modifyAttr carries an attribution *instruction*; setAttr/deleteAttr resolved data
+    const isInstr = instr || delta.$modifyAttrOp.check(op)
     const a = op.attribution
     if (a === undefined) continue // instruction skip
     if (a === null) {
@@ -202,7 +209,7 @@ const transform = (conf, d, fwd) => {
         // children needing distinct `y-attributed-attrs` land in their own insert ops automatically
         for (const el of op.insert) {
           if (delta.$deltaAny.check(el)) {
-            out.insert([transform(conf, el, true).b], combineFmt(op.format, contentFmt(conf, op.attribution, true), attrsFmt(conf, el)))
+            out.insert([transform(conf, el, true).b], combineFmt(op.format, contentFmt(conf, op.attribution, true), attrsFmt(conf, el, false)))
           } else {
             out.insert([el], combineFmt(op.format, contentFmt(conf, op.attribution, true)))
           }
@@ -210,7 +217,7 @@ const transform = (conf, d, fwd) => {
       } else if (delta.$deleteOp.check(op)) {
         out.delete(op.delete)
       } else { // $modifyOp
-        out.modify(transform(conf, op.value, true).b, combineFmt(op.format, contentFmt(conf, op.attribution, false), attrsFmt(conf, op.value)))
+        out.modify(transform(conf, op.value, true).b, combineFmt(op.format, contentFmt(conf, op.attribution, false), attrsFmt(conf, op.value, true)))
       }
     }
   } else {

@@ -66,6 +66,47 @@ export const testAttributionToFormatModifyAttr = () => {
   t.compare(res.b, delta.create().modify(delta.create().setAttr('style', 'x'), { 'y-attributed-attrs': { style: 'alice' } }))
 }
 
+/**
+ * The `null`-attribution semantics are decided by the *container context*, not the op kind: inside a
+ * `modify` (change) a `setAttr(key, value, null)` means "the attr is no longer attributed" — `diff`
+ * emits exactly this op when only the attribution went away (e.g. a suggestion was accepted) — so the
+ * lift must emit the `{ <key>: null }` clear. Inside an `insert` (settled data) the same op is simply
+ * an unattributed attr and lifts nothing. Regression test: keying this off `modifyAttrOp` alone left
+ * the clear unemitted and downstream attr-attribution decorations stale after accept/reject.
+ */
+export const testAttributionToFormatAttrClearInChangeContext = () => {
+  const $p = delta.$delta('p', { attrs: { style: s.$string }, text: true })
+  const $d = delta.$delta({ name: s.$literal('doc'), children: $p })
+  // change context: the accept scenario, produced by a real diff
+  const prev = delta.create().insert([delta.create('p').setAttr('style', 'x', { insert: ['alice'] }).insert('t')]).done()
+  const next = delta.create().insert([delta.create('p').setAttr('style', 'x', null).insert('t')]).done()
+  const it = attributionToFormat($d, conf).init()
+  const res = it.applyA(/** @type {any} */ (delta.diff(prev, next)))
+  t.compare(JSON.parse(JSON.stringify(/** @type {any} */ (res.b).done(false).toJSON())), {
+    type: 'delta',
+    children: [{
+      type: 'modify',
+      value: { type: 'delta', name: 'p', attrs: { style: { type: 'insert', value: 'x' } } },
+      format: { 'y-attributed-attrs': { style: null } }
+    }]
+  }, 'attribution removal lifts a per-key clear in change context')
+  // data context: an inserted node's unattributed attr lifts nothing
+  const it2 = attributionToFormat($d, conf).init()
+  const ins = it2.applyA(delta.create().insert([delta.create('p').setAttr('style', 'x', null).insert('t')]))
+  t.compare(JSON.parse(JSON.stringify(/** @type {any} */ (ins.b).done(false).toJSON())), {
+    type: 'delta',
+    children: [{
+      type: 'insert',
+      insert: [{
+        type: 'delta',
+        name: 'p',
+        attrs: { style: { type: 'insert', value: 'x' } },
+        children: [{ type: 'insert', insert: 't' }]
+      }]
+    }]
+  }, 'null attribution on settled data lifts nothing')
+}
+
 /** Two inserted nodes with different attr-attributions split into one insert op each. */
 export const testAttributionToFormatInsertAttrSplit = () => {
   const $p = delta.$delta('p', { attrs: { style: s.$string } })
