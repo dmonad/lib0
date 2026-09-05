@@ -156,6 +156,21 @@ d.apply(delta.create().modify(
 ))
 ```
 
+### Which form to write: condensed vs. builder chain
+
+`create` accepts both a condensed form — the whole node in one call — and a builder chain, and they
+produce the same delta (and the same conf type). Which you pick says what the delta *is*:
+
+- A **final state** — a document, a node value, a `project` spec, an expected render — is written
+  condensed: `delta.create(nodeName, attrs, children)`. Pass `null` for `attrs` when the node has
+  none: `delta.create('p', null, 'hello')`.
+- A **changeset** — how something changes, or a case where the *order* of the operations is the
+  point — stays a chain: `delta.create().setAttr(..).retain(..).insert(..)`.
+
+`create` issues a single `insert`, so a final state that mixes text and element children can't be
+condensed — chain it (`delta.create('p').insert('Name: ').insert([nameHole])`). The same applies
+when an op needs formats or attribution, which the condensed form has no slot for.
+
 # Inverting a change: `inverse(d, base)`
 
 `delta.inverse(d, base)` computes the change that undoes `d` against `base` — the settled document
@@ -404,21 +419,22 @@ Map a collection's children with the `children` transformer and relabel the cont
 ```javascript
 const list = dt.pipe(delta.$deltaAny,
   // the handler receives the per-child schema `$c`; build the row spec (with its bound hole) from it
-  $d => dt.children($d, (_c, $c) => dt.project($c, delta.create('li').insert([dt.attr($c, 'name')]))),
+  $d => dt.children($d, (_c, $c) => dt.project($c, delta.create('li', null, [dt.attr($c, 'name')]))),
   $d => dt.rename($d, 'ul')
 ).init()
 
-list.applyA(delta.create('users').insert([
-  delta.create('user').setAttr('name', 'Erika'),
-  delta.create('user').setAttr('name', 'Max')
+list.applyA(delta.create('users', null, [
+  delta.create('user', { name: 'Erika' }),
+  delta.create('user', { name: 'Max' })
 ])).b
-// ⇒ create('ul').insert([ create('li').insert(['Erika']), create('li').insert(['Max']) ])
+// ⇒ create('ul', null, [ create('li', null, ['Erika']), create('li', null, ['Max']) ])
 ```
 
 `children` maps one data item to one row (incremental insert/delete/retain/modify, per-item
 transformer state preserved positionally); `rename($d, 'ul')` relabels the mapped container. For an
-**editable** row binding use an *attribute* hole (`delta.create('li').setAttr('label',
-dt.attr($c, 'name'))`): a view edit of the attribute round-trips back to the data item.
+**editable** row binding use an *attribute* hole
+(`delta.create('li', { label: dt.attr($c, 'name') })`): a view edit of the attribute round-trips
+back to the data item.
 
 ## Limitations & extensions (v1)
 

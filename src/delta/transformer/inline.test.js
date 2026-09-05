@@ -122,9 +122,9 @@ export const testInlineNullNodesModifyAccumulation = () => {
 export const testInlineNullNodesNamedNodePassThrough = () => {
   const it = inline(delta.$deltaAny, [null]).init()
   // a named node among the children is NOT inlined (opaque, length 1)
-  const structured = delta.create().insert('a').insert([delta.create('span').insert('x')]).insert('b')
+  const structured = delta.create().insert('a').insert([delta.create('span', null, 'x')]).insert('b')
   const res = it.applyA(structured)
-  t.compare(res.b, delta.create().insert('a').insert([delta.create('span').insert('x')]).insert('b'))
+  t.compare(res.b, delta.create().insert('a').insert([delta.create('span', null, 'x')]).insert('b'))
   // a modify in B targeting the named node passes through verbatim
   const res2 = it.applyB(delta.create().retain(1).modify(delta.create().retain(1).insert('Y')))
   t.compare(res2.a, delta.create().retain(1).modify(delta.create().retain(1).insert('Y')))
@@ -141,7 +141,7 @@ export const testInlineNullNodesForwardModifyIntoNull = () => {
 export const testInlineNullNodesForwardModifyNamedInNull = () => {
   const it = inline(delta.$deltaAny, [null]).init()
   // null node holding text and a named node; named node stays opaque in the inlined view
-  it.applyA(delta.create().insert([delta.create().insert('x').insert([delta.create('b').insert('y')])]))
+  it.applyA(delta.create().insert([delta.create().insert('x').insert([delta.create('b', null, 'y')])]))
   // data-side modify into the null node whose inner modify edits the nested named node
   const res = it.applyA(delta.create().modify(delta.create().retain(1).modify(delta.create().retain(1).insert('Z'))))
   t.compare(res.b, delta.create().retain(1).modify(delta.create().retain(1).insert('Z')))
@@ -187,7 +187,7 @@ export const testInlineNullNodesForwardModifyDelete = () => {
 export const testInlineNullNodesForwardModifyNamed = () => {
   const it = inline(delta.$deltaAny, [null]).init()
   // a named node at the root is opaque; a data-side modify of it is forwarded verbatim
-  it.applyA(delta.create().insert([delta.create('span').insert('x')]))
+  it.applyA(delta.create().insert([delta.create('span', null, 'x')]))
   const res = it.applyA(delta.create().modify(delta.create().retain(1).insert('Z')))
   t.compare(res.b, delta.create().modify(delta.create().retain(1).insert('Z')))
 }
@@ -195,7 +195,7 @@ export const testInlineNullNodesForwardModifyNamed = () => {
 export const testInlineNullNodesBackwardModifyIntoNull = () => {
   const it = inline(delta.$deltaAny, [null]).init()
   // null node holding text and a named node
-  it.applyA(delta.create().insert([delta.create().insert('x').insert([delta.create('b').insert('y')])]))
+  it.applyA(delta.create().insert([delta.create().insert('x').insert([delta.create('b', null, 'y')])]))
   // a B-edit modifying the named node (inlined position 1, inside the null node) descends via modify
   const res = it.applyB(delta.create().retain(1).modify(delta.create().retain(1).insert('Z')))
   t.compare(res.a, delta.create().modify(delta.create().retain(1).modify(delta.create().retain(1).insert('Z'))))
@@ -204,7 +204,7 @@ export const testInlineNullNodesBackwardModifyIntoNull = () => {
 export const testInlineNullNodesBackwardModifyNamedAtEnd = () => {
   const it = inline(delta.$deltaAny, [null]).init()
   // a named node immediately followed by a null node: modifying the named node crosses the boundary
-  it.applyA(delta.create().insert([delta.create('span').insert('x')]).insert([delta.create().insert('t')]))
+  it.applyA(delta.create().insert([delta.create('span', null, 'x')]).insert([delta.create().insert('t')]))
   const res = it.applyB(delta.create().modify(delta.create().retain(1).insert('Z')))
   t.compare(res.a, delta.create().modify(delta.create().retain(1).insert('Z')))
 }
@@ -214,7 +214,7 @@ export const testInlineNullNodesBackwardModifyNamedAtEnd = () => {
 export const testInlineNullNodesDeleteNullTypeNested = () => {
   const it = inline(delta.$deltaAny, [null]).init()
   // null node holding text 'x', a named <b>y</b> and text 'z' => inlined length 1+1+1 = 3
-  it.applyA(delta.create().insert('a').insert([delta.create().insert('x').insert([delta.create('b').insert('y')]).insert('z')]).insert('c'))
+  it.applyA(delta.create().insert('a').insert([delta.create().insert('x').insert([delta.create('b', null, 'y')]).insert('z')]).insert('c'))
   // delete the null node (one structured position) => delete its whole mapped inline range
   const res = it.applyA(delta.create().retain(1).delete(1))
   t.compare(res.b, delta.create().retain(1).delete(3))
@@ -314,26 +314,26 @@ export const testInlineNullNodesTyping = () => {
 export const testInlineNamed = () => {
   const it = inline(delta.$deltaAny, ['b']).init()
   // <b> is inlined by name: a<b>xy</b>c -> axyc
-  const structured = delta.create().insert('a').insert([delta.create('b').insert('xy')]).insert('c')
+  const structured = delta.create().insert('a').insert([delta.create('b', null, 'xy')]).insert('c')
   const res = it.applyA(structured)
   t.compare(res.b, delta.create().insert('axyc'))
   // a B-side insert interior to the inlined <b> (inlined offset 2) maps back to a modify on <b>
   const res2 = it.applyB(delta.create().retain(2).insert('Y'))
   t.compare(res2.a, delta.create().retain(1).modify(delta.create().retain(1).insert('Y')))
-  const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('a').insert([delta.create('b').insert('xy')]).insert('c'))
+  const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('a').insert([delta.create('b', null, 'xy')]).insert('c'))
   doc.apply(res2.a)
-  t.compare(doc, delta.create().insert('a').insert([delta.create('b').insert('xYy')]).insert('c'))
+  t.compare(doc, delta.create().insert('a').insert([delta.create('b', null, 'xYy')]).insert('c'))
 }
 
 export const testInlineMixed = () => {
   const it = inline(delta.$deltaAny, ['b', null]).init()
   // both a named <b> and an anonymous null node are inlined; <span> stays opaque
   const structured = delta.create()
-    .insert([delta.create('b').insert('x')])
-    .insert([delta.create('span').insert('s')])
+    .insert([delta.create('b', null, 'x')])
+    .insert([delta.create('span', null, 's')])
     .insert([delta.create().insert('y')])
   const res = it.applyA(structured)
-  t.compare(res.b, delta.create().insert('x').insert([delta.create('span').insert('s')]).insert('y'))
+  t.compare(res.b, delta.create().insert('x').insert([delta.create('span', null, 's')]).insert('y'))
   // deleting the opaque <span> at inlined position 1 (after the inlined <b>'s 'x') passes through as a
   // structural delete after the retained <b>
   const res2 = it.applyB(delta.create().retain(1).delete(1))
@@ -379,7 +379,7 @@ const genNullNode = gen => {
   for (let i = prng.int32(gen, 0, 3); i > 0; i--) {
     prng.oneOf(gen, [
       () => { nn.insert(prng.word(gen, 1, 4)) },
-      () => { nn.insert([delta.create('b').insert(prng.word(gen, 1, 3))]) }
+      () => { nn.insert([delta.create('b', null, prng.word(gen, 1, 3))]) }
     ])()
   }
   return nn
@@ -395,7 +395,7 @@ const genStructured = gen => {
   for (let i = prng.int32(gen, 0, 5); i > 0; i--) {
     prng.oneOf(gen, [
       () => { d.insert(prng.word(gen, 1, 5)) },
-      () => { d.insert([delta.create('span').insert(prng.word(gen, 1, 4))]) },
+      () => { d.insert([delta.create('span', null, prng.word(gen, 1, 4))]) },
       () => { d.insert([genNullNode(gen)]) }
     ])()
   }
@@ -458,7 +458,7 @@ const genEdit = (gen, state, allowNullNodes, depth = 2) => {
      */
     const ops = [
       () => { edit.insert(prng.word(gen, 1, 4)) },
-      () => { edit.insert([delta.create('em').insert(prng.word(gen, 1, 3))]) }
+      () => { edit.insert([delta.create('em', null, prng.word(gen, 1, 3))]) }
     ]
     if (allowNullNodes) {
       ops.push(() => { edit.insert([genNullNode(gen)]) })
@@ -524,7 +524,7 @@ const genComplexStructured = gen => {
   for (let i = prng.int32(gen, 4, 9); i > 0; i--) {
     prng.oneOf(gen, [
       () => { d.insert(prng.word(gen, 1, 6)) },
-      () => { d.insert([delta.create('span').insert(prng.word(gen, 1, 4))]) },
+      () => { d.insert([delta.create('span', null, prng.word(gen, 1, 4))]) },
       () => { d.insert([delta.create('img')]) },
       () => { d.insert([genNullNode(gen)]) },
       () => { d.insert([genNullNode(gen)]) }
@@ -769,7 +769,7 @@ export const testInlineMarkPureMoveBothWays = () => {
   const mvA = delta.create('p')
   mvA.addMark(position.create([3]), 'CA') // structured 3 -> inlined 4
   const b = /** @type {any} */ (delta.create('p'))
-  b.apply(delta.create('p').insert('abcdef'), { final: true })
+  b.apply(delta.create('p', null, 'abcdef'), { final: true })
   b.apply(itA.applyA(mvA).b, { final: true })
   t.compare(imp(b), [{ id: 'CA', path: [4], assoc: 1 }])
 }

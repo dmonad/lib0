@@ -31,7 +31,7 @@ export const testDomRDTRoundTrip = () => {
   const d = deltaRDT($domDelta)
   bind(d, dr, identity())
   // pushing a delta through the delta RDT renders it onto the DOM element
-  d.applyDelta(delta.create('div', { id: '1' }, [delta.create('p', {}, 'text')]))
+  d.applyDelta(delta.create('div', { id: '1' }, [delta.create('p', null, 'text')]))
   t.compare(el.outerHTML, '<div id="1"><p>text</p></div>', 'delta rendered to DOM')
 }
 
@@ -57,7 +57,7 @@ export const testDomApplyOps = () => {
     t.compare(el.outerHTML, expected, description)
   }
 
-  step(delta.create('div', { id: '1' }, [delta.create('p', {}, 'abcde'), delta.create('span', {}, 'z')]),
+  step(delta.create('div', { id: '1' }, [delta.create('p', null, 'abcde'), delta.create('span', null, 'z')]),
     '<div id="1"><p>abcde</p><span>z</span></div>', 'initial render')
   step(delta.create('div').setAttr('class', 'c').deleteAttr('id'),
     '<div class="c"><p>abcde</p><span>z</span></div>', 'set + delete attribute')
@@ -77,7 +77,7 @@ export const testDomApplyOps = () => {
   step(delta.create('div').modify(delta.create().delete(2)),
     '<div class="c"><span></span></div>', 'modify child: full text delete')
   // retain the span and insert a fresh element child (with attributes + a nested element) after it
-  step(delta.create('div').retain(1).insert([delta.create('ul', { id: 'L' }, [delta.create('li', {}, 'one')])]),
+  step(delta.create('div').retain(1).insert([delta.create('ul', { id: 'L' }, [delta.create('li', null, 'one')])]),
     '<div class="c"><span></span><ul id="L"><li>one</li></ul></div>', 'retain element + insert nested element')
 }
 
@@ -114,7 +114,7 @@ export const testDomBindingBackAndForth = async () => {
 
   // data-driven render (synchronous): el1 <- deltaRDT1
   await test('insert paragraph', () => {
-    deltaRDT1.applyDelta(delta.create('div', { id: '1' }, [delta.create('p', {}, 'ab')]))
+    deltaRDT1.applyDelta(delta.create('div', { id: '1' }, [delta.create('p', null, 'ab')]))
   })
   // the rest are DOM edits on el1, observed and propagated to el2
   await test('edit text node (mid-string insert)', () => {
@@ -152,14 +152,14 @@ export const testDomConcurrentRebase = async () => {
   const dr = domRDT(el)
   const d = deltaRDT($domDelta)
   bind(d, dr, identity())
-  d.applyDelta(delta.create('div', {}, [delta.create('p', {}, 'x')])) // initial: <div><p>x</p></div>
+  d.applyDelta(delta.create('div', null, [delta.create('p', null, 'x')])) // initial: <div><p>x</p></div>
   // a local DOM edit (add an attribute) whose MutationObserver callback has NOT fired yet ...
   el.setAttribute('data-local', '1')
   // ... and, synchronously (so the edit above is still pending), a remote change through the binding
   d.applyDelta(delta.create('div').modify(delta.create().retain(1).insert('y'))) // edit the text "x" -> "xy"
   await promise.resolve() // settle the observer (it finds nothing new — the edit was already pulled)
   t.compare(el.outerHTML, '<div data-local="1"><p>xy</p></div>', 'DOM has both concurrent edits')
-  t.compare(d.state, delta.create('div', { 'data-local': '1' }, [delta.create('p', {}, 'xy')]),
+  t.compare(d.state, delta.create('div', { 'data-local': '1' }, [delta.create('p', null, 'xy')]),
     'data side received the rebased local edit')
 }
 
@@ -225,9 +225,9 @@ export const testDomDeepEditReusesSiblings = async () => {
   t.assert(dr._nodes.get(section) === sectionMirror, '<section> mirror reused by reference')
   t.assert(dr._nodes.get(firstLi) === firstLiMirror, 'first <li> mirror reused by reference')
   // and the live mirror reflects the deep edit
-  t.compare(dr.delta, delta.create('div', {}, [
-    delta.create('ul', {}, [delta.create('li', {}, 'a'), delta.create('li', {}, 'bX')]),
-    delta.create('section', {}, 'keep')
+  t.compare(dr.delta, delta.create('div', null, [
+    delta.create('ul', null, [delta.create('li', null, 'a'), delta.create('li', null, 'bX')]),
+    delta.create('section', null, 'keep')
   ]), 'mirror reflects the deep edit')
 }
 
@@ -284,14 +284,14 @@ export const testDomConcurrentDeepRebase = async () => {
   const d = deltaRDT($domDelta)
   bind(d, dr, identity())
   // initial: <div><p>x</p><span>y</span></div>
-  d.applyDelta(delta.create('div', {}, [delta.create('p', {}, 'x'), delta.create('span', {}, 'y')]))
+  d.applyDelta(delta.create('div', null, [delta.create('p', null, 'x'), delta.create('span', null, 'y')]))
   // a local DOM edit deep in the tree whose MutationObserver callback has NOT fired: <p> 'x' -> 'xL'
   dom.$text.cast(/** @type {Element} */ (el.querySelector('p')).firstChild).textContent = 'xL'
   // ... concurrently (edit still pending), a remote change to the SIBLING <span>: 'y' -> 'yR'
   d.applyDelta(delta.create('div').retain(1).modify(delta.create().retain(1).insert('R')))
   await promise.resolve()
   t.compare(el.outerHTML, '<div><p>xL</p><span>yR</span></div>', 'both concurrent deep edits landed on the DOM')
-  t.compare(d.state, delta.create('div', {}, [delta.create('p', {}, 'xL'), delta.create('span', {}, 'yR')]),
+  t.compare(d.state, delta.create('div', null, [delta.create('p', null, 'xL'), delta.create('span', null, 'yR')]),
     'data side received both edits')
 }
 
@@ -308,7 +308,7 @@ export const testDomTextSplitNormalized = async () => {
   dom.$text.cast(el.firstChild).splitText(3) // 'abc' | 'def'
   await promise.resolve()
   t.assert(count === 0, 'splitText produces no net content change, so no delta')
-  t.compare(dr.delta, delta.create('div').insert('abcdef'), 'mirror text is unchanged (adjacent text coalesced)')
+  t.compare(dr.delta, delta.create('div', null, 'abcdef'), 'mirror text is unchanged (adjacent text coalesced)')
 }
 
 /**
@@ -320,10 +320,10 @@ export const testDomDeltaSnapshotStable = async () => {
   const el = dom.element('div', [], [dom.element('p', [], [dom.text('x')])])
   const dr = domRDT(el)
   const snap = dr.delta
-  const before = delta.create('div', {}, [delta.create('p', {}, 'x')])
+  const before = delta.create('div', null, [delta.create('p', null, 'x')])
   t.compare(snap, before, 'snapshot matches the initial document')
   dom.$text.cast(/** @type {Element} */ (el.querySelector('p')).firstChild).textContent = 'xy'
   await promise.resolve()
   t.compare(snap, before, 'the previously-returned snapshot is unchanged by a later reconcile')
-  t.compare(dr.delta, delta.create('div', {}, [delta.create('p', {}, 'xy')]), 'the live mirror reflects the edit')
+  t.compare(dr.delta, delta.create('div', null, [delta.create('p', null, 'xy')]), 'the live mirror reflects the edit')
 }

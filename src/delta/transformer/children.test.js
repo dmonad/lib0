@@ -102,7 +102,7 @@ export const testChildrenInlineAllRecursive = () => {
     delta.create('p').insert('x').insert([delta.create().insert('z')]).insert('y')
   ])
   const r = it.applyA(doc)
-  t.compare(r.b, delta.create().insert([delta.create('p').insert('xzy')]))
+  t.compare(r.b, delta.create().insert([delta.create('p', null, 'xzy')]))
   // backward: an insert at the very start of p maps to p's root (boundary preference), through the
   // recursion
   const rb = it.applyB(delta.create().modify(delta.create().insert('!')))
@@ -114,13 +114,13 @@ export const testChildrenInlineAllDeep = () => {
   const it = /** @type {any} */ (pipe(delta.$deltaAny, $d => inline($d, [null]), inlineAll).init())
   // three levels: root -> p -> q( "m", <>n</>, "o" )
   const doc = delta.create().insert([
-    delta.create('p').insert([
+    delta.create('p', null, [
       delta.create('q').insert('m').insert([delta.create().insert('n')]).insert('o')
     ])
   ])
   const r = it.applyA(doc)
   t.compare(r.b, delta.create().insert([
-    delta.create('p').insert([delta.create('q').insert('mno')])
+    delta.create('p', null, [delta.create('q', null, 'mno')])
   ]))
 }
 
@@ -131,11 +131,11 @@ export const testChildrenInlineAllNestedGap = () => {
   // p( <> <>x</> </> ): outer null is inlined by p's inline; the inner null survives as p's child and
   // is recursed into (its text stays) but not itself flattened
   const doc = delta.create().insert([
-    delta.create('p').insert([delta.create().insert([delta.create().insert('x')])])
+    delta.create('p', null, [delta.create().insert([delta.create().insert('x')])])
   ])
   const r = it.applyA(doc)
   t.compare(r.b, delta.create().insert([
-    delta.create('p').insert([delta.create().insert('x')])
+    delta.create('p', null, [delta.create().insert('x')])
   ]))
 }
 
@@ -181,7 +181,7 @@ export const testChildrenInlineNullNodesRecursive = () => {
   // initial render: every null node is inlined into its parent, recursively at every depth
   const r0 = it.applyA(buildA())
   t.compare(r0.b, delta.create().insert([
-    delta.create('div').insert([delta.create('p').insert('hello world')]).insert('!!')
+    delta.create('div').insert([delta.create('p', null, 'hello world')]).insert('!!')
   ]))
   t.compare(allText(r0.b), 'hello world!!', 'the inlined text reads "hello world!!"')
 

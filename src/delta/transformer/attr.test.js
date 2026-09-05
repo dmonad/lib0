@@ -11,12 +11,12 @@ export const testAttr = () => {
   // forward: extract attr `x` into a `lib0:value` node's `value` attribute
   const res = it.applyA(delta.create().setAttr('x', 'hello'))
   t.assert(res.a === null)
-  t.compare(res.b, delta.create('lib0:value').setAttr('value', 'hello'))
+  t.compare(res.b, delta.create('lib0:value', { value: 'hello' }))
   // backward: maps a `lib0:value` change back (exercises applyB)
-  const res2 = it.applyB(delta.create('lib0:value').setAttr('value', 'world'))
+  const res2 = it.applyB(delta.create('lib0:value', { value: 'world' }))
   t.assert(res2.b === null)
   t.assert(res2.a != null)
   // config-only (template) form: `.init($d)` builds an equivalent transformer
   const it2 = attr($d, 'x').init()
-  t.compare(it2.applyA(delta.create().setAttr('x', 'hi')).b, delta.create('lib0:value').setAttr('value', 'hi'))
+  t.compare(it2.applyA(delta.create().setAttr('x', 'hi')).b, delta.create('lib0:value', { value: 'hi' }))
 }

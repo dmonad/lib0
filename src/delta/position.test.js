@@ -188,7 +188,7 @@ export const testMarkDeepAndAttrNested = () => {
   t.assert(rich.maybeHasMarks === true)
   t.compare(position.marksToPositions(rich), [{ id: 'a', path: ['rich', 1], assoc: 1 }])
   // a mark pointing at a scalar attribute (attribute leaf)
-  const div = delta.create('div').setAttr('title', 'hello')
+  const div = delta.create('div', { title: 'hello' })
   div.addMark(position.create(['title'], 1), 't')
   t.compare(position.marksToPositions(div), [{ id: 't', path: ['title'], assoc: 1 }])
 }

@@ -15,11 +15,11 @@ const cmp = (/** @type {any} */ a, /** @type {any} */ b) => t.compare(a, b)
 
 export const testRenameNode = () => {
   const it = rename(delta.$delta('list', { children: s.$string }), 'ul').init()
-  const res = it.applyA(delta.create('list').insert(['a']))
-  t.compare(res.b, delta.create('ul').insert(['a']))
+  const res = it.applyA(delta.create('list', null, ['a']))
+  t.compare(res.b, delta.create('ul', null, ['a']))
   // reverse restores the source name
-  const back = it.applyB(delta.create('ul').insert(['b']))
-  t.compare(back.a, delta.create('list').insert(['b']))
+  const back = it.applyB(delta.create('ul', null, ['b']))
+  t.compare(back.a, delta.create('list', null, ['b']))
 }
 
 export const testRenderList = () => {
@@ -27,16 +27,16 @@ export const testRenderList = () => {
   // so no downstream resolver is needed
   const it = pipe(
     delta.$delta('users', { children: delta.$delta('user', { attrs: { name: s.$string } }) }),
-    $d => children($d, (_c, $c) => project($c, delta.create('li').insert([attr($c, 'name')]))),
+    $d => children($d, (_c, $c) => project($c, delta.create('li', null, [attr($c, 'name')]))),
     $d => rename($d, 'ul')
   ).init()
-  const res = it.applyA(delta.create('users').insert([
-    delta.create('user').setAttr('name', 'Erika'),
-    delta.create('user').setAttr('name', 'Max')
+  const res = it.applyA(delta.create('users', null, [
+    delta.create('user', { name: 'Erika' }),
+    delta.create('user', { name: 'Max' })
   ]))
-  cmp(res.b, delta.create('ul').insert([
-    delta.create('li').insert(['Erika']),
-    delta.create('li').insert(['Max'])
+  cmp(res.b, delta.create('ul', null, [
+    delta.create('li', null, ['Erika']),
+    delta.create('li', null, ['Max'])
   ]))
 }
 
@@ -45,12 +45,12 @@ export const testRenderListReverse = () => {
   // routes back through children -> the row's project -> the bound data attribute
   const it = pipe(
     delta.$delta('users', { children: delta.$delta('user', { attrs: { name: s.$string } }) }),
-    $d => children($d, (_c, $c) => project($c, delta.create('li').setAttr('label', attr($c, 'name')))),
+    $d => children($d, (_c, $c) => project($c, delta.create('li', { label: attr($c, 'name') }))),
     $d => rename($d, 'ul')
   ).init()
-  it.applyA(delta.create('users').insert([
-    delta.create('user').setAttr('name', 'Erika'),
-    delta.create('user').setAttr('name', 'Max')
+  it.applyA(delta.create('users', null, [
+    delta.create('user', { name: 'Erika' }),
+    delta.create('user', { name: 'Max' })
   ]))
   // reason: applyB expects the pipe's output document type, but this is a view-side modify *change*
   // (and intentionally exercises drift routing back through the pipe); cast the change to any.

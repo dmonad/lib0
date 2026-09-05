@@ -36,13 +36,13 @@ const mp = d => position.marksToPositions(d).sort((a, b) => a.id < b.id ? -1 : a
 export const testMarkRenamePreserves = () => {
   // rename clones the node, so a mark rides unchanged (only the name changes)
   const it = rename(delta.$deltaAny, 'B').init()
-  const d = delta.create('A').insert('hi')
+  const d = delta.create('A', null, 'hi')
   d.addMark(position.create([1]), 'M')
   const r = it.applyA(d)
   t.assert(r.b?.name === 'B')
   t.compare(mp(r.b), [{ id: 'M', path: [1], assoc: 1 }])
   // reverse: srcName restored, mark preserved
-  const db = delta.create('B').insert('hi')
+  const db = delta.create('B', null, 'hi')
   db.addMark(position.create([1]), 'M')
   const rb = it.applyB(db)
   t.assert(rb.a?.name === 'A')
@@ -104,7 +104,7 @@ export const testMarkValueNestedOnly = () => {
 export const testMarkValueRootPreserved = () => {
   // unwrapValue is count-preserving (carrier -> scalar is 1 position): a root mark rides unchanged
   const it = unwrapValue(delta.$deltaAny).init()
-  const d = delta.create().insert('x').insert([delta.create('lib0:value').setAttr('value', 42)])
+  const d = delta.create().insert('x').insert([delta.create('lib0:value', { value: 42 })])
   d.addMark(position.create([0]), 'M')
   const r = it.applyA(d)
   // content: "x" then the scalar 42 (carrier resolved); marks are excluded from equality
@@ -116,7 +116,7 @@ export const testMarkValueCarrierInnerDropped = () => {
   // a mark *inside* a carrier that is lifted to a bare scalar has nowhere to go (a scalar holds no
   // marks) - documented drop
   const it = unwrapValue(delta.$deltaAny).init()
-  const carrier = delta.create('lib0:value').setAttr('value', 7)
+  const carrier = delta.create('lib0:value', { value: 7 })
   carrier.addMark(position.create(['value']), 'INNER')
   const r = it.applyA(delta.create().insert([carrier]))
   t.compare(r.b, delta.create().insert([7]))
@@ -142,7 +142,7 @@ export const testMarkAttrNestedValueReachable = () => {
   // `maybeHasMarks` flag is set conservatively (the direct attr assignment in attrTransformHelper
   // bypasses the builder) so marksToPositions descends into it
   const it = attr(delta.$deltaAny, 'body').init()
-  const d = delta.create('node').setAttr('body', delta.create('doc').insert('hello'))
+  const d = delta.create('node', { body: delta.create('doc', null, 'hello') })
   d.addMark(position.create(['body', 2], 1), 'I')
   const r = it.applyA(d)
   t.compare(mp(r.b), [{ id: 'I', path: ['value', 2], assoc: 1 }])
@@ -181,7 +181,7 @@ export const testMarkPipeComposition = () => {
   const it = /** @type {any} */ (pipe(delta.$deltaAny, $d1 => children($d1, (_c, $c) => renameAttrs($c, { a: 'b' })), $d2 => rename($d2, 'ROOT')).init())
   const child = delta.create('p', { a: 1 })
   child.addMark(position.create(['a']), 'C')
-  const d = delta.create('orig').insert([child])
+  const d = delta.create('orig', null, [child])
   d.addMark(position.create([0]), 'R')
   const r = it.applyA(d)
   t.assert(r.b.name === 'ROOT')

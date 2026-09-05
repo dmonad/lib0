@@ -362,7 +362,7 @@ export class ProjectionTransformer extends Transformer {
       const hole = this.attrHoles.find(h => h.key === op.key)
       if (hole != null) {
         if (delta.$setAttrOp.check(op)) {
-          res.applyA(hole.t.applyB(delta.create('lib0:value').setAttr('value', op.value)).a)
+          res.applyA(hole.t.applyB(delta.create('lib0:value', { value: op.value })).a)
         }
       } else {
         const st = this.staticAttrs.find(a => a.key === op.key)

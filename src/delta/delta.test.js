@@ -925,8 +925,8 @@ export const testDeltaDiffWithFormatting2 = () => {
 }
 
 export const testDeltaDiff1 = () => {
-  const stateA = delta.create().insert([delta.create('paragraph').setAttr('ychange', null).insert('ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
-  const stateB = delta.create().insert([delta.create('paragraph').setAttr('ychange', null).insert('ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
+  const stateA = delta.create().insert([delta.create('paragraph', { ychange: null }, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
+  const stateB = delta.create().insert([delta.create('paragraph', { ychange: null }, 'ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
   const expectedDiff = delta.create().modify(delta.create('paragraph').retain(5).insert('123').retain(21).insert('2sawfa'))
   const diffResult = delta.diff(stateA, stateB)
   const synced = delta.clone(stateA).apply(diffResult)
@@ -974,8 +974,8 @@ export const testDiffCompareForwardedToChildren = () => {
 
   // rows: same name + same first child ('mark') → paired at the top level under either predicate.
   // cells: same name 'cell' but first children differ ('x' vs 'y') → only strict `compare` replaces.
-  const stateA = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell').insert('x')])])
-  const stateB = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell').insert('y')])])
+  const stateA = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell', null, 'x')])])
+  const stateB = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell', null, 'y')])])
 
   const defaultDiff = delta.diff(stateA, stateB)
   const strictDiff = delta.diff(stateA, stateB, { compare })
@@ -1006,10 +1006,10 @@ export const testDiffCompareForwardedToChildren = () => {
  */
 export const testDiffNodeLevelFormatOnModify = () => {
   const a = delta.create()
-    .insert([delta.create('paragraph', {}, 'hello world')], { x: 1 })
+    .insert([delta.create('paragraph', null, 'hello world')], { x: 1 })
     .done()
   const b = delta.create()
-    .insert([delta.create('paragraph', {}, 'hello')])
+    .insert([delta.create('paragraph', null, 'hello')])
     .done()
   const diff = delta.diff(a, b)
   // The diff must address BOTH the children change and the parent
@@ -1046,11 +1046,9 @@ export const testDiffNodeLevelFormatOnModify = () => {
  * does forward `final` on the recursive `apply` calls.
  */
 export const testDiffModifyAttrFinalPropagation = () => {
-  const a = delta.create('div')
-    .setAttr('q', delta.create('span', { weight: 'bold' }, 'hi'))
+  const a = delta.create('div', { q: delta.create('span', { weight: 'bold' }, 'hi') })
     .done()
-  const b = delta.create('div')
-    .setAttr('q', delta.create('span', {}, 'hi'))
+  const b = delta.create('div', { q: delta.create('span', null, 'hi') })
     .done()
   const synced = delta.clone(a).apply(delta.diff(a, b), { final: true })
   t.assert(synced.equals(b), 'final must propagate through modifyAttr recursion')
@@ -1066,8 +1064,8 @@ export const testDeltaDiff2 = () => {
 }
 
 export const testDeltaMapDiff = () => {
-  const stateA = delta.create('div').setAttr('key', delta.create('p', {}, 'some text'))
-  const stateB = delta.create('div').setAttr('key', delta.create('p', {}, 'just text'))
+  const stateA = delta.create('div', { key: delta.create('p', null, 'some text') })
+  const stateB = delta.create('div', { key: delta.create('p', null, 'just text') })
   const diffResult = delta.diff(stateA, stateB)
   const synced = delta.clone(stateA).apply(diffResult)
   t.assert(synced.equals(stateB))
@@ -1222,11 +1220,11 @@ export const testCloneDeep = () => {
  */
 export const testDiffCloneChildren = () => {
   const $d = delta.$delta({ text: true, recursiveChildren: true, attrs: { meta: delta.$deltaAny } })
-  const d1 = delta.create($d).insert([delta.create('p').insert('keep')]).done()
+  const d1 = delta.create($d).insert([delta.create('p', null, 'keep')]).done()
   // d2: a new wholesale-inserted child, a delta-valued attribute, and a modified existing child
   const d2 = delta.create($d)
     .setAttr('meta', delta.create().insert('m'))
-    .insert([delta.create('p').insert('keep!'), delta.create('span').insert('new')])
+    .insert([delta.create('p', null, 'keep!'), delta.create('span', null, 'new')])
     .done()
 
   const d2span = /** @type {any} */ (d2.children.start).insert[1] // d2 holds [<p>, <span>] in one insert op
@@ -2019,7 +2017,7 @@ export const testRepeatRandomInverseModifyAttr = tc => {
 export const testDeltaApplyMoveEdges = () => {
   // deterministic coverage for the move-mode op clones the random fuzz only hits probabilistically.
   // modify PAST the end of the content -> the modify op is cloned (opsI == null); move must not freeze it
-  const mDoc = delta.create('doc').insert([delta.create('p').insert('hi')]).done()
+  const mDoc = delta.create('doc', null, [delta.create('p', null, 'hi')]).done()
   const change = () => delta.create().retain(1).modify(delta.create().insert('!'))
   t.compare(delta.clone(mDoc).apply(change()), delta.clone(mDoc).apply(change(), { move: true }))
   // modifyAttr on an attribute that does not (yet) hold a delta -> the modifyAttr op is cloned; move ditto
@@ -2358,12 +2356,12 @@ export const testMarkFlagBuilderMaintained = () => {
   mv.addMark(position.create([0]), 'mod')
   t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv)).maybeHasMarks === true)
   // setAttr(markedDelta) flags; replacing it leaves no reachable mark (flag stays true, self-corrected)
-  const av = /** @type {delta.DeltaBuilderAny} */ (delta.create('doc').insert('x'))
+  const av = /** @type {delta.DeltaBuilderAny} */ (delta.create('doc', null, 'x'))
   av.addMark(position.create([0]), 'z')
   const n = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
   n.setAttr('body', av)
   t.assert(n.maybeHasMarks === true)
-  n.apply(/** @type {any} */ (delta.create().setAttr('body', delta.create('doc').insert('y'))), { final: true })
+  n.apply(/** @type {any} */ (delta.create().setAttr('body', delta.create('doc', null, 'y'))), { final: true })
   t.compare(position.marksToPositions(n), []) // the replaced attr's mark is gone (no negative-count fallout)
   t.assert(n.maybeHasMarks === false) // marksToPositions self-corrected the now-empty subtree's flag
   // modifyAttr(markedValue) flags
@@ -2435,6 +2433,37 @@ export const testFrom = () => {
     // exercises the `for (; i < args.length; i++)` loop body
     t.compare(delta.from('div', ['a'], ['b']), delta.create('div').insert(['a', 'b']))
   })
+}
+
+/**
+ * The condensed form of `create` must be interchangeable with its builder-chained
+ * equivalent - the same delta at runtime *and* the same conf. The conf half is what makes the
+ * condensed form usable in `project` specs and in `t.compare(a, b)` (one type parameter for both
+ * sides): delta-valued attrs and children must normalize to `Delta<..>`, and an unsupplied slot
+ * must be omitted from the conf rather than declared as `children: never` / `text: false`.
+ */
+export const testCondensedCreateTyping = () => {
+  const inner = delta.create('span', { weight: 'bold' }, 'hi')
+  const a = delta.create('div', { q: inner }, [delta.create('p', null, 'x')])
+  const b = delta.create('div').setAttr('q', inner).insert([delta.create('p', null, 'x')])
+  t.compare(a, b)
+  /**
+   * @typedef {t.Assert<t.Equal<typeof a, typeof b>>} _CheckCondensedEqualsChained
+   */
+  // an omitted attrs/children slot leaves the conf exactly as the bare `create(name)` builds it
+  const c = delta.create('h1', null)
+  const d = delta.create('h1')
+  t.compare(c, d)
+  /**
+   * @typedef {t.Assert<t.Equal<typeof c, typeof d>>} _CheckEmptyAttrsEqualsBare
+   */
+  // text-only and children-only nodes each declare just the slot they use
+  const e = delta.create('p', null, 'hi')
+  const f = delta.create('p').insert('hi')
+  t.compare(e, f)
+  /**
+   * @typedef {t.Assert<t.Equal<typeof e, typeof f>>} _CheckTextEqualsChained
+   */
 }
 
 /**
@@ -2890,8 +2919,8 @@ export const testApplyNullIsNoop = () => {
  * inputs are equal at the level it cares about.
  */
 export const testDiffMismatchedNames = () => {
-  const d1 = /** @type {delta.DeltaAny} */ (delta.create('div').insert('a').done())
-  const d2 = /** @type {delta.DeltaAny} */ (delta.create('span').insert('a').done())
+  const d1 = /** @type {delta.DeltaAny} */ (delta.create('div', null, 'a').done())
+  const d2 = /** @type {delta.DeltaAny} */ (delta.create('span', null, 'a').done())
   const diff = delta.diff(d1, d2)
   t.assert(diff.name === null, 'mismatched names → diff is name-less')
   t.assert(diff.isEmpty(), 'children are equal → diff has no ops')

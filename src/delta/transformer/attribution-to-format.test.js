@@ -117,8 +117,8 @@ export const testAttributionToFormatInsertAttrSplit = () => {
     delta.create('p').setAttr('style', 'b', { insert: ['bob'] })
   ]))
   t.compare(res.b, delta.create()
-    .insert([delta.create('p').setAttr('style', 'a')], { 'y-attributed-attrs': { style: 'alice' } })
-    .insert([delta.create('p').setAttr('style', 'b')], { 'y-attributed-attrs': { style: 'bob' } }))
+    .insert([delta.create('p', { style: 'a' })], { 'y-attributed-attrs': { style: 'alice' } })
+    .insert([delta.create('p', { style: 'b' })], { 'y-attributed-attrs': { style: 'bob' } }))
 }
 
 /** A grandchild's attr-attribution is lifted onto its own parent — the whole tree in one pass. */
@@ -130,10 +130,10 @@ export const testAttributionToFormatNested = () => {
   // multi-level nested builder inference unions the child node names (`div | p`) and won't unify with
   // the precise schema; the runtime delta is valid — cast the input (a known type-system gap)
   const res = it.applyA(/** @type {any} */ (delta.create().insert([
-    delta.create('div').insert([delta.create('p').setAttr('style', 'x', { insert: ['alice'] })])
+    delta.create('div', null, [delta.create('p').setAttr('style', 'x', { insert: ['alice'] })])
   ])))
   t.compare(res.b, delta.create().insert([
-    delta.create('div').insert([delta.create('p').setAttr('style', 'x')], { 'y-attributed-attrs': { style: 'alice' } })
+    delta.create('div').insert([delta.create('p', { style: 'x' })], { 'y-attributed-attrs': { style: 'alice' } })
   ]))
 }
 

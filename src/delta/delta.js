@@ -3765,6 +3765,28 @@ export const random = (gen, $d, conf = {}) => {
  * @return {Schema extends s.Schema<Delta<infer Conf>> ? DeltaBuilder<Conf, true> : never}
  */
 /**
+ * The conf produced by the condensed factories ({@link create}'s 3-arg form and {@link from}) -
+ * the whole node declared in one call instead of built up with chained `setAttr`/`insert`. Routed
+ * through {@link DeltaConfOverwrite} - and hence `PrettifyDeltaConf`/`_SanifyDelta` - so a condensed
+ * call yields exactly the conf its `create(name).setAttrs(attrs).insert(children)`
+ * equivalent would: delta-valued attrs/children normalize to `Delta<..>` (not `DeltaBuilder<..>`),
+ * and an unsupplied slot is omitted rather than declared as `children: never` / `text: false`.
+ *
+ * The `[X] extends [never]` bracketing is load-bearing: `Extract<never,Array<any>>` is `never`, and
+ * a bare `never extends Array<infer Ac>` matches with `Ac = never`.
+ *
+ * @template {string|null} NodeName
+ * @template {{[k:string|number]:any}|null} Attrs
+ * @template {Array<any>|string} Children
+ * @typedef {DeltaConfOverwrite<
+ *   NodeName extends string ? { name: NodeName } : {},
+ *   (Attrs extends null ? {} : { attrs: Attrs })
+ *   & ([Extract<Children,Array<any>>] extends [never] ? {} : (Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? {} : { children: Ac }) : {}))
+ *   & ([Extract<Children,string>] extends [never] ? {} : { text: true })
+ * >} CondensedDeltaConf
+ */
+
+/**
  * @template {string|null} NodeName
  * @template {{[k:string|number]:any}|null} Attrs
  * @template {Array<any>|string} [Children=never]
@@ -3772,11 +3794,7 @@ export const random = (gen, $d, conf = {}) => {
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
  * @param {Children} [children]
- * @return {DeltaBuilder<(NodeName extends string ? { name: NodeName } : {}) & {
- *   attrs: Attrs extends null ? {} : Attrs,
- *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
- *   text: Extract<Children,string> extends never ? false : true
- * }>}
+ * @return {DeltaBuilder<CondensedDeltaConf<NodeName,Attrs,Children>>}
  */
 /**
  * @param {string|s.Schema<DeltaAny>|null} [nodeNameOrSchema]
@@ -3801,19 +3819,13 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @overload
  * @param {NodeName} nodeName
  * @param {...Array<Children>} children
- * @return {DeltaBuilder<(NodeName extends string ? { name: NodeName } : {}) & {
- *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
- *   text: Extract<Children,string> extends never ? false : true
- * }>}
+ * @return {DeltaBuilder<CondensedDeltaConf<NodeName,null,Children>>}
  */
 /**
  * @template {Array<any>|string} [Children=never]
  * @overload
  * @param {...Array<Children>} children
- * @return {DeltaBuilder<{
- *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
- *   text: Extract<Children,string> extends never ? false : true
- * }>}
+ * @return {DeltaBuilder<CondensedDeltaConf<null,null,Children>>}
  */
 /**
  * @template {{[k:string|number]:any}|null} Attrs
@@ -3821,11 +3833,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @overload
  * @param {Attrs} attrs
  * @param {...Array<Children>} children
- * @return {DeltaBuilder<{
- *   attrs: Attrs extends null ? {} : Attrs,
- *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
- *   text: Extract<Children,string> extends never ? false : true
- * }>}
+ * @return {DeltaBuilder<CondensedDeltaConf<null,Attrs,Children>>}
  */
 /**
  * @template {string|null} NodeName
@@ -3835,11 +3843,7 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
  * @param {NodeName} nodeName
  * @param {Attrs} attrs
  * @param {...Array<Children>} children
- * @return {DeltaBuilder<(NodeName extends string ? { name: NodeName } : {}) & {
- *   attrs: Attrs extends null ? {} : Attrs,
- *   children: Extract<Children,Array<any>> extends Array<infer Ac> ? (unknown extends Ac ? never : Ac) : never,
- *   text: Extract<Children,string> extends never ? false : true
- * }>}
+ * @return {DeltaBuilder<CondensedDeltaConf<NodeName,Attrs,Children>>}
  */
 /**
  * `...X` (not `Array<X>`) is the rest-parameter form — `@param {Array<X>} args` declares a single

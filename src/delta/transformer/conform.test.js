@@ -115,8 +115,8 @@ export const testConformRecursesDeltaAttr = () => {
   const $innerC = delta.$delta('m', { attrs: { v: s.$number } })
   const it = conform(delta.$delta({ attrs: { meta: $inner } }), delta.$delta({ attrs: { meta: $innerC } })).init()
   cmp(
-    it.applyA(delta.create().setAttr('meta', delta.create('m').setAttr('v', 1).setAttr('label', 'hi'))).b,
-    delta.create().setAttr('meta', delta.create('m').setAttr('v', 1))
+    it.applyA(delta.create().setAttr('meta', delta.create('m', { v: 1, label: 'hi' }))).b,
+    delta.create().setAttr('meta', delta.create('m', { v: 1 }))
   )
 }
 
@@ -154,8 +154,8 @@ export const testConformDropsUnknownChild = () => {
     delta.$delta({ children: s.$union($p, delta.$delta('aside', { text: true })) }),
     delta.$delta({ children: $p })
   ).init()
-  const res = it.applyA(delta.create().insert([delta.create('p').insert('keep'), delta.create('aside').insert('drop'), delta.create('p').insert('keep2')]))
-  cmp(res.b, delta.create().insert([delta.create('p').insert('keep'), delta.create('p').insert('keep2')]))
+  const res = it.applyA(delta.create().insert([delta.create('p', null, 'keep'), delta.create('aside', null, 'drop'), delta.create('p', null, 'keep2')]))
+  cmp(res.b, delta.create().insert([delta.create('p', null, 'keep'), delta.create('p', null, 'keep2')]))
 }
 
 export const testConformStripsChildAttrs = () => {
@@ -164,8 +164,8 @@ export const testConformStripsChildAttrs = () => {
     delta.$delta({ children: delta.$delta('p', { attrs: { keep: s.$string, drop: s.$string } }) }),
     delta.$delta({ children: delta.$delta('p', { attrs: { keep: s.$string } }) })
   ).init()
-  const res = it.applyA(delta.create().insert([delta.create('p').setAttr('keep', 'k').setAttr('drop', 'd')]))
-  cmp(res.b, delta.create().insert([delta.create('p').setAttr('keep', 'k')]))
+  const res = it.applyA(delta.create().insert([delta.create('p', { keep: 'k', drop: 'd' })]))
+  cmp(res.b, delta.create().insert([delta.create('p', { keep: 'k' })]))
 }
 
 export const testConformNestedChildAndModify = () => {
@@ -173,7 +173,7 @@ export const testConformNestedChildAndModify = () => {
   const $li = delta.$delta('li', { attrs: { ok: s.$string, bad: s.$string }, text: true })
   const $liC = delta.$delta('li', { attrs: { ok: s.$string }, text: true })
   const it = conform(delta.$delta({ children: $li }), delta.$delta({ children: $liC })).init()
-  it.applyA(delta.create().insert([delta.create('li').setAttr('ok', 'a').setAttr('bad', 'b').insert('hi')]))
+  it.applyA(delta.create().insert([delta.create('li', { ok: 'a', bad: 'b' }, 'hi')]))
   // modify the first child: set `ok` (kept) and `bad` (dropped) inside it
   const upd = it.applyA(delta.create().modify(delta.create().setAttr('ok', 'a2').setAttr('bad', 'b2')))
   cmp(upd.b, delta.create().modify(delta.create().setAttr('ok', 'a2')))
@@ -193,9 +193,9 @@ export const testConformDeltaAnyChild = () => {
   // verbatim (no stripping) and its later modify is forwarded verbatim; a named match is still conformed
   const $p = delta.$delta('p', {})
   const it = conform(delta.$deltaAny, delta.$delta({ children: s.$union($p, delta.$deltaAny) })).init()
-  const r = it.applyA(delta.create().insert([delta.create('p').setAttr('x', '1'), delta.create('weird').setAttr('y', '2')]))
+  const r = it.applyA(delta.create().insert([delta.create('p', { x: '1' }), delta.create('weird', { y: '2' })]))
   // 'p' is conformed ({} schema -> x stripped); 'weird' passes through verbatim (y kept)
-  cmp(r.b, delta.create().insert([delta.create('p'), delta.create('weird').setAttr('y', '2')]))
+  cmp(r.b, delta.create().insert([delta.create('p'), delta.create('weird', { y: '2' })]))
   // retain over the transformed 'p', then modify the pass-through 'weird' -> forwarded verbatim
   cmp(it.applyA(delta.create().retain(1).modify(delta.create().setAttr('z', '3'))).b, delta.create().retain(1).modify(delta.create().setAttr('z', '3')))
   // a STRUCTURAL change (it inserts) that also modifies the pass-through 'weird' -> the modify is still
@@ -209,7 +209,7 @@ export const testConformDeltaAnyChild = () => {
 export const testConformDeltaAnyAttr = () => {
   // a `$deltaAny` attribute value schema passes the value through verbatim, and forwards modifyAttr
   const it = conform(delta.$deltaAny, delta.$delta({ attrs: { meta: delta.$deltaAny, n: s.$any } })).init()
-  cmp(it.applyA(delta.create().setAttr('meta', delta.create('x').setAttr('w', 5)).setAttr('n', 7)).b, delta.create().setAttr('meta', delta.create('x').setAttr('w', 5)).setAttr('n', 7))
+  cmp(it.applyA(delta.create().setAttr('meta', delta.create('x', { w: 5 })).setAttr('n', 7)).b, delta.create().setAttr('meta', delta.create('x', { w: 5 })).setAttr('n', 7))
   cmp(it.applyA(delta.create().modifyAttr('meta', delta.create().setAttr('w', 6))).b, delta.create().modifyAttr('meta', delta.create().setAttr('w', 6)))
 }
 
@@ -222,9 +222,9 @@ export const testConformWildcardChild = () => {
   ).init()
   const res = it.applyA(delta.create().insert([
     delta.create().setAttr('k', 'a').setAttr('extra', 'b'), // anonymous (name === null)
-    delta.create('named').setAttr('k', 'c') // a name not in any literal map
+    delta.create('named', { k: 'c' }) // a name not in any literal map
   ]))
-  cmp(res.b, delta.create().insert([delta.create().setAttr('k', 'a'), delta.create('named').setAttr('k', 'c')]))
+  cmp(res.b, delta.create().insert([delta.create().setAttr('k', 'a'), delta.create('named', { k: 'c' })]))
 }
 
 export const testConformModifyNamedDeltaAttr = () => {
