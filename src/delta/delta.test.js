@@ -2480,6 +2480,7 @@ export const testReadonlyAfterDone = () => {
   t.fails(() => /** @type {any} */ (d).retain(1))
   t.fails(() => /** @type {any} */ (d).delete(1))
   t.fails(() => /** @type {any} */ (d).modify(delta.create()))
+  t.fails(() => /** @type {any} */ (d).append(delta.create().insert('!')))
   // attr mutators
   t.fails(() => /** @type {any} */ (d).setAttr('x', 1))
   t.fails(() => /** @type {any} */ (d).setAttrs({ a: 1 }))

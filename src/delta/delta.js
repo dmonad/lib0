@@ -1532,6 +1532,7 @@ export class Delta extends DeltaData {
       for (let end = cs.end; end !== null && $retainOp.check(end) && end.format === undefined && end.attribution === undefined; end = cs.end) {
         this.childCnt -= end.length
         list.popEnd(cs)
+        this._fingerprint = null
       }
     }
     return this
@@ -2831,6 +2832,7 @@ export class DeltaBuilder extends Delta {
    * >, FixedConf>}
    */
   append (other) {
+    modDeltaCheck(this)
     const prevLast = this.children.end
     // @todo Investigate. Above is a typescript issue. It is necessary to cast OtherDelta to a Delta first before
     // inferring type, otherwise Children will contain Text.
