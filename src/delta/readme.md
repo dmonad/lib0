@@ -14,11 +14,11 @@ const d = delta.create($d)
 
 
 // create an update
-const update = delta.create().setAttr('attr1', 'val1').setAttr('attr2', 42)
+const update = delta.setAttr('attr1', 'val1').setAttr('attr2', 42)
 d.apply(update)
 
 // In case  of an invalid update
-const update2 = delta.create().setAttr('attr1', 42)
+const update2 = delta.setAttr('attr1', 42)
 // it is possible to check an update beforehand
 $d.check(update2) // => false
 // and you also get type errors
@@ -35,11 +35,11 @@ const $d = delta.$delta({ text: true })
 const d = delta.create($d).insert('hello world')
 
 // create an update
-const update = delta.create().retain(11).insert('!')
+const update = delta.retain(11).insert('!')
 d.apply(update)
 
 // In case  of an invalid update
-const update2 = delta.create().insert([{ some: 'object' }])
+const update2 = delta.insert([{ some: 'object' }])
 // it is possible to check an update beforehando
 $d.check(update2) // => false
 // and you also get type errors
@@ -73,11 +73,11 @@ Both behave **identically** — the value you pass as the `format`/`attribution`
 const $d = delta.$delta({ text: true })
 const d = delta.create($d).insert('hello', { bold: true }, { insert: ['alice'] })
 // add italic (keeps bold), record bob as the formatter (keeps alice's insert provenance)
-d.apply(delta.create().retain(5, { italic: true }, { format: { italic: ['bob'] } }))
+d.apply(delta.retain(5, { italic: true }, { format: { italic: ['bob'] } }))
 // strip a single format key, leave the rest:
-d.apply(delta.create().retain(5, { bold: null }))
+d.apply(delta.retain(5, { bold: null }))
 // clear ALL formatting on the range:
-d.apply(delta.create().retain(5, null))
+d.apply(delta.retain(5, null))
 ```
 
 `delta.diff(a, b)` produces exactly these updates for both dimensions, so the round-trip
@@ -128,11 +128,11 @@ const $d = delta.$delta({ children: s.$array(s.$object({ some: s.$string })) })
 const d = delta.create($d).insert([{ some: 'hello world' }])
 
 // create an update
-const update = delta.create().retain(1).insert({ some: 'object' })
+const update = delta.retain(1).insert({ some: 'object' })
 d.apply(update)
 
 // In case  of an invalid update
-const update2 = delta.create().insert([{ unknown: 'prop' }])
+const update2 = delta.insert([{ unknown: 'prop' }])
 // it is possible to check an update beforehando
 $d.check(update2) // => false
 // and you also get type errors
@@ -147,12 +147,12 @@ const $d = delta.$delta({ name: s.$literal('div', 'p', 'h1'), attrs: { style: s.
 const d = delta.create('div', $d)
 
 // create an update - insert paragraph into the <div>
-const update = delta.create().insert([delta.create('p', { style: 'bold: true' }, 'hello world')])
+const update = delta.insert([delta.create('p', { style: 'bold: true' }, 'hello world')])
 d.apply(update)
 
 // modify the paragraph by deleting the text 'world' and appending '!'
-d.apply(delta.create().modify(
-  delta.create().retain(6).delete(5).insert('!')
+d.apply(delta.modify(
+  delta.retain(6).delete(5).insert('!')
 ))
 ```
 
@@ -165,7 +165,22 @@ produce the same delta (and the same conf type). Which you pick says what the de
   condensed: `delta.create(nodeName, attrs, children)`. Pass `null` for `attrs` when the node has
   none: `delta.create('p', null, 'hello')`.
 - A **changeset** — how something changes, or a case where the *order* of the operations is the
-  point — stays a chain: `delta.create().setAttr(..).retain(..).insert(..)`.
+  point — stays a chain: `delta.setAttr(..).retain(..).insert(..)`.
+
+Every content/attribute builder method is also exported standalone, as a shorthand for the
+`create()`-headed chain — `delta.insert(..)` is exactly `delta.create().insert(..)`, and returns the
+same builder, so the rest of the chain is unchanged:
+
+```js
+delta.retain(5).delete(6).insert('!') // ⇔ delta.create().retain(5).delete(6).insert('!')
+```
+
+The shorthands are `insert`, `modify`, `retain`, `delete_`, `setAttr`, `setAttrs`, `deleteAttr` and
+`modifyAttr` — only the head of the chain changes, so the `delete` *method* keeps its name
+(`delta.retain(5).delete(6)`). The shorthand carries a trailing underscore because `delete` is a
+reserved word and cannot be exported under that name. There is no `format` shorthand — formatting is
+the second argument of `insert`/`retain`/`modify` (`delta.retain(5, { bold: true })`). Keep
+`create()` where you need its arguments — a node name, a schema, or the condensed form.
 
 `create` issues a single `insert`, so a final state that mixes text and element children can't be
 condensed — chain it (`delta.create('p').insert('Name: ').insert([nameHole])`). The same applies
@@ -181,8 +196,8 @@ an overwritten or deleted attribute is restored to its `base` value, and an inve
 format/attribution instruction is diffed against the `base` op's stored values.
 
 ```javascript
-const base = delta.create().insert('hello world').done()
-const change = delta.create().retain(6).delete(5).insert('there')
+const base = delta.insert('hello world').done()
+const change = delta.retain(6).delete(5).insert('there')
 const inv = delta.inverse(change, base) // ⇒ retain(6).insert('world').delete(5)
 // base.apply(change).apply(inv) equals base
 ```
@@ -250,7 +265,7 @@ whose paths are post-change content indices:
 ```javascript
 import * as position from 'lib0/delta/position'
 
-const d = delta.create().insert('hello')
+const d = delta.insert('hello')
 d.addMark(position.create([1]), 'cursorA')  // a cursor between 'h' and 'e' (right gravity)
 position.marksToPositions(d)                // ⇒ [{ id: 'cursorA', path: [1], assoc: 1 }]
 
@@ -354,11 +369,11 @@ const view = dt.project($d, delta.create('p').insert('Name: ').insert([dt.attr($
 // view : Transformer<{ attrs: { name: string } }, { name: 'p', children: string }>
 
 // initial render (applying a final delta)
-view.applyA(delta.create().setAttr('name', 'Erika')).b
+view.applyA(delta.setAttr('name', 'Erika')).b
 // ⇒ create('p').insert('Name: ').insert(['Erika'])
 
 // incremental update
-view.applyA(delta.create().setAttr('name', 'Max')).b
+view.applyA(delta.setAttr('name', 'Max')).b
 // ⇒ retain(6).delete(1).insert(['Max'])
 ```
 
@@ -387,7 +402,7 @@ Holes are detected with `$template` (a transformer template value: `attr(…)`, 
 
 ```javascript
 // a view edit deletes the static 'Name: ' prefix
-view.applyB(delta.create().delete(6))
+view.applyB(delta.delete_(6))
 // ⇒ { a: null, b: insert('Name: ') }   // static content restored, no data change
 ```
 

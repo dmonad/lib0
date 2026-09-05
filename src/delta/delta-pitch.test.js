@@ -26,22 +26,22 @@ import * as s from 'lib0/schema'
  *
  * You can also apply the changes in two distinct steps and then rebase the op so that you can apply
  * them in two distinct steps.
- * - delete " world":              d1 = delta.create().retain(5).delete(6)
- * - insert "!":                   d2 = delta.create().retain(11).insert('!')
- * - rebase d2 on-top of d1:       d2.rebase(d1)    == delta.create().retain(5).insert('!')
- * - merge into a single change:   d1.apply(d2)     == delta.create().retain(5).delete(6).insert(!)
+ * - delete " world":              d1 = delta.retain(5).delete(6)
+ * - insert "!":                   d2 = delta.retain(11).insert('!')
+ * - rebase d2 on-top of d1:       d2.rebase(d1)    == delta.retain(5).insert('!')
+ * - merge into a single change:   d1.apply(d2)     == delta.retain(5).delete(6).insert(!)
  *
  * @param {t.TestCase} _tc
  */
 export const testDeltaBasics = _tc => {
   // the state of our text document
-  const state = delta.create().insert('hello world')
+  const state = delta.insert('hello world')
   // describe changes: delete " world" & insert "!"
-  const change = delta.create().retain(5).delete(6).insert('!')
+  const change = delta.retain(5).delete(6).insert('!')
   // apply changes to state
   state.apply(change)
   // compare state to expected state
-  t.assert(state.equals(delta.create().insert('hello!')))
+  t.assert(state.equals(delta.insert('hello!')))
 }
 
 /**
@@ -68,7 +68,7 @@ export const testDeltaBasicSchema = _tc => {
   d.setAttr('key', false) // invalid change: will throw a type error
   t.fails(() => {
     // @ts-expect-error
-    d.apply(delta.create().setAttr('key', false)) // invalid delta: will throw a type error
+    d.apply(delta.setAttr('key', false)) // invalid delta: will throw a type error
   })
 }
 
@@ -83,7 +83,7 @@ export const testDeltaBasicSchema = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaValues = _tc => {
-  const change = delta.create().setAttr('a', 42).deleteAttr('b').retain(5).delete(6).insert('!').insert([{ my: 'custom object' }])
+  const change = delta.setAttr('a', 42).deleteAttr('b').retain(5).delete(6).insert('!').insert([{ my: 'custom object' }])
   // iterate through attribute changes
   for (const attrChange of change.attrs) {
     if (delta.$insertOp.check(attrChange)) {

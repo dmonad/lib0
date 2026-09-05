@@ -12,19 +12,19 @@ export const testFullAttributionsAccumulate = () => {
   const $d = delta.$delta({ text: true })
   const it = fullAttributions($d).init()
   // a fresh insert already carries its full attribution ⇒ passes through unchanged
-  t.compare(it.applyA(delta.create().insert('a', undefined, { insert: [] })).b, delta.create().insert('a', undefined, { insert: [] }))
+  t.compare(it.applyA(delta.insert('a', undefined, { insert: [] })).b, delta.insert('a', undefined, { insert: [] }))
   // the later retain only carries `insertAt`, but the output carries the accumulated `insert` too
-  t.compare(it.applyA(delta.create().retain(1, undefined, { insertAt: 4 })).b, delta.create().retain(1, undefined, { insert: [], insertAt: 4 }))
+  t.compare(it.applyA(delta.retain(1, undefined, { insertAt: 4 })).b, delta.retain(1, undefined, { insert: [], insertAt: 4 }))
 }
 
 /** A retain spanning positions with different accumulated attributions splits into per-run retains. */
 export const testFullAttributionsSplit = () => {
   const $d = delta.$delta({ text: true })
   const it = fullAttributions($d).init()
-  it.applyA(delta.create().insert('ab', undefined, { insert: ['alice'] }))
-  it.applyA(delta.create().retain(2, undefined, { insert: ['alice'] }).insert('cd', undefined, { insert: ['bob'] }))
+  it.applyA(delta.insert('ab', undefined, { insert: ['alice'] }))
+  it.applyA(delta.retain(2, undefined, { insert: ['alice'] }).insert('cd', undefined, { insert: ['bob'] }))
   // positions 0-1 are alice's, 2-3 are bob's; one retain over all four ⇒ two retains, each with its own full attr
-  t.compare(it.applyA(delta.create().retain(4, undefined, { insertAt: 9 })).b, delta.create()
+  t.compare(it.applyA(delta.retain(4, undefined, { insertAt: 9 })).b, delta.create()
     .retain(2, undefined, { insert: ['alice'], insertAt: 9 })
     .retain(2, undefined, { insert: ['bob'], insertAt: 9 }))
 }
@@ -36,9 +36,9 @@ export const testFullAttributionsSplit = () => {
 export const testFullAttributionsClear = () => {
   const $d = delta.$delta({ text: true })
   const it = fullAttributions($d).init()
-  it.applyA(delta.create().insert('x', undefined, { insert: ['a'], insertAt: 1 }))
+  it.applyA(delta.insert('x', undefined, { insert: ['a'], insertAt: 1 }))
   // a per-key `{insert:null}` removal isn't in the canonical `Attribution` type — cast it (test-any convention)
-  t.compare(it.applyA(delta.create().retain(1, undefined, /** @type {any} */ ({ insert: null }))).b, delta.create()
+  t.compare(it.applyA(delta.retain(1, undefined, /** @type {any} */ ({ insert: null }))).b, delta.create()
     .retain(1, undefined, /** @type {any} */ ({ insert: null, insertAt: 1 })))
 }
 
@@ -46,11 +46,11 @@ export const testFullAttributionsClear = () => {
 export const testFullAttributionsNestedFormat = () => {
   const $d = delta.$delta({ text: true })
   const it = fullAttributions($d).init()
-  it.applyA(delta.create().insert('a', undefined, { format: { bold: ['u1'] } }))
-  t.compare(it.applyA(delta.create().retain(1, undefined, { format: { italic: ['u2'] } })).b, delta.create()
+  it.applyA(delta.insert('a', undefined, { format: { bold: ['u1'] } }))
+  t.compare(it.applyA(delta.retain(1, undefined, { format: { italic: ['u2'] } })).b, delta.create()
     .retain(1, undefined, { format: { bold: ['u1'], italic: ['u2'] } }))
   // clearing one inner key keeps the other and re-emits the removal
-  t.compare(it.applyA(delta.create().retain(1, undefined, { format: { bold: /** @type {any} */ (null) } })).b, delta.create()
+  t.compare(it.applyA(delta.retain(1, undefined, { format: { bold: /** @type {any} */ (null) } })).b, delta.create()
     .retain(1, undefined, { format: /** @type {any} */ ({ bold: null, italic: ['u2'] }) }))
 }
 
@@ -63,17 +63,17 @@ export const testFullAttributionsNodeAttr = () => {
   const $p = delta.$delta('p', { attrs: { style: s.$string }, text: true })
   const $doc = delta.$delta({ name: s.$literal('doc'), children: $p })
   const it = fullAttributions($doc).init()
-  it.applyA(delta.create().insert([delta.create('p').setAttr('style', 'x', { insert: ['a'] })]))
+  it.applyA(delta.insert([delta.create('p').setAttr('style', 'x', { insert: ['a'] })]))
   // a later `setAttr` replaces wholesale ⇒ its own full attribution, NOT merged with the prior `insert:['a']`
-  const set = /** @type {any} */ (it.applyA(delta.create().modify(delta.create().setAttr('style', 'y', { insert: ['b'], insertAt: 9 }))).b)
+  const set = /** @type {any} */ (it.applyA(delta.modify(delta.setAttr('style', 'y', { insert: ['b'], insertAt: 9 }))).b)
   t.compare(set.children.start.value.attrs.style.attribution, { insert: ['b'], insertAt: 9 })
 
   // a delta-valued attribute: `modifyAttr` carries only `insertAt`, but the output accumulates `insert:['a']`
   const $body = delta.$delta({ text: true })
   const $d2 = delta.$delta({ attrs: { body: $body } })
   const it2 = fullAttributions($d2).init()
-  it2.applyA(delta.create($d2).setAttr('body', delta.create().insert('hi'), { insert: ['a'] }))
-  const mod = /** @type {any} */ (it2.applyA(delta.create($d2).modifyAttr('body', delta.create().retain(2), { insertAt: 4 })).b)
+  it2.applyA(delta.create($d2).setAttr('body', delta.insert('hi'), { insert: ['a'] }))
+  const mod = /** @type {any} */ (it2.applyA(delta.create($d2).modifyAttr('body', delta.retain(2), { insertAt: 4 })).b)
   t.compare(mod.attrs.body.attribution, { insert: ['a'], insertAt: 4 })
 }
 
@@ -82,9 +82,9 @@ export const testFullAttributionsChildModify = () => {
   const $p = delta.$delta('p', { text: true })
   const $d = delta.$delta({ name: s.$literal('doc'), children: $p })
   const it = fullAttributions($d).init()
-  it.applyA(delta.create().insert([delta.create('p').insert('hi', undefined, { insert: ['a'] })]))
-  t.compare(it.applyA(delta.create().modify(delta.create().retain(2, undefined, { insertAt: 5 }))).b, delta.create()
-    .modify(delta.create().retain(2, undefined, { insert: ['a'], insertAt: 5 })))
+  it.applyA(delta.insert([delta.create('p').insert('hi', undefined, { insert: ['a'] })]))
+  t.compare(it.applyA(delta.modify(delta.retain(2, undefined, { insertAt: 5 }))).b, delta.create()
+    .modify(delta.retain(2, undefined, { insert: ['a'], insertAt: 5 })))
 }
 
 /** Inserts/deletes shift positions; the overlay realigns so a later attribution change lands correctly. */
@@ -92,15 +92,15 @@ export const testFullAttributionsRealign = () => {
   const $d = delta.$delta({ text: true })
   // insert at the front shifts existing positions
   const it = fullAttributions($d).init()
-  it.applyA(delta.create().insert('xy', undefined, { insert: ['a'] }))
-  it.applyA(delta.create().insert('Z', undefined, { insert: ['b'] }))
-  t.compare(it.applyA(delta.create().retain(1).retain(2, undefined, { insertAt: 5 })).b, delta.create()
+  it.applyA(delta.insert('xy', undefined, { insert: ['a'] }))
+  it.applyA(delta.insert('Z', undefined, { insert: ['b'] }))
+  t.compare(it.applyA(delta.retain(1).retain(2, undefined, { insertAt: 5 })).b, delta.create()
     .retain(1).retain(2, undefined, { insert: ['a'], insertAt: 5 }))
   // a delete removes positions
   const it2 = fullAttributions($d).init()
-  it2.applyA(delta.create().insert('abc', undefined, { insert: ['a'] }))
-  it2.applyA(delta.create().delete(1))
-  t.compare(it2.applyA(delta.create().retain(2, undefined, { insertAt: 7 })).b, delta.create()
+  it2.applyA(delta.insert('abc', undefined, { insert: ['a'] }))
+  it2.applyA(delta.delete_(1))
+  t.compare(it2.applyA(delta.retain(2, undefined, { insertAt: 7 })).b, delta.create()
     .retain(2, undefined, { insert: ['a'], insertAt: 7 }))
 }
 
@@ -108,13 +108,13 @@ export const testFullAttributionsRealign = () => {
 export const testFullAttributionsReverse = () => {
   const $d = delta.$delta({ text: true })
   const it = fullAttributions($d).init()
-  it.applyA(delta.create().insert('hi', undefined, { insert: ['a'] }))
+  it.applyA(delta.insert('hi', undefined, { insert: ['a'] }))
   // a view insert passes through unchanged on the A-side; B-side is null
-  const rb = it.applyB(delta.create().insert('Z'))
+  const rb = it.applyB(delta.insert('Z'))
   t.assert(rb.b === null)
-  t.compare(rb.a, delta.create().insert('Z'))
+  t.compare(rb.a, delta.insert('Z'))
   // the overlay realigned, so the next forward change over the shifted position still accumulates `insert:[a]`
-  t.compare(it.applyA(delta.create().retain(1).retain(2, undefined, { insertAt: 3 })).b, delta.create()
+  t.compare(it.applyA(delta.retain(1).retain(2, undefined, { insertAt: 3 })).b, delta.create()
     .retain(1).retain(2, undefined, { insert: ['a'], insertAt: 3 }))
 }
 

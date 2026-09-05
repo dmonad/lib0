@@ -38,14 +38,14 @@ export const testBindIdentity = () => {
   a.on('delta', d => aChanges.push(d))
   b.on('delta', d => bChanges.push(d))
   // a change on `a` is mirrored onto `b`
-  a.applyDelta(delta.create().setAttr('x', 'hello').insert('world'))
+  a.applyDelta(delta.setAttr('x', 'hello').insert('world'))
   t.compare(a.state, b.state, 'states equal after a-side change')
-  t.compare(b.state, delta.create().setAttr('x', 'hello').insert('world'))
+  t.compare(b.state, delta.setAttr('x', 'hello').insert('world'))
   // the echo loop is broken: `a` sees its own change once, `b` sees it once
   t.assert(aChanges.length === 1)
   t.assert(bChanges.length === 1)
   // a change on `b` is mirrored back onto `a`
-  b.applyDelta(delta.create().setAttr('x', 'again'))
+  b.applyDelta(delta.setAttr('x', 'again'))
   t.compare(a.state, b.state, 'states equal after b-side change')
   t.assert(aChanges.length === 2)
   t.assert(bChanges.length === 2)
@@ -57,9 +57,9 @@ export const testBindDefaultIdentity = () => {
   const b = deltaRDT($d)
   // omitting the template defaults to the identity transformer
   bind(a, b)
-  a.applyDelta(delta.create().setAttr('x', 'hi').insert('there'))
+  a.applyDelta(delta.setAttr('x', 'hi').insert('there'))
   t.compare(a.state, b.state, 'states equal with default (identity) template')
-  t.compare(b.state, delta.create().setAttr('x', 'hi').insert('there'))
+  t.compare(b.state, delta.setAttr('x', 'hi').insert('there'))
 }
 
 export const testBindRename = () => {
@@ -69,13 +69,13 @@ export const testBindRename = () => {
   const b = deltaRDT($b)
   // a -> b renames attr `a` to `b`; the binding maps changes both ways
   bind(a, b, $d => dt.renameAttrs($d, /** @type {const} */ ({ a: 'b' })))
-  a.applyDelta(delta.create().setAttr('a', 'x'))
-  t.compare(a.state, delta.create().setAttr('a', 'x'))
-  t.compare(b.state, delta.create().setAttr('b', 'x'), 'attr renamed a->b')
+  a.applyDelta(delta.setAttr('a', 'x'))
+  t.compare(a.state, delta.setAttr('a', 'x'))
+  t.compare(b.state, delta.setAttr('b', 'x'), 'attr renamed a->b')
   // a change on the b side maps back to the a side (b -> a renames `b` to `a`)
-  b.applyDelta(delta.create().setAttr('b', 'y'))
-  t.compare(b.state, delta.create().setAttr('b', 'y'))
-  t.compare(a.state, delta.create().setAttr('a', 'y'), 'attr renamed b->a')
+  b.applyDelta(delta.setAttr('b', 'y'))
+  t.compare(b.state, delta.setAttr('b', 'y'))
+  t.compare(a.state, delta.setAttr('a', 'y'), 'attr renamed b->a')
 }
 
 export const testBindInitialState = () => {
@@ -83,10 +83,10 @@ export const testBindInitialState = () => {
   const a = deltaRDT($d)
   const b = deltaRDT($d)
   // `a` already holds state before the binding is created
-  a.applyDelta(delta.create().setAttr('x', 'hello').insert('world'))
+  a.applyDelta(delta.setAttr('x', 'hello').insert('world'))
   // binding must sync `a`'s existing state onto the (empty) `b`
   bind(a, b, identity)
-  t.compare(b.state, delta.create().setAttr('x', 'hello').insert('world'), 'b initialized from a')
+  t.compare(b.state, delta.setAttr('x', 'hello').insert('world'), 'b initialized from a')
   t.compare(a.state, b.state, 'states equal after initial sync')
 }
 
@@ -95,11 +95,11 @@ export const testBindInitialStateReconcile = () => {
   const a = deltaRDT($d)
   const b = deltaRDT($d)
   // both sides hold (different) state before binding
-  a.applyDelta(delta.create().setAttr('x', 'a').insert('AAA'))
-  b.applyDelta(delta.create().setAttr('x', 'b').insert('BBB'))
+  a.applyDelta(delta.setAttr('x', 'a').insert('AAA'))
+  b.applyDelta(delta.setAttr('x', 'b').insert('BBB'))
   bind(a, b, identity)
   // `a` is the source of truth: `b` is reconciled to match a's projection
-  t.compare(b.state, delta.create().setAttr('x', 'a').insert('AAA'), 'b reconciled to a on bind')
+  t.compare(b.state, delta.setAttr('x', 'a').insert('AAA'), 'b reconciled to a on bind')
   t.compare(a.state, b.state, 'states equal after reconcile')
 }
 
@@ -108,7 +108,7 @@ export const testBindInitialStateClears = () => {
   const a = deltaRDT($d)
   const b = deltaRDT($d)
   // only `b` holds state; since `a` (the source of truth) is empty, `b`'s extra content is removed
-  b.applyDelta(delta.create().setAttr('x', 'gone').insert('content'))
+  b.applyDelta(delta.setAttr('x', 'gone').insert('content'))
   bind(a, b, identity)
   // `b` maintains a final document, so removing its content leaves a clean empty delta (no leftover
   // delete-op markers) — semantically and structurally empty, matching the empty `a`
@@ -120,13 +120,13 @@ export const testBindInitialStateThenChange = () => {
   const $d = delta.$delta({ attrs: { x: s.$string }, text: true })
   const a = deltaRDT($d)
   const b = deltaRDT($d)
-  a.applyDelta(delta.create().setAttr('x', 'init').insert('hi'))
+  a.applyDelta(delta.setAttr('x', 'init').insert('hi'))
   bind(a, b, identity)
   t.compare(b.state, a.state, 'b initialized from a')
   // ongoing changes still propagate after the initial sync
-  b.applyDelta(delta.create().setAttr('x', 'changed'))
+  b.applyDelta(delta.setAttr('x', 'changed'))
   t.compare(a.state, b.state, 'b-side change propagated to a after initial sync')
-  t.compare(a.state, delta.create().setAttr('x', 'changed').insert('hi'))
+  t.compare(a.state, delta.setAttr('x', 'changed').insert('hi'))
 }
 
 export const testBindInitialStateRename = () => {
@@ -135,10 +135,10 @@ export const testBindInitialStateRename = () => {
   const a = deltaRDT($a)
   const b = deltaRDT($b)
   // `a` holds state before binding; the transformer renames attr `a` -> `b`
-  a.applyDelta(delta.create().setAttr('a', 'x'))
+  a.applyDelta(delta.setAttr('a', 'x'))
   bind(a, b, $d => dt.renameAttrs($d, /** @type {const} */ ({ a: 'b' })))
-  t.compare(a.state, delta.create().setAttr('a', 'x'), 'a unchanged')
-  t.compare(b.state, delta.create().setAttr('b', 'x'), 'initial a-state projected & renamed onto b')
+  t.compare(a.state, delta.setAttr('a', 'x'), 'a unchanged')
+  t.compare(b.state, delta.setAttr('b', 'x'), 'initial a-state projected & renamed onto b')
 }
 
 export const testBindInitialSelfHealNullProjection = () => {
@@ -154,7 +154,7 @@ export const testBindInitialSelfHealNullProjection = () => {
   /** @type {any} */
   const template = () => ({
     init: () => ({
-      applyA: () => dt.createTransformResult(delta.create().setAttr('x', 'healed'), null),
+      applyA: () => dt.createTransformResult(delta.setAttr('x', 'healed'), null),
       applyB: (/** @type {any} */ bd) => dt.createTransformResult(null, bd),
       apply: (/** @type {any} */ tr) => tr
     })
@@ -255,7 +255,7 @@ const constrainedRDT = ($delta, computeFix) => new ConstrainedRDT($delta, comput
  * @param {delta.DeltaBuilderAny} state
  */
 const stripSecret = state =>
-  delta.$setAttrOp.check(state.attrs.secret) ? delta.create().deleteAttr('secret') : null
+  delta.$setAttrOp.check(state.attrs.secret) ? delta.deleteAttr('secret') : null
 
 export const testBindFixReceivingSide = () => {
   const $d = delta.$delta({ attrs: { secret: s.$string, ok: s.$string } })
@@ -264,7 +264,7 @@ export const testBindFixReceivingSide = () => {
   bind(a, b, identity)
   // an external change on `a` carries the forbidden attr; b strips it (a fix returned from applyDelta)
   // and that fix must propagate back through the transformer onto `a`
-  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'))
+  a.applyDelta(delta.setAttr('secret', 's').setAttr('ok', 'y'))
   // both sides maintain a final document, so the stripped attr is removed outright (no delete marker)
   t.assert(b.state?.attrs.secret === undefined, 'b stripped secret')
   t.assert(a.state?.attrs.secret === undefined, 'strip fix propagated back onto a')
@@ -279,7 +279,7 @@ export const testBindFixOriginatingSide = () => {
   bind(a, b, identity)
   // `a` strips `secret` locally; the *effective* change it emits (with secret already removed) is what
   // reaches `b`, so `b` never sees secret as a live set
-  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'))
+  a.applyDelta(delta.setAttr('secret', 's').setAttr('ok', 'y'))
   t.assert(!delta.$setAttrOp.check(b.state?.attrs.secret), 'b never received secret as a set')
   t.assert(b.state?.attrs.ok?.value === 'y', 'ok reached b')
   t.compare(a.state, b.state, 'both sides converge')
@@ -289,11 +289,11 @@ export const testBindFixAddsContent = () => {
   const $d = delta.$delta({ attrs: { version: s.$string, data: s.$string } })
   // b requires a `version` attribute and adds a default one when it is missing
   const ensureVersion = (/** @type {delta.DeltaBuilderAny} */ state) =>
-    delta.$setAttrOp.check(state.attrs.version) ? null : delta.create().setAttr('version', '1')
+    delta.$setAttrOp.check(state.attrs.version) ? null : delta.setAttr('version', '1')
   const a = deltaRDT($d)
   const b = constrainedRDT($d, ensureVersion)
   bind(a, b, identity)
-  a.applyDelta(delta.create().setAttr('data', 'x'))
+  a.applyDelta(delta.setAttr('data', 'x'))
   // b adds the missing version (a fix); it propagates back so `a` gains it too
   t.assert(b.state?.attrs.version?.value === '1', 'b added the missing version')
   t.assert(a.state?.attrs.version?.value === '1', 'version fix propagated back onto a')
@@ -314,21 +314,21 @@ export const testBindDeepClonesForTransformer = () => {
   const a = deltaRDT($d)
   const b = deltaRDT($d)
   bind(a, b, dt.fullAttributions)
-  a.applyDelta(delta.create().insert('ab', undefined, { insert: ['alice'] }))
-  const change = delta.create().retain(2, undefined, { insertAt: 9 })
+  a.applyDelta(delta.insert('ab', undefined, { insert: ['alice'] }))
+  const change = delta.retain(2, undefined, { insertAt: 9 })
   const snapshot = change.toJSON()
   a.applyDelta(change)
   t.compare(change.toJSON(), snapshot, "the caller's change was not mutated in place by the transformer")
   t.compare(a.state, b.state, 'both sides converge')
   // a frozen (done) change must not throw when routed through the in-place transformer
-  const frozen = delta.create().insert('c', undefined, { insert: ['bob'] }).done()
+  const frozen = delta.insert('c', undefined, { insert: ['bob'] }).done()
   a.applyDelta(frozen)
   t.compare(a.state, b.state, 'a done change propagates without error')
 
   // initial-state sync: `a` already holds (frozen, nested) state before binding through the transformer
   const a2 = deltaRDT($d)
   const b2 = deltaRDT($d)
-  a2.applyDelta(delta.create().insert('hello', undefined, { insert: ['alice'] }))
+  a2.applyDelta(delta.insert('hello', undefined, { insert: ['alice'] }))
   bind(a2, b2, dt.fullAttributions) // must not throw or corrupt a2's live state
   t.compare(b2.state, a2.state, 'b initialized from a through the in-place transformer')
 }
@@ -357,8 +357,8 @@ export const testBindDestroy = () => {
   // destroying one side tears the binding down (it listens for 'destroy')
   a.destroy()
   // further changes on the surviving side are no longer propagated
-  b.applyDelta(delta.create().setAttr('x', 'orphan'))
-  t.compare(b.state, delta.create().setAttr('x', 'orphan'))
+  b.applyDelta(delta.setAttr('x', 'orphan'))
+  t.compare(b.state, delta.setAttr('x', 'orphan'))
   t.assert(a.state === null, 'destroyed side received no further updates')
 }
 
@@ -382,7 +382,7 @@ export const testDeltaEventOrigin = () => {
   b.on('delta', (_d, origin) => bOrigins.push(origin))
   // a stand-in for a communication provider / editor binding that "produces" the change
   const provider = {}
-  a.applyDelta(delta.create().setAttr('x', 'v'), provider)
+  a.applyDelta(delta.setAttr('x', 'v'), provider)
   // the origin passed to applyDelta is forwarded verbatim on `a`'s own emit ...
   t.assert(aOrigins.length === 1 && aOrigins[0] === provider, 'applyDelta forwards the caller origin')
   // ... while the change the binding maps onto `b` is produced by the binding, so it is the origin
@@ -411,7 +411,7 @@ export const testCorrectionOrigin = () => {
   b.on('delta', (_d, origin) => bOrigins.push(origin))
   const binding = bind(a, b, identity)
   const provider = {}
-  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'), provider)
+  a.applyDelta(delta.setAttr('secret', 's').setAttr('ok', 'y'), provider)
   // `a` first emits the caller's own change, then receives b's strip fix as a correction
   t.assert(aOrigins.length === 2 && aOrigins[0] === provider, 'a first emits the caller change')
   t.assert(aOrigins[1] === correctionOrigin, "b's fix reaches a with the correction origin")
@@ -440,7 +440,7 @@ export const testCorrectionOriginOriginatingSide = () => {
   a.on('delta', (_d, origin) => aOrigins.push(origin))
   b.on('delta', (_d, origin) => bOrigins.push(origin))
   const provider = {}
-  a.applyDelta(delta.create().setAttr('secret', 's').setAttr('ok', 'y'), provider)
+  a.applyDelta(delta.setAttr('secret', 's').setAttr('ok', 'y'), provider)
   t.assert(aOrigins.length === 1 && aOrigins[0] === provider, 'a emits only the effective caller change')
   t.assert(bOrigins.length === 1 && bOrigins[0] === binding, 'b receives one ordinary binding-mapped change')
   t.compare(a.state, b.state, 'both sides converge')

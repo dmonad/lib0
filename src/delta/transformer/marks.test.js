@@ -69,7 +69,7 @@ export const testMarkChildrenRootAndNested = () => {
   const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
   const child = delta.create('p', { a: 1 })
   child.addMark(position.create(['a']), 'C')
-  const d = delta.create().insert([child])
+  const d = delta.insert([child])
   d.addMark(position.create([0]), 'R')
   const r = it.applyA(d)
   t.compare(mp(r.b), [
@@ -84,7 +84,7 @@ export const testMarkChildrenNestedOnly = () => {
   const child = delta.create('p', { a: 1 })
   child.addMark(position.create(['a']), 'C')
   const doc = /** @type {any} */ (delta.create())
-  doc.apply(delta.create().insert([child]), { final: true })
+  doc.apply(delta.insert([child]), { final: true })
   const r = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init().applyA(doc)
   t.assert(/** @type {any} */ (r.b).maybeHasMarks === true)
   t.compare(mp(r.b), [{ id: 'C', path: [0, 'b'], assoc: 1 }])
@@ -95,7 +95,7 @@ export const testMarkValueNestedOnly = () => {
   const child = delta.create('p', { k: 1 })
   child.addMark(position.create(['k']), 'V')
   const doc = /** @type {any} */ (delta.create())
-  doc.apply(delta.create().insert([child]), { final: true })
+  doc.apply(delta.insert([child]), { final: true })
   const r = unwrapValue(delta.$deltaAny).init().applyA(doc)
   t.assert(/** @type {any} */ (r.b).maybeHasMarks === true)
   t.compare(mp(r.b), [{ id: 'V', path: [0, 'k'], assoc: 1 }])
@@ -104,11 +104,11 @@ export const testMarkValueNestedOnly = () => {
 export const testMarkValueRootPreserved = () => {
   // unwrapValue is count-preserving (carrier -> scalar is 1 position): a root mark rides unchanged
   const it = unwrapValue(delta.$deltaAny).init()
-  const d = delta.create().insert('x').insert([delta.create('lib0:value', { value: 42 })])
+  const d = delta.insert('x').insert([delta.create('lib0:value', { value: 42 })])
   d.addMark(position.create([0]), 'M')
   const r = it.applyA(d)
   // content: "x" then the scalar 42 (carrier resolved); marks are excluded from equality
-  t.compare(r.b, delta.create().insert('x').insert([42]))
+  t.compare(r.b, delta.insert('x').insert([42]))
   t.compare(mp(r.b), [{ id: 'M', path: [0], assoc: 1 }])
 }
 
@@ -118,8 +118,8 @@ export const testMarkValueCarrierInnerDropped = () => {
   const it = unwrapValue(delta.$deltaAny).init()
   const carrier = delta.create('lib0:value', { value: 7 })
   carrier.addMark(position.create(['value']), 'INNER')
-  const r = it.applyA(delta.create().insert([carrier]))
-  t.compare(r.b, delta.create().insert([7]))
+  const r = it.applyA(delta.insert([carrier]))
+  t.compare(r.b, delta.insert([7]))
   t.compare(mp(r.b), [])
 }
 
@@ -170,7 +170,7 @@ export const testMarkRenameAttrsRemapAndDrop = () => {
 export const testMarkConformPreserves = () => {
   // a mark on a kept attribute rides through conform (it keys the surviving attr `a`)
   const it = conform(delta.$delta({ attrs: { a: s.$string, b: s.$string } }), delta.$delta({ attrs: { a: s.$string } })).init()
-  const d = delta.create().setAttr('a', 'x')
+  const d = delta.setAttr('a', 'x')
   d.addMark(position.create(['a']), 'M')
   const r = it.applyA(d)
   t.compare(mp(r.b), [{ id: 'M', path: ['a'], assoc: 1 }])
@@ -224,7 +224,7 @@ export const testMarkModifyChangeRidesChildren = () => {
   // (what addMark builds); the mark is readable directly off the raw transformer output — no settle —
   // via marksToPositions' modify descent, re-keyed a->b by the per-child sub-transformer
   const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
-  it.applyA(delta.create().insert([delta.create('p', { a: 1 })])) // establish the child + its sub-transformer
+  it.applyA(delta.insert([delta.create('p', { a: 1 })])) // establish the child + its sub-transformer
   const change = /** @type {any} */ (delta.create())
   change.addMark(position.create([0, 'a']), 'M')
   const r = it.applyA(change)
@@ -240,7 +240,7 @@ export const testMapPositionsOneShot = () => {
   // one-shot position mapping: transient probe marks ride a single transform pass and nothing is
   // stored anywhere - order, gravity, and attrs of the inputs are preserved in the result
   const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
-  it.applyA(delta.create().insert([delta.create('p', { a: 1 })])) // establish the child + its sub-transformer
+  it.applyA(delta.insert([delta.create('p', { a: 1 })])) // establish the child + its sub-transformer
   const res = position.mapPositionsA(it, [position.create([0, 'a']), position.create([2], -1, { u: 1 })])
   t.compare(res, [{ path: [0, 'b'], assoc: 1 }, { path: [2], assoc: -1, attrs: { u: 1 } }])
   // and back through applyB
@@ -263,7 +263,7 @@ export const testMapPositionsStateNeutral = () => {
   // idempotent), the instance still transforms real changes exactly like an untouched control instance
   const mk = () => {
     const it = children(delta.$deltaAny, (_c, $c) => renameAttrs($c, { a: 'b' })).init()
-    it.applyA(delta.create().insert([delta.create('p', { a: 1 })]))
+    it.applyA(delta.insert([delta.create('p', { a: 1 })]))
     return it
   }
   const probed = mk()
@@ -271,9 +271,9 @@ export const testMapPositionsStateNeutral = () => {
   const probe = [position.create([0, 'a'])]
   t.compare(position.mapPositionsA(probed, probe), position.mapPositionsA(probed, probe))
   // a modify routed through the preserved per-child sub-transformer, then a structural insert
-  const modChange = () => /** @type {any} */ (delta.create().modify(delta.create().setAttr('a', 7)))
+  const modChange = () => /** @type {any} */ (delta.modify(delta.setAttr('a', 7)))
   t.compare(probed.applyA(modChange()).b?.toJSON(), control.applyA(modChange()).b?.toJSON())
-  const insChange = () => /** @type {any} */ (delta.create().insert([delta.create('p', { a: 2 })]))
+  const insChange = () => /** @type {any} */ (delta.insert([delta.create('p', { a: 2 })]))
   t.compare(probed.applyA(insChange()).b?.toJSON(), control.applyA(insChange()).b?.toJSON())
 }
 

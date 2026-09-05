@@ -28,9 +28,9 @@ export const testUnwrapValueUpdate = () => {
   const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$string } }) })).init()
   it.applyA(delta.create('p', null, [valueNode('hi')])) // builds the carrier map
   // a data update arrives as a modify on the carrier setting its `value` attr
-  const res = it.applyA(delta.create().modify(delta.create().setAttr('value', 'bye')))
+  const res = it.applyA(delta.modify(delta.setAttr('value', 'bye')))
   t.assert(res.a === null)
-  t.compare(res.b, delta.create().delete(1).insert(['bye']))
+  t.compare(res.b, delta.delete_(1).insert(['bye']))
 }
 
 export const testUnwrapValueAttrs = () => {
@@ -44,20 +44,20 @@ export const testUnwrapValueReverseInsert = () => {
   const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$union(s.$string, s.$number) } }) })).init()
   it.applyA(delta.create('p', null, [valueNode('hi')])) // carrier at position 0
   // reverse: a view inserts a literal embed after the carrier - passes through untouched
-  const res = it.applyB(delta.create().retain(1).insert([42]))
+  const res = it.applyB(delta.retain(1).insert([42]))
   t.assert(res.b === null)
   // TYPE-SYSTEM GAP (reported, not suppressed): res.a is typed DeltaBuilder<IN> (a 'p' document with
   // lib0:value children), but the reverse pass-through is a *change over IN* inserting a literal `42`
   // embed (conf {children:number}) - a content type IN's document schema doesn't list. t.compare's
   // single type param can't unify the precise res.a with this differently-shaped expected.
-  t.compare(res.a, /** @type {any} */ (delta.create().retain(1).insert([42])))
+  t.compare(res.a, /** @type {any} */ (delta.retain(1).insert([42])))
 }
 
 export const testUnwrapValueReverse = () => {
   const it = unwrapValue(delta.$delta('p', { children: delta.$delta('lib0:value', { attrs: { value: s.$string } }) })).init()
   it.applyA(delta.create('p', null, [valueNode('hi')])) // carrier at position 0
   // reverse: deleting the embed maps structurally to deleting the carrier node
-  const res = it.applyB(delta.create().delete(1))
+  const res = it.applyB(delta.delete_(1))
   t.assert(res.b === null)
-  t.compare(res.a, delta.create().delete(1))
+  t.compare(res.a, delta.delete_(1))
 }

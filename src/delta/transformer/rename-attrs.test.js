@@ -10,14 +10,14 @@ export const testRenameAttrsBasics = () => {
   const i1 = renameAttrs($d, { a: 'b' }).init()
   t.assert(transformerWith($d, delta.$delta({ attrs: { b: s.$string } })).validate(i1))
   // forward: an a-side change renames attr `a` -> `b`
-  const res = i1.applyA(delta.create().setAttr('a', 'x'))
+  const res = i1.applyA(delta.setAttr('a', 'x'))
   t.assert(res.a === null)
-  t.compare(res.b, delta.create().setAttr('b', 'x'))
+  t.compare(res.b, delta.setAttr('b', 'x'))
   // backward: a b-side change renames attr `b` -> `a`
-  const res2 = i1.applyB(delta.create().setAttr('b', 'y'))
+  const res2 = i1.applyB(delta.setAttr('b', 'y'))
   t.assert(res2.b === null)
-  t.compare(res2.a, delta.create().setAttr('a', 'y'))
+  t.compare(res2.a, delta.setAttr('a', 'y'))
   // config-only (template) form: `.init($d)` builds an equivalent transformer
   const i2 = renameAttrs($d, { a: 'b' }).init()
-  t.compare(i2.applyA(delta.create().setAttr('a', 'z')).b, delta.create().setAttr('b', 'z'))
+  t.compare(i2.applyA(delta.setAttr('a', 'z')).b, delta.setAttr('b', 'z'))
 }

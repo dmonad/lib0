@@ -26,12 +26,12 @@ export const testPipeBasics = () => {
     $d => renameAttrs($d, { a: 'b' })
   ).init()
   t.assert(transformerWith($da, $db).validate(p12init))
-  const dtrn = p12init.applyA(delta.create().setAttr('a', 'dturiane'))
+  const dtrn = p12init.applyA(delta.setAttr('a', 'dturiane'))
   t.assert($tresult($da, $db).validate(dtrn))
   // config-only (template) form: `pipe($d, ...)` returns a reusable Pipe template
   const ptpl = pipe($da,
     $d => renameAttrs($d, { a: 'b' }),
     $d => renameAttrs($d, { b: 'c' })
   ).init()
-  t.compare(ptpl.applyA(delta.create().setAttr('a', 'x')).b, delta.create().setAttr('c', 'x'))
+  t.compare(ptpl.applyA(delta.setAttr('a', 'x')).b, delta.setAttr('c', 'x'))
 }

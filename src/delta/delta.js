@@ -7,6 +7,9 @@
  * - **build / apply / inspect:** {@link create} (the constructor) and the {@link DeltaBuilder} methods
  *   it returns (`insert`/`delete`/`retain`/`modify`/`setAttr`/`addMark`/…, `apply`, `rebase`, `done`);
  *   {@link clone}, {@link slice}, {@link diff}, {@link inverse}, and `toJSON`/`equals`/`isEmpty` on the result.
+ *   The content/attr builder methods are also exported standalone as shorthands for a `create()`-headed
+ *   chain — `delta.insert(..)` ≡ `delta.create().insert(..)`, see {@link insert}. The `delete`
+ *   shorthand is spelled {@link delete_} (`delete` is a reserved word).
  * - **schemas:** {@link $delta} (define a typed delta schema) and {@link $deltaAny} (the catch-all).
  * - **types:** `Delta`, `DeltaBuilder`, `DeltaAny`, `DeltaConf` for annotations.
  *
@@ -3865,6 +3868,94 @@ export const from = (...args) => {
   }
   return d
 }
+
+/**
+ * Shorthand for `delta.create().insert(..)` — see {@link DeltaBuilder#insert}.
+ *
+ * ## Builder shorthands
+ *
+ * A changeset is written as a chain (see the readme's "condensed vs. builder chain"), and the
+ * `create()` head of that chain carries no information. Every content/attr builder method is
+ * therefore also exported standalone — {@link insert}, {@link modify}, {@link retain},
+ * {@link delete_} (trailing underscore: `delete` is a reserved word),
+ * {@link setAttr}, {@link setAttrs}, {@link deleteAttr}, {@link modifyAttr} — each returning the very
+ * same {@link DeltaBuilder}, so the rest of the chain is unchanged:
+ *
+ *     delta.retain(5).delete(6).insert('!') // ⇔ delta.create().retain(5).delete(6).insert('!')
+ *     delta.delete_(6)                      // ⇔ delta.create().delete(6)
+ *
+ * There is deliberately no `format` shorthand: formatting is the second argument of
+ * `insert`/`retain`/`modify` (`delta.retain(5, { bold: true })`). The ambient-context setters
+ * (`useFormats` & co), the mark methods, `apply`/`append`/`rebase` and the terminal methods (`done`,
+ * `toJSON`, ..) are not mirrored — they either say nothing on an empty delta or don't build one.
+ *
+ * Each shorthand is typed by indexing the method off {@link DeltaBuilder}, pinned to `create()`'s
+ * zero-arg overload — so a shorthand and its `create()`-headed equivalent infer the identical conf,
+ * with no re-declared generics to drift. The type arguments must be written out
+ * (`DeltaBuilder<{}, false>['insert']`, not `DeltaBuilder['insert']`): a bare reference to a generic
+ * type in JSDoc resolves its parameters to `any` rather than to the declared defaults, and
+ * `FixedConf = any` satisfies both arms of `insert`'s `FixedConf extends true ? ..` branch, which
+ * collapses the accreted conf.
+ *
+ * @type {DeltaBuilder<{}, false>['insert']}
+ */
+export const insert = (content, formatting, attribution) => create().insert(content, formatting, attribution)
+
+/**
+ * Shorthand for `delta.create().modify(..)` — see {@link DeltaBuilder#modify} and {@link insert}.
+ *
+ * @type {DeltaBuilder<{}, false>['modify']}
+ */
+export const modify = (modify, formatting, attribution) => create().modify(modify, formatting, attribution)
+
+/**
+ * Shorthand for `delta.create().retain(..)` — see {@link DeltaBuilder#retain} and {@link insert}.
+ *
+ * @type {DeltaBuilder<{}, false>['retain']}
+ */
+export const retain = (len, format, attribution) => create().retain(len, format, attribution)
+
+/**
+ * Shorthand for `delta.create().delete(..)` — see {@link DeltaBuilder}'s `delete` and {@link insert}.
+ *
+ * Trailing underscore because `delete` is a reserved word: `export const delete` is a syntax error,
+ * and the rename clause that would work at runtime (`export { _delete as delete }`) makes `tsc` 6
+ * emit a duplicated specifier into the `.d.ts` (`export { _delete as delete, _delete as delete }`),
+ * which then fails `npm run check-dist-types` with "Duplicate identifier". The bug is specific to
+ * declaration emit from a `.js` file — the same clause emits correctly from a `.ts` — so it cannot
+ * be worked around in source; re-test it when the TypeScript floor moves.
+ *
+ * @type {DeltaBuilder<{}, false>['delete']}
+ */
+export const delete_ = len => create().delete(len)
+
+/**
+ * Shorthand for `delta.create().setAttr(..)` — see {@link DeltaBuilder#setAttr} and {@link insert}.
+ *
+ * @type {DeltaBuilder<{}, false>['setAttr']}
+ */
+export const setAttr = (key, val, attribution) => create().setAttr(key, val, attribution)
+
+/**
+ * Shorthand for `delta.create().setAttrs(..)` — see {@link DeltaBuilder#setAttrs} and {@link insert}.
+ *
+ * @type {DeltaBuilder<{}, false>['setAttrs']}
+ */
+export const setAttrs = (attrs, attribution) => create().setAttrs(attrs, attribution)
+
+/**
+ * Shorthand for `delta.create().deleteAttr(..)` — see {@link DeltaBuilder#deleteAttr} and {@link insert}.
+ *
+ * @type {DeltaBuilder<{}, false>['deleteAttr']}
+ */
+export const deleteAttr = (key, attribution) => create().deleteAttr(key, attribution)
+
+/**
+ * Shorthand for `delta.create().modifyAttr(..)` — see {@link DeltaBuilder#modifyAttr} and {@link insert}.
+ *
+ * @type {DeltaBuilder<{}, false>['modifyAttr']}
+ */
+export const modifyAttr = (key, modify, attribution) => create().modifyAttr(key, modify, attribution)
 
 class _DiffStringWrapper {
   /**

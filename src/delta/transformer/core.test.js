@@ -35,8 +35,8 @@ export const testTransformHelper = () => {
   t.assert($template.check(tmpl))
   // it is equivalent to calling the factory directly: same end-to-end transform behaviour
   t.compare(
-    tmpl.init().applyA(delta.create().setAttr('a', 'x')).b,
-    renameAttrs($d, { a: 'b' }).init().applyA(delta.create().setAttr('a', 'x')).b
+    tmpl.init().applyA(delta.setAttr('a', 'x')).b,
+    renameAttrs($d, { a: 'b' }).init().applyA(delta.setAttr('a', 'x')).b
   )
 }
 

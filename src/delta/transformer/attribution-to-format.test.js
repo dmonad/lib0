@@ -23,9 +23,9 @@ const conf = {
 export const testAttributionToFormatInsert = () => {
   const $d = delta.$delta({ text: true })
   const it = attributionToFormat($d, conf).init()
-  const res = it.applyA(delta.create().insert('hi', { bold: true }, { insert: ['alice'], insertAt: 1 }))
+  const res = it.applyA(delta.insert('hi', { bold: true }, { insert: ['alice'], insertAt: 1 }))
   t.assert(res.a === null)
-  t.compare(res.b, delta.create().insert('hi', { bold: true, 'y-attributed-insert': { by: 'alice', at: 1 } }))
+  t.compare(res.b, delta.insert('hi', { bold: true, 'y-attributed-insert': { by: 'alice', at: 1 } }))
 }
 
 /**
@@ -36,13 +36,13 @@ export const testAttributionToFormatSkipAndClear = () => {
   const $d = delta.$delta({ text: true })
   const skip = attributionToFormat($d, { insert: () => ({}) }).init()
   // data op + skip ⇒ no format at all
-  t.compare(skip.applyA(delta.create().insert('x', null, { insert: ['a'] })).b, delta.create().insert('x'))
+  t.compare(skip.applyA(delta.insert('x', null, { insert: ['a'] })).b, delta.insert('x'))
   // data op + null result ⇒ still no `{k:null}` leaf on the insert (data stores resolved formats)
   const clearer = attributionToFormat($d, { insert: () => null }).init()
-  t.compare(clearer.applyA(delta.create().insert('x', null, { insert: ['a'] })).b, delta.create().insert('x'))
+  t.compare(clearer.applyA(delta.insert('x', null, { insert: ['a'] })).b, delta.insert('x'))
   // instruction op + null result ⇒ clear the key (a per-key `{insert:null}` removal isn't in the
   // canonical `Attribution` type, so cast it — see the test-any-casts convention)
-  t.compare(clearer.applyA(delta.create().retain(2, undefined, /** @type {any} */ ({ insert: null }))).b, delta.create().retain(2, { 'y-attributed-insert': null }))
+  t.compare(clearer.applyA(delta.retain(2, undefined, /** @type {any} */ ({ insert: null }))).b, delta.retain(2, { 'y-attributed-insert': null }))
 }
 
 /** `delete*` and `format*` provenance route to their own namespaced keys; differing ops stay split. */
@@ -62,8 +62,8 @@ export const testAttributionToFormatModifyAttr = () => {
   const $p = delta.$delta('p', { attrs: { style: s.$string }, text: true })
   const $d = delta.$delta({ name: s.$literal('doc'), children: $p })
   const it = attributionToFormat($d, conf).init()
-  const res = it.applyA(delta.create().modify(delta.create().setAttr('style', 'x', { insert: ['alice'] })))
-  t.compare(res.b, delta.create().modify(delta.create().setAttr('style', 'x'), { 'y-attributed-attrs': { style: 'alice' } }))
+  const res = it.applyA(delta.modify(delta.setAttr('style', 'x', { insert: ['alice'] })))
+  t.compare(res.b, delta.modify(delta.setAttr('style', 'x'), { 'y-attributed-attrs': { style: 'alice' } }))
 }
 
 /**
@@ -78,8 +78,8 @@ export const testAttributionToFormatAttrClearInChangeContext = () => {
   const $p = delta.$delta('p', { attrs: { style: s.$string }, text: true })
   const $d = delta.$delta({ name: s.$literal('doc'), children: $p })
   // change context: the accept scenario, produced by a real diff
-  const prev = delta.create().insert([delta.create('p').setAttr('style', 'x', { insert: ['alice'] }).insert('t')]).done()
-  const next = delta.create().insert([delta.create('p').setAttr('style', 'x', null).insert('t')]).done()
+  const prev = delta.insert([delta.create('p').setAttr('style', 'x', { insert: ['alice'] }).insert('t')]).done()
+  const next = delta.insert([delta.create('p').setAttr('style', 'x', null).insert('t')]).done()
   const it = attributionToFormat($d, conf).init()
   const res = it.applyA(/** @type {any} */ (delta.diff(prev, next)))
   t.compare(JSON.parse(JSON.stringify(/** @type {any} */ (res.b).done(false).toJSON())), {
@@ -92,7 +92,7 @@ export const testAttributionToFormatAttrClearInChangeContext = () => {
   }, 'attribution removal lifts a per-key clear in change context')
   // data context: an inserted node's unattributed attr lifts nothing
   const it2 = attributionToFormat($d, conf).init()
-  const ins = it2.applyA(delta.create().insert([delta.create('p').setAttr('style', 'x', null).insert('t')]))
+  const ins = it2.applyA(delta.insert([delta.create('p').setAttr('style', 'x', null).insert('t')]))
   t.compare(JSON.parse(JSON.stringify(/** @type {any} */ (ins.b).done(false).toJSON())), {
     type: 'delta',
     children: [{
@@ -112,7 +112,7 @@ export const testAttributionToFormatInsertAttrSplit = () => {
   const $p = delta.$delta('p', { attrs: { style: s.$string } })
   const $d = delta.$delta({ name: s.$literal('doc'), children: $p })
   const it = attributionToFormat($d, conf).init()
-  const res = it.applyA(delta.create().insert([
+  const res = it.applyA(delta.insert([
     delta.create('p').setAttr('style', 'a', { insert: ['alice'] }),
     delta.create('p').setAttr('style', 'b', { insert: ['bob'] })
   ]))
@@ -129,10 +129,10 @@ export const testAttributionToFormatNested = () => {
   const it = attributionToFormat($d, conf).init()
   // multi-level nested builder inference unions the child node names (`div | p`) and won't unify with
   // the precise schema; the runtime delta is valid — cast the input (a known type-system gap)
-  const res = it.applyA(/** @type {any} */ (delta.create().insert([
+  const res = it.applyA(/** @type {any} */ (delta.insert([
     delta.create('div', null, [delta.create('p').setAttr('style', 'x', { insert: ['alice'] })])
   ])))
-  t.compare(res.b, delta.create().insert([
+  t.compare(res.b, delta.insert([
     delta.create('div').insert([delta.create('p', { style: 'x' })], { 'y-attributed-attrs': { style: 'alice' } })
   ]))
 }
@@ -146,23 +146,23 @@ export const testAttributionToFormatRootAttrDropped = () => {
   const $body = delta.$delta({ text: true })
   const $d = delta.$delta({ attrs: { body: $body } })
   const it = attributionToFormat($d, conf).init()
-  const res = it.applyA(delta.create($d).modifyAttr('body', delta.create().insert('hi'), { insert: ['alice'] }))
-  t.compare(res.b, delta.create().modifyAttr('body', delta.create().insert('hi')))
+  const res = it.applyA(delta.create($d).modifyAttr('body', delta.insert('hi'), { insert: ['alice'] }))
+  t.compare(res.b, delta.modifyAttr('body', delta.insert('hi')))
 }
 
 /** Reverse strips every `y-attributed-*` key (content + the `y-attributed-attrs` lift), keeping the rest. */
 export const testAttributionToFormatReverse = () => {
   const $d = delta.$delta({ text: true })
   const it = attributionToFormat($d, conf).init()
-  const res = it.applyB(delta.create().retain(2, { bold: true, 'y-attributed-insert': { by: 'alice' } }))
+  const res = it.applyB(delta.retain(2, { bold: true, 'y-attributed-insert': { by: 'alice' } }))
   t.assert(res.b === null)
-  t.compare(res.a, delta.create().retain(2, { bold: true }))
+  t.compare(res.a, delta.retain(2, { bold: true }))
 
   const $p = delta.$delta('p', { attrs: { style: s.$string } })
   const $doc = delta.$delta({ name: s.$literal('doc'), children: $p })
   const it2 = attributionToFormat($doc, conf).init()
-  const res2 = it2.applyB(delta.create().modify(delta.create().setAttr('style', 'x'), { 'y-attributed-attrs': { style: 'alice' } }))
-  t.compare(res2.a, delta.create().modify(delta.create().setAttr('style', 'x')))
+  const res2 = it2.applyB(delta.modify(delta.setAttr('style', 'x'), { 'y-attributed-attrs': { style: 'alice' } }))
+  t.compare(res2.a, delta.modify(delta.setAttr('style', 'x')))
 }
 
 /**

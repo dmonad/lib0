@@ -62,19 +62,19 @@ export const testDomApplyOps = () => {
   step(delta.create('div').setAttr('class', 'c').deleteAttr('id'),
     '<div class="c"><p>abcde</p><span>z</span></div>', 'set + delete attribute')
   // modify first child, delete from an offset to the end of the text node ("abcde" -> "ab")
-  step(delta.create('div').modify(delta.create().retain(2).delete(3)),
+  step(delta.create('div').modify(delta.retain(2).delete(3)),
     '<div class="c"><p>ab</p><span>z</span></div>', 'modify child: delete tail of text node')
   // retain first child, modify second child appending text ("z" -> "z!")
-  step(delta.create('div').retain(1).modify(delta.create().retain(1).insert('!')),
+  step(delta.create('div').retain(1).modify(delta.retain(1).insert('!')),
     '<div class="c"><p>ab</p><span>z!</span></div>', 'retain element + modify text append')
   // modify first child, insert mid-text ("ab" -> "aXb") — exercises splitText
-  step(delta.create('div').modify(delta.create().retain(1).insert('X')),
+  step(delta.create('div').modify(delta.retain(1).insert('X')),
     '<div class="c"><p>aXb</p><span>z!</span></div>', 'modify child: mid-text insert (splitText)')
   // delete the first child element
   step(delta.create('div').delete(1),
     '<div class="c"><span>z!</span></div>', 'delete element child')
   // modify the (now first) child, deleting all of its text — full text-node delete
-  step(delta.create('div').modify(delta.create().delete(2)),
+  step(delta.create('div').modify(delta.delete_(2)),
     '<div class="c"><span></span></div>', 'modify child: full text delete')
   // retain the span and insert a fresh element child (with attributes + a nested element) after it
   step(delta.create('div').retain(1).insert([delta.create('ul', { id: 'L' }, [delta.create('li', null, 'one')])]),
@@ -156,7 +156,7 @@ export const testDomConcurrentRebase = async () => {
   // a local DOM edit (add an attribute) whose MutationObserver callback has NOT fired yet ...
   el.setAttribute('data-local', '1')
   // ... and, synchronously (so the edit above is still pending), a remote change through the binding
-  d.applyDelta(delta.create('div').modify(delta.create().retain(1).insert('y'))) // edit the text "x" -> "xy"
+  d.applyDelta(delta.create('div').modify(delta.retain(1).insert('y'))) // edit the text "x" -> "xy"
   await promise.resolve() // settle the observer (it finds nothing new — the edit was already pulled)
   t.compare(el.outerHTML, '<div data-local="1"><p>xy</p></div>', 'DOM has both concurrent edits')
   t.compare(d.state, delta.create('div', { 'data-local': '1' }, [delta.create('p', null, 'xy')]),
@@ -288,7 +288,7 @@ export const testDomConcurrentDeepRebase = async () => {
   // a local DOM edit deep in the tree whose MutationObserver callback has NOT fired: <p> 'x' -> 'xL'
   dom.$text.cast(/** @type {Element} */ (el.querySelector('p')).firstChild).textContent = 'xL'
   // ... concurrently (edit still pending), a remote change to the SIBLING <span>: 'y' -> 'yR'
-  d.applyDelta(delta.create('div').retain(1).modify(delta.create().retain(1).insert('R')))
+  d.applyDelta(delta.create('div').retain(1).modify(delta.retain(1).insert('R')))
   await promise.resolve()
   t.compare(el.outerHTML, '<div><p>xL</p><span>yR</span></div>', 'both concurrent deep edits landed on the DOM')
   t.compare(d.state, delta.create('div', null, [delta.create('p', null, 'xL'), delta.create('span', null, 'yR')]),

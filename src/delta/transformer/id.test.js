@@ -8,11 +8,11 @@ import { id } from './id.js'
 export const testIdBasics = () => {
   const it = id(delta.$delta({ attrs: { x: s.$string }, text: true })).init()
   // identity maps an a-side change verbatim onto the b side
-  const resA = it.applyA(delta.create().setAttr('x', 'v').insert('hi'))
+  const resA = it.applyA(delta.setAttr('x', 'v').insert('hi'))
   t.assert(resA.a === null)
-  t.compare(resA.b, delta.create().setAttr('x', 'v').insert('hi'))
+  t.compare(resA.b, delta.setAttr('x', 'v').insert('hi'))
   // ...and a b-side change verbatim back onto a
-  const resB = it.applyB(delta.create().setAttr('x', 'w'))
+  const resB = it.applyB(delta.setAttr('x', 'w'))
   t.assert(resB.b === null)
-  t.compare(resB.a, delta.create().setAttr('x', 'w'))
+  t.compare(resB.a, delta.setAttr('x', 'w'))
 }

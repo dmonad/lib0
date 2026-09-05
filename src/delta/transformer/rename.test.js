@@ -54,6 +54,6 @@ export const testRenderListReverse = () => {
   ]))
   // reason: applyB expects the pipe's output document type, but this is a view-side modify *change*
   // (and intentionally exercises drift routing back through the pipe); cast the change to any.
-  const res = it.applyB(/** @type {any} */ (delta.create().modify(delta.create().setAttr('label', 'Eve'))))
-  cmp(res.a, delta.create('users').modify(delta.create().setAttr('name', 'Eve')))
+  const res = it.applyB(/** @type {any} */ (delta.modify(delta.setAttr('label', 'Eve'))))
+  cmp(res.a, delta.create('users').modify(delta.setAttr('name', 'Eve')))
 }

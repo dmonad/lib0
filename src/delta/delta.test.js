@@ -29,22 +29,64 @@ import * as prng from '../prng.js'
  *
  * You can also apply the changes in two distinct steps and then rebase the op so that you can apply
  * them in two distinct steps.
- * - delete " world":              d1 = delta.create().retain(5).delete(6)
- * - insert "!":                   d2 = delta.create().retain(11).insert('!')
- * - rebase d2 on-top of d1:       d2.rebase(d1)    == delta.create().retain(5).insert('!')
- * - merge into a single change:   d1.apply(d2)     == delta.create().retain(5).delete(6).insert(!)
+ * - delete " world":              d1 = delta.retain(5).delete(6)
+ * - insert "!":                   d2 = delta.retain(11).insert('!')
+ * - rebase d2 on-top of d1:       d2.rebase(d1)    == delta.retain(5).insert('!')
+ * - merge into a single change:   d1.apply(d2)     == delta.retain(5).delete(6).insert(!)
  *
  * @param {t.TestCase} _tc
  */
 export const testDeltaBasicApi = _tc => {
   // the state of our text document
-  const state = delta.create().insert('hello world')
+  const state = delta.insert('hello world')
   // describe changes: delete " world" & insert "!"
-  const change = delta.create().retain(5).delete(6).insert('!')
+  const change = delta.retain(5).delete(6).insert('!')
   // apply changes to state
   state.apply(change)
   // compare state to expected state
-  t.assert(state.equals(delta.create().insert('hello!')))
+  t.assert(state.equals(delta.insert('hello!')))
+}
+
+/**
+ * Every content/attr builder method is also exported standalone, as a shorthand for the
+ * `create()`-headed chain it expands to - identical delta, identical inferred conf. `delete` is a
+ * reserved word, so its shorthand is spelled `delete_`; the builder *method* it forwards to keeps
+ * the plain name.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testBuilderShorthands = _tc => {
+  const sub = () => delta.create('p', null, 'x').done()
+  /**
+   * Pairs that must produce equal deltas: the shorthand, and the chain it expands to.
+   *
+   * @type {Array<[string, () => delta.DeltaAny, () => delta.DeltaAny]>}
+   */
+  const cases = [
+    ['insert', () => delta.insert('hi', { bold: true }, { insert: ['me'] }), () => delta.create().insert('hi', { bold: true }, { insert: ['me'] })],
+    ['modify', () => delta.modify(sub()), () => delta.create().modify(sub())],
+    ['retain', () => delta.retain(5, { bold: null }), () => delta.create().retain(5, { bold: null })],
+    ['delete_', () => delta.delete_(6), () => delta.create().delete(6)],
+    ['setAttr', () => delta.setAttr('k', 42), () => delta.create().setAttr('k', 42)],
+    ['setAttrs', () => delta.setAttrs({ a: 1, b: 2 }), () => delta.create().setAttrs({ a: 1, b: 2 })],
+    ['deleteAttr', () => delta.deleteAttr('k'), () => delta.create().deleteAttr('k')],
+    ['modifyAttr', () => delta.modifyAttr('k', sub()), () => delta.create().modifyAttr('k', sub())]
+  ]
+  for (const [name, shorthand, expanded] of cases) {
+    t.assert(shorthand().done().equals(expanded().done()), `delta.${name}(..) equals its delta.create() chain`)
+  }
+  // the shorthand replaces the `create()` head only - it returns the same builder, so the rest of
+  // the chain is untouched
+  const short = delta.retain(5).delete(6).insert('!').setAttr('x', 42)
+  const long = delta.create().retain(5).delete(6).insert('!').setAttr('x', 42)
+  // ..and it accretes the same conf: each form must be assignable to the other's inferred type
+  /** @type {typeof long} */
+  const shortAsLong = short
+  /** @type {typeof short} */
+  const longAsShort = long
+  t.assert(shortAsLong.done().equals(longAsShort.done()))
+  // the reserved-word shorthand is spelled `delete_`, while `.delete(..)` stays the method name
+  t.assert(delta.delete_ instanceof Function)
 }
 
 /**
@@ -68,19 +110,19 @@ export const testApplyMove = _tc => {
   const cloned = emptyTarget().apply(build())
   t.assert(moved.equals(cloned), 'move apply equals clone apply')
   // deleteAttr (non-final) is moved too
-  t.assert(emptyTarget().apply(delta.create().deleteAttr('z'), { move: true })
-    .equals(delta.create().deleteAttr('z')), 'moved deleteAttr matches')
+  t.assert(emptyTarget().apply(delta.deleteAttr('z'), { move: true })
+    .equals(delta.deleteAttr('z')), 'moved deleteAttr matches')
   // modify landing on a retain target (the modify replaces one retained position) is moved too
-  const modChange = () => delta.create().modify(delta.create('s', null, 'y').done())
+  const modChange = () => delta.modify(delta.create('s', null, 'y').done())
   t.assert(emptyTarget().retain(2).apply(modChange(), { move: true })
     .equals(emptyTarget().retain(2).apply(modChange())), 'moved modify-onto-retain matches')
 
   // identity guard: the moved attr op is the *same* object in the target (clone was skipped)
-  const srcAttr = delta.create().setAttr('k', 1)
+  const srcAttr = delta.setAttr('k', 1)
   const attrOp = srcAttr.attrs.k
   t.assert(emptyTarget().apply(srcAttr, { move: true }).attrs.k === attrOp, 'attr op moved, not cloned')
   // identity guard for an inserted child op
-  const srcInsert = delta.create().insert([9])
+  const srcInsert = delta.insert([9])
   const insOp = srcInsert.children.start
   t.assert(emptyTarget().apply(srcInsert, { move: true }).children.start === insOp, 'insert op moved, not cloned')
 }
@@ -96,7 +138,7 @@ export const testApplyMove = _tc => {
  * @param {t.TestCase} _tc
  */
 export const testDeltaValues = _tc => {
-  const _q = delta.create().setAttr('a', 42).deleteAttr('b').retain(5).delete(5).insert('!')
+  const _q = delta.setAttr('a', 42).deleteAttr('b').retain(5).delete(5).insert('!')
   const change = _q.insert([{ my: 'custom object' }])
   // iterate through attribute changes
   for (const attrChange of change.attrs) {
@@ -136,22 +178,22 @@ export const testBasicDeltaAssignability = () => {
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: number}>}
    */
-  const a = delta.create().insert('hi').insert([42]).setAttr('y', 42).done()
+  const a = delta.insert('hi').insert([42]).setAttr('y', 42).done()
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: number}>}
    */
   // @ts-expect-error
-  const b = delta.create().insert('hi').insert([42]).setAttr('unknown', 42).done()
+  const b = delta.insert('hi').insert([42]).setAttr('unknown', 42).done()
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: string}>}
    */
   // @ts-expect-error
-  const c = delta.create().insert('hi').insert([42]).done()
+  const c = delta.insert('hi').insert([42]).done()
   /**
    * @type {delta.Delta<{attrs: {x: number, y: number}, text: true, children: string}>}
    */
   // @ts-expect-error
-  const d = delta.create().insert('hi').setAttr('x', 42).setAttr('x', 'dtrn').done()
+  const d = delta.insert('hi').setAttr('x', 42).setAttr('x', 'dtrn').done()
   return { a, b, c, d }
 }
 
@@ -164,23 +206,23 @@ export const testDeltaBasicCases = () => {
   ds.apply(delta.create('root', { k: 42 }))
   // @ts-expect-error
   t.fails(() => ds.apply(delta.create('root', { k: 'hi' }, 'content')))
-  const d1 = delta.create().insert('hi')
+  const d1 = delta.insert('hi')
   d1.insert([42]).insert('hi').insert([{ there: 42 }]).insert(['']).insert(['dtrn']).insert('stri').insert('dtruniae')
   d1.setAttr('hi', 'there').setAttr('test', 42).setAttr(42, 43)
-  const _tdelta = delta.create().insert('dtrn').insert([42]).insert(['', { q: 42 }]).setAttr('kv', false).setAttr('x', 42) // eslint-disable-line
+  const _tdelta = delta.insert('dtrn').insert([42]).insert(['', { q: 42 }]).setAttr('kv', false).setAttr('x', 42) // eslint-disable-line
   delta.$delta({ name: s.$any, attrs: s.$object({ kv: s.$boolean, x: s.$number }), children: s.$union(s.$string, s.$number, s.$object({ q: s.$number })), text: true }).expect(_tdelta)
   console.log(_tdelta)
   // @ts-expect-error
-  delta.create().insert('hi').apply(delta.create().insert('there').insert([42]))
+  delta.insert('hi').apply(delta.insert('there').insert([42]))
   // @ts-expect-error
-  delta.create().setAttr('x', 42).apply(delta.create().setAttr('x', '42'))
+  delta.setAttr('x', 42).apply(delta.setAttr('x', '42'))
   // @ts-expect-error
-  delta.create().setAttr('x', 42).apply(delta.create().setAttr('y', '42'))
-  delta.create().setAttr('x', 42).apply(delta.create().deleteAttr('x'))
-  const t2 = delta.create().insert('hi').insert(['there']).setAttr('k', '42').setAttr('k', 42)
-  t2.apply(delta.create().insert('there').insert(['??']).setAttr('k', 42))
-  const m = delta.create().setAttr('x', 42).setAttr('y', 'str').insert('hi').insert([42])
-  m.apply(delta.create().deleteAttr('y').insert('hi'))
+  delta.setAttr('x', 42).apply(delta.setAttr('y', '42'))
+  delta.setAttr('x', 42).apply(delta.deleteAttr('x'))
+  const t2 = delta.insert('hi').insert(['there']).setAttr('k', '42').setAttr('k', 42)
+  t2.apply(delta.insert('there').insert(['??']).setAttr('k', 42))
+  const m = delta.setAttr('x', 42).setAttr('y', 'str').insert('hi').insert([42])
+  m.apply(delta.deleteAttr('y').insert('hi'))
 }
 
 /**
@@ -196,15 +238,15 @@ export const testDeltaBasicCases2 = () => {
 }
 
 export const testDeltaAttrAssignability = () => {
-  const x1 = delta.create().setAttr('a', 42).setAttr('b', 'dtrn').insert('dtrn').insert([1234, 'dtrn']).setAttr('q', delta.create().setAttr('a', 42))
-  x1.apply(delta.create().setAttr('a', 1234).done())
+  const x1 = delta.setAttr('a', 42).setAttr('b', 'dtrn').insert('dtrn').insert([1234, 'dtrn']).setAttr('q', delta.setAttr('a', 42))
+  x1.apply(delta.setAttr('a', 1234).done())
 }
 
 export const testDeltaArrayBasics = () => {
   t.group('apply edge cases', () => {
-    const d = delta.create().insert('abc')
-    d.apply(delta.create().retain(1).delete(1))
-    t.compare(d, delta.create().insert('ac'))
+    const d = delta.insert('abc')
+    d.apply(delta.retain(1).delete(1))
+    t.compare(d, delta.insert('ac'))
   })
 }
 
@@ -337,23 +379,23 @@ export const testAssignability = () => {
     let deltaNoneWithString = delta.create(delta.$delta({ text: true })).done()
     let deltaNoneWithNumberContent = delta.create(delta.$delta({ children: s.$number })).done()
     deltaNone = delta.create()
-    deltaAny = delta.create().setAttr('x', 42)
+    deltaAny = delta.setAttr('x', 42)
     // @ts-expect-error
     deltaNone = deltaNoneWithString
     // i can assign non-string content to with-string content
     deltaNoneWithString = deltaNone
-    deltaNoneWithString = delta.create().insert('hi')
+    deltaNoneWithString = delta.insert('hi')
     // @ts-expect-error no numbers allowed
-    deltaNoneWithString = delta.create().insert([42]).done()
+    deltaNoneWithString = delta.insert([42]).done()
     // @ts-expect-error no children allowed
     deltaNone = deltaNoneWithNumberContent
     // i can assign non-children content to with-children content
     deltaNoneWithNumberContent = deltaNone
     // @ts-expect-error no strings
-    deltaNoneWithNumberContent = delta.create().insert('hi')
-    deltaNoneWithNumberContent = delta.create().insert([42]).done()
+    deltaNoneWithNumberContent = delta.insert('hi')
+    deltaNoneWithNumberContent = delta.insert([42]).done()
     // @ts-expect-error because it contains object
-    deltaNoneWithNumberContent = delta.create().insert([42]).insert([{}]).done()
+    deltaNoneWithNumberContent = delta.insert([42]).insert([{}]).done()
     return { deltaAny }
   })
 }
@@ -375,7 +417,7 @@ export const testText = () => {
  * @param {t.TestCase} _tc
  */
 export const testDelta = _tc => {
-  const d = delta.create().insert('hello').insert(' ').useFormats({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!')
+  const d = delta.insert('hello').insert(' ').useFormats({ bold: true }).insert('world').useAttribution({ insert: ['tester'] }).insert('!')
   t.compare(d.toJSON(), { type: 'delta', children: [{ type: 'insert', insert: 'hello ' }, { type: 'insert', insert: 'world', format: { bold: true } }, { type: 'insert', insert: '!', format: { bold: true }, attribution: { insert: ['tester'] } }] })
 }
 
@@ -559,9 +601,9 @@ export const testUseAttribution = _tc => {
 
 export const testMapTyping = () => {
   const $q = delta.$delta({ attrs: s.$object({ x: s.$number }) })
-  const mmm = delta.create().setAttr('x', 42)
+  const mmm = delta.setAttr('x', 42)
   $q.expect(mmm)
-  const mmm2 = delta.create().setAttr('x', 'xx')
+  const mmm2 = delta.setAttr('x', 'xx')
   /**
    * @typedef {t.Assert<t.Equal<typeof mmm2, delta.DeltaBuilder<{ attrs: {x:string} }>>>} _Check
    */
@@ -586,7 +628,7 @@ export const testMapDeltaBasics = _tc => {
   const dmap = delta.create(delta.$delta({ attrs: $d }))
   t.fails(() => {
     // @ts-expect-error
-    dmap.apply(delta.create().setAttr('str', 42))
+    dmap.apply(delta.setAttr('str', 42))
   })
   dmap.setAttr('str', 'hi')
   for (const c of dmap.attrs) {
@@ -621,11 +663,11 @@ export const testMapDeltaModify = _tc => {
   const $dsmaller = delta.$delta({ attrs: s.$object({ str: s.$string }) })
   t.group('test extensibility', () => {
     // observeDeep needs to transform this to a modifyOp, while preserving tying
-    const d = delta.create().setAttr('num', 42)
+    const d = delta.setAttr('num', 42)
     t.assert($d.check(d))
     t.assert($dsmaller.check(d))
-    t.assert($d.check(delta.create().setAttr('x', 99))) // this should work, since this is a unknown property
-    t.assert(!$d.check(delta.create().setAttr('str', 99))) // this shoul fail, since str is supposed to be a string
+    t.assert($d.check(delta.setAttr('x', 99))) // this should work, since this is a unknown property
+    t.assert(!$d.check(delta.setAttr('str', 99))) // this shoul fail, since str is supposed to be a string
   })
   t.group('test delta insert', () => {
     const d = delta.create($d)
@@ -641,7 +683,7 @@ export const testMapDeltaModify = _tc => {
   })
   t.group('test modify', () => {
     const d = delta.create($d)
-    d.modifyAttr('map', delta.create().deleteAttr('x'))
+    d.modifyAttr('map', delta.deleteAttr('x'))
     for (const change of d.attrs) {
       if (change.key === 'map' && change.type === 'modify') {
         delta.$delta({ attrs: s.$object({ x: s.$number }) }).validate(change.value)
@@ -718,10 +760,10 @@ export const testRepeatRebaseMergeDeltas = tc => {
           d.setAttr('a', prng.int32(gen, 0, 365))
         } else if (prng.bool(gen)) {
           // 25% chance to create an insertion on 'b'
-          d.setAttr('b', delta.create().setAttr('x', prng.utf16String(gen)))
+          d.setAttr('b', delta.setAttr('x', prng.utf16String(gen)))
         } else {
           // 25% chance to create a modify op on 'b'
-          d.modifyAttr('b', delta.create().setAttr('x', prng.utf16String(gen)))
+          d.modifyAttr('b', delta.setAttr('x', prng.utf16String(gen)))
         }
       },
       // create delete
@@ -774,15 +816,15 @@ export const testRepeatRebaseMergeDeltas = tc => {
 }
 
 export const testRebaseBasic = () => {
-  const d1 = delta.create().retain(5).delete(6)
-  const d2 = delta.create().retain(11).insert('!')
+  const d1 = delta.retain(5).delete(6)
+  const d2 = delta.retain(11).insert('!')
   const rebased = d2.rebase(d1, false)
   console.log({
     d1: JSON.stringify(d1.toJSON()),
     d2: JSON.stringify(d2.toJSON()),
     rebased: JSON.stringify(rebased.toJSON())
   })
-  t.compare(rebased, delta.create().retain(5).insert('!'))
+  t.compare(rebased, delta.retain(5).insert('!'))
 }
 
 /**
@@ -853,7 +895,7 @@ export const testDiffing = () => {
   const d1 = delta.create($d).insert([1]).insert('hello').insert([2]).setAttr('key', 42).setAttr('unknown', 'unknown').done()
   const d2 = delta.create($d).insert('hello').setAttr('key', 1).done()
   const d = delta.diff(d1, d2)
-  t.compare(d.done(), delta.create().delete(1).retain(5).delete(1).setAttr('key', 1).deleteAttr('unknown').done())
+  t.compare(d.done(), delta.delete_(1).retain(5).delete(1).setAttr('key', 1).deleteAttr('unknown').done())
 }
 
 export const testDiffingCommonPreSuffix = () => {
@@ -861,12 +903,12 @@ export const testDiffingCommonPreSuffix = () => {
   const d1 = delta.create($d).insert([1, 2]).insert('aa').insert([3, 4])
   const d2 = delta.create($d).insert([1, 2]).insert('a').insert([3, 4])
   const d = delta.diff(d1, d2).done()
-  t.compare(d, delta.create().retain(3).delete(1))
+  t.compare(d, delta.retain(3).delete(1))
 }
 
 export const testSlice = () => {
-  const d1 = delta.slice(delta.create().insert('abcde'), 1, 3)
-  t.assert(d1.equals(delta.create().insert('bc')))
+  const d1 = delta.slice(delta.insert('abcde'), 1, 3)
+  t.assert(d1.equals(delta.insert('bc')))
 }
 
 /**
@@ -904,30 +946,30 @@ export const testRepeatRandomMapDiff = tc => {
  */
 export const testDeltaAppend = _tc => {
   const $d = delta.$delta({ children: s.$number, text: true })
-  const other = delta.create().insert('b').insert([1, 2])
-  const _d = delta.create().insert('a')
+  const other = delta.insert('b').insert([1, 2])
+  const _d = delta.insert('a')
   const d = _d.append(other)
   $d.expect(d)
 }
 
 export const testDeltaDiffWithFormatting = () => {
-  const d1 = delta.create().insert('hello world!')
-  const d2 = delta.create().insert('hello ').insert('world', { bold: true }).insert('!')
+  const d1 = delta.insert('hello world!')
+  const d2 = delta.insert('hello ').insert('world', { bold: true }).insert('!')
   const diff = delta.diff(d1, d2)
-  t.compare(diff.done(), delta.create().retain(6).retain(5, { bold: true }))
+  t.compare(diff.done(), delta.retain(6).retain(5, { bold: true }))
 }
 
 export const testDeltaDiffWithFormatting2 = () => {
-  const d1 = delta.create().insert('hello!')
-  const d2 = delta.create().insert('hello ').insert('world', { bold: true }).insert('!')
+  const d1 = delta.insert('hello!')
+  const d2 = delta.insert('hello ').insert('world', { bold: true }).insert('!')
   const diff = delta.diff(d1, d2)
-  t.compare(diff, delta.create().retain(5).insert(' ').insert('world', { bold: true }))
+  t.compare(diff, delta.retain(5).insert(' ').insert('world', { bold: true }))
 }
 
 export const testDeltaDiff1 = () => {
-  const stateA = delta.create().insert([delta.create('paragraph', { ychange: null }, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
-  const stateB = delta.create().insert([delta.create('paragraph', { ychange: null }, 'ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
-  const expectedDiff = delta.create().modify(delta.create('paragraph').retain(5).insert('123').retain(21).insert('2sawfa'))
+  const stateA = delta.insert([delta.create('paragraph', { ychange: null }, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')])
+  const stateB = delta.insert([delta.create('paragraph', { ychange: null }, 'ABCDE123FGHIJKLMNOPQRSTUVWXYZ2sawfa')])
+  const expectedDiff = delta.modify(delta.create('paragraph').retain(5).insert('123').retain(21).insert('2sawfa'))
   const diffResult = delta.diff(stateA, stateB)
   const synced = delta.clone(stateA).apply(diffResult)
   t.assert(synced.equals(stateB))
@@ -945,8 +987,8 @@ export const testDiffCompareGranularity = () => {
     a.name === b.name && a.children.start?.fingerprint === b.children.start?.fingerprint
 
   // two paragraphs share the name 'paragraph' but differ in their first child ('alpha' vs 'beta')
-  const stateA = delta.create().insert([delta.create('paragraph').insert('alpha').insert(' tail')])
-  const stateB = delta.create().insert([delta.create('paragraph').insert('beta').insert(' tail')])
+  const stateA = delta.insert([delta.create('paragraph').insert('alpha').insert(' tail')])
+  const stateB = delta.insert([delta.create('paragraph').insert('beta').insert(' tail')])
 
   // default: same name → paired → single modify op
   const defaultDiff = delta.diff(stateA, stateB)
@@ -974,8 +1016,8 @@ export const testDiffCompareForwardedToChildren = () => {
 
   // rows: same name + same first child ('mark') → paired at the top level under either predicate.
   // cells: same name 'cell' but first children differ ('x' vs 'y') → only strict `compare` replaces.
-  const stateA = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell', null, 'x')])])
-  const stateB = delta.create().insert([delta.create('row').insert('mark').insert([delta.create('cell', null, 'y')])])
+  const stateA = delta.insert([delta.create('row').insert('mark').insert([delta.create('cell', null, 'x')])])
+  const stateB = delta.insert([delta.create('row').insert('mark').insert([delta.create('cell', null, 'y')])])
 
   const defaultDiff = delta.diff(stateA, stateB)
   const strictDiff = delta.diff(stateA, stateB, { compare })
@@ -1055,9 +1097,9 @@ export const testDiffModifyAttrFinalPropagation = () => {
 }
 
 export const testDeltaDiff2 = () => {
-  const stateA = delta.create().insert('hello world\n\nthis ')
-  const stateB = delta.create().insert('hello world!\n\nth is')
-  // const expectedDiff = delta.create().retain(11).insert('!').retain(4).insert(' ').retain(2).delete(1)
+  const stateA = delta.insert('hello world\n\nthis ')
+  const stateB = delta.insert('hello world!\n\nth is')
+  // const expectedDiff = delta.retain(11).insert('!').retain(4).insert(' ').retain(2).delete(1)
   const diffResult = delta.diff(stateA, stateB)
   const synced = delta.clone(stateA).apply(diffResult)
   t.assert(synced.equals(stateB))
@@ -1075,16 +1117,16 @@ export const testDeltaMapDiff = () => {
 }
 
 export const testDeltaFormattingApply = () => {
-  const start = delta.create().retain(11).delete(1)
-  const formatting = delta.create().retain(2).retain(3, { a: null })
+  const start = delta.retain(11).delete(1)
+  const formatting = delta.retain(2).retain(3, { a: null })
   start.apply(formatting)
-  const expected = delta.create().retain(2).retain(3, { a: null }).retain(6).delete(1)
+  const expected = delta.retain(2).retain(3, { a: null }).retain(6).delete(1)
   t.compare(start, expected)
 }
 
 export const testDeltaFormattingComparability = () => {
-  const d1 = delta.create().insert('a', {}).retain(2, {}).modify(delta.create(), {}).insert([1], {})
-  const d2 = delta.create().insert('a').retain(2).modify(delta.create()).insert([1])
+  const d1 = delta.insert('a', {}).retain(2, {}).modify(delta.create(), {}).insert([1], {})
+  const d2 = delta.insert('a').retain(2).modify(delta.create()).insert([1])
   // semantically the same
   t.compare(d1, d2)
 }
@@ -1104,17 +1146,17 @@ export const testDeltaFormattingComparability = () => {
  */
 export const testDeltaRemoveFormatOp = () => {
   // `null` (clear) is a real change op kept by done(); on either dimension
-  const rFormatClear = delta.create().retain(1, null).done()
-  const rAttrClear = delta.create().retain(1, undefined, null).done()
+  const rFormatClear = delta.retain(1, null).done()
+  const rAttrClear = delta.retain(1, undefined, null).done()
   t.assert(rFormatClear.children.start != null && rFormatClear.children.start === rFormatClear.children.end, 'format clear is a kept change op')
   t.assert(rAttrClear.children.start != null && rAttrClear.children.start === rAttrClear.children.end, 'attribution clear is a kept change op')
   // `{}` / omitted are no-ops: positional retains merge and the whole tail is trimmed by done()
-  const rNoop = delta.create().retain(1).retain(1, {}).done()
+  const rNoop = delta.retain(1).retain(1, {}).done()
   t.assert(rNoop.children.start == null, '{} and omitted retains merge and are trimmed')
 }
 
 export const testDeltaFormattingDiff = () => {
-  const da = delta.create().insert('abc abc abc')
+  const da = delta.insert('abc abc abc')
   const db = delta.create()
     .insert('a')
     .insert('bc', { a: true })
@@ -1144,30 +1186,30 @@ export const testDeltaFormattingDiff = () => {
  */
 export const testDeltaAttributionDiffAdd = () => {
   // attribution added to existing, otherwise-unchanged text — a pure attribution-only diff
-  const a = delta.create().insert('hello').done()
-  const b = delta.create().insert('hello', undefined, { insert: ['me'] }).done()
+  const a = delta.insert('hello').done()
+  const b = delta.insert('hello', undefined, { insert: ['me'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(5, undefined, { insert: ['me'] }))
+  t.compare(diff, delta.retain(5, undefined, { insert: ['me'] }))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffRemove = () => {
   // removing all attribution emits a top-level `null` (clear), distinct from `undefined` = no change
-  const a = delta.create().insert('hello', undefined, { insert: ['me'] }).done()
-  const b = delta.create().insert('hello').done()
+  const a = delta.insert('hello', undefined, { insert: ['me'] }).done()
+  const b = delta.insert('hello').done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(5, undefined, null))
+  t.compare(diff, delta.retain(5, undefined, null))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffChange = () => {
   // incremental (per-key): the changed `insert` key is set and the `insertAt` key present on `a` but
   // absent on `b` is removed via `{insertAt: null}` — NOT a whole-object replace
-  const a = delta.create().insert('hi', undefined, { insert: ['a'], insertAt: 1 }).done()
-  const b = delta.create().insert('hi', undefined, { insert: ['b'] }).done()
+  const a = delta.insert('hi', undefined, { insert: ['a'], insertAt: 1 }).done()
+  const b = delta.insert('hi', undefined, { insert: ['b'] }).done()
   const diff = delta.diff(a, b)
   // `{insertAt: null}` is a per-key removal update, not a canonical Attribution → cast for the test
-  t.compare(diff, delta.create().retain(2, undefined, /** @type {any} */ ({ insert: ['b'], insertAt: null })))
+  t.compare(diff, delta.retain(2, undefined, /** @type {any} */ ({ insert: ['b'], insertAt: null })))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
@@ -1182,7 +1224,7 @@ export const testCloneDeep = () => {
   // delta-valued attribute (recursiveAttrs)
   const $d = delta.$delta({ attrs: { meta: delta.$deltaAny }, text: true, recursiveChildren: true })
   const orig = delta.create($d)
-    .setAttr('meta', delta.create().insert('m'))
+    .setAttr('meta', delta.insert('m'))
     .insert([delta.create('p').insert('hi', { bold: true }, { insert: ['alice'] })])
   orig.addMark(position.create([1], 1, { user: 'kevin' }), 'cursorA') // a cursor rides along
   orig.done() // freeze, like a settled/shared delta
@@ -1205,11 +1247,11 @@ export const testCloneDeep = () => {
   t.assert(attrClone !== orig.attrs.meta?.value && !(/** @type {any} */ (attrClone).isDone), 'attr delta deep-cloned & mutable')
 
   // mutating the clone (in place, via apply on the nested node) leaves the frozen original untouched
-  nestedClone.apply(delta.create().retain(2).insert('!'))
+  nestedClone.apply(delta.retain(2).insert('!'))
   t.compare(nestedOrig, delta.create('p').insert('hi', { bold: true }, { insert: ['alice'] }), 'original nested node unchanged')
 
   // a *change* delta (retain/delete/modify, with a nested modify value) round-trips too
-  const change = delta.create().retain(1).delete(1).modify(delta.create().retain(1).insert('x'))
+  const change = delta.retain(1).delete(1).modify(delta.retain(1).insert('x'))
   t.assert(delta.cloneDeep(change).equals(change), 'a change delta deep-clones equal')
 }
 
@@ -1223,7 +1265,7 @@ export const testDiffCloneChildren = () => {
   const d1 = delta.create($d).insert([delta.create('p', null, 'keep')]).done()
   // d2: a new wholesale-inserted child, a delta-valued attribute, and a modified existing child
   const d2 = delta.create($d)
-    .setAttr('meta', delta.create().insert('m'))
+    .setAttr('meta', delta.insert('m'))
     .insert([delta.create('p', null, 'keep!'), delta.create('span', null, 'new')])
     .done()
 
@@ -1254,10 +1296,10 @@ export const testDiffCloneChildren = () => {
 
 export const testDeltaAttributionDiffWithFormat = () => {
   // format and attribution carried on one retain (both incremental, unified)
-  const a = delta.create().insert('hello world').done()
-  const b = delta.create().insert('hello ').insert('world', { bold: true }, { insert: ['me'] }).done()
+  const a = delta.insert('hello world').done()
+  const b = delta.insert('hello ').insert('world', { bold: true }, { insert: ['me'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(6).retain(5, { bold: true }, { insert: ['me'] }))
+  t.compare(diff, delta.retain(6).retain(5, { bold: true }, { insert: ['me'] }))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
@@ -1267,9 +1309,9 @@ export const testDeltaAttributionDiffSubRangeMerge = () => {
     .insert('ab', undefined, { insert: ['a'] })
     .insert('cd', undefined, { insert: ['b'] })
     .done()
-  const b = delta.create().insert('abcd', undefined, { insert: ['z'] }).done()
+  const b = delta.insert('abcd', undefined, { insert: ['z'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().retain(4, undefined, { insert: ['z'] }))
+  t.compare(diff, delta.retain(4, undefined, { insert: ['z'] }))
   const applied = delta.clone(a).apply(diff)
   t.assert(applied.equals(b))
   t.assert(applied.children.start === applied.children.end, 'the covered range merges into a single op')
@@ -1277,25 +1319,25 @@ export const testDeltaAttributionDiffSubRangeMerge = () => {
 
 export const testDeltaAttributionDiffInsert = () => {
   // newly inserted attributed content — attribution is recovered by the attribution-diff pass
-  const a = delta.create().insert('ab').done()
-  const b = delta.create().insert('a').insert('Xb', undefined, { insert: ['me'] }).done()
+  const a = delta.insert('ab').done()
+  const b = delta.insert('a').insert('Xb', undefined, { insert: ['me'] }).done()
   const diff = delta.diff(a, b)
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffSetAttr = () => {
   // node-level attribute attribution change (value unchanged)
-  const a = delta.create().setAttr('k', 1, { insert: ['a'] }).done()
-  const b = delta.create().setAttr('k', 1, { insert: ['b'] }).done()
+  const a = delta.setAttr('k', 1, { insert: ['a'] }).done()
+  const b = delta.setAttr('k', 1, { insert: ['b'] }).done()
   const diff = delta.diff(a, b)
-  t.compare(diff, delta.create().setAttr('k', 1, { insert: ['b'] }))
+  t.compare(diff, delta.setAttr('k', 1, { insert: ['b'] }))
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
 
 export const testDeltaAttributionDiffModifyAttr = () => {
   // delta-valued attribute where only the attribution changes — emitted via modifyAttr
-  const a = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'] }).done()
-  const b = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['b'] }).done()
+  const a = delta.setAttr('body', delta.insert('x'), { insert: ['a'] }).done()
+  const b = delta.setAttr('body', delta.insert('x'), { insert: ['b'] }).done()
   const diff = delta.diff(a, b)
   t.assert(delta.clone(a).apply(diff).equals(b))
 }
@@ -1303,59 +1345,59 @@ export const testDeltaAttributionDiffModifyAttr = () => {
 export const testDeltaAttributionApplyModifyAttr = () => {
   // applying a `modifyAttr` MERGES its attribution onto the target `setAttr`'s attribution (incremental):
   // the `insert` sibling is kept while `insertAt` is added
-  const doc = delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'] }).done()
-  const change = delta.create().modifyAttr('body', delta.create(), { insertAt: 5 }).done()
+  const doc = delta.setAttr('body', delta.insert('x'), { insert: ['a'] }).done()
+  const change = delta.modifyAttr('body', delta.create(), { insertAt: 5 }).done()
   const applied = delta.clone(doc).apply(change)
-  t.assert(applied.equals(delta.create().setAttr('body', delta.create().insert('x'), { insert: ['a'], insertAt: 5 }).done()))
+  t.assert(applied.equals(delta.setAttr('body', delta.insert('x'), { insert: ['a'], insertAt: 5 }).done()))
 }
 
 export const testDeltaAttributionIncrementalMerge = () => {
   // applying a `retain` with an attribution object MERGES per-key: the existing `insert` provenance is
   // kept while a new key is added (not replaced wholesale)
-  const a = delta.create().insert('hi', undefined, { insert: ['alice'] }).done()
-  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, { insertAt: 1 }))
-  t.assert(applied.equals(delta.create().insert('hi', undefined, { insert: ['alice'], insertAt: 1 }).done()))
+  const a = delta.insert('hi', undefined, { insert: ['alice'] }).done()
+  const applied = delta.clone(a).apply(delta.retain(2, undefined, { insertAt: 1 }))
+  t.assert(applied.equals(delta.insert('hi', undefined, { insert: ['alice'], insertAt: 1 }).done()))
 }
 
 export const testDeltaAttributionPerKeyRemove = () => {
   // `{k: null}` removes just that attribution key, leaving siblings intact
-  const a = delta.create().insert('hi', undefined, { insert: ['alice'], insertAt: 1 }).done()
+  const a = delta.insert('hi', undefined, { insert: ['alice'], insertAt: 1 }).done()
   // `{insertAt: null}` is a per-key removal update, not a canonical Attribution → cast for the test
-  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, /** @type {any} */ ({ insertAt: null })))
-  t.assert(applied.equals(delta.create().insert('hi', undefined, { insert: ['alice'] }).done()))
+  const applied = delta.clone(a).apply(delta.retain(2, undefined, /** @type {any} */ ({ insertAt: null })))
+  t.assert(applied.equals(delta.insert('hi', undefined, { insert: ['alice'] }).done()))
 }
 
 export const testDeltaAttributionFormatMerge = () => {
   // an attribution's nested `format` sub-object merges per inner key (the styling `format` dimension is
   // unaffected): adding `italic` keeps the existing `bold`.
   // apply({format:{bold:[]}}, {format:{italic:[]}}) === {format:{italic:[],bold:[]}}
-  const a = delta.create().insert('hi', undefined, { format: { bold: [] } }).done()
-  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, { format: { italic: [] } }))
-  t.assert(applied.equals(delta.create().insert('hi', undefined, { format: { bold: [], italic: [] } }).done()))
+  const a = delta.insert('hi', undefined, { format: { bold: [] } }).done()
+  const applied = delta.clone(a).apply(delta.retain(2, undefined, { format: { italic: [] } }))
+  t.assert(applied.equals(delta.insert('hi', undefined, { format: { bold: [], italic: [] } }).done()))
 }
 
 export const testDeltaAttributionFormatPerKeyRemove = () => {
   // `{format:{k:null}}` removes just that inner format key, keeping inner siblings (and their values) intact
-  const a = delta.create().insert('hi', undefined, { format: { bold: ['alice'], italic: ['bob'] } }).done()
-  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })))
-  t.assert(applied.equals(delta.create().insert('hi', undefined, { format: { italic: ['bob'] } }).done()))
+  const a = delta.insert('hi', undefined, { format: { bold: ['alice'], italic: ['bob'] } }).done()
+  const applied = delta.clone(a).apply(delta.retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })))
+  t.assert(applied.equals(delta.insert('hi', undefined, { format: { italic: ['bob'] } }).done()))
 }
 
 export const testDeltaAttributionFormatRemoveEmpties = () => {
   // removing the last inner format key drops the whole `format` key (no stored `format:{}`), emptying the
   // attribution. apply({format:{bold:[]}}, {format:{bold:null}}) === {} (no attribution)
-  const a = delta.create().insert('hi', undefined, { format: { bold: [] } }).done()
-  const applied = delta.clone(a).apply(delta.create().retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })))
-  t.assert(applied.equals(delta.create().insert('hi').done()))
+  const a = delta.insert('hi', undefined, { format: { bold: [] } }).done()
+  const applied = delta.clone(a).apply(delta.retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })))
+  t.assert(applied.equals(delta.insert('hi').done()))
 }
 
 export const testDeltaAttributionFormatDiff = () => {
   // diff emits a NESTED incremental update for attribution.format (per-inner-key set + remove) and round-trips
-  const a = delta.create().insert('hi', undefined, { format: { bold: ['alice'], italic: ['bob'] } }).done()
-  const b = delta.create().insert('hi', undefined, { format: { bold: ['alice'], under: ['carol'] } }).done()
+  const a = delta.insert('hi', undefined, { format: { bold: ['alice'], italic: ['bob'] } }).done()
+  const b = delta.insert('hi', undefined, { format: { bold: ['alice'], under: ['carol'] } }).done()
   const d = delta.diff(a, b)
   // bold unchanged, italic removed, under added → nested {format:{italic:null, under:['carol']}}
-  t.compare(d, delta.create().retain(2, undefined, /** @type {any} */ ({ format: { italic: null, under: ['carol'] } })))
+  t.compare(d, delta.retain(2, undefined, /** @type {any} */ ({ format: { italic: null, under: ['carol'] } })))
   t.assert(delta.clone(a).apply(d).equals(b)) // round-trip
 }
 
@@ -1364,7 +1406,7 @@ export const testDeltaAttributionFormatBuilderResolve = () => {
   // canonical settled data (no `null` leaf) — consistent with apply-time resolution
   const a = delta.create().useAttribution({ insert: ['alice'], format: { bold: ['x'], italic: ['y'] } })
     .insert('hi', undefined, /** @type {any} */ ({ format: { bold: null } })).done()
-  t.assert(a.equals(delta.create().insert('hi', undefined, { insert: ['alice'], format: { italic: ['y'] } }).done()))
+  t.assert(a.equals(delta.insert('hi', undefined, { insert: ['alice'], format: { italic: ['y'] } }).done()))
 }
 
 export const testDeltaAttributionContextResolvesRemovals = () => {
@@ -1373,38 +1415,38 @@ export const testDeltaAttributionContextResolvesRemovals = () => {
   // makes the context path consistent with the direct-arg path (which already resolves).
   const ctxNested = delta.create().useAttribution(/** @type {any} */ ({ format: { bold: null } }))
     .insert('x', undefined, { insert: [] }).done()
-  t.assert(ctxNested.equals(delta.create().insert('x', undefined, { insert: [] }).done()))
+  t.assert(ctxNested.equals(delta.insert('x', undefined, { insert: [] }).done()))
   // same result as passing the removal directly as the arg
-  const directArg = delta.create().insert('x', undefined, /** @type {any} */ ({ format: { bold: null }, insert: [] })).done()
+  const directArg = delta.insert('x', undefined, /** @type {any} */ ({ format: { bold: null }, insert: [] })).done()
   t.assert(directArg.equals(ctxNested))
   // a LEAF removal in the context (`{insert:null}`) collapses too, keeping the sibling set key
   const ctxLeaf = delta.create().useAttribution(/** @type {any} */ ({ insert: null, insertAt: 3 }))
     .insert('y', undefined, { format: { bold: ['u'] } }).done()
-  t.assert(ctxLeaf.equals(delta.create().insert('y', undefined, { insertAt: 3, format: { bold: ['u'] } }).done()))
+  t.assert(ctxLeaf.equals(delta.insert('y', undefined, { insertAt: 3, format: { bold: ['u'] } }).done()))
   // a context format with a real value AND a null sibling: the real survives, the removal drops
   const ctxMixed = delta.create().useAttribution(/** @type {any} */ ({ format: { bold: ['alice'], italic: null } }))
     .insert('z', undefined, { insertAt: 1 }).done()
-  t.assert(ctxMixed.equals(delta.create().insert('z', undefined, { format: { bold: ['alice'] }, insertAt: 1 }).done()))
+  t.assert(ctxMixed.equals(delta.insert('z', undefined, { format: { bold: ['alice'] }, insertAt: 1 }).done()))
   // INSTRUCTION op (resolve=false): a `retain` via the same context KEEPS the `{bold:null}` removal so it
   // still clears downstream — the canonicalisation is data-op only.
   const retain = delta.create().useAttribution(/** @type {any} */ ({ format: { bold: null } }))
     .retain(1, undefined, { insertAt: 2 }).done()
-  t.assert(retain.equals(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null }, insertAt: 2 })).done()))
+  t.assert(retain.equals(delta.retain(1, undefined, /** @type {any} */ ({ format: { bold: null }, insertAt: 2 })).done()))
 }
 
 export const testDeltaFormatFormatStaysShallow = () => {
   // the styling `format` dimension treats a key literally named `format` like any other — wholesale REPLACE,
   // NOT the per-inner-key merge that attribution.format gets. Only attribution.format observes the deep merge.
-  const a = delta.create().insert('hi', { format: { a: 1 } }).done()
-  const r = delta.clone(a).apply(delta.create().retain(2, { format: { b: 2 } }))
-  t.assert(r.equals(delta.create().insert('hi', { format: { b: 2 } }).done()))
+  const a = delta.insert('hi', { format: { a: 1 } }).done()
+  const r = delta.clone(a).apply(delta.retain(2, { format: { b: 2 } }))
+  t.assert(r.equals(delta.insert('hi', { format: { b: 2 } }).done()))
 }
 
 export const testDeltaFormatClearAll = () => {
   // `null` clears ALL format keys on the range (unified with attribution)
-  const a = delta.create().insert('hi', { bold: true, italic: true }).done()
-  const applied = delta.clone(a).apply(delta.create().retain(2, null))
-  t.assert(applied.equals(delta.create().insert('hi').done()))
+  const a = delta.insert('hi', { bold: true, italic: true }).done()
+  const applied = delta.clone(a).apply(delta.retain(2, null))
+  t.assert(applied.equals(delta.insert('hi').done()))
 }
 
 export const testDeltaFinalApplyOverRetainCollapsesRemovals = () => {
@@ -1415,23 +1457,23 @@ export const testDeltaFinalApplyOverRetainCollapsesRemovals = () => {
   const mkFinal = () => { const d = delta.create(delta.$deltaAny); d.isFinal = true; return d }
 
   // 1. nested-format removal beyond content ⇒ empty (format collapses ⇒ attribution collapses ⇒ no attribution)
-  t.assert(mkFinal().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null } }))).done().equals(delta.create().done()))
+  t.assert(mkFinal().apply(delta.retain(1, undefined, /** @type {any} */ ({ format: { bold: null } }))).done().equals(delta.create().done()))
   // 2. leaf removal `{insert:null}` ⇒ empty
-  t.assert(mkFinal().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ insert: null }))).done().equals(delta.create().done()))
+  t.assert(mkFinal().apply(delta.retain(1, undefined, /** @type {any} */ ({ insert: null }))).done().equals(delta.create().done()))
   // 3. removal + set: the removal collapses, the set survives ⇒ retain(1, {insertAt:5})
-  t.assert(mkFinal().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ insert: null, insertAt: 5 }))).done()
-    .equals(delta.create().retain(1, undefined, { insertAt: 5 }).done()))
+  t.assert(mkFinal().apply(delta.retain(1, undefined, /** @type {any} */ ({ insert: null, insertAt: 5 }))).done()
+    .equals(delta.retain(1, undefined, { insertAt: 5 }).done()))
   // 4. the styling `format` DIMENSION (not attribution.format) collapses its removal too
-  t.assert(mkFinal().apply(delta.create().retain(1, /** @type {any} */ ({ bold: null }))).done().equals(delta.create().done()))
+  t.assert(mkFinal().apply(delta.retain(1, /** @type {any} */ ({ bold: null }))).done().equals(delta.create().done()))
   // 5. positioning guard: a resolved-away retain followed by content stays (so the insert keeps its position)
-  t.assert(mkFinal().apply(delta.create().retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })).insert('X')).done()
-    .equals(delta.create().retain(2).insert('X').done()))
+  t.assert(mkFinal().apply(delta.retain(2, undefined, /** @type {any} */ ({ format: { bold: null } })).insert('X')).done()
+    .equals(delta.retain(2).insert('X').done()))
   // 6. over-retain spanning content + beyond: the char keeps no attribution, no trailing attribution retain
-  t.assert(mkFinal().insert('a').apply(delta.create().retain(2, undefined, /** @type {any} */ ({ insert: null }))).done()
-    .equals(delta.create().insert('a').done()))
+  t.assert(mkFinal().insert('a').apply(delta.retain(2, undefined, /** @type {any} */ ({ insert: null }))).done()
+    .equals(delta.insert('a').done()))
   // 7. regression — a NON-final apply keeps the removal instruction verbatim (it must still clear downstream)
-  t.assert(delta.create().apply(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null } })))
-    .equals(delta.create().retain(1, undefined, /** @type {any} */ ({ format: { bold: null } }))))
+  t.assert(delta.create().apply(delta.retain(1, undefined, /** @type {any} */ ({ format: { bold: null } })))
+    .equals(delta.retain(1, undefined, /** @type {any} */ ({ format: { bold: null } }))))
 }
 
 /**
@@ -1715,78 +1757,78 @@ export const testInverse = () => {
     t.compare(doc, delta.clone(base))
   }
   t.group('text: insert deletes, delete re-inserts from base', () => {
-    const base = delta.create().insert('hello world').done()
-    const change = delta.create().retain(6).delete(5).insert('there').done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(6).insert('world').delete(5).toJSON())
+    const base = delta.insert('hello world').done()
+    const change = delta.retain(6).delete(5).insert('there').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.retain(6).insert('world').delete(5).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('formats: a set inverts to a removal, a removal/clear restores stored values', () => {
-    const base = delta.create().insert('ab', { bold: true }).insert('cd').done()
-    const change = delta.create().retain(1, { bold: null, italic: true }).retain(2, null).done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(1, { bold: true, italic: null }).retain(1, { bold: true }).toJSON())
+    const base = delta.insert('ab', { bold: true }).insert('cd').done()
+    const change = delta.retain(1, { bold: null, italic: true }).retain(2, null).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.retain(1, { bold: true, italic: null }).retain(1, { bold: true }).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('attribution: set/clear instructions invert against stored attribution', () => {
-    const base = delta.create().insert('ab', null, { insert: ['alice'] }).done()
-    const change = delta.create().retain(1, undefined, { insert: ['bob'] }).retain(1, undefined, null).done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(2, undefined, { insert: ['alice'] }).toJSON())
+    const base = delta.insert('ab', null, { insert: ['alice'] }).done()
+    const change = delta.retain(1, undefined, { insert: ['bob'] }).retain(1, undefined, null).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.retain(2, undefined, { insert: ['alice'] }).toJSON())
     checkRoundtrip(base, change)
   })
   t.group("attribution's nested format part inverts per inner key", () => {
-    const base = delta.create().insert('a', null, { insert: ['alice'], format: { bold: ['alice'] } }).done()
-    const change = delta.create().retain(1, undefined, { format: { italic: ['bob'] } }).done()
+    const base = delta.insert('a', null, { insert: ['alice'], format: { bold: ['alice'] } }).done()
+    const change = delta.retain(1, undefined, { format: { italic: ['bob'] } }).done()
     // (a `{k:null}` inner removal isn't a canonical Attribution -> cast, mirroring diff's own emit)
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(1, undefined, /** @type {any} */ ({ format: { italic: null } })).toJSON())
+    t.compare(delta.inverse(change, base).toJSON(), delta.retain(1, undefined, /** @type {any} */ ({ format: { italic: null } })).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('attrs: set/delete restore the base value + attribution, new attrs are deleted', () => {
-    const base = delta.create().setAttr('a', 1).setAttr('b', 2, { insert: ['alice'] }).done()
-    const change = delta.create().setAttr('a', 10).setAttr('c', 3).deleteAttr('b').deleteAttr('missing').done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().setAttr('a', 1).deleteAttr('c').setAttr('b', 2, { insert: ['alice'] }).toJSON())
+    const base = delta.setAttr('a', 1).setAttr('b', 2, { insert: ['alice'] }).done()
+    const change = delta.setAttr('a', 10).setAttr('c', 3).deleteAttr('b').deleteAttr('missing').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.setAttr('a', 1).deleteAttr('c').setAttr('b', 2, { insert: ['alice'] }).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('modifyAttr: inverts the nested change against the base attr value', () => {
-    const base = delta.create().setAttr('t', delta.create().insert('hello').done(), { insert: ['alice'] }).done()
-    const change = delta.create().modifyAttr('t', delta.create().retain(2).delete(3), { insert: ['bob'] }).done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().modifyAttr('t', delta.create().retain(2).insert('llo'), { insert: ['alice'] }).toJSON())
+    const base = delta.setAttr('t', delta.insert('hello').done(), { insert: ['alice'] }).done()
+    const change = delta.modifyAttr('t', delta.retain(2).delete(3), { insert: ['bob'] }).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.modifyAttr('t', delta.retain(2).insert('llo'), { insert: ['alice'] }).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('modifyAttr on a missing/scalar attr restores the base state', () => {
-    const base = delta.create().setAttr('s', 1).done()
+    const base = delta.setAttr('s', 1).done()
     // (modifyAttr on an untyped/scalar attr is invalid input -> cast)
-    const changeMissing = /** @type {any} */ (delta.create().modifyAttr('m', delta.create().insert('x'))).done()
-    t.compare(delta.inverse(changeMissing, base).toJSON(), delta.create().deleteAttr('m').toJSON())
+    const changeMissing = /** @type {any} */ (delta.modifyAttr('m', delta.insert('x'))).done()
+    t.compare(delta.inverse(changeMissing, base).toJSON(), delta.deleteAttr('m').toJSON())
     checkRoundtrip(base, changeMissing)
-    const changeScalar = /** @type {any} */ (delta.create().modifyAttr('s', delta.create().insert('x'))).done()
-    t.compare(delta.inverse(changeScalar, base).toJSON(), delta.create().setAttr('s', 1).toJSON())
+    const changeScalar = /** @type {any} */ (delta.modifyAttr('s', delta.insert('x'))).done()
+    t.compare(delta.inverse(changeScalar, base).toJSON(), delta.setAttr('s', 1).toJSON())
     checkRoundtrip(base, changeScalar)
   })
   t.group('modify: inverts the nested change and the format instruction', () => {
     const inner = delta.create('p', { x: 'old' }, 'text').done()
-    const base = delta.create().insert([inner]).insert('tail').done()
-    const change = delta.create().modify(delta.create().setAttr('x', 'new').retain(2).delete(2), { fmt: 1 }).done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().modify(delta.create().setAttr('x', 'old').retain(2).insert('xt'), { fmt: null }).toJSON())
+    const base = delta.insert([inner]).insert('tail').done()
+    const change = delta.modify(delta.setAttr('x', 'new').retain(2).delete(2), { fmt: 1 }).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.modify(delta.setAttr('x', 'old').retain(2).insert('xt'), { fmt: null }).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('a retain beyond base keeps following ops positioned', () => {
-    const base = delta.create().insert('ab').done()
-    const change = delta.create().retain(5).insert('!').done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(5).delete(1).toJSON())
+    const base = delta.insert('ab').done()
+    const change = delta.retain(5).insert('!').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.retain(5).delete(1).toJSON())
     checkRoundtrip(base, change)
   })
   t.group('a modify beyond base keeps following ops positioned', () => {
     // no roundtrip: a final apply materializes the beyond-content modify as an appended op that no
     // change can remove (see the beyond-base note on inverse) — only positioning is preserved
-    const base = delta.create().insert('ab').done()
-    const change = delta.create().retain(2).modify(delta.create().insert('x')).insert('!').done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().retain(3).delete(1).toJSON())
+    const base = delta.insert('ab').done()
+    const change = delta.retain(2).modify(delta.insert('x')).insert('!').done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.retain(3).delete(1).toJSON())
   })
   t.group('a delete beyond base re-inserts only what base holds', () => {
     // no roundtrip: applying a delete beyond a final doc's content leaves a pending DeleteOp in the
     // doc (degenerate input) — only the inverse's shape is meaningful here
-    const base = delta.create().insert('ab').done()
-    const change = delta.create().delete(5).done()
-    t.compare(delta.inverse(change, base).toJSON(), delta.create().insert('ab').toJSON())
+    const base = delta.insert('ab').done()
+    const change = delta.delete_(5).done()
+    t.compare(delta.inverse(change, base).toJSON(), delta.insert('ab').toJSON())
   })
 }
 
@@ -1828,14 +1870,14 @@ export const testUsedContextRemovalsStayOffDataOps = () => {
     t.compare(/** @type {any} */ (d.children.start).format, { italic: true })
   })
   t.group('applying such a change must not plant the removal on settled data', () => {
-    const doc = delta.create().insert('hello wod')
+    const doc = delta.insert('hello wod')
     doc.isFinal = true
     const change = delta.create()
     change.useAttribution(/** @type {any} */ ({ format: { bold: null } }))
     change.retain(8, { bold: null })
     change.insert('rl')
     doc.apply(change)
-    t.compare(doc.toJSON(), delta.create().insert('hello world').done().toJSON())
+    t.compare(doc.toJSON(), delta.insert('hello world').done().toJSON())
   })
 }
 
@@ -2002,10 +2044,10 @@ export const testRepeatRandomRichXmlDeltaInverseLarge = tc => {
 export const testRepeatRandomInverseModifyAttr = tc => {
   const gen = tc.prng
   const inner = delta.random(gen, $richTextDelta, { minChildOps: 1, maxChildOps: 5, attribution: true }).done()
-  const base = delta.create().setAttr('t', inner, prng.bool(gen) ? { insert: ['alice'] } : null).done()
+  const base = delta.setAttr('t', inner, prng.bool(gen) ? { insert: ['alice'] } : null).done()
   const innerChange = delta.random(gen, $richTextDelta, { source: inner, minChildOps: 1, maxChildOps: 5, attribution: true })
   const attribution = prng.oneOf(gen, [undefined, null, { insert: ['bob'] }])
-  const change = delta.create().modifyAttr('t', innerChange, attribution).done()
+  const change = delta.modifyAttr('t', innerChange, attribution).done()
   const inv = delta.inverse(change, base)
   const doc = delta.clone(base)
   doc.isFinal = true
@@ -2018,12 +2060,12 @@ export const testDeltaApplyMoveEdges = () => {
   // deterministic coverage for the move-mode op clones the random fuzz only hits probabilistically.
   // modify PAST the end of the content -> the modify op is cloned (opsI == null); move must not freeze it
   const mDoc = delta.create('doc', null, [delta.create('p', null, 'hi')]).done()
-  const change = () => delta.create().retain(1).modify(delta.create().insert('!'))
+  const change = () => delta.retain(1).modify(delta.insert('!'))
   t.compare(delta.clone(mDoc).apply(change()), delta.clone(mDoc).apply(change(), { move: true }))
   // modifyAttr on an attribute that does not (yet) hold a delta -> the modifyAttr op is cloned; move ditto
   // (modifyAttr on a node with no declared `a` attr is invalid input -> cast)
   const aDoc = delta.create('node').done()
-  const aChange = () => /** @type {any} */ (delta.create().modifyAttr('a', delta.create().insert('x')))
+  const aChange = () => /** @type {any} */ (delta.modifyAttr('a', delta.insert('x')))
   t.compare(delta.clone(aDoc).apply(aChange()), delta.clone(aDoc).apply(aChange(), { move: true }))
 }
 
@@ -2323,7 +2365,7 @@ export const testRepeatMarkRebaseConvergenceXml = tc => {
  * the mark in place (same id == same mark), so a mark can be "updated" with new `attrs`.
  */
 export const testMarkDeleteAndUpdateApply = () => {
-  const doc = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('hello'))
+  const doc = /** @type {delta.DeltaBuilderAny} */ (delta.insert('hello'))
   doc.addMark(position.create([1], 1, { color: 'red' }), 'M')
   t.assert(doc.marks?.size === 1)
   // update: re-add the same id replaces in place (one mark, attributes updated)
@@ -2346,26 +2388,26 @@ export const testMarkDeleteAndUpdateApply = () => {
  */
 export const testMarkFlagBuilderMaintained = () => {
   // insert([markedChild]): the parent flags the child's subtree marks
-  const child = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('aa'))
+  const child = /** @type {delta.DeltaBuilderAny} */ (delta.insert('aa'))
   child.addMark(position.create([1], 1), 'm1')
-  const d = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert([child]))
+  const d = /** @type {delta.DeltaBuilderAny} */ (delta.insert([child]))
   t.assert(d.maybeHasMarks === true)
   t.compare(position.marksToPositions(d), [{ id: 'm1', path: [0, 1], assoc: 1 }])
   // modify(markedValue): a change delta flags the modify value's marks
-  const mv = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('x'))
+  const mv = /** @type {delta.DeltaBuilderAny} */ (delta.insert('x'))
   mv.addMark(position.create([0]), 'mod')
-  t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.create().retain(1).modify(mv)).maybeHasMarks === true)
+  t.assert(/** @type {delta.DeltaBuilderAny} */ (delta.retain(1).modify(mv)).maybeHasMarks === true)
   // setAttr(markedDelta) flags; replacing it leaves no reachable mark (flag stays true, self-corrected)
   const av = /** @type {delta.DeltaBuilderAny} */ (delta.create('doc', null, 'x'))
   av.addMark(position.create([0]), 'z')
   const n = /** @type {delta.DeltaBuilderAny} */ (delta.create('node'))
   n.setAttr('body', av)
   t.assert(n.maybeHasMarks === true)
-  n.apply(/** @type {any} */ (delta.create().setAttr('body', delta.create('doc', null, 'y'))), { final: true })
+  n.apply(/** @type {any} */ (delta.setAttr('body', delta.create('doc', null, 'y'))), { final: true })
   t.compare(position.marksToPositions(n), []) // the replaced attr's mark is gone (no negative-count fallout)
   t.assert(n.maybeHasMarks === false) // marksToPositions self-corrected the now-empty subtree's flag
   // modifyAttr(markedValue) flags
-  const ma = /** @type {delta.DeltaBuilderAny} */ (delta.create().insert('q'))
+  const ma = /** @type {delta.DeltaBuilderAny} */ (delta.insert('q'))
   ma.addMark(position.create([0]), 'ma')
   const dma = /** @type {delta.DeltaBuilderAny} */ (delta.create())
   dma.modifyAttr('body', ma)
@@ -2418,7 +2460,7 @@ export const testFrom = () => {
   t.group('children only (no name)', () => {
     const d = delta.from(['a', 'b'])
     t.assert(d.name === null)
-    t.compare(d, delta.create().insert(['a', 'b']))
+    t.compare(d, delta.insert(['a', 'b']))
   })
   t.group('name + attrs', () => {
     t.compare(delta.from('div', { x: 1 }), delta.create('div').setAttr('x', 1))
@@ -2427,7 +2469,7 @@ export const testFrom = () => {
     t.compare(delta.from('div', { x: 1 }, ['a']), delta.create('div').setAttr('x', 1).insert(['a']))
   })
   t.group('attrs + children, no name', () => {
-    t.compare(delta.from({ x: 1 }, ['a']), delta.create().setAttr('x', 1).insert(['a']))
+    t.compare(delta.from({ x: 1 }, ['a']), delta.setAttr('x', 1).insert(['a']))
   })
   t.group('multiple trailing insert args merge', () => {
     // exercises the `for (; i < args.length; i++)` loop body
@@ -2471,8 +2513,8 @@ export const testCondensedCreateTyping = () => {
  * is used by callers that don't yet know whether either side has any changes.
  */
 export const testMergeDeltas = () => {
-  const a = delta.create().insert('hi')
-  const b = delta.create().retain(2).insert('!')
+  const a = delta.insert('hi')
+  const b = delta.retain(2).insert('!')
   t.group('both sides non-null', () => {
     t.compare(delta.mergeDeltas(a, b), delta.clone(a).apply(b))
   })
@@ -2492,10 +2534,10 @@ export const testMergeDeltas = () => {
  */
 export const testIsEmpty = () => {
   t.assert(delta.create().isEmpty(), 'fresh builder is empty')
-  t.assert(!delta.create().setAttr('x', 1).isEmpty(), 'attrs make it non-empty')
-  t.assert(!delta.create().insert('hi').isEmpty(), 'children make it non-empty')
-  t.assert(delta.create().retain(3).done().isEmpty(), 'done() drops unformatted trailing retain')
-  t.assert(!delta.create().retain(3, { a: 1 }).done().isEmpty(), 'formatted retain survives done()')
+  t.assert(!delta.setAttr('x', 1).isEmpty(), 'attrs make it non-empty')
+  t.assert(!delta.insert('hi').isEmpty(), 'children make it non-empty')
+  t.assert(delta.retain(3).done().isEmpty(), 'done() drops unformatted trailing retain')
+  t.assert(!delta.retain(3, { a: 1 }).done().isEmpty(), 'formatted retain survives done()')
 }
 
 /**
@@ -2503,13 +2545,13 @@ export const testIsEmpty = () => {
  * can't be modified". This is the readonly invariant of the builder API.
  */
 export const testReadonlyAfterDone = () => {
-  const d = delta.create().insert('hi').done()
+  const d = delta.insert('hi').done()
   // children mutators
   t.fails(() => /** @type {any} */ (d).insert('!'))
   t.fails(() => /** @type {any} */ (d).retain(1))
   t.fails(() => /** @type {any} */ (d).delete(1))
   t.fails(() => /** @type {any} */ (d).modify(delta.create()))
-  t.fails(() => /** @type {any} */ (d).append(delta.create().insert('!')))
+  t.fails(() => /** @type {any} */ (d).append(delta.insert('!')))
   // attr mutators
   t.fails(() => /** @type {any} */ (d).setAttr('x', 1))
   t.fails(() => /** @type {any} */ (d).setAttrs({ a: 1 }))
@@ -2532,14 +2574,14 @@ export const testReadonlyAfterDone = () => {
  */
 export const testDeleteMergeAndSplit = () => {
   t.group('adjacent deletes merge', () => {
-    const d = delta.create().delete(2).delete(3)
+    const d = delta.delete_(2).delete(3)
     t.assert(d.children.len === 1)
     const op = /** @type {any} */ (d.children.start)
     t.assert(op.delete === 5)
   })
   t.group('a delete is split by a concurrent insert', () => {
-    const d1 = delta.create().delete(5)
-    const d2 = delta.create().retain(2).insert('XYZ').done()
+    const d1 = delta.delete_(5)
+    const d2 = delta.retain(2).insert('XYZ').done()
     d1.rebase(d2, false)
     /** @type {Array<any>} */
     const ops = []
@@ -2560,12 +2602,12 @@ export const testOpIntrospection = () => {
   const buildD = () => delta.create()
     .insert('hello') // TextOp
     .insert([1, 2]) // InsertOp
-    .modify(delta.create().insert('a')) // ModifyOp
+    .modify(delta.insert('a')) // ModifyOp
     .retain(3, { x: 1 }) // RetainOp (with format so it survives `done`)
     .delete(2) // DeleteOp
     .setAttr('s', 1) // SetAttrOp
     .deleteAttr('d') // DeleteAttrOp
-    .modifyAttr('m', delta.create().setAttr('y', 1)) // ModifyAttrOp
+    .modifyAttr('m', delta.setAttr('y', 1)) // ModifyAttrOp
   t.group('op.type per op kind', () => {
     const d = buildD()
     const childTypes = []
@@ -2580,12 +2622,12 @@ export const testOpIntrospection = () => {
     const fp = buildD().fingerprint
     t.assert(typeof fp === 'string' && fp.length > 0)
     t.assert(buildD().fingerprint === fp, 'identical builders → identical fingerprint')
-    t.assert(delta.create().delete(3).fingerprint !== delta.create().delete(4).fingerprint, 'delete length changes fingerprint')
-    t.assert(delta.create().retain(2, { x: 1 }).fingerprint !== delta.create().retain(2, { x: 2 }).fingerprint, 'retain format changes fingerprint')
-    t.assert(delta.create().deleteAttr('a').fingerprint !== delta.create().deleteAttr('b').fingerprint, 'deleteAttr key changes fingerprint')
+    t.assert(delta.delete_(3).fingerprint !== delta.delete_(4).fingerprint, 'delete length changes fingerprint')
+    t.assert(delta.retain(2, { x: 1 }).fingerprint !== delta.retain(2, { x: 2 }).fingerprint, 'retain format changes fingerprint')
+    t.assert(delta.deleteAttr('a').fingerprint !== delta.deleteAttr('b').fingerprint, 'deleteAttr key changes fingerprint')
     t.assert(
-      delta.create().modifyAttr('m', delta.create().setAttr('y', 1)).fingerprint !==
-        delta.create().modifyAttr('m', delta.create().setAttr('y', 2)).fingerprint,
+      delta.modifyAttr('m', delta.setAttr('y', 1)).fingerprint !==
+        delta.modifyAttr('m', delta.setAttr('y', 2)).fingerprint,
       'modifyAttr nested value changes fingerprint'
     )
   })
@@ -2599,15 +2641,15 @@ export const testOpIntrospection = () => {
  */
 export const testSliceMultiOp = () => {
   t.group('slice that starts past the first node', () => {
-    const d = delta.create().insert('aa').insert([1, 2]).insert('bb')
+    const d = delta.insert('aa').insert([1, 2]).insert('bb')
     // start=5 lands inside the third op; the loop must walk past 'aa' and [1,2]
-    t.compare(delta.slice(d, 5, 6), delta.create().insert('b'))
+    t.compare(delta.slice(d, 5, 6), delta.insert('b'))
   })
   t.group('slice that ends mid non-first node', () => {
-    const d = delta.create().insert('ab').insert([1]).insert('cdef')
+    const d = delta.insert('ab').insert([1]).insert('cdef')
     // start=1 lands inside 'ab' (partial-start branch);
     // end=4 lands inside 'cdef' on a *different* node (partial-end branch).
-    t.compare(delta.slice(d, 1, 4), delta.create().insert('b').insert([1]).insert('c'))
+    t.compare(delta.slice(d, 1, 4), delta.insert('b').insert([1]).insert('c'))
   })
 }
 
@@ -2649,23 +2691,23 @@ export const testApplyModifyAgainstRetain = () => {
  */
 export const testRebaseChildren = () => {
   t.group('insert vs insert, priority=true keeps current at position 0', () => {
-    const c = delta.create().insert('A')
-    c.rebase(delta.create().insert('B'), true)
-    t.compare(c, delta.create().insert('A'))
+    const c = delta.insert('A')
+    c.rebase(delta.insert('B'), true)
+    t.compare(c, delta.insert('A'))
   })
   t.group('insert vs insert, priority=false shifts current by a retain', () => {
-    const c = delta.create().insert('A')
-    c.rebase(delta.create().insert('B'), false)
-    t.compare(c, delta.create().retain(1).insert('A'))
+    const c = delta.insert('A')
+    c.rebase(delta.insert('B'), false)
+    t.compare(c, delta.retain(1).insert('A'))
   })
   t.group('modify vs insert prepends a retain so modify still hits original child', () => {
-    const c = delta.create().modify(delta.create().setAttr('x', 1))
-    c.rebase(delta.create().insert([1]), false)
-    t.compare(c, delta.create().retain(1).modify(delta.create().setAttr('x', 1)))
+    const c = delta.modify(delta.setAttr('x', 1))
+    c.rebase(delta.insert([1]), false)
+    t.compare(c, delta.retain(1).modify(delta.setAttr('x', 1)))
   })
   t.group('modify vs delete drops the modify entirely', () => {
-    const c = delta.create().modify(delta.create().setAttr('x', 1))
-    c.rebase(delta.create().delete(1), false)
+    const c = delta.modify(delta.setAttr('x', 1))
+    c.rebase(delta.delete_(1), false)
     t.assert(c.childCnt === 0)
     t.assert(c.children.len === 0)
   })
@@ -2675,9 +2717,9 @@ export const testRebaseChildren = () => {
     // "Readonly Delta can't be modified" the moment a cloned ModifyOp is
     // rebased — which is exactly what happens on the `apply(diff.rebase(...))`
     // path in convergence.
-    const base = delta.create().insert([delta.create().setAttr('x', 0).done()]).done()
-    const d1 = delta.create().modify(delta.create().setAttr('x', 1))
-    const d2 = delta.create().modify(delta.create().setAttr('x', 2))
+    const base = delta.insert([delta.setAttr('x', 0).done()]).done()
+    const d1 = delta.modify(delta.setAttr('x', 1))
+    const d2 = delta.modify(delta.setAttr('x', 2))
     const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
     const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
     t.compare(stateA, stateB) // TP1
@@ -2692,9 +2734,9 @@ export const testRebaseChildren = () => {
     // narrow conflicting retain in the middle, forcing the reconciliation
     // to emit three retain ops (prefix-with-orig-format, middle-stripped,
     // suffix-with-orig-format).
-    const base = delta.create().insert('abcde').done()
-    const d1 = delta.create().retain(1).retain(2, { bold: false }).retain(2)
-    const d2 = delta.create().retain(5, { bold: true })
+    const base = delta.insert('abcde').done()
+    const d1 = delta.retain(1).retain(2, { bold: false }).retain(2)
+    const d2 = delta.retain(5, { bold: true })
     const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
     const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
     t.compare(stateA, stateB) // TP1
@@ -2710,9 +2752,9 @@ export const testRebaseChildren = () => {
     // conceded (strippedAny) while `color` is kept, so `stripped` is non-empty and the middle retain
     // takes {color:'red'} — the `: stripped` branch of the format reconciliation in rebase (the
     // all-keys-conceded `null` branch is covered by the group above).
-    const base = delta.create().insert('abcde').done()
-    const d1 = delta.create().retain(1).retain(2, { bold: false }).retain(2)
-    const d2 = delta.create().retain(5, { bold: true, color: 'red' })
+    const base = delta.insert('abcde').done()
+    const d1 = delta.retain(1).retain(2, { bold: false }).retain(2)
+    const d2 = delta.retain(5, { bold: true, color: 'red' })
     const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
     const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
     t.compare(stateA, stateB) // TP1
@@ -2729,19 +2771,19 @@ export const testRebaseChildren = () => {
     // cleared and the concurrent set is LOST. This single TP1 case exercises both new code paths: stateA's
     // rebase has currChild=clear (stays, wins); stateB's has otherChild=clear (currChild concedes despite
     // having priority). See the `Formats` docs for why `null` must not cross a channel.
-    const base = delta.create().insert('abcde', { italic: true }).done()
-    const d1 = delta.create().retain(5, { bold: true }) // d1 has priority, sets bold
-    const d2 = delta.create().retain(5, null) // d2 concedes, clears all
+    const base = delta.insert('abcde', { italic: true }).done()
+    const d1 = delta.retain(5, { bold: true }) // d1 has priority, sets bold
+    const d2 = delta.retain(5, null) // d2 concedes, clears all
     const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
     const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
     t.compare(stateA, stateB) // TP1
-    t.compare(stateA, delta.create().insert('abcde')) // both the pre-existing italic and d1's bold are cleared
+    t.compare(stateA, delta.insert('abcde')) // both the pre-existing italic and d1's bold are cleared
   })
   t.group('retain vs retain: a clear over part of a formatted run splits and clears only the overlap', () => {
     // exercises the split-around-overlap path of the `otherChild.format === null` branch (prefix + suffix)
-    const base = delta.create().insert('abcde').done()
-    const d1 = delta.create().retain(5, { bold: true }) // d1 priority, bold on all 5
-    const d2 = delta.create().retain(1).retain(2, null).retain(2) // d2 concedes, clears the middle 'bc'
+    const base = delta.insert('abcde').done()
+    const d1 = delta.retain(5, { bold: true }) // d1 priority, bold on all 5
+    const d2 = delta.retain(1).retain(2, null).retain(2) // d2 concedes, clears the middle 'bc'
     const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
     const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
     t.compare(stateA, stateB) // TP1
@@ -2755,22 +2797,22 @@ export const testRebaseChildren = () => {
     // Unlike a blanket clear, a per-key removal is just another key write: it yields to a higher-priority
     // concurrent write on the same key (the existing strip-loop), so the concurrent set is NOT lost. This is
     // the recommended way to clear formats/attributions — what the rebase fuzz exercises.
-    const base = delta.create().insert('abcde', { bold: true }).done()
-    const d1 = delta.create().retain(5, { bold: false }) // d1 priority: set bold:false
-    const d2 = delta.create().retain(5, { bold: null }) // d2 concedes: remove bold
+    const base = delta.insert('abcde', { bold: true }).done()
+    const d1 = delta.retain(5, { bold: false }) // d1 priority: set bold:false
+    const d2 = delta.retain(5, { bold: null }) // d2 concedes: remove bold
     const stateA = delta.clone(base).apply(delta.clone(d1)).apply(delta.clone(d2).rebase(d1, false))
     const stateB = delta.clone(base).apply(delta.clone(d2)).apply(delta.clone(d1).rebase(d2, true))
     t.compare(stateA, stateB) // TP1
-    t.compare(stateA, delta.create().insert('abcde', { bold: false })) // d1's set wins; the removal is conceded
+    t.compare(stateA, delta.insert('abcde', { bold: false })) // d1's set wins; the removal is conceded
   })
   t.group('delete vs delete with the same length leaves no remaining childCnt', () => {
-    const c = delta.create().delete(2)
-    c.rebase(delta.create().delete(2), false)
+    const c = delta.delete_(2)
+    c.rebase(delta.delete_(2), false)
     t.assert(c.childCnt === 0, 'overlap consumed the entire delete')
   })
   t.group('retain vs insert (offset=0) inserts a leading retain', () => {
-    const c = delta.create().retain(3)
-    c.rebase(delta.create().insert('B'), false)
+    const c = delta.retain(3)
+    c.rebase(delta.insert('B'), false)
     // rebase does not merge adjacent retains, so we get two retain ops
     t.assert(c.childCnt === 4)
     t.assert(c.children.len === 2)
@@ -2782,9 +2824,9 @@ export const testRebaseChildren = () => {
   t.group('rebaseOnInverse is currently a no-op stub', () => {
     // unimplemented; locks in current behavior — the next implementer will see
     // this fail and update it.
-    const c = delta.create().insert('hi')
+    const c = delta.insert('hi')
     const before = c.toJSON()
-    const result = c.rebaseOnInverse(delta.create().insert('!'), false)
+    const result = c.rebaseOnInverse(delta.insert('!'), false)
     t.assert(result === c, 'returns the receiver')
     t.compare(c.toJSON(), before, 'state unchanged')
   })
@@ -2809,27 +2851,27 @@ export const testDiffRejectsDeletes = () => {
  */
 export const testLazyModValueClone = () => {
   t.group('SetAttrOp with a not-yet-done value is reused', () => {
-    const inner = delta.create().setAttr('x', 1)
-    const a = delta.create().setAttr('m', inner)
-    a.apply(delta.create().modifyAttr('m', delta.create().setAttr('x', 2)))
+    const inner = delta.setAttr('x', 1)
+    const a = delta.setAttr('m', inner)
+    a.apply(delta.modifyAttr('m', delta.setAttr('x', 2)))
     const op = /** @type {any} */ (a.attrs).m
     t.assert(delta.$setAttrOp.check(op))
     t.assert(op.value === inner, 'no clone because inner was not done')
     t.assert(op.value.attrs.x?.value === 2)
   })
   t.group('ModifyOp with a done value is cloned on apply', () => {
-    const inner = delta.create().setAttr('x', 1).done()
-    const a = delta.create().modify(inner)
-    a.apply(delta.create().modify(delta.create().setAttr('x', 2)))
+    const inner = delta.setAttr('x', 1).done()
+    const a = delta.modify(inner)
+    a.apply(delta.modify(delta.setAttr('x', 2)))
     const op = /** @type {any} */ (a.children.start)
     t.assert(delta.$modifyOp.check(op))
     t.assert(op.value !== inner, 'done value was cloned before mutation')
     t.assert(op.value.attrs.x?.value === 2)
   })
   t.group('InsertOp with a not-yet-done sub-delta is reused', () => {
-    const sub = delta.create().setAttr('x', 1)
-    const a = delta.create().insert([sub])
-    a.apply(delta.create().modify(delta.create().setAttr('x', 2)))
+    const sub = delta.setAttr('x', 1)
+    const a = delta.insert([sub])
+    a.apply(delta.modify(delta.setAttr('x', 2)))
     const op = /** @type {any} */ (a.children.start)
     t.assert(delta.$insertOp.check(op))
     t.assert(op.insert[0] === sub, 'no clone because sub was not done')
@@ -2844,8 +2886,8 @@ export const testLazyModValueClone = () => {
  */
 export const testOpJsonSerialization = () => {
   t.group('InsertOp with nested deltas, format, and attribution', () => {
-    const inner = delta.create().insert('hi')
-    const d = delta.create().insert([inner], { bold: true }, { insert: ['me'] })
+    const inner = delta.insert('hi')
+    const d = delta.insert([inner], { bold: true }, { insert: ['me'] })
     t.compare(d.toJSON(), {
       type: 'delta',
       children: [{
@@ -2857,14 +2899,14 @@ export const testOpJsonSerialization = () => {
     })
   })
   t.group('RetainOp with format and attribution', () => {
-    const d = delta.create().retain(2, { italic: true }, { insert: ['x'] })
+    const d = delta.retain(2, { italic: true }, { insert: ['x'] })
     t.compare(d.toJSON(), {
       type: 'delta',
       children: [{ type: 'retain', retain: 2, format: { italic: true }, attribution: { insert: ['x'] } }]
     })
   })
   t.group('ModifyOp with format and attribution', () => {
-    const d = delta.create().modify(delta.create().setAttr('x', 1), { bold: true }, { insert: ['m'] })
+    const d = delta.modify(delta.setAttr('x', 1), { bold: true }, { insert: ['m'] })
     t.compare(d.toJSON(), /** @type {any} */ ({
       type: 'delta',
       children: [{
@@ -2876,7 +2918,7 @@ export const testOpJsonSerialization = () => {
     }))
   })
   t.group('ModifyOp without extras emits no format/attribution keys', () => {
-    const d = delta.create().modify(delta.create().setAttr('x', 1))
+    const d = delta.modify(delta.setAttr('x', 1))
     t.compare(d.toJSON(), /** @type {any} */ ({
       type: 'delta',
       children: [{
@@ -2886,7 +2928,7 @@ export const testOpJsonSerialization = () => {
     }))
   })
   t.group('SetAttrOp with a delta value + attribution recurses', () => {
-    const d = delta.create().setAttr('m', delta.create().setAttr('x', 1), { insert: ['u'] })
+    const d = delta.setAttr('m', delta.setAttr('x', 1), { insert: ['u'] })
     t.compare(d.toJSON(), {
       type: 'delta',
       attrs: {
@@ -2905,7 +2947,7 @@ export const testOpJsonSerialization = () => {
  * optional change without a null guard at every call site.
  */
 export const testApplyNullIsNoop = () => {
-  const d = delta.create().insert('hi')
+  const d = delta.insert('hi')
   const before = d.toJSON()
   const result = d.apply(null)
   t.assert(result === d, 'returns the receiver')
@@ -2934,8 +2976,8 @@ export const testDiffMismatchedNames = () => {
  */
 export const testFingerprintAttrKeyOrdering = () => {
   // mix numeric and string keys, set in different orders on each delta
-  const a = delta.create().setAttr(2, 'b').setAttr(1, 'a').setAttr('z', 1).setAttr('a', 2)
-  const b = delta.create().setAttr('a', 2).setAttr('z', 1).setAttr(1, 'a').setAttr(2, 'b')
+  const a = delta.setAttr(2, 'b').setAttr(1, 'a').setAttr('z', 1).setAttr('a', 2)
+  const b = delta.setAttr('a', 2).setAttr('z', 1).setAttr(1, 'a').setAttr(2, 'b')
   t.assert(a.fingerprint === b.fingerprint, 'order of setAttr calls does not affect fingerprint')
 }
 
@@ -2950,21 +2992,21 @@ export const testFingerprintAttrKeyOrdering = () => {
  */
 export const testOpWithSchemas = () => {
   t.group('$setAttrOpWith inspects SetAttrOp.value', () => {
-    const strOp = /** @type {any} */ (delta.create().setAttr('k', 'hello').attrs.k)
-    const numOp = /** @type {any} */ (delta.create().setAttr('k', 42).attrs.k)
+    const strOp = /** @type {any} */ (delta.setAttr('k', 'hello').attrs.k)
+    const numOp = /** @type {any} */ (delta.setAttr('k', 42).attrs.k)
     t.assert(delta.$setAttrOpWith(s.$string).check(strOp))
     t.assert(!delta.$setAttrOpWith(s.$string).check(numOp),
       'same SetAttrOp shape, different value type → rejected')
     // sanity: a non-attr op fails the kind check regardless of content
-    t.assert(!delta.$setAttrOpWith(s.$string).check(delta.create().insert('hi').children.start))
+    t.assert(!delta.$setAttrOpWith(s.$string).check(delta.insert('hi').children.start))
   })
   t.group('$insertOpWith inspects EVERY element of InsertOp.insert', () => {
-    const allNums = /** @type {any} */ (delta.create().insert([1, 2, 3]).children.start)
+    const allNums = /** @type {any} */ (delta.insert([1, 2, 3]).children.start)
     // Same op shape (InsertOp wrapping an array), but one element breaks the
     // homogeneity. `.every` short-circuits on the first mismatch — if this
     // were instead checking the whole array against `$number`, both would
     // fail; the point is that the schema drills INTO the array.
-    const oneBadApple = /** @type {any} */ (delta.create().insert([1, 2, /** @type {any} */ ('three')]).children.start)
+    const oneBadApple = /** @type {any} */ (delta.insert([1, 2, /** @type {any} */ ('three')]).children.start)
     t.assert(delta.$insertOpWith(s.$number).check(allNums))
     t.assert(!delta.$insertOpWith(s.$number).check(oneBadApple),
       'one non-number element fails the per-element check')
@@ -2975,8 +3017,8 @@ export const testOpWithSchemas = () => {
     // schema that demands the inner delta have at least one child op
     // discriminates between them.
     const $innerHasChildren = s.$custom(d => delta.$deltaAny.check(d) && d.children.len > 0)
-    const modWithChildren = /** @type {any} */ (delta.create().modify(delta.create().insert('x')).children.start)
-    const modAttrsOnly = /** @type {any} */ (delta.create().modify(delta.create().setAttr('y', 1)).children.start)
+    const modWithChildren = /** @type {any} */ (delta.modify(delta.insert('x')).children.start)
+    const modAttrsOnly = /** @type {any} */ (delta.modify(delta.setAttr('y', 1)).children.start)
     t.assert(delta.$modifyOpWith($innerHasChildren).check(modWithChildren))
     t.assert(!delta.$modifyOpWith($innerHasChildren).check(modAttrsOnly),
       'same ModifyOp shape with empty-children inner delta → rejected')
@@ -2986,8 +3028,8 @@ export const testOpWithSchemas = () => {
     // Object.keys() ignores Symbol-keyed entries, so the iterator helper
     // on `attrs` doesn't pollute the count.
     const $innerHasAttrs = s.$custom(d => delta.$deltaAny.check(d) && Object.keys(d.attrs).length > 0)
-    const modAttrsInner = /** @type {any} */ (delta.create().modifyAttr('k', delta.create().setAttr('z', 1)).attrs.k)
-    const modChildrenInner = /** @type {any} */ (delta.create().modifyAttr('k', delta.create().insert('x')).attrs.k)
+    const modAttrsInner = /** @type {any} */ (delta.modifyAttr('k', delta.setAttr('z', 1)).attrs.k)
+    const modChildrenInner = /** @type {any} */ (delta.modifyAttr('k', delta.insert('x')).attrs.k)
     t.assert(delta.$modifyAttrOpWith($innerHasAttrs).check(modAttrsInner))
     t.assert(!delta.$modifyAttrOpWith($innerHasAttrs).check(modChildrenInner),
       'same ModifyAttrOp shape with no-attrs inner delta → rejected')
@@ -3005,14 +3047,14 @@ export const testNumericAndStringAttrKeys = () => {
     // Both writes land at this.attrs['1'] because JS coerces numeric property
     // keys to strings. Only the last one survives; the SetAttrOp it carries
     // remembers the originally-passed key type on its `.key` field.
-    const numFirst = delta.create().setAttr(1, 'first').setAttr('1', 'second')
+    const numFirst = delta.setAttr(1, 'first').setAttr('1', 'second')
     /** @type {Array<any>} */
     const numFirstOps = []
     for (const op of numFirst.attrs) numFirstOps.push(op)
     t.assert(numFirstOps.length === 1, 'second write overwrites the first')
     t.assert(numFirstOps[0].key === '1' && numFirstOps[0].value === 'second')
 
-    const strFirst = delta.create().setAttr('1', 'first').setAttr(1, 'second')
+    const strFirst = delta.setAttr('1', 'first').setAttr(1, 'second')
     /** @type {Array<any>} */
     const strFirstOps = []
     for (const op of strFirst.attrs) strFirstOps.push(op)
@@ -3078,22 +3120,22 @@ export const testUsedFormatsIdempotent = () => {
 export const testSchemaCheckRejections = () => {
   t.group('text content in a no-text schema is rejected', () => {
     const $d = delta.$delta({ children: s.$number })
-    t.assert(!$d.check(delta.create().insert('hi')))
+    t.assert(!$d.check(delta.insert('hi')))
   })
   t.group('insert item that does not match `children` is rejected', () => {
     const $d = delta.$delta({ children: s.$number })
-    t.assert($d.check(delta.create().insert([42])), 'valid item accepted')
-    t.assert(!$d.check(delta.create().insert(['not-a-number'])))
+    t.assert($d.check(delta.insert([42])), 'valid item accepted')
+    t.assert(!$d.check(delta.insert(['not-a-number'])))
   })
   t.group('attr value that does not match `attrs` is rejected', () => {
     const $d = delta.$delta({ attrs: { x: s.$number } })
-    t.assert($d.check(delta.create().setAttr('x', 1)), 'valid attr accepted')
-    t.assert(!$d.check(delta.create().setAttr('x', 'str')))
+    t.assert($d.check(delta.setAttr('x', 1)), 'valid attr accepted')
+    t.assert(!$d.check(delta.setAttr('x', 'str')))
   })
   t.group('text-op format that does not match `formats` is rejected', () => {
     const $d = delta.$delta({ text: true, formats: { bold: s.$boolean } })
-    t.assert($d.check(delta.create().insert('hi', { bold: true })), 'valid format accepted')
-    t.assert(!$d.check(delta.create().insert('hi', { bold: 'not-bool' })))
+    t.assert($d.check(delta.insert('hi', { bold: true })), 'valid format accepted')
+    t.assert(!$d.check(delta.insert('hi', { bold: 'not-bool' })))
   })
 }
 
@@ -3130,11 +3172,11 @@ export const testFingerprintInvalidatedByInplaceApplyMerge = _tc => {
   t.group('op + root fingerprints change when a merge extends an existing op', () => {
     const live = /** @type {delta.DeltaBuilderAny} */ (delta.create())
     live.isFinal = true
-    live.apply(delta.create().insert([{ embed: 1 }]).done())
+    live.apply(delta.insert([{ embed: 1 }]).done())
     const fpRootBefore = live.fingerprint
     const fpOpBefore = /** @type {any} */ (live.children.start).fingerprint
     // merges into the existing InsertOp (still a single op afterwards)
-    live.apply(delta.create().retain(1).insert([{ embed: 2 }]).done())
+    live.apply(delta.retain(1).insert([{ embed: 2 }]).done())
     t.assert(/** @type {any} */ (live.children.start).next === null, 'precondition: the insert merged into the existing op')
     t.assert(/** @type {any} */ (live.children.start).fingerprint !== fpOpBefore, 'op fingerprint reflects the merged-in content')
     t.assert(live.fingerprint !== fpRootBefore, 'root fingerprint reflects the merged-in content')
@@ -3147,10 +3189,10 @@ export const testFingerprintInvalidatedByInplaceApplyMerge = _tc => {
     }
     const live = /** @type {delta.DeltaBuilderAny} */ (delta.create())
     live.isFinal = true
-    live.apply(delta.create().insert([p('s')]).done())
+    live.apply(delta.insert([p('s')]).done())
     const pre = delta.cloneDeep(live) // snapshot of the pre-patch state
     t.assert(live.fingerprint !== '', 'memoize the fingerprint (as any prior diff/serialization would)')
-    live.apply(delta.create().retain(1).insert([p('w')]).done()) // in-place merge
+    live.apply(delta.retain(1).insert([p('w')]).done()) // in-place merge
     t.assert(!pre.equals(live), 'precondition: the states genuinely differ')
     const d = delta.diff(pre, /** @type {any} */ (live), { clone: true })
     t.assert(!d.isEmpty(), 'diff between differing states must not be empty')
