@@ -120,6 +120,18 @@ Reach for blanket `null` only as a convenience when clearing local, non-concurre
 Two further `rebase` notes: concurrent **`attribution`** edits are **not** reconciled at all (there is no
 priority tie-break — neither sets nor clears converge), whereas conflicting **`format`** *keys* are.
 
+### Placement: style-aware, and cursor-aware with a hint
+
+Where the same characters could be matched in several ways, `diff` prefers the alignment that leaves the
+format/attribution of retained content untouched: `[bold x][x]` → `[x]` deletes the bold `x` rather than
+"un-bold the first `x`, delete the second" — with attribution instead of bold the latter would rewrite *who
+wrote* the surviving character. It also takes `options.hint`, a position (`position.create([5])`,
+`[1, 5]`, `['body', 5]` — see `position.js`) naming where the change *starts* in pre-edit coordinates (the
+`from` of the editor transaction: typing at gap `p` → `[p]`, backspace at caret `p` → `[p-1]`): deleting
+the second `a` of `aaa` with a hint at `[1]` yields `retain(1).delete(1)`, so remote cursors are transformed
+against the edit that actually happened. A wrong hint only shifts placement, never correctness. The
+algorithm and its deliberate non-optimisations are explained in `delta.js` above `diff`.
+
 ## Delta for Array-like structures
 
 ```javascript

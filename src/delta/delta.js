@@ -3975,19 +3975,119 @@ class _DiffStringWrapper {
 }
 
 /*
- * Delta Diffing approach - optimized for performance and creating readable deltas. You can only
- * diff insertions (InsertOp & TextOp) not delete ops.
+ * # Diffing two states — how `diff` chooses among the possible diffs
  *
- * # Children
- * Diff content first and then figure out the necessary formatting updates
- * 1. find common prefix & suffix
- * 2. slice center to fresh delta. split content by coarse regex ($insert ops are split into
- * individual items)
- * 3. patience diff on split content and receive set of splice ops
- * 4. on each splice op: perform another patience diff with a granular regex on strings
- * 5. reassemble deltas recursively
- * 6. apply content diff on original delta and find necessary formatting updates
- * 7. merge content diff and formatting updates
+ * `diff(d1, d2, options)` computes a change delta that turns the *state* `d1` (insert-only) into the
+ * state `d2`, with the round-trip guarantee `clone(d1).apply(diff(d1, d2)).equals(d2)`.
+ *
+ * ## Intentions
+ *
+ * A diff between two states is rarely unique. Deleting one of the `x`s in `xx` can be expressed as
+ * "delete index 0" or "delete index 1" — both are correct, both are minimal. A content-only diff breaks
+ * such ties by accident of its implementation (a greedy common-prefix scan that is blind to everything
+ * but characters), and that accident is wrong in two ways that matter for collaborative editing:
+ *
+ * 1. **Provenance and formatting.** `[bold x][x]` → `[x]` would come out as "un-bold the first x, delete
+ *    the second" instead of "delete the bold x". With attribution instead of bold this *rewrites who wrote
+ *    the surviving character* — it strips alice's provenance from a character she still owns and deletes
+ *    one that was never hers. Content-wise both diffs are the same size; only one of them is true.
+ * 2. **Cursors.** When a user deletes the *second* `a` of `aaa`, a content-only diff reports "delete
+ *    index 2". Remote cursors are transformed against that report, so a caret sitting after the second `a`
+ *    does not move although the character before it vanished. The editor that produced `d2` knows where
+ *    the edit happened; `options.hint` lets it say so.
+ *
+ * The goal is *correct always, decent most of the time* — never a wrong diff, usually the natural one,
+ * minimality preferred but not guaranteed — at low overhead: no post-processing, nothing proportional to
+ * the document beyond the alignment itself.
+ *
+ * ## How it works
+ *
+ * The key observation: for a single edit, the *only* decision that places the change is the common
+ * prefix/suffix strip. Patience (the alignment used for the interior) never sees a pure insertion or
+ * deletion — by the time it runs, one side of the interior is empty and there is nothing left to align.
+ * So the tie-breaking lives in the strip; everything after it is a plain content diff.
+ *
+ * 1. **Fingerprint short-circuit.** Equal fingerprints (content + format + attribution, marks excluded)
+ *    ⇒ empty diff.
+ * 2. **Styled, hint-capped strip** ({@link commonLen}). Both states are walked in lockstep, unit by unit
+ *    (a character or an array item is one unit), from the start for the prefix and from the end for the
+ *    suffix:
+ *    - two ops with equal fingerprints are skipped whole (the fast path for large documents);
+ *    - inside two ops that differ, units keep matching only while the ops carry the **same format and
+ *      attribution**. Style is uniform per op, so that is one comparison per op pair, and it is what makes
+ *      `[bold x][x]` → `[x]` strip the trailing plain `x` as a suffix and leave the bold one to be deleted;
+ *    - a hint caps the prefix at the offset where the caller says the change starts; the greedy suffix
+ *      then does the rest, so a single pure hunk lands exactly at the hint;
+ *    - a text match that stops in the middle of both ops (not at the cap, not at an op boundary) is
+ *      committed only up to the last line break. Without this the strip would swallow the head of a
+ *      line that the line-level pass wanted as an anchor and produce a worse alignment (e.g.
+ *      `- item 1\n- item 2\n` → `- item 1\n- item 3\n- item 2\n` must insert a whole line, not
+ *      `3\n- item ` somewhere in the middle). Op boundaries and the hint are real boundaries, line breaks
+ *      are what the first content pass splits on, so those are the only places a partial match commits.
+ *      Inside a single line the strip commits nothing on its own and the content passes decide.
+ * 3. **Content passes.** The interior (what the strip did not consume) is tokenised and aligned by three
+ *    patience passes ({@link diffChangesetWithSeparator}: lines, then words, then characters). When the
+ *    hint bound the prefix, the hunk that starts there is diffed with patience's `leftmost` placement, so
+ *    its first sub-hunk stays at the hint even when the interior holds several edits (the passes' own
+ *    greedy prefix strip would otherwise push it to the end of its run again — `aaa bbb` → `aa bb` with a
+ *    hint at 1 must delete index 1, not 2).
+ * 4. **Changeset → ops.** Retains, deletes and inserts are emitted; nested deltas that `options.compare`
+ *    pairs become `modify(diff(child1, child2))`. The hint descends into the one child it names.
+ * 5. **Styles** are reconciled while the changeset is emitted ({@link applyChangesetToDelta}): a retained
+ *    range carries the tri-state format/attribution updates ({@link diffDim}) between the `d1` and `d2`
+ *    ops it spans, inserted content carries `d2`'s style. Only the interior is walked — the strip
+ *    guarantees the stripped prefix and suffix are style-equal.
+ * 6. **Attributes** ({@link applyAttrDiff}): delta-valued attributes that `compare` pairs are diffed
+ *    recursively, the rest set/deleted wholesale. The hint descends into the attribute it names.
+ *
+ * ## The hint
+ *
+ * `options.hint` is a {@link import('./position.js').Pos position} into `d1` whose `path` names where the
+ * change *starts* (`assoc` and `attrs` are ignored): numbers are content offsets, a trailing number is the
+ * gap the change starts at, string steps descend into attributes (`[5]`, `[1, 5]` = inside the child at
+ * slot 1, `['body', 5]`). It is the `from` of the editor transaction that produced `d2`, in pre-edit
+ * coordinates: typing at gap `p` → `[p]` (not the caret *after* typing), backspace at caret `p` →
+ * `[p - 1]`, delete-forward at `p` → `[p]`, replacing the selection `[s, e)` → `[s]`. The offset is
+ * identical in `d1` and `d2` because it lies on the common prefix. It is an upper bound on the prefix,
+ * nothing more: a wrong hint moves the interior boundary and the content passes re-align greedily —
+ * placement may shift, correctness never does. A hint past the content, an empty path, or a string step
+ * at a children level is simply no hint. When the interior holds several edits (a transaction with more
+ * than one step), only the first one is placed by the hint; the rest land where the passes put them.
+ *
+ * ## Optimisations done, and deliberately not done
+ *
+ * - Text units are compared by native string equality of galloping slices (grow the chunk while equal,
+ *   shrink to the mismatch), never by a per-character JS loop — 10-25 % slower than regex tokenisation on
+ *   a 200k-char op — and never by `startsWith`/`endsWith`, which V8 lowers to a per-character loop after
+ *   warm-up.
+ * - Nested deltas are compared by their cached fingerprint; other array items by `equalityDeep`. Plain
+ *   objects have no cached fingerprint (`fingerprint(obj)` re-encodes and hashes every time: ~6 µs each),
+ *   so 5k embeds compare in 1 ms instead of 65.
+ * - `hint` forwarding allocates nothing when there is no hint.
+ * - NOT done: resuming the interior tokenisation (and the emit's cursors) at the strip's stop cursor.
+ *   Re-walking from the first op costs one pointer chase per op before the edit — now the largest
+ *   remaining cost on many-op documents (~0.5 of ~2 ms at 20k ops) — and keeps {@link interiorTokens} a
+ *   self-contained "tokens of units [from, to)" primitive.
+ * - NOT done: joining adjacent text ops before tokenisation. A format boundary inside otherwise equal text
+ *   can still make the passes anchor crosswise (`[bold foo][ bar foo]` vs `[foo bar ][bold foo]`) — a
+ *   limitation of the passes that the strip only mitigates at the interior's edges. It also affects
+ *   **style-only** edits: the strip may commit at one side's op boundary in the middle of a word on the
+ *   other side, so restyling a word occasionally yields content churn (0.22 % of random restyle pairs vs
+ *   0.04 % with the former op-level strip; worst case re-inserts ~200 chars and, with attribution,
+ *   synthesises provenance — repro: `insert('lorem lorem lorem', {bold})` → `'lorem lo'(bold) 're'
+ *   'm lo'(bold) 'rem'`). Naively joining text fixes that but loses line anchors on content edits; the
+ *   fix needs joining that re-splits on op boundaries coinciding with line/word boundaries.
+ * - NOT done: splitting a hunk. `[bold x][x][italic y][y]` → `xy` is one pure hunk `xy`; the ideal
+ *   diff deletes the bold `x` and the italic `y` separately, which no strip can express.
+ *
+ * ## Cost
+ *
+ * O(ops skipped whole + units matched inside the boundary ops + the content diff of the interior + the
+ * ops in front of the interior, walked once more by {@link interiorTokens}). A single edit in a 200k-char
+ * op costs ~0.1 ms, one edit in 20k small formatted ops ~2 ms. All of that assumes cached op fingerprints:
+ * a freshly built state pays for them on the first read (the top-level short-circuit forces every op's
+ * fingerprint, ~6 µs each — ~135 ms for 20k ops), which predates this algorithm and dwarfs the diff
+ * itself. Measured numbers: `testDiffBenchmark` in `delta.test.js`.
  */
 
 /**
@@ -4001,11 +4101,220 @@ class _DiffStringWrapper {
  * {@link cloneDeep deep-clone} every such delta (children **and** attributes) as it is included in the
  * output, yielding a result that shares no structure with `d2` (and is safe to hand to something that
  * manipulates deltas in place, e.g. a transformer).
+ * @property {import('./position.js').Pos} [hint] Where the change starts, as a position into `d1`: the
+ * `path`'s numbers are content offsets (the trailing number is the gap the change starts at, in pre-edit
+ * coordinates — the `from` of the editor transaction), string steps descend into attributes; `assoc` and
+ * `attrs` are ignored. Places the first edit there when the content allows it (a wrong hint only shifts
+ * placement, never correctness) — see "The hint" above.
  */
 
 /**
- * Compute a delta that, when applied to `d1`, produces `d2`. Only the children and attributes of
- * `d1` and `d2` are compared; the top-level node names of `d1` and `d2` are *not*. Diffing
+ * Both ops carry the same format and attribution. Style is uniform per op, so this is decided once per op
+ * pair.
+ *
+ * @param {TextOp|InsertOp<any>} a
+ * @param {TextOp|InsertOp<any>} b
+ */
+const sameStyle = (a, b) => fun.equalityDeep(a.format, b.format) && fun.equalityDeep(a.attribution, b.attribution)
+
+/**
+ * Two array-insert items are the same unit. Nested deltas compare by their cached fingerprint; everything
+ * else (strings, numbers, embed objects) structurally.
+ *
+ * @param {any} x
+ * @param {any} y
+ */
+const sameItem = (x, y) => $deltaAny.check(x) ? $deltaAny.check(y) && x.fingerprint === y.fingerprint : fun.equalityDeep(x, y)
+
+/**
+ * Count the equal units of `a` and `b` after `ai` / `bi` units were already consumed from the walked end
+ * (the start, or the end when `back`), at most `max`. Text runs are compared as native string equality of
+ * galloping chunks — grow while equal, shrink to the mismatch — so a long equal run costs a few memcmps.
+ *
+ * @param {TextOp|InsertOp<any>} a
+ * @param {number} ai
+ * @param {TextOp|InsertOp<any>} b
+ * @param {number} bi
+ * @param {number} max
+ * @param {boolean} back
+ */
+const commonUnits = (a, ai, b, bi, max, back) => {
+  let k = 0
+  if ($textOp.check(a) && $textOp.check(b)) {
+    const s1 = a.insert
+    const s2 = b.insert
+    const aEnd = s1.length - ai
+    const bEnd = s2.length - bi
+    for (let step = 32; k < max;) {
+      const n = math.min(step, max - k)
+      if (back ? s1.slice(aEnd - k - n, aEnd - k) === s2.slice(bEnd - k - n, bEnd - k) : s1.slice(ai + k, ai + k + n) === s2.slice(bi + k, bi + k + n)) {
+        k += n
+        step *= 2
+      } else if (n === 1) {
+        break
+      } else {
+        step = n >> 1
+      }
+    }
+  } else {
+    const c1 = /** @type {InsertOp<any>} */ (a).insert
+    const c2 = /** @type {InsertOp<any>} */ (b).insert
+    while (k < max && sameItem(c1[back ? c1.length - 1 - ai - k : ai + k], c2[back ? c2.length - 1 - bi - k : bi + k])) k++
+  }
+  return k
+}
+
+/**
+ * Length of the common prefix (`back` = false, walking `.next` from the first ops) or suffix (`back` =
+ * true, walking `.prev` from the last ops) of two states, in content units, at most `max`.
+ *
+ * Whole ops with equal fingerprints are skipped in one step. Inside two ops that differ, units are matched
+ * while both ops carry the same style ({@link sameStyle}). A text match that ends on a content mismatch
+ * inside *both* ops is committed only up to its last line break (partial lines are left to the content
+ * passes, which split on lines first — see the diffing notes above).
+ *
+ * @param {ChildrenOpAny?} a
+ * @param {ChildrenOpAny?} b
+ * @param {number} max
+ * @param {boolean} back
+ * @return {number}
+ */
+const commonLen = (a, b, max, back) => {
+  let ai = 0 // units of `a` already matched, counted from the walked end
+  let bi = 0
+  let len = 0
+  while (a !== null && b !== null && len < max) {
+    let k = 0
+    if (ai === 0 && bi === 0 && len + a.length <= max && a.fingerprint === b.fingerprint) {
+      // equal ops (content + style) are skipped whole — unless they aren't content ops at all (two equal
+      // deletes): those never match and land in the interior, where they are rejected
+      if (!$textOp.check(a) && !$insertOp.check(a)) break
+      k = a.length
+    } else if (($textOp.check(a) && $textOp.check(b)) || ($insertOp.check(a) && $insertOp.check(b))) {
+      // only a text op pairs with a text op and an array insert with an array insert: to the diff, the
+      // char `'a'` and the array item `'a'` are different content (`insert('a')` vs `insert(['a'])`)
+      k = sameStyle(a, b) ? commonUnits(a, ai, b, bi, math.min(math.min(a.length - ai, b.length - bi), max - len), back) : 0
+    }
+    if (k === 0) break
+    if (len + k < max && ai + k < a.length && bi + k < b.length && $textOp.check(a)) {
+      // stopped on a content mismatch inside both ops: commit whole lines only
+      const s = a.insert
+      const start = back ? s.length - ai - k : ai
+      const end = start + k
+      const nl = back ? s.indexOf('\n', start) : s.lastIndexOf('\n', end - 1)
+      return len + (nl < start || nl >= end ? 0 : back ? end - nl - 1 : nl - start + 1)
+    }
+    len += k
+    ai += k
+    bi += k
+    if (ai === a.length) {
+      a = back ? a.prev : a.next
+      ai = 0
+    }
+    if (bi === b.length) {
+      b = back ? b.prev : b.next
+      bi = 0
+    }
+  }
+  return len
+}
+
+/**
+ * Push the diff tokens of the content units `[from, to)` of `d` onto `tokens`: text as raw strings (the
+ * content passes split them), array items one token each (strings wrapped so they stay one unit).
+ *
+ * @param {DeltaAny} d
+ * @param {number} from
+ * @param {number} to
+ * @param {Array<any>} tokens
+ */
+const interiorTokens = (d, from, to, tokens) => {
+  let off = 0
+  for (let op = d.children.start; op !== null && off < to; op = op.next) {
+    const end = off + op.length
+    const start = math.max(from - off, 0)
+    const stop = math.min(to - off, op.length)
+    if (start < stop) {
+      if ($textOp.check(op)) {
+        tokens.push(op.insert.slice(start, stop))
+      } else if ($insertOp.check(op)) {
+        for (let i = start; i < stop; i++) {
+          const item = op.insert[i]
+          tokens.push(typeof item === 'string' ? new _DiffStringWrapper(item) : item)
+        }
+      } else {
+        throw error.create('[lib0/delta] diffing deletes unsupported')
+      }
+    }
+    off = end
+  }
+}
+
+/**
+ * Options for the diff of a nested delta at `step` (a child's content index, or an attribute key): the
+ * hint descends into the one child/attribute it names and is dropped for all others.
+ *
+ * @param {DiffOptions} options
+ * @param {number|string} step
+ * @return {DiffOptions}
+ */
+const childOptions = (options, step) => {
+  const hint = options.hint
+  return hint == null
+    ? options
+    : { ...options, hint: hint.path[0] === step ? { path: hint.path.slice(1), assoc: hint.assoc } : undefined }
+}
+
+/**
+ * Diff the node attributes of `d1` and `d2` onto `d`: a delta-valued attribute whose nodes `compare`
+ * pairs is diffed recursively (`modifyAttr`, the hint descending when it names the key), anything else
+ * is set or deleted wholesale.
+ *
+ * @param {DeltaBuilderAny} d
+ * @param {DeltaAny} d1
+ * @param {DeltaAny} d2
+ * @param {DiffOptions} options
+ */
+const applyAttrDiff = (d, d1, d2, options) => {
+  const compare = options.compare ?? defaultCompare
+  for (const attr2 of d2.attrs) {
+    const key = attr2.key
+    // @ts-ignore
+    const attr1 = d1.attrs[key]
+    if (attr1 == null || attr1.fingerprint !== attr2.fingerprint) {
+      if ($setAttrOp.check(attr2)) {
+        const prevVal = attr1?.value
+        const nextVal = attr2.value
+        if ($deltaAny.check(prevVal) && $deltaAny.check(nextVal) && compare(prevVal, nextVal)) {
+          // modifyAttr carries the *incremental* attribution update (apply merges it onto the target attr
+          // op's attribution); the inner diff updates its value.
+          // reason: diffDim returns an opaque update (a `{k:null}` removal isn't a canonical Attribution),
+          // while modifyAttr's param is typed Attribution for API ergonomics
+          d.modifyAttr(key, diff(prevVal, nextVal, childOptions(options, key)), /** @type {Attribution|null|undefined} */ (diffDim(attr1?.attribution, attr2.attribution, true)))
+        } else {
+          // setAttr replaces the whole attr, so it carries the new attribution as data (object-or-none).
+          // `nextVal` is shared from `d2`; deep-clone it when the caller wants an independent result.
+          d.setAttr(key, options.clone ? _cloneMaybeDeltaDeep(nextVal) : nextVal, attr2.attribution)
+        }
+      /* c8 ignore start */
+      } else {
+        // unreachable: a state (insert-only) delta holds only setAttr ops
+        error.unexpectedCase()
+      }
+      /* c8 ignore stop */
+    }
+  }
+  for (const { key } of d1.attrs) {
+    // @ts-ignore
+    if (d2.attrs[key] == null) {
+      d.deleteAttr(key)
+    }
+  }
+}
+
+/**
+ * Compute a delta that, when applied to the state `d1`, produces the state `d2`. Only the children and
+ * attributes of `d1` and `d2` are compared; the top-level node names of `d1` and `d2` are *not*. Diffing
  * `<div>a</div>` against `<span>a</span>` is valid and yields an empty diff — they have the same
  * children and attributes, so as far as `diff` is concerned they are equal at the level it cares
  * about. The top-level name is treated as a document-type marker, not as diffable content.
@@ -4021,6 +4330,11 @@ class _DiffStringWrapper {
  * applies consistently all the way down the tree. `compare` is always called as
  * `compare(fromNode, toNode)` (the node from `d1` first).
  *
+ * Where several diffs are equally valid (repeated characters), `diff` prefers the one that leaves the
+ * format/attribution of retained content untouched, and `options.hint` — the position where the change
+ * starts — places the first edit there (a wrong hint only shifts placement, never correctness). See the
+ * diffing notes above for how and why.
+ *
  * NOTE: `diff` compares **content only** — it short-circuits on the {@link Delta#fingerprint}, which
  * excludes marks. Two states that differ *only* in their marks diff to an empty change, so cursor marks
  * do NOT cross a `diff` (e.g. a `Binding`'s initial-state sync). Marks survive on the live
@@ -4034,175 +4348,32 @@ class _DiffStringWrapper {
  */
 export const diff = (d1, d2, options = {}) => {
   const d = create(d1.name === d2.name ? d1.name : null, $deltaAny)
-  const compare = options?.compare ?? defaultCompare
   if (d1.fingerprint !== d2.fingerprint) {
+    const n = d1.childCnt
+    const m = d2.childCnt
+    const hint = options.hint?.path[0]
+    const prefixLen = commonLen(d1.children.start, d2.children.start, math.min(math.min(n, m), typeof hint === 'number' ? hint : n), false)
+    const suffixLen = commonLen(d1.children.end, d2.children.end, math.min(n, m) - prefixLen, true)
     /**
-     * @type {ChildrenOpAny?}
-     */
-    let left1 = d1.children.start
-    /**
-     * @type {ChildrenOpAny?}
-     */
-    let left2 = d2.children.start
-    /**
-     * @type {ChildrenOpAny?}
-     */
-    let right1 = d1.children.end
-    /**
-     * @type {ChildrenOpAny?}
-     */
-    let right2 = d2.children.end
-    // whether we need to diff formatting
-    let formattingOrAttributionNeedsDiff = false
-    let commonPrefixOffset = 0
-    // perform a patience sort
-    // 1) remove common prefix and suffix
-    while (left1 != null && left1.fingerprint === left2?.fingerprint) {
-      if (!$deleteOp.check(left1)) {
-        commonPrefixOffset += left1.length
-      }
-      left1 = left1.next
-      left2 = left2.next
-    }
-    if (left1 !== null && left2 !== null) {
-      while (right1 !== null && right2 !== null && right1 !== left1 && right2 !== left2 && right1.fingerprint === right2.fingerprint) {
-        right1 = right1.prev
-        right2 = right2.prev
-      }
-    }
-    /**
-     * @type {Array<fingerprintTrait.Fingerprintable>}
+     * @type {Array<any>}
      */
     const cs1 = []
     /**
-     * @type {Array<fingerprintTrait.Fingerprintable>}
+     * @type {Array<any>}
      */
     const cs2 = []
-    // if right is null, then we already matched everything
-    if (right1 != null) {
-      while (left1 !== null && left1 !== right1.next) {
-        if ($textOp.check(left1)) {
-          cs1.push(left1.insert)
-        } else if ($insertOp.check(left1)) {
-          cs1.push(...left1.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
-        } else {
-          throw error.create('[lib0/delta] diffing deletes unsupported')
-        }
-        formattingOrAttributionNeedsDiff ||= left1.format != null || left1.attribution != null
-        left1 = left1.next
-      }
-    }
-    if (right2 != null) {
-      while (left2 !== null && left2 !== right2.next) {
-        if ($textOp.check(left2)) {
-          cs2.push(left2.insert)
-        } else if ($insertOp.check(left2)) {
-          cs2.push(...left2.insert.map(ins => typeof ins === 'string' ? new _DiffStringWrapper(ins) : ins))
-        /* c8 ignore start */
-        } else {
-          // unreachable for valid diff inputs (delete on the rhs would already
-          // have been rejected via the `[lib0/delta] diffing deletes unsupported`
-          // path above)
-          error.unexpectedCase()
-        }
-        /* c8 ignore stop */
-        formattingOrAttributionNeedsDiff ||= left2.format != null || left2.attribution != null
-        left2 = left2.next
-      }
-    }
-    const changeset1 = [{
-      index: commonPrefixOffset,
-      insert: cs2,
-      remove: cs1
-    }]
-    // split by line
-    const changeset2 = diffChangesetWithSeparator(changeset1, /[\n]+/g)
-    // split by alphanumerics and others
-    const changeset3 = diffChangesetWithSeparator(changeset2, patience.smartSplitRegex)
-    // split all
-    const changeset4 = diffChangesetWithSeparator(changeset3, /./g)
-    applyChangesetToDelta(d, changeset4, compare, options)
-    if (formattingOrAttributionNeedsDiff) {
-      const formattingDiff = create()
-      // update opsIs with content diff. then we can figure out the formatting diff.
-      const originalUpdated = clone(d1)
-      originalUpdated.apply(/** @type {DeltaAny} */ (d))
-      let bOffset = 0
-      // update a to match b
-      let a = /** @type {InsertOp<any>|TextOp|null} */ (originalUpdated.children.start)
-      let b = /** @type {InsertOp<any>|TextOp|null} */ (d2.children.start)
-      let aOffset = 0
-      while (a != null && b != null) {
-        if (!$deleteOp.check(b) && !$deleteOp.check(a)) {
-          const aFormat = a.format
-          const bFormat = b.format
-          const minForward = math.min(b.length - bOffset, a.length - aOffset)
-          aOffset += minForward
-          bOffset += minForward
-          // format and attribution diff identically (unified tri-state — see diffDim):
-          // undefined = unchanged (skip), null = cleared, else a per-key `{k:v}`/`{k:null}` update
-          const fupdate = diffDim(aFormat, bFormat, false)
-          const attributionUpdate = diffDim(a.attribution, b.attribution, true)
-          if (fupdate === undefined && attributionUpdate === undefined) {
-            formattingDiff.retain(minForward)
-          } else {
-            formattingDiff.retain(minForward, fupdate, attributionUpdate)
-          }
-          // update offset and iterators
-          if (bOffset >= b.length) {
-            b = b.next
-            bOffset = 0
-          }
-          if (aOffset >= a.length) {
-            a = a.next
-            aOffset = 0
-          }
-        /* c8 ignore start */
-        } else {
-          // unreachable: by this point both a and b are insert/text (deletes
-          // were rejected upstream and `originalUpdated` is the result of an
-          // apply, which keeps inserts only).
-          error.unexpectedCase()
-        }
-        /* c8 ignore stop */
-      }
-      // @todo instead of applying, we want to first exec d, then formattingDiff - we need a merge
-      // function!
-      d.apply(formattingDiff)
-    }
-    for (const attr2 of d2.attrs) {
-      const key = attr2.key
-      // @ts-ignore
-      const attr1 = d1.attrs[key]
-      if (attr1 == null || (attr1.fingerprint !== attr2.fingerprint)) {
-        /* c8 ignore else */
-        if ($setAttrOp.check(attr2)) {
-          const prevVal = attr1?.value
-          const nextVal = attr2.value
-          if ($deltaAny.check(prevVal) && $deltaAny.check(nextVal) && compare(prevVal, nextVal)) {
-            // modifyAttr carries the *incremental* attribution update (apply merges it onto the target attr
-            // op's attribution); the inner diff updates its value.
-            // reason: diffDim returns an opaque update (a `{k:null}` removal isn't a canonical Attribution),
-            // while modifyAttr's param is typed Attribution for API ergonomics
-            d.modifyAttr(key, diff(prevVal, nextVal, options), /** @type {Attribution|null|undefined} */ (diffDim(attr1?.attribution, attr2.attribution, true)))
-          } else {
-            // setAttr replaces the whole attr, so it carries the new attribution as data (object-or-none).
-            // `nextVal` is shared from `d2`; deep-clone it when the caller wants an independent result.
-            d.setAttr(key, options.clone ? _cloneMaybeDeltaDeep(nextVal) : nextVal, attr2.attribution)
-          }
-        /* c8 ignore start */
-        } else {
-          error.unexpectedCase()
-        }
-        /* c8 ignore stop */
-      }
-    }
-    for (const { key } of d1.attrs) {
-      // @ts-ignore
-      if (d2.attrs[key] == null) {
-        d.deleteAttr(key)
-      }
-    }
+    interiorTokens(d1, prefixLen, n - suffixLen, cs1)
+    interiorTokens(d2, prefixLen, m - suffixLen, cs2)
+    // when the hint bound the prefix, the hunk starting there keeps its leftmost placement through the
+    // passes (otherwise their own greedy prefix strip would move it to the end of its run again)
+    const leftmostIndex = prefixLen === hint ? prefixLen : -1
+    // align the interior: by lines, then by words, then by characters
+    let changeset = [{ index: prefixLen, insert: cs2, remove: cs1 }]
+    changeset = diffChangesetWithSeparator(changeset, /[\n]+/g, leftmostIndex)
+    changeset = diffChangesetWithSeparator(changeset, patience.smartSplitRegex, leftmostIndex)
+    changeset = diffChangesetWithSeparator(changeset, /./g, leftmostIndex)
+    applyChangesetToDelta(d, changeset, d1, d2, prefixLen, n - suffixLen, options)
+    applyAttrDiff(d, d1, d2, options)
   }
   return d.done(false)
 }
@@ -4329,69 +4500,147 @@ export const inverse = (d, base) => {
 const defaultCompare = (d1, d2) => d1.name === d2.name
 
 /**
+ * Content units of a diff token: a text run counts its chars, anything else (an array item) is one unit.
+ *
  * @param {string|any} c
  */
 const contentLen = c => typeof c === 'string' ? c.length : 1
 
 /**
- * Apply removes from c.remove to d, mutating c.remove to exclude the applied items
+ * Emit the aligned changeset onto `d` while reconciling styles. `[from, to)` is the interior in `d1`
+ * units — the stripped prefix and suffix are style-equal by construction ({@link commonLen}), so only the
+ * interior is walked: a retained range carries the tri-state format/attribution updates ({@link diffDim})
+ * between the `d1` and `d2` ops it spans, inserted content carries `d2`'s style. Nested deltas of a hunk
+ * are paired via `options.compare` into `modify` ops (a removed delta pairs with the first inserted delta
+ * it compares equal to); the hint descends into the child at the content index it names.
  *
- * @param {DeltaBuilderAny} d
- * @param {Array<any>} crem
- * @param {number} len
- */
-const applyRemoves = (d, crem, len) => { len > 0 && d.delete(crem.splice(0, len).map(contentLen).reduce(math.add, 0)) }
-/**
- * Apply inserts from c.insert to d, mutating c.insert to exclude the applied items. A wholesale-inserted
- * child is a nested delta shared from `d2`; deep-clone it when `cloneChildren` (the diff's `clone` option)
- * so the result aliases nothing in `d2` (see {@link DiffOptions}).
- *
- * @param {DeltaBuilderAny} d
- * @param {Array<any>} cins
- * @param {number} len
- * @param {boolean} [cloneChildren]
- */
-const applyInserts = (d, cins, len, cloneChildren) => { len > 0 && cins.splice(0, len).forEach(ins => d.insert(typeof ins === 'string' ? ins : [ins instanceof _DiffStringWrapper ? ins.str : (cloneChildren ? _cloneMaybeDeltaDeep(ins) : ins)])) }
-
-/**
  * @param {DeltaBuilderAny} d
  * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
- * @param {(d1: DeltaAny, d2: DeltaAny) => boolean} compare
+ * @param {DeltaAny} d1
+ * @param {DeltaAny} d2
+ * @param {number} from
+ * @param {number} to
  * @param {DiffOptions} options
  */
-const applyChangesetToDelta = (d, changeset, compare, options) => {
-  for (let ci = 0, lastIndex = 0; ci < changeset.length; ci++) {
-    const c = changeset[ci]
-    d.retain(c.index - lastIndex)
-    lastIndex = c.index + c.remove.map(contentLen).reduce(math.add, 0)
-    // @todo do patience diff on the delta-names, then perform maximum number of mods instead of
-    // insert/delete
+const applyChangesetToDelta = (d, changeset, d1, d2, from, to, options) => {
+  const compare = options.compare ?? defaultCompare
+  // reason: d1/d2 are insert-only (interiorTokens rejects anything else)
+  let a = /** @type {TextOp|InsertOp<any>|null} */ (d1.children.start)
+  let b = /** @type {TextOp|InsertOp<any>|null} */ (d2.children.start)
+  let aOff = from
+  let bOff = from
+  while (a !== null && aOff >= a.length) {
+    aOff -= a.length
+    a = a.next
+  }
+  while (b !== null && bOff >= b.length) {
+    bOff -= b.length
+    b = b.next
+  }
+  // advance a cursor within its op (a token never spans ops; a retain is chunked below)
+  /** @param {number} len */
+  const advanceA = len => {
+    const op = /** @type {TextOp|InsertOp<any>} */ (a)
+    if ((aOff += len) === op.length) {
+      a = op.next
+      aOff = 0
+    }
+  }
+  /** @param {number} len */
+  const advanceB = len => {
+    const op = /** @type {TextOp|InsertOp<any>} */ (b)
+    if ((bOff += len) === op.length) {
+      b = op.next
+      bOff = 0
+    }
+  }
+  /** @param {number} len */
+  const retain = len => {
+    while (len > 0 && a !== null && b !== null) {
+      const step = math.min(len, math.min(a.length - aOff, b.length - bOff))
+      d.retain(step, diffDim(a.format, b.format, false), diffDim(a.attribution, b.attribution, true))
+      if ((aOff += step) === a.length) {
+        a = a.next
+        aOff = 0
+      }
+      if ((bOff += step) === b.length) {
+        b = b.next
+        bOff = 0
+      }
+      len -= step
+    }
+  }
+  /**
+   * Emit a delete for the first `len` tokens of `tokens` (removing them). Returns the units removed.
+   *
+   * @param {Array<any>} tokens
+   * @param {number} len
+   */
+  const remove = (tokens, len) => {
+    let units = 0
+    for (const tok of tokens.splice(0, len)) {
+      const n = contentLen(tok)
+      advanceA(n)
+      units += n
+    }
+    d.delete(units)
+    return units
+  }
+  /**
+   * Emit inserts for the first `len` tokens of `tokens` (removing them), styled like `d2`. A
+   * wholesale-inserted child is a nested delta shared from `d2`; deep-clone it when `options.clone` so the
+   * result aliases nothing in `d2` (see {@link DiffOptions}).
+   *
+   * @param {Array<any>} tokens
+   * @param {number} len
+   */
+  const insert = (tokens, len) => {
+    for (const tok of tokens.splice(0, len)) {
+      const op = /** @type {TextOp|InsertOp<any>} */ (b)
+      d.insert(typeof tok === 'string' ? tok : [tok instanceof _DiffStringWrapper ? tok.str : (options.clone ? _cloneMaybeDeltaDeep(tok) : tok)], op.format, op.attribution)
+      advanceB(contentLen(tok))
+    }
+  }
+  d.retain(from)
+  let pos = from // content index in d1 of the next unit to be retained or removed
+  for (const c of changeset) {
+    retain(c.index - pos)
+    pos = c.index
     while (true) {
-      const cremoveDeltaIndex = c.remove.findIndex(cc => $deltaAny.check(cc))
-      if (cremoveDeltaIndex < 0) break
-      const cremoveDelta = c.remove[cremoveDeltaIndex]
-      const cinsertDeltaIndex = c.insert.findIndex(cc => $deltaAny.check(cc) && compare(cremoveDelta, cc))
-      if (cinsertDeltaIndex < 0) {
-        applyRemoves(d, c.remove, cremoveDeltaIndex + 1)
+      const ri = c.remove.findIndex(tok => $deltaAny.check(tok))
+      if (ri < 0) break
+      const ii = c.insert.findIndex(tok => $deltaAny.check(tok) && compare(c.remove[ri], tok))
+      if (ii < 0) {
+        pos += remove(c.remove, ri + 1)
         continue
       }
-      applyRemoves(d, c.remove, cremoveDeltaIndex)
-      applyInserts(d, c.insert, cinsertDeltaIndex, options.clone)
-      d.modify(diff(c.remove[0], c.insert[0], options))
+      pos += remove(c.remove, ri)
+      insert(c.insert, ii)
+      const opA = /** @type {TextOp|InsertOp<any>} */ (a)
+      const opB = /** @type {TextOp|InsertOp<any>} */ (b)
+      d.modify(diff(c.remove[0], c.insert[0], childOptions(options, pos++)), diffDim(opA.format, opB.format, false), diffDim(opA.attribution, opB.attribution, true))
+      advanceA(1)
+      advanceB(1)
       c.remove.splice(0, 1)
       c.insert.splice(0, 1)
     }
-    applyRemoves(d, c.remove, c.remove.length)
-    applyInserts(d, c.insert, c.insert.length, options.clone)
+    pos += remove(c.remove, c.remove.length)
+    insert(c.insert, c.insert.length)
   }
-  return d
+  retain(to - pos)
 }
 
 /**
+ * Refine every hunk of `changeset` by splitting its content at `separator` and diffing the pieces
+ * (see {@link patience.diff}). The hunk that starts at `leftmostIndex` is diffed with patience's
+ * `leftmost` placement, so its first sub-hunk stays at that index (used by {@link diff} to honour a hint
+ * inside a multi-hunk interior); `-1` (the default) leaves every hunk at patience's default placement.
+ *
  * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
  * @param {RegExp} separator
+ * @param {number} [leftmostIndex]
  */
-export const diffChangesetWithSeparator = (changeset, separator) => {
+export const diffChangesetWithSeparator = (changeset, separator, leftmostIndex = -1) => {
   /**
    * @type {Array<any>}
    */
@@ -4402,7 +4651,7 @@ export const diffChangesetWithSeparator = (changeset, separator) => {
     const cs2 = splitContentArrayByRegexp(change.insert, separator)
     const fp1 = cs1.map(c => typeof c === 'string' ? c : fingerprintTrait.fingerprint(c))
     const fp2 = cs2.map(c => typeof c === 'string' ? c : fingerprintTrait.fingerprint(c))
-    const changesetF = patience.diff(fp1, fp2)
+    const changesetF = patience.diff(fp1, fp2, change.index === leftmostIndex)
     const nextChangeset = fillFingerprintDiffFromContent(changesetF, cs1, cs2)
     let prevDiffIndex = 0
     let nextChangeIndex = change.index
@@ -4431,7 +4680,8 @@ const splitContentArrayByRegexp = (cs, regexp) => {
   const res = []
   cs.forEach(c => {
     if (typeof c === 'string') {
-      res.push(...patience.splitByRegexp(c, regexp, true))
+      // no spread: a separator-free run of ≥ ~125k chars yields as many tokens and overflows the call stack
+      arr.appendTo(res, patience.splitByRegexp(c, regexp, true))
     } else {
       res.push(c)
     }

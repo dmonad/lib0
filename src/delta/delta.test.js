@@ -1615,19 +1615,26 @@ export const testDeltaTypings = () => {
  */
 
 /**
+ * Random state + random change → final: the diff must reproduce `final`. With `hintDepth > 0` the diff is
+ * given a random (mostly wrong) hint path of that many steps.
+ *
  * @template {delta.DeltaConf} Conf
  * @param {t.TestCase} tc
  * @param {s.Schema<delta.Delta<Conf>>} $d
  * @param {{ minChildOps: number, maxChildOps: number }} opts
+ * @param {number} [hintDepth]
  */
-const testDeltaDiff = (tc, $d, opts) => {
+const testDeltaDiff = (tc, $d, opts, hintDepth = 0) => {
   // @todo this should  create sentences, words, functions, etc
   const start = delta.random(tc.prng, $d, { ...opts, attribution: true }).done()
   const change = delta.random(tc.prng, $d, { source: start, ...opts, attribution: true })
   const final = delta.clone(start)
   final.isFinal = true
   final.apply(change)
-  const d = delta.diff(start, final)
+  /** @type {Array<number>} */
+  const path = []
+  for (let i = 0; i < hintDepth; i++) path.push(prng.int32(tc.prng, 0, Math.max(start.childCnt, final.childCnt) + 1))
+  const d = delta.diff(start, final, hintDepth > 0 ? { hint: position.create(path) } : {})
   const updatedStart = delta.clone(start)
   updatedStart.isFinal = true
   updatedStart.apply(d)
@@ -2835,13 +2842,15 @@ export const testRebaseChildren = () => {
 /**
  * `delta.diff` cannot operate on inputs that already contain `delete` ops —
  * the diff algorithm only knows how to compare insertions. Doing so throws a
- * documented `[lib0/delta] diffing deletes unsupported` error.
+ * documented `[lib0/delta] diffing deletes unsupported` error, wherever the delete sits and on either side.
  */
 export const testDiffRejectsDeletes = () => {
   const c = () => delta.create(delta.$deltaAny)
   const d1 = c().retain(2).delete(3).done()
   const d2 = c().insert('hi').done()
   t.fails(() => delta.diff(d1, d2))
+  t.fails(() => delta.diff(delta.create().delete(1).insert('ab').done(), delta.create().delete(1).insert('ac').done()))
+  t.fails(() => delta.diff(delta.insert('ab').done(), delta.create().insert('a').delete(1).done()))
 }
 
 /**
@@ -3201,4 +3210,340 @@ export const testFingerprintInvalidatedByInplaceApplyMerge = _tc => {
     check.apply(/** @type {any} */ (d), { final: true, move: true })
     t.assert(check.equals(live), 'applying the diff converges to the live state')
   })
+}
+
+/**
+ * @param {delta.DeltaAny} a
+ * @param {delta.DeltaAny} b
+ * @param {delta.DeltaAny} expected
+ * @param {delta.DiffOptions} [options]
+ */
+const expectDiff = (a, b, expected, options) => {
+  const d = delta.diff(a, b, options)
+  t.compare(d, expected)
+  // a final apply materialises attribute deletions (a non-final one keeps them as pending ops)
+  const applied = delta.clone(a)
+  applied.isFinal = true
+  applied.apply(d)
+  t.assert(applied.equals(b), 'diff round-trips')
+}
+
+/**
+ * @param {string} str
+ */
+const para = str => delta.create('p').insert(str).done()
+
+/**
+ * @param {Array<position.PosStep>} path
+ */
+const hint = path => ({ hint: position.create(path) })
+
+/**
+ * The strip matches units only across ops of the same format and attribution, so deleting one of two
+ * equal characters deletes the one whose style differs instead of re-styling the survivor.
+ */
+export const testDiffStyledStrip = () => {
+  expectDiff(delta.insert('x', { bold: true }).insert('x').done(), delta.insert('x').done(), delta.delete_(1))
+  // alice keeps her char (a content-only diff would emit retain(1, undefined, null).delete(1))
+  expectDiff(delta.insert('x', undefined, { insert: ['alice'] }).insert('x').done(), delta.insert('x').done(), delta.delete_(1))
+  expectDiff(delta.insert('x').insert('x', { bold: true }).done(), delta.insert('x', { bold: true }).done(), delta.delete_(1))
+  // partial prefix inside an op, stopping at the other side's op boundary
+  expectDiff(delta.insert('ax', { bold: true }).insert(' a').done(), delta.insert('a', { bold: true }).done(), delta.retain(1).delete(3))
+  // already ideal: sliding would cost a mismatch
+  expectDiff(delta.insert('x').done(), delta.insert('x').insert('x', { bold: true }).done(), delta.retain(1).insert('x', { bold: true }))
+  expectDiff(delta.insert('x').done(), delta.insert('x', { bold: true }).insert('x').done(), delta.insert('x', { bold: true }))
+  // the deleted unit sits in the middle of a run, across op boundaries
+  expectDiff(delta.insert('a').insert('a', { bold: true }).insert('a').done(), delta.insert('aa').done(), delta.retain(1).delete(1))
+  expectDiff(delta.insert('aaaa').insert('a', { bold: true }).done(), delta.insert('aaaa').done(), delta.retain(4).delete(1))
+  // a text char and an array string item are different units: `['a']` vs `'a'` never align
+  expectDiff(delta.insert(['a'], { bold: true }).insert('a').done(), delta.insert(['a']).done(), delta.retain(1, { bold: null }).delete(1))
+  expectDiff(delta.insert(['a']).done(), delta.insert('a').done(), delta.delete_(1).insert('a'))
+  // array items: nested deltas by fingerprint, embeds structurally, strings by value
+  expectDiff(delta.insert([para('a'), 1, { k: 1 }]).done(), delta.insert([para('a'), 2, { k: 1 }]).done(), delta.retain(1).delete(1).insert([2]))
+  expectDiff(delta.insert(['s', para('a'), { k: 1 }]).done(), delta.insert(['s', para('b'), { k: 1 }]).done(), delta.retain(1).modify(delta.create('p').delete(1).insert('b')))
+  expectDiff(delta.insert([{ k: 1 }], { bold: true }).insert([{ k: 1 }]).done(), delta.insert([{ k: 1 }]).done(), delta.delete_(1))
+  expectDiff(delta.insert([{ k: 1 }, { k: 2 }]).done(), delta.insert([{ k: 1 }, { k: 3 }]).done(), delta.retain(1).delete(1).insert([{ k: 3 }]))
+  // a replace inside a run does not slide (documented limitation)
+  expectDiff(delta.insert('x', { bold: true }).insert('x').done(), delta.insert('x').insert('y', { bold: true }).done(), delta.retain(1, { bold: null }).delete(1).insert('y', { bold: true }))
+}
+
+/**
+ * A partial text match that ends inside both ops commits only whole lines, so the line pass still sees
+ * whole tokens and the alignment stays the content diff's where the strip has nothing to decide.
+ */
+export const testDiffLineAlignedBackoff = () => {
+  // prefix would steal the leading 'a' and lose the 'aaaa' line anchor
+  expectDiff(delta.insert('aX\naaaa\nYa').done(), delta.insert('aaaa\n').done(), delta.delete_(3).retain(5).delete(2))
+  // a whole line is inserted, not '3\n- item ' in the middle of a word
+  expectDiff(delta.insert('- item 1\n- item 2\n').done(), delta.insert('- item 1\n- item 3\n- item 2\n').done(), delta.retain(9).insert('- item 3\n'))
+  // CRLF: only '\n' is a line break, so the '\r' rides with its line on both sides
+  expectDiff(delta.insert('- i1\r\n- i2\r\n').done(), delta.insert('- i1\r\n- i3\r\n- i2\r\n').done(), delta.retain(6).insert('- i3\r\n'))
+  expectDiff(delta.insert('foo baz').done(), delta.insert('foo bar\nfoo baz').done(), delta.insert('foo bar\n'))
+  // word-level: without back-off the prefix 'ab' would be stripped and the diff becomes retain(2).delete(4)
+  expectDiff(delta.insert('abc abd').done(), delta.insert('abd').done(), delta.delete_(4))
+  // suffix side: the trailing 'a' must not be stripped off the last line
+  expectDiff(delta.insert('aY\naaaa\nXa').done(), delta.insert('\naaaa').done(), delta.delete_(2).retain(5).delete(3))
+  // a mismatch inside one op with no newline in the span commits nothing (both directions)
+  expectDiff(delta.insert('abcXdef').done(), delta.insert('abcdef').done(), delta.retain(3).delete(1))
+  // ... while a span with a newline commits up to / from it
+  expectDiff(delta.insert('ab\ncXd').done(), delta.insert('ab\ncd').done(), delta.retain(4).delete(1))
+  expectDiff(delta.insert('aXb\ncd').done(), delta.insert('ab\ncd').done(), delta.retain(1).delete(1))
+  // long equal run before the mismatch (gallop grows, then shrinks to the exact mismatch)
+  const run = 'lorem ipsum '.repeat(100)
+  expectDiff(delta.insert(run + 'X' + run).done(), delta.insert(run + run).done(), delta.retain(run.length).delete(1))
+  expectDiff(delta.insert(run + '\n' + 'X' + run).done(), delta.insert(run + '\n' + run).done(), delta.retain(run.length + 1).delete(1))
+  // the op boundary is a real boundary: a partial match ending there commits fully
+  expectDiff(delta.insert('ab').insert('cXd', { bold: true }).done(), delta.insert('ab').insert('cd', { bold: true }).done(), delta.retain(3).delete(1))
+}
+
+/**
+ * Inside a run of equal content the placement is ambiguous; `hint` names the position where the change
+ * starts and the diff reproduces it.
+ */
+export const testDiffHint = () => {
+  const aaa = delta.insert('aaa').done()
+  const aa = delta.insert('aa').done()
+  expectDiff(aaa, aa, delta.retain(2).delete(1))
+  expectDiff(aaa, aa, delta.retain(2).delete(1), hint([]))
+  expectDiff(aaa, aa, delta.retain(2).delete(1), { hint: undefined })
+  expectDiff(aaa, aa, delta.retain(1).delete(1), hint([1]))
+  expectDiff(aaa, aa, delta.delete_(1), hint([0]))
+  expectDiff(aa, aaa, delta.retain(1).insert('a'), hint([1]))
+  expectDiff(aa, aaa, delta.insert('a'), hint([0]))
+  expectDiff(delta.insert('abcabc').done(), delta.insert('abc').done(), delta.retain(1).delete(3), hint([1]))
+  // assoc and attrs are ignored
+  expectDiff(aaa, aa, delta.retain(1).delete(1), { hint: position.create([1], -1, { user: 'kevin' }) })
+  // into the suffix region / beyond the content: no effect
+  expectDiff(aaa, aa, delta.retain(2).delete(1), hint([2]))
+  expectDiff(aaa, aa, delta.retain(2).delete(1), hint([42]))
+  expectDiff(aa, aaa, delta.retain(2).insert('a'), hint([7]))
+  // an inconsistent hint (no diff can start there) still yields a correct diff: the suffix walk stops on
+  // a content mismatch, commits nothing, and the passes re-align greedily — as without a hint
+  expectDiff(delta.insert('aab').done(), delta.insert('aabb').done(), delta.retain(3).insert('b'), hint([1]))
+  expectDiff(delta.insert('hello world').done(), delta.insert('hello there').done(), delta.diff(delta.insert('hello world').done(), delta.insert('hello there').done()), hint([0]))
+  // an attribute-key step at a children level: no cap
+  expectDiff(aaa, aa, delta.retain(2).delete(1), hint(['k']))
+  // a hint caps the fast path too: the change is inside an op that is otherwise equal to its neighbour
+  expectDiff(delta.insert('aa').insert('a', { bold: true }).done(), delta.insert('a').insert('a', { bold: true }).done(), delta.delete_(1), hint([0]))
+  // empty states
+  expectDiff(delta.create().done(), delta.insert('x').done(), delta.insert('x'), hint([0]))
+  expectDiff(delta.insert('x').done(), delta.create().done(), delta.delete_(1), hint([0]))
+}
+
+/**
+ * A transaction with several edits: the hint places the first one; the passes' own greedy prefix strip
+ * must not push it to the end of its run again (patience's `leftmost` placement for that hunk).
+ */
+export const testDiffHintMultipleHunks = () => {
+  const a = delta.insert('aaa bbb').done()
+  const b = delta.insert('aa bb').done()
+  // the second run (`bbb` → `bb`) keeps the default placement (rightmost) in every case
+  expectDiff(a, b, delta.retain(2).delete(1).retain(3).delete(1))
+  expectDiff(a, b, delta.retain(1).delete(1).retain(4).delete(1), hint([1]))
+  expectDiff(a, b, delta.delete_(1).retain(5).delete(1), hint([0]))
+  expectDiff(delta.insert('aa bb').done(), delta.insert('aaa b').done(), delta.retain(1).insert('a').retain(3).delete(1), hint([1]))
+  // the run before the first anchor of a single word: leftmost only for the hinted hunk's first run
+  expectDiff(delta.insert('aaXbb').done(), delta.insert('aXb').done(), delta.delete_(1).retain(3).delete(1), hint([0]))
+  // a hint that the prefix did not reach (the documents differ before it) leaves placement to the passes
+  expectDiff(a, b, delta.retain(2).delete(1).retain(3).delete(1), hint([5]))
+  // across lines, nested in a child
+  expectDiff(delta.insert([para('aa\naa')]).done(), delta.insert([para('a\na')]).done(), delta.modify(delta.create('p').delete(1).retain(3).delete(1)), hint([0, 0]))
+}
+
+/**
+ * The hint descends into the one child or attribute it names; siblings diff without a hint.
+ */
+export const testDiffHintNested = () => {
+  expectDiff(delta.insert([para('aaa')]).done(), delta.insert([para('aa')]).done(), delta.modify(delta.create('p').retain(1).delete(1)), hint([0, 1]))
+  expectDiff(delta.insert([para('aaa')]).done(), delta.insert([para('aa')]).done(), delta.modify(delta.create('p').retain(2).delete(1)), hint([0]))
+  expectDiff(delta.insert([para('aaa')]).done(), delta.insert([para('aa')]).done(), delta.modify(delta.create('p').retain(2).delete(1)))
+  expectDiff(delta.insert([para('aaa'), para('aaa')]).done(), delta.insert([para('aa'), para('aaa')]).done(), delta.modify(delta.create('p').retain(1).delete(1)), hint([0, 1]))
+  expectDiff(delta.insert([para('aaa'), para('aaa')]).done(), delta.insert([para('aa'), para('aa')]).done(), delta.modify(delta.create('p').retain(2).delete(1)).modify(delta.create('p').retain(1).delete(1)), hint([1, 1]))
+  // the child's index is counted through retained content, removed units and unpaired children
+  expectDiff(delta.insert('xy').insert([para('aaa')]).done(), delta.insert('xy').insert([para('aa')]).done(), delta.retain(2).modify(delta.create('p').retain(1).delete(1)), hint([2, 1]))
+  expectDiff(delta.insert('Z').insert([para('aaa')]).done(), delta.insert([para('aa')]).done(), delta.delete_(1).modify(delta.create('p').retain(1).delete(1)), hint([1, 1]))
+  expectDiff(delta.insert([delta.create('q').insert('q').done(), para('aaa')]).done(), delta.insert([para('aa')]).done(), delta.delete_(1).modify(delta.create('p').retain(1).delete(1)), hint([1, 1]))
+  expectDiff(delta.insert([para('aaa')]).done(), delta.insert('Z').insert([para('aa')]).done(), delta.insert('Z').modify(delta.create('p').retain(1).delete(1)), hint([0, 1]))
+  // attributes
+  expectDiff(delta.setAttr('body', para('aaa')).done(), delta.setAttr('body', para('aa')).done(), delta.modifyAttr('body', delta.create('p').retain(1).delete(1)), hint(['body', 1]))
+  expectDiff(delta.setAttr('body', para('aaa')).done(), delta.setAttr('body', para('aa')).done(), delta.modifyAttr('body', delta.create('p').retain(2).delete(1)), hint(['other', 1]))
+  expectDiff(delta.setAttr('body', para('aaa')).done(), delta.setAttr('body', para('aa')).done(), delta.modifyAttr('body', delta.create('p').retain(2).delete(1)), hint([1]))
+  expectDiff(
+    delta.create('div', { body: para('aaa') }).insert([para('aaa')]).done(),
+    delta.create('div', { body: para('aa') }).insert([para('aa')]).done(),
+    delta.create('div').modify(delta.create('p').retain(2).delete(1)).modifyAttr('body', delta.create('p').retain(1).delete(1)),
+    hint(['body', 1])
+  )
+}
+
+/**
+ * A separator-free run of more than ~125k chars used to overflow the tokeniser's call stack (`push(...)`
+ * of one token per char).
+ */
+export const testDiffLongRun = () => {
+  const run = 'a'.repeat(150000)
+  const a = delta.insert(run).done()
+  expectDiff(a, delta.insert(run.slice(0, -1) + 'b').done(), delta.retain(run.length - 1).delete(1).insert('b'))
+  expectDiff(a, delta.insert(run.slice(1)).done(), delta.retain(1).delete(1), hint([1]))
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomHintedTextDeltaDiff = tc => {
+  testDeltaDiff(tc, $richTextDelta, { minChildOps: 3, maxChildOps: 10 }, 1)
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testRepeatRandomHintedXmlDeltaDiff = tc => {
+  testDeltaDiff(tc, $richXmlDelta, { minChildOps: 3, maxChildOps: 10 }, 2)
+}
+
+const benchVocab = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing', 'elit', 'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore', 'et', 'dolore', 'magna', 'aliqua', 'the', 'a', 'and', 'of', 'to']
+
+/**
+ * Deterministic filler text: words separated by spaces, a line break every 14 words.
+ *
+ * @param {number} chars
+ * @param {number} [seed]
+ */
+const benchText = (chars, seed = 1) => {
+  const gen = prng.create(seed)
+  let str = ''
+  for (let w = 1; str.length < chars; w++) str += benchVocab[prng.int32(gen, 0, benchVocab.length - 1)] + (w % 14 === 0 ? '\n' : ' ')
+  return str.slice(0, chars)
+}
+
+/**
+ * @param {string} str
+ * @param {number} i
+ */
+const benchSwapAt = (str, i) => str.slice(0, i) + (str[i] === 'x' ? 'y' : 'x') + str.slice(i + 1)
+
+/**
+ * @param {number} i
+ * @param {boolean} edit
+ */
+const benchParagraph = (i, edit) => delta.create('p').insert('paragraph ' + i + (edit ? ' edited' : '') + ' ' + benchText(60, i), i % 5 === 0 ? { align: 'center' } : undefined).done()
+
+/**
+ * @param {boolean} edit
+ */
+const benchParagraphs = edit => {
+  const items = []
+  for (let i = 0; i < 5000; i++) items.push(benchParagraph(i, edit && i === 2500))
+  return delta.insert(items).done()
+}
+
+/**
+ * @param {boolean} edit
+ */
+const benchFormattedOps = edit => {
+  const d = delta.create()
+  for (let i = 0; i < 20000; i++) {
+    d.insert((i === 10000 && edit ? 'wxrd' : 'word') + (i % 13 === 12 ? '\n' : ' '), i % 2 ? { bold: true } : undefined, { insert: [i % 4 < 2 ? 'alice' : 'bob'] })
+  }
+  return d.done()
+}
+
+/**
+ * @param {boolean} edits
+ */
+const benchRichText = edits => {
+  const gen = prng.create(7)
+  const d = delta.create()
+  let user = 0
+  for (let w = 0; w < 3000; w++) {
+    let word = benchVocab[prng.int32(gen, 0, benchVocab.length - 1)]
+    const fmt = prng.int32(gen, 0, 9) === 0 ? { bold: true } : (prng.int32(gen, 0, 19) === 0 ? { italic: true } : undefined)
+    if (w % 12 === 0) user = (user + 1) % 3
+    if (edits) {
+      if (w === 750) continue
+      if (w === 2250) word = word.slice(0, 1) + 'Z' + word.slice(1)
+    }
+    d.insert(word + (w % 15 === 14 ? '\n' : ' '), fmt, { insert: [['alice', 'bob', 'carol'][user]] })
+    if (edits && w === 1500) d.insert('inserted ', fmt, { insert: ['dave'] })
+  }
+  return d.done()
+}
+
+/**
+ * @param {Array<number>} xs
+ */
+const benchMedian = xs => xs.slice().sort((a, b) => a - b)[xs.length >> 1]
+
+/**
+ * Speed of `diff` on a few document shapes — reported, not asserted (machine-specific); every diff must
+ * round-trip. Each scenario is timed as the median of 3 warm runs (21 under `--extensive`), with op
+ * fingerprints cached as after any previous diff of the same states. Recorded 2026-09-06 (Node 26,
+ * i7-1370P, medians of 21, machine-specific): the content-only op-level strip this algorithm replaced,
+ * next to the styled, hint-capped strip with styles reconciled on the interior only:
+ *
+ *     scenario                                                 before       after
+ *     200k-char op, 1 char changed at the end                 1.975 ms    0.166 ms
+ *     200k-char op, 1 char changed in the middle              1.831 ms    0.095 ms
+ *     200k-char op, 1 char inserted in the middle             1.755 ms    0.063 ms
+ *     200k "a"s (no separators), last char changed           73.799 ms   75.068 ms   (200k one-char tokens through the passes; threw before the spread fix)
+ *     200k "a"s, 2nd char deleted, hint [1]                  72.491 ms    0.031 ms
+ *     200k-char op, one word bolded (op split)                1.564 ms    0.022 ms
+ *     20k formatted ops (alternating bold/author), 1 edit     9.209 ms    2.396 ms
+ *     5k nested paragraphs, 1 changed                         0.927 ms    0.428 ms
+ *     5k nested paragraphs, 1 changed, hint [2500, 10]        0.898 ms    0.335 ms
+ *     5k plain-object embeds, 1 changed                      64.190 ms    1.134 ms   (items compared by equalityDeep, not uncached fingerprints)
+ *     3k-word rich text, 3 scattered edits                    1.628 ms    1.327 ms
+ *     3k-word rich text, identical                            0.001 ms    0.002 ms
+ *     keystroke: 60 plain chars, +1 char                      0.016 ms    0.027 ms
+ *     keystroke: 18 formatted words, +1 char                  0.027 ms    0.021 ms
+ *     keystroke: [bold x][x] → [x]                            0.017 ms    0.010 ms
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testDiffBenchmark = _tc => {
+  const T200 = benchText(200000)
+  /**
+   * @type {Array<[string, () => [delta.DeltaAny, delta.DeltaAny, delta.DiffOptions?]]>}
+   */
+  const scenarios = [
+    ['200k-char op, 1 char changed at the end', () => [delta.insert(T200).done(), delta.insert(benchSwapAt(T200, T200.length - 1)).done()]],
+    ['200k-char op, 1 char changed in the middle', () => [delta.insert(T200).done(), delta.insert(benchSwapAt(T200, 100000)).done()]],
+    ['200k-char op, 1 char inserted in the middle', () => [delta.insert(T200).done(), delta.insert(T200.slice(0, 100000) + 'Q' + T200.slice(100000)).done()]],
+    ['200k "a"s (no separators), last char changed', () => [delta.insert('a'.repeat(200000)).done(), delta.insert('a'.repeat(199999) + 'b').done()]],
+    ['200k "a"s, 2nd char deleted, hint [1]', () => [delta.insert('a'.repeat(200000)).done(), delta.insert('a'.repeat(199999)).done(), { hint: position.create([1]) }]],
+    ['200k-char op, one word bolded (op split)', () => [delta.insert(T200).done(), delta.insert(T200.slice(0, 100000)).insert(T200.slice(100000, 100006), { bold: true }).insert(T200.slice(100006)).done()]],
+    ['20k formatted ops (alternating bold/author), 1 edit', () => [benchFormattedOps(false), benchFormattedOps(true)]],
+    ['5k nested paragraphs, 1 changed', () => [benchParagraphs(false), benchParagraphs(true)]],
+    ['5k nested paragraphs, 1 changed, hint [2500, 10]', () => [benchParagraphs(false), benchParagraphs(true), { hint: position.create([2500, 10]) }]],
+    ['5k plain-object embeds, 1 changed', () => {
+      /** @param {boolean} edit */
+      const mk = edit => { const items = []; for (let i = 0; i < 5000; i++) items.push({ image: 'img' + i + '.png', w: i % 7, h: edit && i === 2500 ? 99 : 3 }); return delta.insert(items).done() }
+      return [mk(false), mk(true)]
+    }],
+    ['3k-word rich text, 3 scattered edits', () => [benchRichText(false), benchRichText(true)]],
+    ['3k-word rich text, identical', () => [benchRichText(false), benchRichText(false)]],
+    ['keystroke: 60 plain chars, +1 char', () => { const str = benchText(60); return [delta.insert(str).done(), delta.insert(str.slice(0, 30) + 'x' + str.slice(30)).done()] }],
+    ['keystroke: 18 formatted words, +1 char', () => {
+      /** @param {boolean} edit */
+      const mk = edit => { const d = delta.create(); for (let w = 0; w < 18; w++) d.insert(benchVocab[w] + (edit && w === 9 ? 'x ' : ' '), w % 3 === 0 ? { bold: true } : undefined, { insert: [w % 2 ? 'alice' : 'bob'] }); return d.done() }
+      return [mk(false), mk(true)]
+    }],
+    ['keystroke: [bold x][x] → [x]', () => [delta.insert('x', { bold: true }).insert('x').done(), delta.insert('x').done()]]
+  ]
+  const runs = t.extensive ? 21 : 3
+  for (const [name, mk] of scenarios) {
+    const [d1, d2, options] = mk()
+    let d = delta.diff(d1, d2, options) // warm-up: caches the op fingerprints
+    const ts = []
+    for (let i = 0; i < runs; i++) {
+      const t0 = performance.now()
+      d = delta.diff(d1, d2, options)
+      ts.push(performance.now() - t0)
+    }
+    t.describe(name.padEnd(52), (benchMedian(ts).toFixed(3) + ' ms').padStart(12))
+    const applied = delta.clone(d1)
+    applied.isFinal = true
+    applied.apply(d)
+    t.assert(applied.equals(d2), name)
+  }
 }

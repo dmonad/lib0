@@ -194,3 +194,28 @@ export const testDiffIdea = _tc => {
   console.log(res)
   t.compare(res, [{ index: 2, remove: '.there', insert: ' you' }, { index: 10, remove: 'hello', insert: 'hell' }])
 }
+
+/**
+ * `leftmost` places an ambiguous hunk at the start of its run instead of the end; unambiguous input diffs
+ * identically either way.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testDiffLeftmost = _tc => {
+  /**
+   * @param {string} str
+   */
+  const chars = str => str.split('')
+  t.compare(patience.diff(chars('aaa'), chars('aa')), [{ index: 2, remove: ['a'], insert: [] }])
+  t.compare(patience.diff(chars('aaa'), chars('aa'), true), [{ index: 0, remove: ['a'], insert: [] }])
+  t.compare(patience.diff(chars('aa'), chars('aaa'), true), [{ index: 0, remove: [], insert: ['a'] }])
+  // only the gap before the first anchor (`X`) is placed leftmost; the trailing run keeps the default
+  // placement (the default's outer suffix strip happens to place that one leftmost, the pseudo-anchor's
+  // prefix-first gap strip places it rightmost)
+  t.compare(patience.diff(chars('aaXbb'), chars('aXb')), [{ index: 1, remove: ['a'], insert: [] }, { index: 3, remove: ['b'], insert: [] }])
+  t.compare(patience.diff(chars('aaXbb'), chars('aXb'), true), [{ index: 0, remove: ['a'], insert: [] }, { index: 4, remove: ['b'], insert: [] }])
+  // unambiguous: identical either way, incl. equal inputs and a common prefix that anchors as usual
+  t.compare(patience.diff(chars('abc'), chars('aXc'), true), patience.diff(chars('abc'), chars('aXc')))
+  t.compare(patience.diff(chars('aaa'), chars('aaa'), true), [])
+  t.compare(patience.diff(chars('abcd'), chars('abXd'), true), [{ index: 2, remove: ['c'], insert: ['X'] }])
+}

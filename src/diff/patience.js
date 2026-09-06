@@ -14,17 +14,25 @@ import * as array from '../array.js'
 /**
  * Implementation of patience diff. Expects that content is pre-split (e.g. by newline).
  *
+ * A hunk inside a run of equal items is ambiguous (`aaa` → `aa` may delete any of the `a`s). By default
+ * the common prefix is stripped first, so such a hunk lands at the *rightmost* slot of its run. With
+ * `leftmost` the first hunk lands at the *leftmost* slot instead: nothing is stripped up front and the
+ * gap before the first anchor strips its common suffix before its prefix (see {@link lcs}). Unambiguous
+ * input diffs identically either way.
+ *
  * @param {Array<string>} as
  * @param {Array<string>} bs
+ * @param {boolean} [leftmost]
  * @return {Array<{ index: number, remove: Array<string>, insert: Array<string>}>} changeset
  */
-export const diff = (as, bs) => {
+export const diff = (as, bs, leftmost = false) => {
+  if (leftmost) return lcs(as, bs, 0, true)
   const {
     middleAs,
     middleBs,
     commonPrefix
   } = removeCommonPrefixAndSuffix(as, bs)
-  return lcs(middleAs, middleBs, commonPrefix)
+  return lcs(middleAs, middleBs, commonPrefix, false)
 }
 
 /**
@@ -83,15 +91,23 @@ export const diffAuto = (a, b) =>
   ).flat(1)
 
 /**
+ * Strip the common prefix and suffix. Whichever end is matched first claims the overlap, i.e. decides
+ * where a hunk inside a run of equal items lands: prefix first (default) ⇒ rightmost slot, `suffixFirst`
+ * ⇒ leftmost slot.
+ *
  * @param {Array<string>} as
  * @param {Array<string>} bs
+ * @param {boolean} [suffixFirst]
  */
-const removeCommonPrefixAndSuffix = (as, bs) => {
+const removeCommonPrefixAndSuffix = (as, bs, suffixFirst = false) => {
   const commonLen = math.min(as.length, bs.length)
   let commonPrefix = 0
   let commonSuffix = 0
+  if (suffixFirst) {
+    for (; commonSuffix < commonLen && as[as.length - 1 - commonSuffix] === bs[bs.length - 1 - commonSuffix]; commonSuffix++) { /* nop */ }
+  }
   // match start
-  for (; commonPrefix < commonLen && as[commonPrefix] === bs[commonPrefix]; commonPrefix++) { /* nop */ }
+  for (; commonPrefix < commonLen - commonSuffix && as[commonPrefix] === bs[commonPrefix]; commonPrefix++) { /* nop */ }
   // match end
   for (; commonSuffix < commonLen - commonPrefix && as[as.length - 1 - commonSuffix] === bs[bs.length - 1 - commonSuffix]; commonSuffix++) { /* nop */ }
   const middleAs = as.slice(commonPrefix, as.length - commonSuffix)
@@ -169,8 +185,9 @@ const partition = xs => {
  * @param {Array<string>} as
  * @param {Array<string>} bs
  * @param {number} indexAdjust
+ * @param {boolean} leftmost the gap before the first anchor strips its suffix first (see {@link diff})
  */
-const lcs = (as, bs, indexAdjust) => {
+const lcs = (as, bs, indexAdjust, leftmost) => {
   if (as.length === 0 && bs.length === 0) return []
   const aParts = partition(as)
   const bParts = partition(bs)
@@ -181,16 +198,24 @@ const lcs = (as, bs, indexAdjust) => {
   aParts.forEach((aItem, aKey) => {
     // skip if no match or if either item is not unique
     if (aItem.indexes.length > 1 || (aItem.match = bParts.get(aKey) || null) == null || aItem.match.indexes.length > 1) return
-    for (let i = 0; i < piles.length; i++) {
-      const pile = piles[i]
-      if (aItem.match.indexes[0] < /** @type {Item} */ (pile[pile.length - 1].match).indexes[0]) {
-        pile.push(aItem)
-        if (i > 0) aItem.ref = array.last(piles[i - 1])
-        return
+    // pile tops ascend: binary search for the first pile whose top lies beyond this match
+    const bIndex = aItem.match.indexes[0]
+    let lo = 0
+    let hi = piles.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (bIndex < /** @type {Item} */ (array.last(piles[mid]).match).indexes[0]) {
+        hi = mid
+      } else {
+        lo = mid + 1
       }
     }
-    piles.length > 0 && (aItem.ref = array.last(piles[piles.length - 1]))
-    piles.push([aItem])
+    if (lo > 0) aItem.ref = array.last(piles[lo - 1])
+    if (lo < piles.length) {
+      piles[lo].push(aItem)
+    } else {
+      piles.push([aItem])
+    }
   })
   /**
    * References to all matched items
@@ -225,7 +250,7 @@ const lcs = (as, bs, indexAdjust) => {
     const delLength = m.indexes[0] - diffAStart
     const insLength = /** @type {Item} */ (m.match).indexes[0] - diffBStart
     if (delLength !== 0 || insLength !== 0) {
-      const stripped = removeCommonPrefixAndSuffix(as.slice(diffAStart, diffAStart + delLength), bs.slice(diffBStart, diffBStart + insLength))
+      const stripped = removeCommonPrefixAndSuffix(as.slice(diffAStart, diffAStart + delLength), bs.slice(diffBStart, diffBStart + insLength), leftmost && diffAStart === 0)
       if (stripped.middleAs.length !== 0 || stripped.middleBs.length !== 0) {
         changeset.push({ index: diffAStart + indexAdjust + stripped.commonPrefix, remove: stripped.middleAs, insert: stripped.middleBs })
       }
