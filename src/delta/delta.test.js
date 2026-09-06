@@ -3268,6 +3268,28 @@ export const testDiffStyledStrip = () => {
 }
 
 /**
+ * Adjacent text ops are joined before tokenisation, so a style-only edit (formatting or attribution) is
+ * retains carrying the style updates — never a delete plus re-insert, which would synthesise provenance.
+ */
+export const testDiffStyleOnly = () => {
+  expectDiff(delta.insert('lorem lorem lorem', { bold: true }).done(), delta.insert('lorem lo', { bold: true }).insert('re').insert('m lo', { bold: true }).insert('rem').done(), delta.retain(8).retain(2, { bold: null }).retain(4).retain(3, { bold: null }))
+  expectDiff(delta.insert('lorem lorem lorem', undefined, { insert: ['alice'] }).done(), delta.insert('lorem lo', undefined, { insert: ['alice'] }).insert('re').insert('m lo', undefined, { insert: ['alice'] }).insert('rem').done(), delta.retain(8).retain(2, undefined, null).retain(4).retain(3, undefined, null))
+  // an op boundary is not a content boundary: no crosswise anchoring on `foo`
+  expectDiff(delta.insert('foo', { bold: true }).insert(' bar foo').done(), delta.insert('foo bar ').insert('foo', { bold: true }).done(), delta.retain(3, { bold: null }).retain(5).retain(3, { bold: true }))
+  // text is joined between array items, not across them
+  expectDiff(delta.insert('ab', { bold: true }).insert([{ k: 1 }]).insert('cd').done(), delta.insert('a').insert('b', { bold: true }).insert([{ k: 1 }]).insert('c', { bold: true }).insert('d').done(), delta.retain(1, { bold: null }).retain(2).retain(1, { bold: true }))
+}
+
+/**
+ * A joined token may span several ops: inserted text is emitted per `d2` op (each with that op's style),
+ * a delete advances across `d1` ops.
+ */
+export const testDiffTokenSpansOps = () => {
+  expectDiff(delta.insert('ab').done(), delta.insert('aXY', { bold: true }).insert('Zb').done(), delta.retain(1, { bold: true }).insert('XY', { bold: true }).insert('Z'))
+  expectDiff(delta.insert('aXY', { bold: true }).insert('Zb').done(), delta.insert('ab').done(), delta.retain(1, { bold: null }).delete(3))
+}
+
+/**
  * A partial text match that ends inside both ops commits only whole lines, so the line pass still sees
  * whole tokens and the alignment stays the content diff's where the strip has nothing to decide.
  */
@@ -3479,23 +3501,24 @@ const benchMedian = xs => xs.slice().sort((a, b) => a - b)[xs.length >> 1]
  * round-trip. Each scenario is timed as the median of 3 warm runs (21 under `--extensive`), with op
  * fingerprints cached as after any previous diff of the same states. Recorded 2026-09-06 (Node 26,
  * i7-1370P, medians of 21, machine-specific): the content-only op-level strip this algorithm replaced,
- * next to the styled, hint-capped strip with styles reconciled on the interior only:
+ * next to the styled, hint-capped strip with styles reconciled on the interior only, the strip's cursors
+ * handed on, and adjacent text joined before tokenisation:
  *
  *     scenario                                                 before       after
- *     200k-char op, 1 char changed at the end                 1.975 ms    0.166 ms
- *     200k-char op, 1 char changed in the middle              1.831 ms    0.095 ms
- *     200k-char op, 1 char inserted in the middle             1.755 ms    0.063 ms
- *     200k "a"s (no separators), last char changed           73.799 ms   75.068 ms   (200k one-char tokens through the passes; threw before the spread fix)
- *     200k "a"s, 2nd char deleted, hint [1]                  72.491 ms    0.031 ms
- *     200k-char op, one word bolded (op split)                1.564 ms    0.022 ms
- *     20k formatted ops (alternating bold/author), 1 edit     9.209 ms    1.332 ms
- *     5k nested paragraphs, 1 changed                         0.927 ms    0.428 ms
- *     5k nested paragraphs, 1 changed, hint [2500, 10]        0.898 ms    0.335 ms
- *     5k plain-object embeds, 1 changed                      64.190 ms    1.134 ms   (items compared by equalityDeep, not uncached fingerprints)
- *     3k-word rich text, 3 scattered edits                    1.628 ms    1.327 ms
- *     3k-word rich text, identical                            0.001 ms    0.002 ms
- *     keystroke: 60 plain chars, +1 char                      0.016 ms    0.027 ms
- *     keystroke: 18 formatted words, +1 char                  0.027 ms    0.021 ms
+ *     200k-char op, 1 char changed at the end                 1.975 ms    0.158 ms
+ *     200k-char op, 1 char changed in the middle              1.831 ms    0.133 ms
+ *     200k-char op, 1 char inserted in the middle             1.755 ms    0.066 ms
+ *     200k "a"s (no separators), last char changed           73.799 ms   44.058 ms   (200k one-char tokens through the passes; threw before the spread fix)
+ *     200k "a"s, 2nd char deleted, hint [1]                  72.491 ms    0.056 ms
+ *     200k-char op, one word bolded (op split)                1.564 ms    0.028 ms
+ *     20k formatted ops (alternating bold/author), 1 edit     9.209 ms    1.345 ms
+ *     5k nested paragraphs, 1 changed                         0.927 ms    0.485 ms
+ *     5k nested paragraphs, 1 changed, hint [2500, 10]        0.898 ms    0.437 ms
+ *     5k plain-object embeds, 1 changed                      64.190 ms    1.550 ms   (items compared by equalityDeep, not uncached fingerprints)
+ *     3k-word rich text, 3 scattered edits                    1.628 ms    0.803 ms
+ *     3k-word rich text, identical                            0.001 ms    0.001 ms
+ *     keystroke: 60 plain chars, +1 char                      0.016 ms    0.024 ms
+ *     keystroke: 18 formatted words, +1 char                  0.027 ms    0.020 ms
  *     keystroke: [bold x][x] → [x]                            0.017 ms    0.010 ms
  *
  * @param {t.TestCase} _tc

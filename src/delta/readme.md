@@ -129,7 +129,9 @@ wrote* the surviving character. It also takes `options.hint`, a position (`posit
 `[1, 5]`, `['body', 5]` — see `position.js`) naming where the change *starts* in pre-edit coordinates (the
 `from` of the editor transaction: typing at gap `p` → `[p]`, backspace at caret `p` → `[p-1]`): deleting
 the second `a` of `aaa` with a hint at `[1]` yields `retain(1).delete(1)`, so remote cursors are transformed
-against the edit that actually happened. A wrong hint only shifts placement, never correctness. The
+against the edit that actually happened. A wrong hint only shifts placement, never correctness. A
+style-only change (formatting or attribution) never deletes and re-inserts content: text is matched across
+op boundaries, so the changed range comes out as retains carrying the format/attribution updates. The
 algorithm and its deliberate non-optimisations are explained in `delta.js` above `diff`.
 
 ## Delta for Array-like structures

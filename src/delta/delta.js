@@ -4029,8 +4029,9 @@ class _DiffStringWrapper {
  *      `3\n- item ` somewhere in the middle). Op boundaries and the hint are real boundaries, line breaks
  *      are what the first content pass splits on, so those are the only places a partial match commits.
  *      Inside a single line the strip commits nothing on its own and the content passes decide.
- * 3. **Content passes.** The interior (what the strip did not consume) is tokenised and aligned by three
- *    patience passes ({@link diffChangesetWithSeparator}: lines, then words, then characters). When the
+ * 3. **Content passes.** The interior (what the strip did not consume) is tokenised — text joined across
+ *    ops, array items one token each — and aligned by three patience passes
+ *    ({@link diffChangesetWithSeparator}: lines, then words, then characters). When the
  *    hint bound the prefix, the hunk that starts there is diffed with patience's `leftmost` placement, so
  *    its first sub-hunk stays at the hint even when the interior holds several edits (the passes' own
  *    greedy prefix strip would otherwise push it to the end of its run again — `aaa bbb` → `aa bb` with a
@@ -4070,15 +4071,15 @@ class _DiffStringWrapper {
  * - `hint` forwarding allocates nothing when there is no hint.
  * - The strip hands its stop cursors ({@link Cursors}) to the tokeniser and the emit, so nothing in front
  *   of the interior is walked twice (that re-walk was ~1.1 of ~2.6 ms at 20k ops).
- * - NOT done: joining adjacent text ops before tokenisation. A format boundary inside otherwise equal text
- *   can still make the passes anchor crosswise (`[bold foo][ bar foo]` vs `[foo bar ][bold foo]`) — a
- *   limitation of the passes that the strip only mitigates at the interior's edges. It also affects
- *   **style-only** edits: the strip may commit at one side's op boundary in the middle of a word on the
- *   other side, so restyling a word occasionally yields content churn (0.22 % of random restyle pairs vs
- *   0.04 % with the former op-level strip; worst case re-inserts ~200 chars and, with attribution,
- *   synthesises provenance — repro: `insert('lorem lorem lorem', {bold})` → `'lorem lo'(bold) 're'
- *   'm lo'(bold) 'rem'`). Naively joining text fixes that but loses line anchors on content edits; the
- *   fix needs joining that re-splits on op boundaries coinciding with line/word boundaries.
+ * - Adjacent text ops are joined before tokenisation ({@link interiorTokens}): to the passes, an op
+ *   boundary is a style boundary, never a content boundary. So a style-only edit — the interior's text is
+ *   identical on both sides — always comes out as retains carrying the style updates, never as a delete
+ *   plus re-insert that would synthesise provenance (`insert('lorem lorem lorem', {bold})` →
+ *   `'lorem lo'(bold) 're' 'm lo'(bold) 'rem'` is four retains; `[bold foo][ bar foo]` →
+ *   `[foo bar ][bold foo]` no longer anchors crosswise on `foo`). The price: op boundaries no longer
+ *   supply accidental anchors, so text in which no line, word or character is unique between two edits
+ *   (a long line of a few repeated words) can align worse than before — patience's own limitation, which
+ *   the per-op tokens used to mask.
  * - NOT done: splitting a hunk. `[bold x][x][italic y][y]` → `xy` is one pure hunk `xy`; the ideal
  *   diff deletes the bold `x` and the italic `y` separately, which no strip can express.
  *
@@ -4234,9 +4235,9 @@ const commonLen = (c, max, back) => {
 }
 
 /**
- * Push the diff tokens of the `len` content units starting at unit `off` of `op` onto `tokens`: text as
- * raw strings (the content passes split them), array items one token each (strings wrapped so they stay
- * one unit).
+ * Push the diff tokens of the `len` content units starting at unit `off` of `op` onto `tokens`: adjacent
+ * text ops as one raw string (the content passes split it; a style boundary must not act as a content
+ * boundary), array items one token each (strings wrapped so they stay one unit).
  *
  * @param {ChildrenOpAny?} op
  * @param {number} off
@@ -4244,11 +4245,14 @@ const commonLen = (c, max, back) => {
  * @param {Array<any>} tokens
  */
 const interiorTokens = (op, off, len, tokens) => {
+  let text = '' // adjacent text ops are joined: an op boundary is a style boundary, not a content boundary
   for (; op !== null && len > 0; op = op.next, off = 0) {
     const stop = math.min(off + len, op.length)
     if ($textOp.check(op)) {
-      tokens.push(op.insert.slice(off, stop))
+      text += op.insert.slice(off, stop)
     } else if ($insertOp.check(op)) {
+      text.length > 0 && tokens.push(text)
+      text = ''
       for (let i = off; i < stop; i++) {
         const item = op.insert[i]
         tokens.push(typeof item === 'string' ? new _DiffStringWrapper(item) : item)
@@ -4258,6 +4262,7 @@ const interiorTokens = (op, off, len, tokens) => {
     }
     len -= stop - off
   }
+  text.length > 0 && tokens.push(text)
 }
 
 /**
@@ -4540,21 +4545,29 @@ const applyChangesetToDelta = (d, changeset, c, from, to, options) => {
   let b = /** @type {TextOp|InsertOp<any>|null} */ (c.b)
   let aOff = c.ai
   let bOff = c.bi
-  // advance a cursor within its op (a token never spans ops; a retain is chunked below)
+  // advance a cursor by `len` units (a joined text token may span several ops)
   /** @param {number} len */
   const advanceA = len => {
-    const op = /** @type {TextOp|InsertOp<any>} */ (a)
-    if ((aOff += len) === op.length) {
-      a = op.next
-      aOff = 0
+    while (len > 0) {
+      const op = /** @type {TextOp|InsertOp<any>} */ (a)
+      const step = math.min(len, op.length - aOff)
+      if ((aOff += step) === op.length) {
+        a = op.next
+        aOff = 0
+      }
+      len -= step
     }
   }
   /** @param {number} len */
   const advanceB = len => {
-    const op = /** @type {TextOp|InsertOp<any>} */ (b)
-    if ((bOff += len) === op.length) {
-      b = op.next
-      bOff = 0
+    while (len > 0) {
+      const op = /** @type {TextOp|InsertOp<any>} */ (b)
+      const step = math.min(len, op.length - bOff)
+      if ((bOff += step) === op.length) {
+        b = op.next
+        bOff = 0
+      }
+      len -= step
     }
   }
   /** @param {number} len */
@@ -4599,9 +4612,20 @@ const applyChangesetToDelta = (d, changeset, c, from, to, options) => {
    */
   const insert = (tokens, len) => {
     for (const tok of tokens.splice(0, len)) {
-      const op = /** @type {TextOp|InsertOp<any>} */ (b)
-      d.insert(typeof tok === 'string' ? tok : [tok instanceof _DiffStringWrapper ? tok.str : (options.clone ? _cloneMaybeDeltaDeep(tok) : tok)], op.format, op.attribution)
-      advanceB(contentLen(tok))
+      if (typeof tok === 'string') {
+        // one insert per `d2` op the text spans, so each carries that op's style
+        for (let i = 0; i < tok.length;) {
+          const op = /** @type {TextOp} */ (b)
+          const step = math.min(tok.length - i, op.length - bOff)
+          d.insert(tok.slice(i, i + step), op.format, op.attribution)
+          advanceB(step)
+          i += step
+        }
+      } else {
+        const op = /** @type {InsertOp<any>} */ (b)
+        d.insert([tok instanceof _DiffStringWrapper ? tok.str : (options.clone ? _cloneMaybeDeltaDeep(tok) : tok)], op.format, op.attribution)
+        advanceB(1)
+      }
     }
   }
   d.retain(from)
