@@ -3957,6 +3957,10 @@ export const deleteAttr = (key, attribution) => create().deleteAttr(key, attribu
  */
 export const modifyAttr = (key, modify, attribution) => create().modifyAttr(key, modify, attribution)
 
+/**
+ * An array item that is a string, wrapped so the content passes treat it as one unit (a raw string token
+ * would be split by the separators) and fingerprint it once.
+ */
 class _DiffStringWrapper {
   /**
    * @param {string} str
@@ -4064,10 +4068,8 @@ class _DiffStringWrapper {
  *   objects have no cached fingerprint (`fingerprint(obj)` re-encodes and hashes every time: ~6 µs each),
  *   so 5k embeds compare in 1 ms instead of 65.
  * - `hint` forwarding allocates nothing when there is no hint.
- * - NOT done: resuming the interior tokenisation (and the emit's cursors) at the strip's stop cursor.
- *   Re-walking from the first op costs one pointer chase per op before the edit — now the largest
- *   remaining cost on many-op documents (~0.5 of ~2 ms at 20k ops) — and keeps {@link interiorTokens} a
- *   self-contained "tokens of units [from, to)" primitive.
+ * - The strip hands its stop cursors ({@link Cursors}) to the tokeniser and the emit, so nothing in front
+ *   of the interior is walked twice (that re-walk was ~1.1 of ~2.6 ms at 20k ops).
  * - NOT done: joining adjacent text ops before tokenisation. A format boundary inside otherwise equal text
  *   can still make the passes anchor crosswise (`[bold foo][ bar foo]` vs `[foo bar ][bold foo]`) — a
  *   limitation of the passes that the strip only mitigates at the interior's edges. It also affects
@@ -4082,9 +4084,10 @@ class _DiffStringWrapper {
  *
  * ## Cost
  *
- * O(ops skipped whole + units matched inside the boundary ops + the content diff of the interior + the
- * ops in front of the interior, walked once more by {@link interiorTokens}). A single edit in a 200k-char
- * op costs ~0.1 ms, one edit in 20k small formatted ops ~2 ms. All of that assumes cached op fingerprints:
+ * O(ops skipped whole + units matched inside the boundary ops + the content diff of the interior). A
+ * single edit in a 200k-char op costs ~0.1 ms, one edit in 20k small formatted ops ~1.6 ms — of which the
+ * strip's two lockstep walks are ~1.4 (≈35 ns per op visit), the floor without an index over the ops.
+ * All of that assumes cached op fingerprints:
  * a freshly built state pays for them on the first read (the top-level short-circuit forces every op's
  * fingerprint, ~6 µs each — ~135 ms for 20k ops), which predates this algorithm and dwarfs the diff
  * itself. Measured numbers: `testDiffBenchmark` in `delta.test.js`.
@@ -4165,23 +4168,29 @@ const commonUnits = (a, ai, b, bi, max, back) => {
 }
 
 /**
- * Length of the common prefix (`back` = false, walking `.next` from the first ops) or suffix (`back` =
- * true, walking `.prev` from the last ops) of two states, in content units, at most `max`.
+ * Where a lockstep walk of two states stands: the current op of each side and the units of it already
+ * consumed from the walked end.
+ *
+ * @typedef {{ a: ChildrenOpAny?, ai: number, b: ChildrenOpAny?, bi: number }} Cursors
+ */
+
+/**
+ * Length of the common prefix (`back` = false, walking `.next`) or suffix (`back` = true, walking
+ * `.prev`) of two states from the cursors `c`, in content units, at most `max`. `c` is left where the
+ * match stopped, so the interior can be walked from there without seeking to it again.
  *
  * Whole ops with equal fingerprints are skipped in one step. Inside two ops that differ, units are matched
  * while both ops carry the same style ({@link sameStyle}). A text match that ends on a content mismatch
  * inside *both* ops is committed only up to its last line break (partial lines are left to the content
  * passes, which split on lines first — see the diffing notes above).
  *
- * @param {ChildrenOpAny?} a
- * @param {ChildrenOpAny?} b
+ * @param {Cursors} c
  * @param {number} max
  * @param {boolean} back
  * @return {number}
  */
-const commonLen = (a, b, max, back) => {
-  let ai = 0 // units of `a` already matched, counted from the walked end
-  let bi = 0
+const commonLen = (c, max, back) => {
+  let { a, ai, b, bi } = c
   let len = 0
   while (a !== null && b !== null && len < max) {
     let k = 0
@@ -4197,12 +4206,13 @@ const commonLen = (a, b, max, back) => {
     }
     if (k === 0) break
     if (len + k < max && ai + k < a.length && bi + k < b.length && $textOp.check(a)) {
-      // stopped on a content mismatch inside both ops: commit whole lines only
+      // stopped on a content mismatch inside both ops: commit whole lines only, and stop there
       const s = a.insert
       const start = back ? s.length - ai - k : ai
       const end = start + k
       const nl = back ? s.indexOf('\n', start) : s.lastIndexOf('\n', end - 1)
-      return len + (nl < start || nl >= end ? 0 : back ? end - nl - 1 : nl - start + 1)
+      k = nl < start || nl >= end ? 0 : back ? end - nl - 1 : nl - start + 1
+      max = len + k
     }
     len += k
     ai += k
@@ -4216,37 +4226,37 @@ const commonLen = (a, b, max, back) => {
       bi = 0
     }
   }
+  c.a = a
+  c.ai = ai
+  c.b = b
+  c.bi = bi
   return len
 }
 
 /**
- * Push the diff tokens of the content units `[from, to)` of `d` onto `tokens`: text as raw strings (the
- * content passes split them), array items one token each (strings wrapped so they stay one unit).
+ * Push the diff tokens of the `len` content units starting at unit `off` of `op` onto `tokens`: text as
+ * raw strings (the content passes split them), array items one token each (strings wrapped so they stay
+ * one unit).
  *
- * @param {DeltaAny} d
- * @param {number} from
- * @param {number} to
+ * @param {ChildrenOpAny?} op
+ * @param {number} off
+ * @param {number} len
  * @param {Array<any>} tokens
  */
-const interiorTokens = (d, from, to, tokens) => {
-  let off = 0
-  for (let op = d.children.start; op !== null && off < to; op = op.next) {
-    const end = off + op.length
-    const start = math.max(from - off, 0)
-    const stop = math.min(to - off, op.length)
-    if (start < stop) {
-      if ($textOp.check(op)) {
-        tokens.push(op.insert.slice(start, stop))
-      } else if ($insertOp.check(op)) {
-        for (let i = start; i < stop; i++) {
-          const item = op.insert[i]
-          tokens.push(typeof item === 'string' ? new _DiffStringWrapper(item) : item)
-        }
-      } else {
-        throw error.create('[lib0/delta] diffing deletes unsupported')
+const interiorTokens = (op, off, len, tokens) => {
+  for (; op !== null && len > 0; op = op.next, off = 0) {
+    const stop = math.min(off + len, op.length)
+    if ($textOp.check(op)) {
+      tokens.push(op.insert.slice(off, stop))
+    } else if ($insertOp.check(op)) {
+      for (let i = off; i < stop; i++) {
+        const item = op.insert[i]
+        tokens.push(typeof item === 'string' ? new _DiffStringWrapper(item) : item)
       }
+    } else {
+      throw error.create('[lib0/delta] diffing deletes unsupported')
     }
-    off = end
+    len -= stop - off
   }
 }
 
@@ -4352,8 +4362,9 @@ export const diff = (d1, d2, options = {}) => {
     const n = d1.childCnt
     const m = d2.childCnt
     const hint = options.hint?.path[0]
-    const prefixLen = commonLen(d1.children.start, d2.children.start, math.min(math.min(n, m), typeof hint === 'number' ? hint : n), false)
-    const suffixLen = commonLen(d1.children.end, d2.children.end, math.min(n, m) - prefixLen, true)
+    const c = { a: d1.children.start, ai: 0, b: d2.children.start, bi: 0 }
+    const prefixLen = commonLen(c, math.min(math.min(n, m), typeof hint === 'number' ? hint : n), false)
+    const suffixLen = commonLen({ a: d1.children.end, ai: 0, b: d2.children.end, bi: 0 }, math.min(n, m) - prefixLen, true)
     /**
      * @type {Array<any>}
      */
@@ -4362,8 +4373,8 @@ export const diff = (d1, d2, options = {}) => {
      * @type {Array<any>}
      */
     const cs2 = []
-    interiorTokens(d1, prefixLen, n - suffixLen, cs1)
-    interiorTokens(d2, prefixLen, m - suffixLen, cs2)
+    interiorTokens(c.a, c.ai, n - suffixLen - prefixLen, cs1)
+    interiorTokens(c.b, c.bi, m - suffixLen - prefixLen, cs2)
     // when the hint bound the prefix, the hunk starting there keeps its leftmost placement through the
     // passes (otherwise their own greedy prefix strip would move it to the end of its run again)
     const leftmostIndex = prefixLen === hint ? prefixLen : -1
@@ -4372,7 +4383,7 @@ export const diff = (d1, d2, options = {}) => {
     changeset = diffChangesetWithSeparator(changeset, /[\n]+/g, leftmostIndex)
     changeset = diffChangesetWithSeparator(changeset, patience.smartSplitRegex, leftmostIndex)
     changeset = diffChangesetWithSeparator(changeset, /./g, leftmostIndex)
-    applyChangesetToDelta(d, changeset, d1, d2, prefixLen, n - suffixLen, options)
+    applyChangesetToDelta(d, changeset, c, prefixLen, n - suffixLen, options)
     applyAttrDiff(d, d1, d2, options)
   }
   return d.done(false)
@@ -4509,34 +4520,26 @@ const contentLen = c => typeof c === 'string' ? c.length : 1
 /**
  * Emit the aligned changeset onto `d` while reconciling styles. `[from, to)` is the interior in `d1`
  * units — the stripped prefix and suffix are style-equal by construction ({@link commonLen}), so only the
- * interior is walked: a retained range carries the tri-state format/attribution updates ({@link diffDim})
- * between the `d1` and `d2` ops it spans, inserted content carries `d2`'s style. Nested deltas of a hunk
- * are paired via `options.compare` into `modify` ops (a removed delta pairs with the first inserted delta
- * it compares equal to); the hint descends into the child at the content index it names.
+ * interior is walked, from the cursors the strip left: a retained range carries the tri-state
+ * format/attribution updates ({@link diffDim}) between the `d1` and `d2` ops it spans, inserted content
+ * carries `d2`'s style. Nested deltas of a hunk are paired via `options.compare` into `modify` ops (a
+ * removed delta pairs with the first inserted delta it compares equal to); the hint descends into the
+ * child at the content index it names.
  *
  * @param {DeltaBuilderAny} d
  * @param {Array<{ index: number, remove: Array<any>, insert: Array<any> }>} changeset
- * @param {DeltaAny} d1
- * @param {DeltaAny} d2
+ * @param {Cursors} c where the interior starts in `d1` / `d2` (the prefix strip's stop)
  * @param {number} from
  * @param {number} to
  * @param {DiffOptions} options
  */
-const applyChangesetToDelta = (d, changeset, d1, d2, from, to, options) => {
+const applyChangesetToDelta = (d, changeset, c, from, to, options) => {
   const compare = options.compare ?? defaultCompare
   // reason: d1/d2 are insert-only (interiorTokens rejects anything else)
-  let a = /** @type {TextOp|InsertOp<any>|null} */ (d1.children.start)
-  let b = /** @type {TextOp|InsertOp<any>|null} */ (d2.children.start)
-  let aOff = from
-  let bOff = from
-  while (a !== null && aOff >= a.length) {
-    aOff -= a.length
-    a = a.next
-  }
-  while (b !== null && bOff >= b.length) {
-    bOff -= b.length
-    b = b.next
-  }
+  let a = /** @type {TextOp|InsertOp<any>|null} */ (c.a)
+  let b = /** @type {TextOp|InsertOp<any>|null} */ (c.b)
+  let aOff = c.ai
+  let bOff = c.bi
   // advance a cursor within its op (a token never spans ops; a retain is chunked below)
   /** @param {number} len */
   const advanceA = len => {

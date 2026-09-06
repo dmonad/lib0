@@ -3488,7 +3488,7 @@ const benchMedian = xs => xs.slice().sort((a, b) => a - b)[xs.length >> 1]
  *     200k "a"s (no separators), last char changed           73.799 ms   75.068 ms   (200k one-char tokens through the passes; threw before the spread fix)
  *     200k "a"s, 2nd char deleted, hint [1]                  72.491 ms    0.031 ms
  *     200k-char op, one word bolded (op split)                1.564 ms    0.022 ms
- *     20k formatted ops (alternating bold/author), 1 edit     9.209 ms    2.396 ms
+ *     20k formatted ops (alternating bold/author), 1 edit     9.209 ms    1.332 ms
  *     5k nested paragraphs, 1 changed                         0.927 ms    0.428 ms
  *     5k nested paragraphs, 1 changed, hint [2500, 10]        0.898 ms    0.335 ms
  *     5k plain-object embeds, 1 changed                      64.190 ms    1.134 ms   (items compared by equalityDeep, not uncached fingerprints)
