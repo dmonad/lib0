@@ -121,23 +121,22 @@ const removeCommonPrefixAndSuffix = (as, bs, suffixFirst = false) => {
  * Splits string by regex and returns all strings as an array. The matched parts are also returned.
  *
  * @param {string} str
- * @param {RegExp} regexp
+ * @param {RegExp} regexp global; must not match the empty string (an empty match would never advance)
  * @param {boolean} includeSeparator
  */
 export const splitByRegexp = (str, regexp, includeSeparator) => {
-  const matches = [...str.matchAll(regexp)]
-  let prevIndex = 0
   /**
    * @type {Array<string>}
    */
   const res = []
-  matches.forEach(m => {
-    prevIndex < (m.index || 0) && res.push(str.slice(prevIndex, m.index))
+  let prevIndex = 0
+  regexp.lastIndex = 0
+  for (let m = regexp.exec(str); m !== null; m = regexp.exec(str)) {
+    prevIndex < m.index && res.push(str.slice(prevIndex, m.index))
     includeSeparator && res.push(m[0]) // is always non-empty
-    prevIndex = /** @type {number} */ (m.index) + m[0].length
-  })
-  const end = str.slice(prevIndex)
-  end.length > 0 && res.push(end)
+    prevIndex = m.index + m[0].length
+  }
+  prevIndex < str.length && res.push(str.slice(prevIndex))
   return res
 }
 
