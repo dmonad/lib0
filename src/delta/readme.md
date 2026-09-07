@@ -292,7 +292,10 @@ delta.create().removeMark(position.create([1]), 'cursorA') // ⇒ { deleteMarks:
 ```
 
 Marks are **local, ephemeral cursor state**, deliberately **excluded from a delta's fingerprint and
-equality** — only document *content* is part of a delta's identity. Consequences:
+equality** — only document *content* is part of a delta's identity. (So is a trailing run of *plain*
+retains — no format, no attribution — which is positional only: `insert('x').retain(3)` and
+`insert('x')` share a fingerprint, are `equals`, and `done()` trims the run without changing either.)
+Consequences:
 
 - **Best-effort under concurrency.** `apply`/`rebase` carry and shift marks (an insert before a cursor
   pushes it right; a delete covering it collapses it to the cut point so it survives). Document content

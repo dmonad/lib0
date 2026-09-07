@@ -17,11 +17,9 @@ import { Transformer, Template, createTransformResult, attrsShapeOf } from './co
 const attrTransformHelper = (outDelta, from, to, inDelta) => {
   const attrOp = inDelta.attrs[from]
   if (attrOp != null) {
-    const c = attrOp.clone()
-    // reason: retarget the cloned attr op to the dynamic key `to`; `key` is readonly and `attrs` is
-    // a mapped type over fixed conf keys, so neither write is expressible in the JSDoc types.
-    // @ts-ignore
-    c.key = to
+    // a clone retargeted to `to` (the clone skips the cached fingerprint, which covers the key)
+    const c = attrOp.clone(to)
+    // `attrs` is a mapped type over fixed conf keys, so the dynamic-key write needs the cast
     const oattrs = /** @type {any} */ (outDelta.attrs)
     oattrs[to] = c
   }

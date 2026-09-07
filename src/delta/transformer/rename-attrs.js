@@ -21,12 +21,11 @@ const renameDeltaAttrs = (d, renames, revRenames) => {
     const r = renames[key]
     const rv = revRenames[key]
     if (r != null) {
+      // a clone retargeted to `r` (the clone skips the cached fingerprint, which covers the key)
       // @ts-ignore
-      forwardTransform.attrs[r] = attr
+      forwardTransform.attrs[r] = attr.clone(r)
       // delete original
       delete forwardTransform.attrs[key]
-      // @ts-ignore
-      attr.key = r
     } else if (rv != null) {
       // used in a rename, delete original
       delete forwardTransform.attrs[key]

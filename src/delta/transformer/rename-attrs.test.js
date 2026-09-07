@@ -13,6 +13,14 @@ export const testRenameAttrsBasics = () => {
   const res = i1.applyA(delta.setAttr('a', 'x'))
   t.assert(res.a === null)
   t.compare(res.b, delta.setAttr('b', 'x'))
+  // the renamed op is a clone rekeyed `a` -> `b`: the key is fingerprinted, so the source op's cached
+  // fingerprint must not ride along
+  const src = delta.setAttr('a', 'x')
+  t.assert(src.fingerprint) // caches the attr op's fingerprint (under key `a`)
+  const renamed = i1.applyA(src).b?.attrs.b
+  t.assert(renamed)
+  t.assert(renamed._fingerprint === null, 'a rekeyed clone starts without a cache')
+  t.assert(renamed.fingerprint === delta.setAttr('b', 'x').attrs.b?.fingerprint, 'the renamed op fingerprints under its new key')
   // backward: a b-side change renames attr `b` -> `a`
   const res2 = i1.applyB(delta.setAttr('b', 'y'))
   t.assert(res2.b === null)

@@ -1256,6 +1256,186 @@ export const testCloneDeep = () => {
 }
 
 /**
+ * Every child and attribute op of `d` — both dimensions carry a `_fingerprint` cache.
+ *
+ * @param {delta.DeltaAny} d
+ * @return {Array<delta.ChildrenOpAny|delta.SetAttrOp<any,any>|delta.DeleteAttrOp<any,any>|delta.ModifyAttrOp<any,any>>}
+ */
+const allOps = d => [...d.children, ...d.attrs]
+
+/**
+ * The nested deltas held by `d`'s ops (insert children, modify values, delta-valued attrs).
+ *
+ * @param {delta.DeltaAny} d
+ * @return {Array<delta.DeltaAny>}
+ */
+const nestedDeltas = d => allOps(d).flatMap(op =>
+  delta.$insertOp.check(op)
+    ? op.insert.filter(ins => delta.$deltaAny.check(ins))
+    : ((delta.$modifyOp.check(op) || delta.$setAttrOp.check(op) || delta.$modifyAttrOp.check(op)) && delta.$deltaAny.check(op.value) ? [op.value] : [])
+)
+
+/**
+ * Drop the cache and recompute — the ground truth a carried-over cache must match.
+ *
+ * @param {{ _fingerprint: string|null, fingerprint: string }} x
+ */
+const freshFp = x => {
+  x._fingerprint = null
+  return x.fingerprint
+}
+
+/**
+ * Drop every cache in `d`'s subtree (ops, nested deltas, root) and recompute the root fingerprint.
+ *
+ * @param {delta.DeltaAny} d
+ * @return {string}
+ */
+const deepFreshFp = d => {
+  for (const n of nestedDeltas(d)) deepFreshFp(n)
+  for (const op of allOps(d)) op._fingerprint = null
+  return freshFp(d)
+}
+
+/**
+ * A clone carries each op's cached fingerprint over when the copy is content-identical (a full-range
+ * clone with the same key whose nested values `done()` leaves untouched), never onto the returned root;
+ * and what it carries is exactly what a fresh computation yields.
+ */
+export const testCloneKeepsFingerprints = () => {
+  const d = delta.create()
+    .setAttr('n', 1).setAttr('v', delta.insert('m').done()).deleteAttr('del').modifyAttr('mod', delta.insert('x').done())
+    .insert('ab', { bold: true }).insert([delta.create('p').insert('hi').done(), { plain: 1 }]).retain(2, { italic: true }).delete(1).modify(delta.retain(1).insert('!').done())
+    .done()
+  const dfp = d.fingerprint // caches every op (and nested delta) fingerprint
+  const ops = allOps(d)
+  t.assert(ops.length === 9 && ops.every(op => op._fingerprint !== null), 'reading the root fingerprint caches every op')
+
+  // full clone: every op carries its cache (and the string is right); the root does not
+  const c = delta.clone(d)
+  const cops = allOps(c)
+  t.assert(c._fingerprint === null, 'the root of a clone starts without a cache')
+  t.assert(cops.every((op, i) => op !== ops[i] && op._fingerprint === ops[i]._fingerprint), 'every cloned op carries the cached fingerprint')
+  t.assert(cops.every((op, i) => freshFp(op) === ops[i]._fingerprint), 'the carried fingerprint equals a fresh recomputation')
+  t.assert(c.fingerprint === dfp, 'the clone fingerprints like the source')
+  t.assert(allOps(delta.clone(c)).every((op, i) => op._fingerprint === cops[i]._fingerprint), 'cloning the clone (already-done nested values) carries again')
+
+  // partial slice: the ops cut at the edges recompute, full interior ops and the attrs carry
+  const sl = delta.slice(d, 1, 5) // a|b, [p, plain], re|tain  (ops: children first, then the 4 attrs)
+  const [textPart, insertFull, retainPart] = [...sl.children]
+  t.assert(textPart._fingerprint === null && retainPart._fingerprint === null, 'a partially cloned op has no cache')
+  t.assert(freshFp(textPart) !== ops[0]._fingerprint && freshFp(retainPart) !== ops[2]._fingerprint, 'a partial clone fingerprints differently')
+  t.assert(insertFull._fingerprint === ops[1]._fingerprint, 'a fully cloned interior op carries')
+  t.assert([...sl.attrs].every((op, i) => op._fingerprint === ops[5 + i]._fingerprint), 'attrs of a slice carry')
+
+  // not-yet-done nested values with trailing plain retains: the clone freezes them (trimming the
+  // retains), which is fingerprint-neutral — source and clone caches survive and stay correct
+  const trim = delta.create().modifyAttr('a', delta.insert('w').retain(4)).setAttr('b', delta.insert('z').retain(1)).modify(delta.insert('x').retain(3)).insert([delta.insert('y').retain(2)]).done()
+  const trimFp = trim.fingerprint // caches every op (and nested delta) fingerprint
+  const tops = allOps(trim)
+  const cached = tops.map(op => op._fingerprint)
+  const cnts = nestedDeltas(trim).map(n => n.childCnt)
+  t.assert(nestedDeltas(trim).every(n => !n.isDone), 'nested values start non-done')
+  const tcops = allOps(delta.clone(trim))
+  t.assert(nestedDeltas(trim).every((n, i) => n.isDone && n.childCnt < cnts[i]), 'the clone froze the shared nested values and trimmed their retains')
+  t.assert(tops.every((op, i) => op._fingerprint === cached[i]) && tcops.every((op, i) => op._fingerprint === cached[i]), 'source and clone caches survive the trim')
+  t.assert(tcops.every((op, i) => freshFp(op) === cached[i] && freshFp(tops[i]) === cached[i]), 'the kept caches match a fresh recomputation')
+  t.assert(deepFreshFp(trim) === trimFp, 'the root fingerprint is unchanged by the trim')
+
+  // an attr op cloned onto another key: the key is fingerprinted, so nothing carries
+  for (const op of d.attrs) {
+    const rk = op.clone('other')
+    t.assert(rk.key === 'other' && rk._fingerprint === null, 'a rekeyed clone has no cache')
+    t.assert(freshFp(rk) !== op._fingerprint, 'a rekeyed clone fingerprints differently')
+  }
+
+  // cloneDeep: ops and nested delta roots carry (content-identical fresh objects); the root does not
+  const deep = delta.cloneDeep(d)
+  t.assert(deep._fingerprint === null, 'the root of a deep clone starts without a cache')
+  t.assert(allOps(deep).every((op, i) => op !== ops[i] && op._fingerprint === ops[i]._fingerprint && freshFp(op) === ops[i]._fingerprint), 'deep-cloned ops carry')
+  const nested = nestedDeltas(d)
+  t.assert(nested.length === 4 && nested.every(n => n._fingerprint !== null), 'the source nested deltas are cached')
+  t.assert(nestedDeltas(deep).every((n, i) => n !== nested[i] && !n.isDone && n._fingerprint === nested[i]._fingerprint && freshFp(n) === nested[i]._fingerprint), 'deep-cloned nested delta roots carry')
+  t.assert(deep.fingerprint === dfp && deep.equals(d), 'the deep clone fingerprints like the source')
+}
+
+/**
+ * A trailing run of plain retains (no format, no attribution) is positional, not content: it is
+ * excluded from the fingerprint, `equals` and `isEmpty`, so `done()` (which trims it) changes none of
+ * them. Anything else — a formatted, attributed or `format: null` retain, a retain between content — is
+ * content.
+ */
+export const testTrailingPlainRetainNeutrality = () => {
+  /**
+   * @param {delta.DeltaAny} a
+   * @param {delta.DeltaAny} b
+   */
+  const same = (a, b) => a.fingerprint === b.fingerprint && a.equals(b) && b.equals(a)
+  const pairs = [
+    [delta.insert('x').retain(3), delta.insert('x')],
+    [delta.insert('x').retain(3), delta.insert('x').retain(5)],
+    [delta.retain(3), delta.create()],
+    [delta.retain(2), delta.retain(3)],
+    [delta.retain(1).retain(2), delta.retain(3)],
+    [delta.modify(delta.insert('x').retain(3)), delta.modify(delta.insert('x'))],
+    [delta.setAttr('a', delta.insert('x').retain(2)), delta.setAttr('a', delta.insert('x'))]
+  ]
+  for (const [a, b] of pairs) {
+    t.assert(same(a, b), `${JSON.stringify(a)} ≡ ${JSON.stringify(b)}`)
+    t.compare(a, b)
+    const fp = a.fingerprint
+    a.done()
+    t.assert(a._fingerprint === fp && deepFreshFp(a) === fp && same(a, b), 'done() is fingerprint-neutral')
+  }
+  const trimmed = delta.insert('x').retain(3).done()
+  t.assert(trimmed.childCnt === 1, 'done() still trims the run')
+  t.assert(delta.retain(3).isEmpty() && delta.create().isEmpty() && !delta.insert('x').retain(3).isEmpty(), 'a plain-retain-only change is empty')
+
+  const different = [
+    [delta.insert('x').retain(3, { bold: true }), delta.insert('x')],
+    [delta.insert('x').retain(3, undefined, { insertAt: 1 }), delta.insert('x')],
+    [delta.insert('x').retain(3, null), delta.insert('x')],
+    [delta.insert('x').retain(3).insert('y'), delta.insert('x').insert('y')],
+    [delta.retain(1).insert('x'), delta.retain(1)],
+    [delta.retain(1, { bold: true }), delta.retain(1)],
+    // name and attrs are identity too
+    [delta.create('p').retain(1), delta.create('q').retain(1)],
+    [delta.setAttr('a', 1).retain(1), delta.setAttr('a', 2).retain(1)]
+  ]
+  for (const [a, b] of different) {
+    t.assert(a.fingerprint !== b.fingerprint && !a.equals(b) && !b.equals(a), `${JSON.stringify(a)} ≢ ${JSON.stringify(b)}`)
+  }
+}
+
+/**
+ * Whatever `clone`/`cloneDeep` carry over must be exactly what a fresh computation yields, for any delta;
+ * the clones equal the source, and freezing (root and, via the clones, nested values) never changes the
+ * fingerprint.
+ *
+ * @param {t.TestCase} tc
+ */
+export const testRepeatCloneFingerprintCache = tc => {
+  const $d = prng.oneOf(tc.prng, /** @type {Array<s.Schema<delta.DeltaAny>>} */ ([$textDelta, $mapDelta, $arrayDelta, $xmlDelta]))
+  const d = delta.random(tc.prng, $d, { attribution: true })
+  const fp = d.fingerprint // caches every op (and nested delta) fingerprint
+  for (const c of [delta.clone(d), delta.cloneDeep(d)]) {
+    t.assert(c._fingerprint === null, 'no root cache')
+    for (const op of allOps(c)) {
+      const cached = op._fingerprint
+      t.assert(cached === null || cached === freshFp(op), 'a carried op cache is correct')
+    }
+    for (const n of nestedDeltas(c)) {
+      const cached = n._fingerprint
+      t.assert(cached === null || cached === freshFp(n), 'a carried nested-delta cache is correct')
+    }
+    t.assert(freshFp(c) === freshFp(d), 'the clone fingerprints like the source')
+    t.assert(c.equals(d) && d.equals(c), 'the clone equals the source')
+  }
+  d.done()
+  t.assert(deepFreshFp(d) === fp, 'done() is fingerprint-neutral')
+}
+
+/**
  * `diff` does not produce a fully fresh delta by default — a wholesale-inserted child node and a
  * delta-valued attribute are shared by reference from `d2`. `{ clone: true }` deep-clones those
  * so the result aliases nothing in `d2` (while still round-tripping identically).

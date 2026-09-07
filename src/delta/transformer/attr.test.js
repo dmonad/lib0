@@ -12,6 +12,14 @@ export const testAttr = () => {
   const res = it.applyA(delta.setAttr('x', 'hello'))
   t.assert(res.a === null)
   t.compare(res.b, delta.create('lib0:value', { value: 'hello' }))
+  // the projected op is a clone rekeyed `x` -> `value`: the key is fingerprinted, so the source op's
+  // cached fingerprint must not ride along
+  const src = delta.setAttr('x', 'hello')
+  t.assert(src.fingerprint) // caches the attr op's fingerprint (under key `x`)
+  const projected = it.applyA(src).b?.attrs.value
+  t.assert(projected)
+  t.assert(projected._fingerprint === null, 'a rekeyed clone starts without a cache')
+  t.assert(projected.fingerprint === delta.setAttr('value', 'hello').attrs.value?.fingerprint, 'the projected op fingerprints under its new key')
   // backward: maps a `lib0:value` change back (exercises applyB)
   const res2 = it.applyB(delta.create('lib0:value', { value: 'world' }))
   t.assert(res2.b === null)

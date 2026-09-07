@@ -142,6 +142,29 @@ export const $deltaMapChangeJson = /* @__PURE__ */(() => s.$union(
  * @return {Attrs}
  */
 const _cloneAttrs = attrs => attrs == null ? attrs : { ...attrs }
+
+/**
+ * A retain with neither format nor attribution — positional only, not content. `done()` trims a
+ * trailing run of them; fingerprint, equality and `isEmpty` ignore that run. (`format: null` is a
+ * clear instruction and therefore content — the same rule `done()` applies.)
+ *
+ * @param {ChildrenOpAny} op
+ */
+const _isPlainRetain = op => $retainOp.check(op) && op.format === undefined && op.attribution === undefined
+
+/**
+ * The number of content ops in a children list: its length minus the trailing plain-retain run (found
+ * by walking from the right). The first `n` ops from `cs.start` are the content.
+ *
+ * @param {list.List<ChildrenOpAny>} cs
+ * @return {number}
+ */
+const _contentLen = cs => {
+  let n = cs.len
+  for (let end = cs.end; end !== null && _isPlainRetain(end); end = end.prev) n--
+  return n
+}
+
 /**
  * Shallow per-key tri-state merge of `update` into `base` (the usual `format`-dimension semantics, also reused
  * as the inner step of {@link mergeAttr}). Per key: `undefined` skips, `null` removes, anything else sets.
@@ -308,6 +331,10 @@ const combineData = (usedData, arg, deep) => {
   return object.isEmpty(r) ? null : /** @type {{[k:string]:any}} */ (r)
 }
 /**
+ * Freeze a maybe-delta for a frozen clone (a scalar passes through untouched). `done()` is
+ * fingerprint-neutral (it only trims trailing plain retains, which are not fingerprinted), so the
+ * clone may carry the op's cached fingerprint over.
+ *
  * @template {any} MaybeDelta
  * @param {MaybeDelta} maybeDelta
  * @return {MaybeDelta}
@@ -329,6 +356,10 @@ const _markMaybeDeltaAsDone = maybeDelta => $deltaAny.check(maybeDelta) ? /** @t
  *   fingerprint read (and any `diff` / equality check that relies on it) is
  *   wrong. Fields covered: insert, delete, retain, format, attribution,
  *   value, key.
+ * - **A `clone` copies `_fingerprint` when the copy is content-identical:** a full range and the
+ *   same key. Freezing a nested value with `done()` is fingerprint-neutral (trailing plain retains
+ *   are not fingerprinted), so nothing else can differ. The root delta returned by
+ *   `clone`/`slice`/`cloneDeep` never inherits a fingerprint.
  *
  * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
@@ -419,7 +450,9 @@ export class TextOp extends list.ListNode {
    * @return {TextOp}
    */
   clone (start = 0, end = this.length, _markAsDone = true) {
-    return new TextOp(this.insert.slice(start, end), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    const cpy = new TextOp(this.insert.slice(start, end), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    if (start === 0 && end === this.length) cpy._fingerprint = this._fingerprint
+    return cpy
   }
 }
 
@@ -541,7 +574,9 @@ export class InsertOp extends list.ListNode {
    */
   clone (start = 0, end = this.length, markAsDone = true) {
     const insert = this.insert.slice(start, end)
-    return new InsertOp(markAsDone ? insert.map(_markMaybeDeltaAsDone) : insert, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    const cpy = new InsertOp(markAsDone ? insert.map(_markMaybeDeltaAsDone) : insert, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    if (start === 0 && end === this.length) cpy._fingerprint = this._fingerprint
+    return cpy
   }
 }
 
@@ -614,7 +649,9 @@ export class DeleteOp extends list.ListNode {
    * @return {DeleteOp}
    */
   clone (start = 0, end = this.delete, _markAsDone = true) {
-    return new DeleteOp(end - start)
+    const cpy = new DeleteOp(end - start)
+    if (end - start === this.delete) cpy._fingerprint = this._fingerprint
+    return cpy
   }
 }
 
@@ -712,7 +749,9 @@ export class RetainOp extends list.ListNode {
    * @return {RetainOp}
    */
   clone (start = 0, end = this.retain, _markAsDone = true) {
-    return new RetainOp(end - start, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    const cpy = new RetainOp(end - start, _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    if (end - start === this.retain) cpy._fingerprint = this._fingerprint
+    return cpy
   }
 }
 
@@ -829,7 +868,9 @@ export class ModifyOp extends list.ListNode {
     // modify is never split (apply's `move ? op : op.clone(0, 1, keep)` evaluates the clone only when
     // `keep` is true). Kept for the uniform children-op `clone` signature.
     /* c8 ignore next */
-    return new ModifyOp(/** @type {DTypes} */ (markAsDone ? this.value.done() : this.value), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    const cpy = new ModifyOp(/** @type {DTypes} */ (markAsDone ? this.value.done() : this.value), _cloneAttrs(this.format), _cloneAttrs(this.attribution))
+    cpy._fingerprint = this._fingerprint
+    return cpy
   }
 }
 
@@ -916,10 +957,15 @@ export class SetAttrOp {
    * Full (frozen) clone. A `move` apply reuses the source op instead of cloning, so there is no
    * shared-mutable variant — see {@link DeltaBuilder#apply}.
    *
-   * @return {SetAttrOp<V,K>}
+   * @template {string|number} [K2=K]
+   * @param {K2} [key] retarget the clone to another attribute key (a transformer projecting or
+   * renaming an attribute); defaults to this op's key.
+   * @return {SetAttrOp<V,K2>}
    */
-  clone () {
-    return new SetAttrOp(this.key, _markMaybeDeltaAsDone(this.value), _cloneAttrs(this.attribution))
+  clone (key = /** @type {any} */ (this.key)) {
+    const cpy = new SetAttrOp(key, _markMaybeDeltaAsDone(this.value), _cloneAttrs(this.attribution))
+    if (/** @type {string|number} */ (key) === this.key) cpy._fingerprint = this._fingerprint // the key is part of the fingerprint
+    return cpy
   }
 }
 
@@ -983,10 +1029,14 @@ export class DeleteAttrOp {
   /**
    * Full (frozen) clone; a `move` apply reuses the source op instead — see {@link DeltaBuilder#apply}.
    *
-   * @return {DeleteAttrOp<V,K>}
+   * @template {string|number} [K2=K]
+   * @param {K2} [key] retarget the clone to another attribute key; defaults to this op's key.
+   * @return {DeleteAttrOp<V,K2>}
    */
-  clone () {
-    return new DeleteAttrOp(this.key, _cloneAttrs(this.attribution))
+  clone (key = /** @type {any} */ (this.key)) {
+    const cpy = new DeleteAttrOp(key, _cloneAttrs(this.attribution))
+    if (/** @type {string|number} */ (key) === this.key) cpy._fingerprint = this._fingerprint // the key is part of the fingerprint
+    return cpy
   }
 }
 
@@ -1069,10 +1119,14 @@ export class ModifyAttrOp {
   /**
    * Full (frozen) clone; a `move` apply reuses the source op instead — see {@link DeltaBuilder#apply}.
    *
-   * @return {ModifyAttrOp<Modifier,K>}
+   * @template {string|number} [K2=K]
+   * @param {K2} [key] retarget the clone to another attribute key; defaults to this op's key.
+   * @return {ModifyAttrOp<Modifier,K2>}
    */
-  clone () {
-    return new ModifyAttrOp(this.key, /** @type {Modifier} */ (this.value.done()), _cloneAttrs(this.attribution))
+  clone (key = /** @type {any} */ (this.key)) {
+    const cpy = new ModifyAttrOp(key, /** @type {Modifier} */ (this.value.done()), _cloneAttrs(this.attribution))
+    if (/** @type {string|number} */ (key) === this.key) cpy._fingerprint = this._fingerprint // the key is part of the fingerprint
+    return cpy
   }
 }
 
@@ -1443,8 +1497,13 @@ export class Delta extends DeltaData {
       for (const key of keys) {
         encoding.writeVarString(encoder, /** @type {any} */ (this.attrs[/** @type {keyof typeof this.attrs} */ (key)]).fingerprint)
       }
-      encoding.writeVarUint(encoder, this.children.len)
-      for (const child of this.children) {
+      // trailing plain retains are not content: `done()` trims them, and the fingerprint must not
+      // change when it does — so only the children up to the last content op are fingerprinted
+      const cs = this.children
+      let n = _contentLen(cs)
+      encoding.writeVarUint(encoder, n)
+      // non-null for the first `n` ops by construction (see _contentLen)
+      for (let child = /** @type {ChildrenOpAny} */ (cs.start); n > 0; n--, child = /** @type {ChildrenOpAny} */ (child.next)) {
         encoding.writeVarString(encoder, child.fingerprint)
       }
     }))))
@@ -1455,7 +1514,8 @@ export class Delta extends DeltaData {
   }
 
   isEmpty () {
-    return object.isEmpty(this.attrs) && list.isEmpty(this.children) && (this.marks === null || this.marks.size === 0) && (this.deleteMarks === null || this.deleteMarks.size === 0)
+    // a children list holding only plain retains is empty (positional only — see _isPlainRetain)
+    return object.isEmpty(this.attrs) && _contentLen(this.children) === 0 && (this.marks === null || this.marks.size === 0) && (this.deleteMarks === null || this.deleteMarks.size === 0)
   }
 
   /**
@@ -1500,10 +1560,20 @@ export class Delta extends DeltaData {
    * @return {boolean}
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
-    // @todo it is only necessary to compare finrerprints OR do a deep equality check (remove
-    // childCnt as well)
     // marks are local/ephemeral cursor state and intentionally NOT part of document identity
-    return this.name === other.name && fun.equalityDeep(this.attrs, other.attrs) && fun.equalityDeep(this.children, other.children) && this.childCnt === other.childCnt
+    if (this.name !== other.name || !fun.equalityDeep(this.attrs, other.attrs)) return false
+    // only the content ops count (a trailing plain-retain run is not content — see _isPlainRetain);
+    // comparing the counts first also makes two retain-only lists equal. `childCnt` (Σ op.length)
+    // needs no separate check: every content op's equality covers its length-bearing field.
+    const n = _contentLen(this.children)
+    if (n !== _contentLen(other.children)) return false
+    // non-null for the first `n` ops by construction (see _contentLen)
+    let a = /** @type {ChildrenOpAny} */ (this.children.start)
+    let b = /** @type {ChildrenOpAny} */ (other.children.start)
+    for (let i = 0; i < n; i++, a = /** @type {ChildrenOpAny} */ (a.next), b = /** @type {ChildrenOpAny} */ (b.next)) {
+      if (!fun.equalityDeep(a, b)) return false
+    }
+    return true
   }
 
   // toString () {
@@ -1531,11 +1601,12 @@ export class Delta extends DeltaData {
   done (markAsDone = true) {
     if (!this.isDone) {
       this.isDone = markAsDone
+      // trim the trailing plain-retain run — fingerprint-neutral, as fingerprint/equality never counted
+      // it (see _contentLen); any other cleanup added here must null `_fingerprint`
       const cs = this.children
-      for (let end = cs.end; end !== null && $retainOp.check(end) && end.format === undefined && end.attribution === undefined; end = cs.end) {
+      for (let end = cs.end; end !== null && _isPlainRetain(end); end = cs.end) {
         this.childCnt -= end.length
         list.popEnd(cs)
-        this._fingerprint = null
       }
     }
     return this
@@ -1631,22 +1702,48 @@ export const clone = d => /** @type {any} */ (slice(d, 0, d.childCnt))
  * @param {any} v
  * @return {any}
  */
-const _cloneMaybeDeltaDeep = v => $deltaAny.check(v) ? cloneDeep(v) : v
+const _cloneMaybeDeltaDeep = v => $deltaAny.check(v) ? _cloneDeepNested(v) : v
+
+/**
+ * Carry `src`'s cached fingerprint over to `cpy`, a content-identical copy of it. Only valid when
+ * nothing about the copy differs from the source in fingerprinted fields (a full-range clone, the same
+ * key, nested values cloned rather than `done()`-trimmed).
+ *
+ * @template {{ _fingerprint: string|null }} T
+ * @param {{ _fingerprint: string|null }} src
+ * @param {T} cpy
+ * @return {T}
+ */
+const _copyFp = (src, cpy) => {
+  cpy._fingerprint = src._fingerprint
+  return cpy
+}
+
+/**
+ * {@link cloneDeep} for a *nested* delta: content-identical, so the cached fingerprint rides along
+ * (only the root returned by the exported `cloneDeep` starts without one).
+ *
+ * @template {DeltaConf} Conf
+ * @param {Delta<Conf>} d
+ * @return {DeltaBuilder<Conf>}
+ */
+const _cloneDeepNested = d => _copyFp(d, cloneDeep(d))
 
 /**
  * Deep-clone one content (child) op for {@link cloneDeep}: a fresh op whose nested deltas (an insert's
  * delta content, a modify's value) are themselves deep-cloned. `format`/`attribution` objects are
  * retained (shared) — they are always copied before being mutated (see {@link cloneDeep}). Ops without a
- * nested delta (`text`/`retain`/`delete`) use `op.clone()`.
+ * nested delta (`text`/`retain`/`delete`) use `op.clone()`. Every copy is content-identical, so the
+ * cached fingerprint is carried over.
  *
  * @param {ChildrenOpAny} op
  * @return {ChildrenOpAny}
  */
 const _cloneChildOpDeep = op =>
   $insertOp.check(op)
-    ? new InsertOp(op.insert.map(_cloneMaybeDeltaDeep), op.format, op.attribution)
+    ? _copyFp(op, new InsertOp(op.insert.map(_cloneMaybeDeltaDeep), op.format, op.attribution))
     : ($modifyOp.check(op)
-        ? new ModifyOp(cloneDeep(op.value), op.format, op.attribution)
+        ? _copyFp(op, new ModifyOp(_cloneDeepNested(op.value), op.format, op.attribution))
         : op.clone())
 
 /**
@@ -1659,17 +1756,18 @@ const _cloneChildOpDeep = op =>
  */
 const _cloneAttrOpDeep = op =>
   $setAttrOp.check(op)
-    ? new SetAttrOp(op.key, _cloneMaybeDeltaDeep(op.value), op.attribution)
+    ? _copyFp(op, new SetAttrOp(op.key, _cloneMaybeDeltaDeep(op.value), op.attribution))
     : ($modifyAttrOp.check(op)
-        ? new ModifyAttrOp(op.key, cloneDeep(op.value), op.attribution)
+        ? _copyFp(op, new ModifyAttrOp(op.key, _cloneDeepNested(op.value), op.attribution))
         // the only remaining attr op is a deleteAttr
-        : new DeleteAttrOp(op.key, op.attribution))
+        : _copyFp(op, new DeleteAttrOp(op.key, op.attribution)))
 
 /**
  * A **deep** clone of `d`: like {@link clone}, but every nested delta — an insert's delta content, a
  * `modify`/`modifyAttr` value, a delta-valued attribute — is itself recursively cloned into a fresh,
  * **mutable** node, instead of being frozen (`done`) and shared as {@link clone} does. The result and
- * its whole subtree are therefore independently editable.
+ * its whole subtree are therefore independently editable. Cached fingerprints of the ops and nested
+ * deltas ride along (they are content-identical); only the returned root starts without one.
  *
  * ## What is cloned, and when to reach for this
  *
@@ -1773,7 +1871,7 @@ const modValue = op => {
  * These are the ONLY sanctioned way to structurally edit `d.children` in place. Each keeps the cached
  * invariant `d.childCnt === Σ op.length` correct and resets the op's `_fingerprint`. Never mutate
  * `op.retain` / `op.delete` / `op.insert`, call `list.*`, or touch `d.childCnt` directly from outside
- * delta.js — go through these so the count (which `EqualityTraitSymbol` compares) never drifts.
+ * delta.js — go through these so the count (which `slice`/`apply` position by) never drifts.
  *
  * Cursor pattern (used by {@link DeltaBuilder#apply}, {@link DeltaBuilder#rebase}, and
  * `transformer/conform.js`): walk the target with `(op, offset)`; {@link _splitChildAt} before inserting
