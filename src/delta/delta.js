@@ -1360,10 +1360,21 @@ export const createMark = (key, id, assoc, attrs, transient) => new Mark(key, id
  */
 
 /**
- * Transform Delta(Builder) to a normal delta.
+ * Transform Delta(Builder) to a normal delta: a `DeltaBuilder<Conf>` becomes `Delta<Conf>`, anything
+ * else passes through.
+ *
+ * Infers the conf from `DeltaBuilder` on purpose, not from `Delta<infer Conf>`. lib0's own source
+ * check never had a problem with the latter, but a consumer type-checks the emitted declaration
+ * files, and there matching a builder against `Delta<infer Conf>` is structural: TypeScript walks
+ * `Delta`'s members and recurses through {@link DeltaConfGetChildren}'s recursive branch until its
+ * instantiation-depth limit, so every nested condensed builder (for example
+ * `create().insert([create('c', {}, [create('p', {}, 'x')])])`) failed with TS2589 in
+ * y-prosemirror and yjs. The structural walk also leaked the grandchild conf into the child
+ * union; inferring from the builder keeps the nesting exact. dist-check/consumer.js pins both
+ * against dist.
  *
  * @template V
- * @typedef {V extends never ? never : (import('../ts.js').TypeIsAny<V,any,V extends Delta<infer Conf> ? Delta<Conf> : V>)} _SanifyDelta
+ * @typedef {V extends never ? never : (import('../ts.js').TypeIsAny<V,any,V extends DeltaBuilder<infer Conf, any> ? Delta<Conf> : V>)} _SanifyDelta
  */
 
 /**

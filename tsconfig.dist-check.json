@@ -3,8 +3,16 @@
   // consumer-facing compiler settings; declaration emit can produce .d.ts that don't themselves
   // type-check, which `npm run lint` (source-only) would not catch. Standalone (no `extends`) so the
   // base config's `outDir: ./dist` does not auto-exclude the very files we want to check.
+  // dist-check/*.js are consumer fixtures type-checked against those declarations (`paths` maps
+  // `lib0/*` to dist): some type-level costs only show up there, see dist-check/consumer.js.
   "compilerOptions": {
     "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "paths": {
+      "lib0/delta": ["./dist/delta/delta.d.ts"],
+      "lib0/*": ["./dist/*.d.ts"]
+    },
     "strict": true,
     "target": "esnext",
     "module": "nodenext",
@@ -13,5 +21,5 @@
     "types": ["node"],
     "skipLibCheck": false
   },
-  "include": ["dist/**/*.d.ts"]
+  "include": ["dist/**/*.d.ts", "dist-check/**/*.js"]
 }
