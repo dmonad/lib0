@@ -9,6 +9,7 @@ import * as sha256 from './hash/sha256.test.js'
 import * as logging from './logging.test.js'
 import * as string from './string.test.js'
 import * as encoding from './encoding.test.js'
+import * as environment from './environment.test.js'
 import * as diff from './diff.test.js'
 import * as patienceDiff from './diff/patience.test.js'
 import * as testing from './testing.test.js'
@@ -67,6 +68,7 @@ runTests({
   logging,
   string,
   encoding,
+  environment,
   diff,
   patienceDiff,
   testing,
