@@ -95,12 +95,18 @@ export const getParam = (name, defaultVal) => computeParams().get(name) || defau
  * @param {string} name
  * @return {string|null}
  */
-/* c8 ignore next 5 */
 /* @__NO_SIDE_EFFECTS__ */
-export const getVariable = (name) =>
-  isNode
-    ? conditions.undefinedToNull(process.env[name.toUpperCase().replaceAll('-', '_')])
-    : conditions.undefinedToNull(storage.varStorage.getItem(name))
+export const getVariable = (name) => {
+  if (isNode) {
+    return conditions.undefinedToNull(process.env[name.toUpperCase().replaceAll('-', '_')])
+  }
+  try {
+    return conditions.undefinedToNull(storage.varStorage.getItem(name))
+  } catch (e) {
+    // Storage reads can fail even when accessing the localStorage object succeeds.
+    return null
+  }
+}
 
 /**
  * @param {string} name
