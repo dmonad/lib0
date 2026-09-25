@@ -103,6 +103,9 @@ export const clone = (decoder, newPos = decoder.pos) => {
  * @return {Uint8Array<Buf>}
  */
 export const readUint8Array = (decoder, len) => {
+  if (len < 0 || len > decoder.arr.length - decoder.pos) {
+    throw errorUnexpectedEndOfArray
+  }
   const view = new Uint8Array(decoder.arr.buffer, decoder.pos + decoder.arr.byteOffset, len)
   decoder.pos += len
   return view
