@@ -214,7 +214,6 @@
     "./isomorphic.js": "./isomorphic.js",
     "./dist/isomorphic.cjs": "./dist/isomorphic.cjs",
     "./isomorphic": {
-      "types": "./isomorphic.d.ts",
       "module": "./isomorphic.js",
       "import": "./isomorphic.js",
       "require": "./dist/isomorphic.cjs"
