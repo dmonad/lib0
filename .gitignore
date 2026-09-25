@@ -6,3 +6,5 @@ node_modules
 *.d.ts.map
 */*.d.ts
 */*.d.ts.map
+next.md
+.playwright-mcp
