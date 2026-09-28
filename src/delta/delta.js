@@ -116,7 +116,7 @@ export const $attribution = /* @__PURE__ */(() => s.$object({
  */
 
 /**
- * @typedef {TextOp|InsertOp<any>|DeleteOp|RetainOp|ModifyOp<any>} ChildrenOpAny
+ * @typedef {TextOp|InsertOp<any>|DeleteOp<any>|RetainOp|ModifyOp<any>} ChildrenOpAny
  */
 
 /**
@@ -635,7 +635,7 @@ export class DeleteOp extends list.ListNode {
   }
 
   /**
-   * @param {DeleteOp} other
+   * @param {DeleteOp<any>} other
    */
   [equalityTrait.EqualityTraitSymbol] (other) {
     return $deleteOp.check(other) && this.delete === other.delete
@@ -646,7 +646,7 @@ export class DeleteOp extends list.ListNode {
    * @param {number} [end]
    * @param {boolean} [_markAsDone] accepted for a uniform children-op `clone` signature; ignored (a
    * delete holds no nested content).
-   * @return {DeleteOp}
+   * @return {DeleteOp<any>}
    */
   clone (start = 0, end = this.delete, _markAsDone = true) {
     const cpy = new DeleteOp(end - start)
@@ -758,7 +758,7 @@ export class RetainOp extends list.ListNode {
 /**
  * Delta that can be applied on a YType Embed
  *
- * @template {Delta} [DTypes=DeltaAny]
+ * @template {Delta<any>} [DTypes=DeltaAny]
  * @internal not part of the consumer API — a content op; build deltas via {@link create}/{@link DeltaBuilder}.
  */
 export class ModifyOp extends list.ListNode {
@@ -1088,7 +1088,7 @@ export class ModifyAttrOp {
   }
 
   /**
-   * @return {DeltaBuilder}
+   * @return {DeltaBuilder<any>}
    */
   get _modValue () {
     return modValue(this)
@@ -1403,8 +1403,8 @@ class DeltaData {
     this.name = /** @type {Name} */ (name)
     this.$schema = $schema
     /**
-     * @type {{ [K in keyof Attrs]?: K extends string|number ? (SetAttrOp<Attrs[K],K>|DeleteAttrOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Attrs[K] extends Delta ? ModifyAttrOp<Extract<Attrs[K],Delta>,K> : never))) : never }
-     *       & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (SetAttrOp<Attrs[K],K>|DeleteAttrOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Delta extends Attrs[K] ? ModifyAttrOp<Extract<Attrs[K],Delta>,K> : never))) : never }[keyof Attrs]> }
+     * @type {{ [K in keyof Attrs]?: K extends string|number ? (SetAttrOp<Attrs[K],K>|DeleteAttrOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Delta<any> extends Attrs[K] ? ModifyAttrOp<Extract<Attrs[K],Delta<any>>,K> : never))) : never }
+     *       & { [Symbol.iterator]: () => Iterator<{ [K in keyof Attrs]: K extends string|number ? (SetAttrOp<Attrs[K],K>|DeleteAttrOp<Attrs[K],K>|(Attrs[K] extends never ? never : (Delta<any> extends Attrs[K] ? ModifyAttrOp<Extract<Attrs[K],Delta<any>>,K> : never))) : never }[keyof Attrs]> }
      * }
      */
     this.attrs = /** @type {any} */ ({
@@ -1418,7 +1418,7 @@ class DeltaData {
     /**
      * @type {list.List<
      *   | (Text extends true ? (RetainOp|TextOp|DeleteOp<any>) : never)
-     *   | (RetainOp|InsertOp<Children>|DeleteOp<any>|(Delta extends Children ? ModifyOp<Extract<Children,Delta>> : never))
+     *   | (RetainOp|InsertOp<Children>|DeleteOp<any>|(Delta<any> extends Children ? ModifyOp<Extract<Children,Delta<any>>> : never))
      * >}
      */
     this.children = /** @type {any} */ (list.create())
@@ -2239,7 +2239,7 @@ export class DeltaBuilder extends Delta {
   }
 
   /**
-   * @template {Extract<DeltaConfGetAllowedChildren<Conf, FixedConf>,Delta|DeltaData<any,any,any,any>|DeltaBuilder>} NewContent
+   * @template {Extract<DeltaConfGetAllowedChildren<Conf, FixedConf>,Delta<any>|DeltaData<any,any,any,any>|DeltaBuilder<any>>} NewContent
    * @param {NewContent} modify
    * @param {Formats?} [formatting] tri-state: omit/`undefined` skip, `null` clear, `{k:v}`/`{k:null}` set/remove
    * @param {Attribution?} [attribution] tri-state: omit/`undefined` skip, `null` clear, `{k:v}`/`{k:null}` set/remove
@@ -3926,57 +3926,47 @@ export const create = (nodeNameOrSchema, attrsOrSchema, children) => {
 }
 
 /**
- * @template {string|null} NodeName
- * @template {Array<any>|string} [Children=never]
- * @overload
- * @param {NodeName} nodeName
- * @param {...Array<Children>} children
- * @return {DeltaBuilder<CondensedDeltaConf<NodeName,null,Children>>}
- */
-/**
- * @template {Array<any>|string} [Children=never]
- * @overload
- * @param {...Array<Children>} children
- * @return {DeltaBuilder<CondensedDeltaConf<null,null,Children>>}
- */
-/**
- * @template {{[k:string|number]:any}|null} Attrs
- * @template {Array<any>|string} [Children=never]
- * @overload
- * @param {Attrs} attrs
- * @param {...Array<Children>} children
- * @return {DeltaBuilder<CondensedDeltaConf<null,Attrs,Children>>}
- */
-/**
- * @template {string|null} NodeName
- * @template {{[k:string|number]:any}|null} Attrs
- * @template {Array<any>|string} [Children=never]
- * @overload
- * @param {NodeName} nodeName
- * @param {Attrs} attrs
- * @param {...Array<Children>} children
- * @return {DeltaBuilder<CondensedDeltaConf<NodeName,Attrs,Children>>}
- */
-/**
- * `...X` (not `Array<X>`) is the rest-parameter form — `@param {Array<X>} args` declares a single
- * array-typed parameter, which makes the overloads above incompatible with this signature. TS only
- * cross-checks overloads against the implementation for function declarations, so it stayed silent.
+ * Returns `any` because the resulting conf is computed by the call signatures of {@link from} at
+ * the type level only - as in a ts overload implementation, the body can't be checked against
+ * each of them.
  *
- * @param {...(string|null|{[K:string|number]:any}|Array<any>)} args
- * @return {DeltaBuilder<{}>}
+ * @param {...any} args
+ * @return {any}
  */
-export const from = (...args) => {
+const _from = (...args) => {
   const hasName = s.$string.check(args[0])
   let i = hasName ? 1 : 0
   const d = create(hasName ? /** @type {string} */ (args[0]) : null)
   if (s.$objectAny.check(args[i])) {
-    d.setAttrs(/** @type {any} */ (args[i++]))
+    d.setAttrs(args[i++])
   }
   for (; i < args.length; i++) {
-    d.insert(/** @type {any} */ (args[i]))
+    d.insert(args[i])
   }
   return d
 }
+
+/**
+ * Build a delta from positional args: an optional node name, optional attrs, then any number of
+ * children (each either a string or an array of embeds) - see {@link create} for the fixed-arity
+ * condensed form.
+ *
+ * Typed as a set of call signatures instead of `@overload` tags, because a rest parameter can't be
+ * declared consistently in an `@overload` tag: the checker only turns `@param {...X} children`
+ * into `X[]` if the implementation's rest parameter has the same name, otherwise it takes `X` as
+ * the type of the whole rest array - while the declaration emit always writes `...children: X[]`.
+ * lib0's source check and the consumers of the emitted declarations hence saw different
+ * signatures. `Children` is the tuple of all children arguments, so that string and array children
+ * can be mixed (`Children[number]` is the union of them).
+ *
+ * @type {{
+ *   <NodeName extends string|null, Children extends Array<Array<any>|string> = []>(nodeName: NodeName, ...children: Children): DeltaBuilder<CondensedDeltaConf<NodeName,null,Children[number]>>,
+ *   <Children extends Array<Array<any>|string> = []>(...children: Children): DeltaBuilder<CondensedDeltaConf<null,null,Children[number]>>,
+ *   <Attrs extends {[k:string|number]:any}|null, Children extends Array<Array<any>|string> = []>(attrs: Attrs, ...children: Children): DeltaBuilder<CondensedDeltaConf<null,Attrs,Children[number]>>,
+ *   <NodeName extends string|null, Attrs extends {[k:string|number]:any}|null, Children extends Array<Array<any>|string> = []>(nodeName: NodeName, attrs: Attrs, ...children: Children): DeltaBuilder<CondensedDeltaConf<NodeName,Attrs,Children[number]>>
+ * }}
+ */
+export const from = _from
 
 /**
  * Shorthand for `delta.create().insert(..)` — see {@link DeltaBuilder#insert}.

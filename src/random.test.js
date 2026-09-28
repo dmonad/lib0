@@ -18,6 +18,9 @@ export const testRandom = tc => {
 export const testUint32 = tc => {
   const iterations = 10000
   let largest = 0
+  /**
+   * @type {number}
+   */
   let smallest = number.HIGHEST_INT32
   let newNum = 0
   let lenSum = 0
