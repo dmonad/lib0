@@ -869,3 +869,46 @@ export const testTerminatedEncodering = _tc => {
   t.compare(readBuf1, buf1)
   t.compare(readBuf2, buf2)
 }
+
+/**
+ * A length prefix may not reach beyond the bytes the decoder was given.
+ *
+ * Before the bound, `readUint8Array` sliced `decoder.arr.buffer` -- the whole
+ * underlying ArrayBuffer -- so an over-declared length returned memory outside
+ * the message. Every small Node Buffer is a view into a shared 64 KiB slab, so
+ * in a server decoding frames from untrusted peers those bytes belonged to
+ * other connections.
+ *
+ * Note for anyone editing this test: the backing buffer must be large enough
+ * that the unbounded read would *succeed*, and filled with valid UTF-8, or the
+ * Uint8Array constructor / the fatal TextDecoder throws and the test passes for
+ * the wrong reason.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testReadUint8ArrayDoesNotReadPastTheView = _tc => {
+  const backing = new Uint8Array(1024)
+  backing.fill(0x41)
+  // a 4-byte "message" carrying 2 bytes of payload, as a view inside `backing`
+  const message = new Uint8Array(backing.buffer, 8, 4)
+  message[0] = 0x80 // varUint 512
+  message[1] = 0x04
+  message[2] = 0x41
+  message[3] = 0x41
+
+  t.fails(() => { decoding.readVarUint8Array(decoding.createDecoder(message)) })
+  t.fails(() => { decoding.readVarString(decoding.createDecoder(message)) })
+  t.fails(() => { decoding.readUint8Array(decoding.createDecoder(message), 5) })
+  t.fails(() => { decoding.readUint8Array(decoding.createDecoder(message), -1) })
+
+  // exact-fit and short reads still work
+  const decoder = decoding.createDecoder(message)
+  const exact = decoding.readUint8Array(decoder, 4)
+  t.assert(exact.length === 4)
+  t.assert(exact[0] === 0x80 && exact[3] === 0x41)
+
+  // readTailAsUint8Array passes exactly the remaining length, so it is unaffected
+  const decoder2 = decoding.createDecoder(message)
+  decoding.readUint8(decoder2)
+  t.assert(decoding.readTailAsUint8Array(decoder2).length === 3)
+}
