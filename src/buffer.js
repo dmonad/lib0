@@ -80,12 +80,13 @@ const fromBase64Browser = /* @__PURE__ */(() =>
 /* c8 ignore stop */
 
 /**
+ * Copies the result: small Buffers are allocated from Node's shared pool, and a view on it would expose unrelated
+ * memory via `.buffer`.
+ *
  * @param {string} s
+ * @return {Uint8Array<ArrayBuffer>}
  */
-const fromBase64Node = s => {
-  const buf = Buffer.from(s, 'base64')
-  return createUint8ArrayViewFromArrayBuffer(buf.buffer, buf.byteOffset, buf.byteLength)
-}
+const fromBase64Node = s => new Uint8Array(Buffer.from(s, 'base64'))
 
 /* c8 ignore next */
 export const toBase64 = /* @__PURE__ */(() => env.isBrowser ? toBase64Browser : toBase64Node)()

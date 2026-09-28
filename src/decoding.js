@@ -23,6 +23,10 @@
  * decoding.hasContent(decoder) // => false - all data is read
  * ```
  *
+ * Security: Decoders process untrusted input, and `decoder.arr` may be a view on a larger (possibly pooled) ArrayBuffer.
+ * Never create views via `new Uint8Array(arr.buffer, ..)` / `new DataView(arr.buffer, ..)`; use the private `subarray` /
+ * `subdataview` helpers, which throw on out-of-bounds access instead of exposing foreign memory.
+ *
  * @module decoding
  */
 
@@ -35,6 +39,42 @@ import * as encoding from './encoding.js'
 
 const errorUnexpectedEndOfArray = error.create('Unexpected end of array')
 const errorIntegerOutOfRange = error.create('Integer out of Range')
+
+/**
+ * Create a view of `len` bytes of `arr`, starting at `begin`. Throws if the range exceeds `arr`.
+ *
+ * Security: Always use this (or `subdataview`) instead of `new Uint8Array(arr.buffer, ..)`. `arr` may be a view on a
+ * larger (possibly shared/pooled) ArrayBuffer. An unchecked view could expose memory outside of `arr`.
+ *
+ * @template {ArrayBufferLike} Buf
+ * @param {Uint8Array<Buf>} arr
+ * @param {number} begin
+ * @param {number} len
+ * @return {Uint8Array<Buf>}
+ */
+const subarray = (arr, begin, len) => {
+  if (begin < 0 || len < 0 || begin + len > arr.length) {
+    throw errorUnexpectedEndOfArray
+  }
+  return new Uint8Array(arr.buffer, arr.byteOffset + begin, len)
+}
+
+/**
+ * Create a DataView of `len` bytes of `arr`, starting at `begin`. Throws if the range exceeds `arr`.
+ *
+ * Security: See `subarray`.
+ *
+ * @param {Uint8Array} arr
+ * @param {number} begin
+ * @param {number} len
+ * @return {DataView}
+ */
+const subdataview = (arr, begin, len) => {
+  if (begin < 0 || len < 0 || begin + len > arr.length) {
+    throw errorUnexpectedEndOfArray
+  }
+  return new DataView(arr.buffer, arr.byteOffset + begin, len)
+}
 
 /**
  * A Decoder handles the decoding of an Uint8Array.
@@ -103,10 +143,7 @@ export const clone = (decoder, newPos = decoder.pos) => {
  * @return {Uint8Array<Buf>}
  */
 export const readUint8Array = (decoder, len) => {
-  if (len < 0 || len > decoder.arr.length - decoder.pos) {
-    throw errorUnexpectedEndOfArray
-  }
-  const view = new Uint8Array(decoder.arr.buffer, decoder.pos + decoder.arr.byteOffset, len)
+  const view = subarray(decoder.arr, decoder.pos, len)
   decoder.pos += len
   return view
 }
@@ -437,7 +474,7 @@ export const peekVarString = decoder => {
  * @return {DataView}
  */
 export const readFromDataView = (decoder, len) => {
-  const dv = new DataView(decoder.arr.buffer, decoder.arr.byteOffset + decoder.pos, len)
+  const dv = subdataview(decoder.arr, decoder.pos, len)
   decoder.pos += len
   return dv
 }
