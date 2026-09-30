@@ -670,7 +670,12 @@ export class $Record extends Schema {
    * @return {o is { [key in Unwrap<Keys>]: Unwrap<Values> }}
    */
   check (o, err) {
-    return o != null && object.every(o, (vv, vk) => {
+    if (o === null || !object.isObject(o)) {
+      /* c8 ignore next */
+      err?.extend(null, 'Record', o === null ? 'null' : typeof o)
+      return false
+    }
+    return object.every(o, (vv, vk) => {
       const ck = this.shape.keys.check(vk, err)
       /* c8 ignore next */
       !ck && err?.extend(vk + '', 'Record', typeof o, ck ? 'Key doesn\'t match schema' : 'Value doesn\'t match value')

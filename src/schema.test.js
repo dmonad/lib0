@@ -108,6 +108,16 @@ export const testSchemas = _tc => {
     const myrecord2 = s.$record(s.$string, s.$number)
     const o = { a: 42 }
     t.assert(myrecord2.validate(o))
+    // non-object values have no enumerable keys, but they are not records
+    const myrecord3 = s.$record(s.$string, s.$any)
+    ;[1n, 1, true, 'abc', Symbol('x'), () => {}, null, undefined].forEach(v => {
+      t.assert(!myrecord3.check(v))
+    })
+    t.assert(myrecord3.check({}))
+    t.assert(!s.$json.check(1n))
+    t.assert(!s.$json.check({ a: 1n }))
+    t.assert(!s.$json.check({ a: [{ b: () => {} }] }))
+    t.assert(s.$json.check({ a: [{ b: 1 }], c: null }))
   })
   t.group('tuple', () => {
     const mytuple = s.$tuple(s.$number, s.$string)
