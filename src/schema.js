@@ -1033,21 +1033,30 @@ export const $number = /* @__PURE__ */$custom(o => typeof o === 'number')
 export const $$number = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$number', $number))
 
 /**
- * A number without fractional component (`Number.isInteger`). The unwrapped type is still
- * `number` - JS has no separate integer type.
+ * A number without fractional component in the safe integer range (`Number.isSafeInteger`,
+ * i.e. `|n| <= 2^53 - 1`). The unwrapped type is still `number` - JS has no separate integer type.
+ *
+ * The range restriction guarantees that every `$int` is exactly representable as a 64-bit
+ * signed integer (`BigInt(n)` is lossless, databases can store it in an `int64` / `BIGINT` column).
+ * Values like `1e20` are integers to `Number.isInteger`, but they are neither exact (every float
+ * beyond 2^53 rounds to a multiple of a power of two) nor storable in 64 bits, so they are
+ * rejected. Use `$number` for unbounded floats and `$bigint` for arbitrary-precision integers.
  *
  * @type {Schema<number>}
  */
-export const $int = /* @__PURE__ */$custom(o => number.isInteger(o))
+export const $int = /* @__PURE__ */$custom(o => number.isSafeInteger(o))
 export const $$int = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$int', $int))
 
 /**
- * An unsigned integer: a number without fractional component that is `>= 0`. The unwrapped type is
+ * An unsigned integer: a `$int` that is `>= 0` (so `0 <= n <= 2^53 - 1`). The unwrapped type is
  * still `number` - JS has no separate integer type.
+ *
+ * Like `$int`, every `$uint` is exactly representable as a 64-bit integer (signed or unsigned).
+ * See `$int` for why the range is restricted.
  *
  * @type {Schema<number>}
  */
-export const $uint = /* @__PURE__ */$custom(o => number.isInteger(o) && o >= 0)
+export const $uint = /* @__PURE__ */$custom(o => number.isSafeInteger(o) && o >= 0)
 export const $$uint = /** @type {Schema<Schema<number>>} */ (/* @__PURE__ */$type('s:$uint', $uint))
 
 /**
@@ -1430,11 +1439,11 @@ const _createCoercer = ($s, cache) => {
   if (_isMeta($$int, $s) || _isMeta($$uint, $s)) {
     const min = _isMeta($$uint, $s) ? 0 : -Infinity
     return (o, path, ctx) => {
-      if (number.isInteger(o) && o >= min) return o
+      if (number.isSafeInteger(o) && o >= min) return o
       const t = typeof o
       if (t === 'boolean' || t === 'bigint' || (t === 'string' && o.trim() !== '')) {
         const n = Number(o)
-        if (number.isInteger(n) && n >= min) return n
+        if (number.isSafeInteger(n) && n >= min) return n
       }
       return _fail(ctx, path, o, expected)
     }

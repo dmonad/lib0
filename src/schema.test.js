@@ -25,6 +25,13 @@ export const testSchemas = _tc => {
     t.assert(!s.$int.validate(4.5))
     t.assert(!s.$int.validate(NaN))
     t.assert(!s.$int.validate(Infinity))
+    // must be exactly representable as a 64bit integer (safe integer range)
+    t.assert(s.$int.validate(Number.MAX_SAFE_INTEGER))
+    t.assert(s.$int.validate(Number.MIN_SAFE_INTEGER))
+    t.assert(!s.$int.validate(Number.MAX_SAFE_INTEGER + 1))
+    t.assert(!s.$int.validate(Number.MIN_SAFE_INTEGER - 1))
+    t.assert(!s.$int.validate(1e20))
+    t.assert(!s.$int.validate(-1e20))
     // @ts-expect-error
     t.assert(!s.$int.validate(BigInt(42)))
     // @ts-expect-error
@@ -39,6 +46,10 @@ export const testSchemas = _tc => {
     t.assert(!s.$uint.validate(4.5))
     t.assert(!s.$uint.validate(NaN))
     t.assert(!s.$uint.validate(Infinity))
+    // must be exactly representable as a 64bit integer (safe integer range)
+    t.assert(s.$uint.validate(Number.MAX_SAFE_INTEGER))
+    t.assert(!s.$uint.validate(Number.MAX_SAFE_INTEGER + 1))
+    t.assert(!s.$uint.validate(1e20))
     // @ts-expect-error
     t.assert(!s.$uint.validate(BigInt(42)))
     // @ts-expect-error
@@ -787,6 +798,9 @@ export const testCoercePrimitives = () => {
     _coerceFails(s.$int, 4.5, '4.5 doesn\'t match int')
     _coerceFails(s.$int, '4.5', '"4.5" doesn\'t match int')
     _coerceFails(s.$int, NaN, 'NaN doesn\'t match int')
+    _coerceFails(s.$int, 1e20, '100000000000000000000 doesn\'t match int')
+    _coerceFails(s.$int, '1e20', '"1e20" doesn\'t match int')
+    _coerceFails(s.$int, BigInt('100000000000000000000'), '100000000000000000000 doesn\'t match int')
     _coerceFails(s.$int, '', '"" doesn\'t match int')
     _coerceFails(s.$int, null, 'null doesn\'t match int')
   })
@@ -799,6 +813,8 @@ export const testCoercePrimitives = () => {
     _coerceFails(s.$uint, -7, '-7 doesn\'t match uint')
     _coerceFails(s.$uint, '-7', '"-7" doesn\'t match uint')
     _coerceFails(s.$uint, 4.5, '4.5 doesn\'t match uint')
+    _coerceFails(s.$uint, 1e20, '100000000000000000000 doesn\'t match uint')
+    _coerceFails(s.$uint, '1e20', '"1e20" doesn\'t match uint')
     _coerceFails(s.$uint, '', '"" doesn\'t match uint')
     _coerceFails(s.$uint, null, 'null doesn\'t match uint')
   })

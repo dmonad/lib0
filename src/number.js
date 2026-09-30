@@ -14,6 +14,7 @@ export const HIGHEST_INT32 = binary.BITS31
 export const HIGHEST_UINT32 = binary.BITS32
 
 export const isInteger = Number.isInteger
+export const isSafeInteger = Number.isSafeInteger
 export const isNaN = Number.isNaN
 export const parseInt = Number.parseInt
 
