@@ -406,6 +406,8 @@ export class TextOp extends list.ListNode {
       encoding.writeVarString(encoder, this.insert)
       encoding.writeAny(encoder, this.format)
       encoding.writeAny(encoder, this.attribution)
+      // UTF-8 replaces lone surrogates with U+FFFD; JSON escapes them losslessly.
+      if (/[\uD800-\uDFFF]/u.test(this.insert)) encoding.writeVarString(encoder, JSON.stringify(this.insert))
     })))
   }
 
@@ -4268,6 +4270,19 @@ const commonUnits = (a, ai, b, bi, max, back) => {
 }
 
 /**
+ * Check within and between adjacent text ops, regardless of style.
+ * @param {TextOp} op
+ * @param {number} offset
+ */
+const splitsSurrogatePair = (op, offset) => {
+  const prev = op.prev
+  const next = op.next
+  const high = offset === 0 && $textOp.check(prev) ? prev.insert.charCodeAt(prev.length - 1) : op.insert.charCodeAt(offset - 1)
+  const low = offset === op.length && $textOp.check(next) ? next.insert.charCodeAt(0) : op.insert.charCodeAt(offset)
+  return high >= 0xd800 && high <= 0xdbff && low >= 0xdc00 && low <= 0xdfff
+}
+
+/**
  * Where a lockstep walk of two states stands: the current op of each side and the units of it already
  * consumed from the walked end.
  *
@@ -4312,6 +4327,11 @@ const commonLen = (c, max, back) => {
       const end = start + k
       const nl = back ? s.indexOf('\n', start) : s.lastIndexOf('\n', end - 1)
       k = nl < start || nl >= end ? 0 : back ? end - nl - 1 : nl - start + 1
+      max = len + k
+    }
+    // Leave whole code points in the interior when a hint or op boundary divides a pair.
+    if ($textOp.check(a) && $textOp.check(b) && (splitsSurrogatePair(a, back ? a.length - ai - k : ai + k) || splitsSurrogatePair(b, back ? b.length - bi - k : bi + k))) {
+      k--
       max = len + k
     }
     len += k
@@ -4486,7 +4506,8 @@ export const diff = (d1, d2, options = {}) => {
     let changeset = [{ index: prefixLen, insert: cs2, remove: cs1 }]
     changeset = diffChangesetWithSeparator(changeset, /[\n]+/g, leftmostIndex)
     changeset = diffChangesetWithSeparator(changeset, patience.smartSplitRegex, leftmostIndex)
-    changeset = diffChangesetWithSeparator(changeset, /./g, leftmostIndex)
+    // Match code points, including line terminators; emitted lengths remain UTF-16.
+    changeset = diffChangesetWithSeparator(changeset, /./gsu, leftmostIndex)
     applyChangesetToDelta(d, changeset, c, prefixLen, n - suffixLen, options)
     applyAttrDiff(d, d1, d2, options)
   }
