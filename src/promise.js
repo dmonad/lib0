@@ -35,6 +35,15 @@ export const createEmpty = f => new Promise(f)
 export const all = Promise.all.bind(Promise)
 
 /**
+ * `Promise.race` resolves or rejects with the first promise in the array that settles
+ * @template {unknown[] | []} PS
+ *
+ * @param {PS} ps
+ * @return {Promise<Awaited<PS[number]>>}
+ */
+export const race = Promise.race.bind(Promise)
+
+/**
  * @param {Error} [reason]
  * @return {Promise<never>}
  */

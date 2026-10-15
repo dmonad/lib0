@@ -77,3 +77,16 @@ export const testTypings = async _tc => {
   const b = ps[1]
   t.assert(typeof a === 'number' && typeof b === 'string')
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testRace = async _tc => {
+  const res = await promise.race([promise.wait(20).then(() => 'slow'), promise.wait(1).then(() => 'fast')])
+  /**
+   * @type {string}
+   */
+  const typed = res
+  t.assert(typed === 'fast')
+  await t.failsAsync(() => promise.race([promise.wait(20), promise.reject(new Error('first'))]))
+}
