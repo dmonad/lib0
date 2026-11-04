@@ -39,8 +39,11 @@ let usePolyfill = true
 
 /* c8 ignore start */
 try {
-  // if the same-origin rule is violated, accessing localStorage might thrown an error
-  if (typeof localStorage !== 'undefined' && localStorage) {
+  // Only probe localStorage in a window context. Node.js (>= 25) also defines a `localStorage`
+  // global, but accessing it (even via `typeof`) emits an ExperimentalWarning unless
+  // `--localstorage-file` is set. See https://github.com/dmonad/lib0/issues/146
+  // If the same-origin rule is violated, accessing localStorage might throw an error.
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined' && localStorage) {
     _localStorage = localStorage
     usePolyfill = false
   }
