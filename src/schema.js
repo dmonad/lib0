@@ -946,7 +946,7 @@ export const $$union = /** @type {Schema<$Union<any>>} */ (/* @__PURE__ */$type(
  *     | Primitives
  *     | (Constructors extends new (...args:any[])=>any ? InstanceType<Constructors> : never)
  *     | (Arrs extends any[] ? { [K in keyof Arrs]: ReadSchemaUnwrapped<Arrs[K]> }[keyof Arrs & number] : never)
- *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]:Schema<ReadSchemaUnwrapped<Obj[K]>>}> : never))
+ *     | (Obj extends object ? _ObjectDefToSchema<{[K in keyof Obj]: Obj[K] extends $Optional<Schema<any>> ? Obj[K] : Schema<ReadSchemaUnwrapped<Obj[K]>>}> : never))
  *   : never
  * } ReadSchemaUnwrapped
  */

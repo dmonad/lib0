@@ -461,6 +461,14 @@ export const testConvenienceHelper = () => {
   const $o2Cpy = s.$object({ x: s.$number.optional })
   t.assert(s.extendsShape($o2, $o2Cpy))
   t.assert($o2.check({}))
+  // optional properties must be inferred as optional keys (no widening @type annotation here)
+  const $o3 = s.$({ x: s.$number.optional, y: s.$string, n: { m: s.$number.optional } })
+  t.assert($o3.validate({ y: 'str', n: {} }))
+  // @ts-expect-error y is required
+  t.assert(!$o3.validate({ n: {} }))
+  const $o3Cpy = s.$object({ x: s.$number.optional, y: s.$string, n: s.$object({ m: s.$number.optional }) })
+  t.assert($o3Cpy.validate({ y: 'str', n: {} }))
+  t.assert(/** @type {import('./ts.js').Assert<import('./ts.js').Equal<s.Unwrap<typeof $o3>, s.Unwrap<typeof $o3Cpy>>>} */ (true))
 }
 
 export const testPatternMatcherBase = () => {
