@@ -37,34 +37,42 @@ export const testIrreducibleInput = _tc => {
 }
 
 /**
- * @param {t.TestCase} _tc
+ * @param {gf2.GF2Polynomial} p
  */
-export const testIrreducibleSpread = _tc => {
-  const degree = 32
-  const N = 500
-  const avgSpread = getSpreadAverage(degree, N)
-  const diffSpread = math.abs(avgSpread - degree)
-  t.info(`Average spread for degree ${degree} at ${N} repetitions: ${avgSpread}`)
-  t.assert(diffSpread < 5, 'Spread of irreducible polynomials is within expected range')
-}
+const polynomialToUint = p => array.fold(array.from(p.degrees), 0, (acc, degree) => acc | (1 << degree))
 
 /**
- * @param {number} degree
- * @param {number} tests
+ * Number of irreducible polynomials over GF(2) of degree n = 1, 2, 3, … (OEIS A001037).
  */
-const getSpreadAverage = (degree, tests) => {
-  const spreads = []
-  for (let i = 0, test = 0, lastI = 0; test < tests; i++) {
-    const f = gf2.createRandom(degree)
-    t.assert(gf2.getHighestDegree(f) === degree)
-    if (gf2.isIrreducibleBenOr(f)) {
-      const spread = i - lastI
-      spreads.push(spread)
-      lastI = i
-      test++
+const irreducibleCounts = [2, 1, 2, 3, 6, 9, 18, 30, 56, 99, 186, 335]
+
+/**
+ * Exhaustively check Ben-Or against a sieve for every polynomial of degree 1..12. The reducible
+ * polynomials of degree n are exactly the products a·b with 1 ≤ deg(a) ≤ n/2 and deg(b) = n - deg(a).
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testIrreducibleExhaustive = _tc => {
+  for (let n = 1; n <= irreducibleCounts.length; n++) {
+    /**
+     * @type {Set<number>}
+     */
+    const reducible = new Set()
+    for (let d = 1; d <= n / 2; d++) {
+      for (let a = 1 << d; a < 2 << d; a++) {
+        for (let b = 1 << (n - d); b < 2 << (n - d); b++) {
+          reducible.add(polynomialToUint(gf2.multiply(gf2.createFromUint(a), gf2.createFromUint(b))))
+        }
+      }
     }
+    let irreducible = 0
+    for (let f = 1 << n; f < 2 << n; f++) {
+      const isIrreducible = gf2.isIrreducibleBenOr(gf2.createFromUint(f))
+      t.assert(isIrreducible === !reducible.has(f), `Ben-Or misclassifies ${f.toString(2)}`)
+      if (isIrreducible) irreducible++
+    }
+    t.compare(irreducible, irreducibleCounts[n - 1], `number of irreducible polynomials of degree ${n}`)
   }
-  return array.fold(spreads, 0, math.add) / tests
 }
 
 /**
@@ -88,11 +96,24 @@ export const testGenerateIrreducibles = _tc => {
   testIrreducibleGen(4)
   testIrreducibleGen(8)
   testIrreducibleGen(16)
-  gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible8))
-  gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible16))
-  gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible32))
-  gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible64))
-  gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible128))
+  t.assert(gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible8)))
+  t.assert(gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible16)))
+  t.assert(gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible32)))
+  t.assert(gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible64)))
+  t.assert(gf2.isIrreducibleBenOr(gf2.createFromBytes(rabin.StandardIrreducible128)))
+}
+
+/**
+ * A product of two irreducible polynomials of degree n/2 has no factor of smaller degree, so only
+ * the final Ben-Or step (i = n/2) can detect that it is reducible.
+ *
+ * @param {t.TestCase} _tc
+ */
+export const testReducibleProductOfHalfDegree = _tc => {
+  const p8 = gf2.createFromBytes(rabin.StandardIrreducible8)
+  const p16 = gf2.createFromBytes(rabin.StandardIrreducible16)
+  t.assert(!gf2.isIrreducibleBenOr(gf2.multiply(p8, p8)))
+  t.assert(!gf2.isIrreducibleBenOr(gf2.multiply(p16, p16)))
 }
 
 /**

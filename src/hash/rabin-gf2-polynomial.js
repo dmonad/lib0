@@ -326,7 +326,7 @@ const reduceExponent = (f, p) => {
  */
 export const isIrreducibleBenOr = p => {
   const degree = getHighestDegree(p)
-  for (let i = 1; i < degree / 2; i++) {
+  for (let i = 1; i <= degree / 2; i++) {
     const b = reduceExponent(p, i)
     const g = gcd(p, b)
     if (!equals(g, ONE)) {
