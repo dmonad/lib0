@@ -906,6 +906,93 @@ export const testDiffingCommonPreSuffix = () => {
   t.compare(d, delta.retain(3).delete(1))
 }
 
+/** @param {t.TestCase} _tc */
+export const testDiffSurrogates = _tc => {
+  // Exact operations matter: a JS round-trip can hide a retained high surrogate plus inserted low surrogate.
+  const cases = [
+    ['Emoji probe ', '🚀', '🐈', ''], // shared high surrogate
+    ['x', '😀', '🨀', 'z'], // shared low surrogate
+    ['', '', '🐈', ''], ['abc', '', '🐈', ''], ['', '', '🐈', 'abc'],
+    ['🚀', '🚀', '🐈', '🚀'], ['é漢\r\n', '🚀', '🐈', '\u2028😀\u2029z'],
+    ['ab', 'c', 'X', '漢é'],
+    ['x', '\ud83d', '\ud83e', 'z'], ['x', '\udc08', '\ude80', 'z'],
+    ['', '\ud83d', '�', ''], ['', '\udc08', '�', ''],
+    ['', '\ud83d', '🐈', ''], ['', '\udc08', '🐈', '']
+  ]
+  for (const [prefix, a, b, suffix] of cases) {
+    for (const [from, to] of [[a, b], [b, a]]) {
+      const start = delta.insert(prefix + from + suffix)
+      const end = delta.insert(prefix + to + suffix)
+      const expected = delta.retain(prefix.length).delete(from.length).insert(to).done()
+      t.compare(delta.diff(start, end), expected)
+      for (let i = 0; i <= start.childCnt + 1; i++) {
+        t.compare(delta.diff(start, end, { hint: position.create([i]) }), expected)
+      }
+      t.compare(delta.clone(start).apply(expected), end)
+    }
+  }
+  t.compare(delta.diff(delta.insert('🚀🚀🚀'), delta.insert('🚀🚀'), { hint: position.create([2]) }), delta.retain(2).delete(2))
+  const a = delta.create('p').insert('x🚀z')
+  const b = delta.create('p').insert('x🐈z')
+  const change = delta.create('p').retain(1).delete(2).insert('🐈')
+  t.compare(delta.diff(delta.insert([a]), delta.insert([b]), { hint: position.create([0, 2]) }), delta.modify(change))
+  t.compare(delta.diff(delta.setAttr('body', a), delta.setAttr('body', b), { hint: position.create(['body', 2]) }), delta.modifyAttr('body', change))
+}
+
+/** @param {t.TestCase} _tc */
+export const testDiffSurrogateTextOps = _tc => {
+  const a = delta.insert('prefix ', { bold: true }, { insert: ['alice'] }).insert('🚀', { italic: true }, { insert: ['alice'] }).insert(' suffix')
+  const b = delta.insert('prefix ', { bold: true }, { insert: ['alice'] }).insert('🐈', { bold: true }, { insert: ['bob'] }).insert(' suffix')
+  // Include pre-existing style/attribution boundaries between surrogate units.
+  const cases = [
+    [a, b, delta.retain(7).delete(2).insert('🐈', { bold: true }, { insert: ['bob'] })],
+    [b, a, delta.retain(7).delete(2).insert('🚀', { italic: true }, { insert: ['alice'] })],
+    [delta.insert('x\ud83d').insert('\ude80', { bold: true }), delta.insert('x\ud83d').insert('\udc08', { bold: true }), delta.retain(1).delete(2).insert('\ud83d').insert('\udc08', { bold: true })],
+    [delta.insert('\ud83d', { bold: true }).insert('\ude00z'), delta.insert('\ud83e', { bold: true }).insert('\ude00z'), delta.delete_(2).insert('\ud83e', { bold: true }).insert('\ude00')],
+    [delta.insert('x\ud83d', undefined, { insert: ['a'] }).insert('\ude80', undefined, { insert: ['b'] }), delta.insert('x🐈', undefined, { insert: ['b'] }), delta.retain(1, undefined, { insert: ['b'] }).delete(2).insert('🐈', undefined, { insert: ['b'] })]
+  ]
+  for (const [start, end, expected] of cases) {
+    t.compare(delta.diff(start, end), expected)
+    t.compare(delta.clone(start).apply(expected), end)
+    t.compare(delta.clone(end).apply(delta.diff(end, start)), start)
+  }
+  const restyled = delta.insert('prefix ').insert('🚀', { bold: true }, { insert: ['bob'] }).insert(' suffix')
+  const change = delta.diff(a, restyled)
+  t.assert([...change.children].every(op => delta.$retainOp.check(op)))
+  t.compare(delta.clone(a).apply(change), restyled)
+}
+
+/** @param {t.TestCase} tc */
+export const testRepeatDiffSurrogateText = tc => {
+  const chars = ['a', 'b', 'é', '漢', ' ', '\n', '\r', '\u2028', '\u2029', '🚀', '🐈', '😀', '🨀', '👩', '\u200d', '💻', '🏽', '️']
+  const state = () => {
+    const parts = Array.from({ length: prng.int32(tc.prng, 0, 30) }, () => prng.oneOf(tc.prng, chars))
+    const d = delta.create()
+    parts.forEach(c => d.insert(c, prng.bool(tc.prng) ? { bold: true } : undefined, prng.bool(tc.prng) ? { insert: ['alice'] } : { insert: ['bob'] }))
+    return { d, text: parts.join('') }
+  }
+  const a = state()
+  const b = state()
+  const change = delta.diff(a.d, b.d, { hint: position.create([prng.int32(tc.prng, 0, a.text.length + 1)]) })
+  t.compare(delta.clone(a.d).apply(change), b.d)
+  let ai = 0
+  let bi = 0
+  for (const op of change.children) {
+    if (delta.$retainOp.check(op)) {
+      ai += op.retain
+      bi += op.retain
+    } else if (delta.$deleteOp.check(op)) {
+      ai += op.delete
+    } else if (delta.$textOp.check(op)) {
+      t.assert(!/[\uD800-\uDFFF]/u.test(op.insert), 'insert contains whole code points')
+      bi += op.length
+    } else {
+      t.fail('expected text-only diff')
+    }
+    t.assert((a.text.codePointAt(ai - 1) ?? 0) <= 0xffff && (b.text.codePointAt(bi - 1) ?? 0) <= 0xffff, 'operation does not split a surrogate pair')
+  }
+}
+
 export const testSlice = () => {
   const d1 = delta.slice(delta.insert('abcde'), 1, 3)
   t.assert(d1.equals(delta.insert('bc')))
